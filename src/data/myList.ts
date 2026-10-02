@@ -18,6 +18,10 @@ export interface ListEntry {
   addedAt: number
   /** когда последний раз меняли статус, для синхронизации между устройствами */
   updatedAt?: number
+  /** оценка пользователя от 1 до 10 */
+  rating?: number
+  /** когда поставили оценку, для «Истории оценок» */
+  ratedAt?: number
 }
 
 const store = createLocalStore<ListEntry[]>('anime.mylist.v1', [])
@@ -42,6 +46,7 @@ export function setListStatus(anime: Anime, status: ListStatus | undefined) {
   const prev = store.get().find((e) => e.anime.id === anime.id)
   store.set([
     {
+      ...prev,
       anime: { id, title, year, kind, episodes, ongoing, score, posterUrl, posterFill },
       status,
       addedAt: prev?.addedAt ?? Date.now(),
@@ -49,4 +54,14 @@ export function setListStatus(anime: Anime, status: ListStatus | undefined) {
     },
     ...rest,
   ])
+}
+
+/** Оценка тайтла из списка. Без оценки (undefined) запись остаётся в списке. */
+export function setListRating(animeId: string, rating: number | undefined) {
+  const now = Date.now()
+  store.set(
+    store
+      .get()
+      .map((e) => (e.anime.id === animeId ? { ...e, rating, ratedAt: rating ? now : undefined, updatedAt: now } : e)),
+  )
 }

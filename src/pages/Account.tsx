@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { authErrorMessage, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
+import ProfileStats from '../components/ProfileStats'
 import { SOCIAL_LOGIN } from '../api/appwrite'
 import {
   signInWithOAuth,
@@ -254,7 +255,7 @@ export default function Account() {
   return (
     <main className="container home">
       <section className="stack auth-page">
-        <h1 className="page-title">{user ? 'Аккаунт' : 'Вход'}</h1>
+        <h1 className="page-title">{user ? 'Профиль' : 'Вход'}</h1>
         {user ? (
           <div className="auth-card stack">
             <div>
@@ -288,6 +289,7 @@ export default function Account() {
           <AuthForm />
         )}
       </section>
+      {(user || list.length > 0) && <ProfileStats />}
     </main>
   )
 }

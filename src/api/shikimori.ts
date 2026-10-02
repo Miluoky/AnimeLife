@@ -449,3 +449,53 @@ export async function fetchCharacters(id: string): Promise<Character[]> {
     .sort((a, b) => Number(b.main) - Number(a.main))
     .slice(0, 16)
 }
+
+/** Что нужно для статистики профиля: длительность серий и жанры. */
+export interface StatsInfo {
+  episodes: number
+  episodesAired: number
+  /** минут в серии */
+  duration: number
+  kind: string
+  genres: string[]
+}
+
+interface GraphqlStats {
+  data?: {
+    animes: {
+      id: string
+      episodes: number
+      episodesAired: number
+      duration: number | null
+      kind: string | null
+      genres: { russian: string; kind: string }[] | null
+    }[]
+  }
+}
+
+/** Жанры и длительность для пачки тайтлов: одним GraphQL-запросом на каждые 50 штук. */
+export async function fetchStatsInfo(ids: string[]): Promise<Map<string, StatsInfo>> {
+  const out = new Map<string, StatsInfo>()
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50)
+    const query = `{ animes(ids: "${chunk.join(',')}", limit: ${chunk.length}) { id episodes episodesAired duration kind genres { russian kind } } }`
+    const res = await request<GraphqlStats>(new URL('/api/graphql', SHIKIMORI_URL), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    })
+    for (const a of res.data?.animes ?? []) {
+      out.set(a.id, {
+        episodes: a.episodes,
+        episodesAired: a.episodesAired,
+        duration: a.duration ?? 0,
+        kind: kinds[a.kind ?? ''] ?? a.kind ?? '',
+        // «Сёнен», «Сэйнэн» и т. п. говорят об аудитории, а «Удостоено наград» о премиях: это не жанры.
+        genres: (a.genres ?? [])
+          .filter((g) => g.kind !== 'demographic' && g.russian !== 'Удостоено наград')
+          .map((g) => g.russian),
+      })
+    }
+  }
+  return out
+}

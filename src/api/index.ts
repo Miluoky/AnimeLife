@@ -11,6 +11,7 @@ import {
   fetchSchedule,
   fetchScreenshots,
   fetchSimilar,
+  fetchStatsInfo,
   fetchWatchLinks,
   type CatalogOrder,
   type Character,
@@ -20,10 +21,22 @@ import {
   type Genre,
   type Related,
   type ScheduleItem,
+  type StatsInfo,
   type WatchLink,
 } from './shikimori'
 
-export type { CatalogOrder, CatalogQuery, Character, Genre, Related, ScheduleItem, ScoreStats, TitleVideo, WatchLink }
+export type {
+  CatalogOrder,
+  CatalogQuery,
+  Character,
+  Genre,
+  Related,
+  ScheduleItem,
+  ScoreStats,
+  StatsInfo,
+  TitleVideo,
+  WatchLink,
+}
 
 export interface Loaded<T> {
   data: T
@@ -142,4 +155,22 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
   return state
+}
+
+/** Данные для статистики профиля. Демо-тайтлы берём из демо-каталога, без сети статистика будет неполной. */
+export async function loadStatsInfo(ids: string[]): Promise<Map<string, StatsInfo>> {
+  const real = ids.filter((id) => !isDemoId(id))
+  const out = await fetchStatsInfo(real).catch(() => new Map<string, StatsInfo>())
+  for (const id of ids.filter(isDemoId)) {
+    const a = getDemoAnime(id)
+    if (a)
+      out.set(id, {
+        episodes: a.episodes ?? 0,
+        episodesAired: a.episodesAired ?? 0,
+        duration: a.episodeMinutes ?? 24,
+        kind: a.kind,
+        genres: a.genres,
+      })
+  }
+  return out
 }
