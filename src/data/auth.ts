@@ -1,0 +1,168 @@
+import { useSyncExternalStore } from 'react'
+import { AppwriteException, ID, type Models } from 'appwrite'
+import { account } from '../api/appwrite'
+import { historyStore, type HistoryEntry } from './history'
+import { listStore, removedStore, type ListEntry } from './myList'
+
+/**
+ * Аккаунт и синхронизация. «Мой список» и история просмотра лежат в настройках пользователя
+ * Appwrite (prefs, до 64 КБ): отдельная база для этого не нужна. В браузере остаётся копия,
+ * поэтому сайт работает и без входа, и без сети.
+ */
+interface SyncedPrefs {
+  list?: ListEntry[]
+  removed?: Record<string, number>
+  history?: HistoryEntry[]
+}
+
+const REMOVED_TTL = 90 * 24 * 3600 * 1000
+
+export type User = Models.User<Models.Preferences>
+
+interface AuthState {
+  /** true, пока не выяснили, вошёл ли пользователь */
+  checking: boolean
+  user: User | null
+  /** ошибка последней синхронизации, если была */
+  syncError?: string
+}
+
+let state: AuthState = { checking: true, user: null }
+const listeners = new Set<() => void>()
+
+function setState(next: Partial<AuthState>) {
+  state = { ...state, ...next }
+  listeners.forEach((l) => l())
+}
+
+export function useAuth(): AuthState {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
+    () => state,
+  )
+}
+
+const changedAt = (e: ListEntry) => e.updatedAt ?? e.addedAt
+
+function mergeRemoved(a: Record<string, number>, b: Record<string, number>) {
+  const oldest = Date.now() - REMOVED_TTL
+  const out: Record<string, number> = {}
+  for (const [id, at] of [...Object.entries(a), ...Object.entries(b)]) {
+    if (at > oldest && at > (out[id] ?? 0)) out[id] = at
+  }
+  return out
+}
+
+// Объединяем по тайтлу: остаётся более свежая запись, а удалённые позже последнего изменения выпадают.
+function mergeList(a: ListEntry[], b: ListEntry[], removed: Record<string, number>): ListEntry[] {
+  const byId = new Map<string, ListEntry>()
+  for (const e of [...a, ...b]) {
+    const prev = byId.get(e.anime.id)
+    if (!prev || changedAt(e) > changedAt(prev)) byId.set(e.anime.id, e)
+  }
+  return [...byId.values()]
+    .filter((e) => !(removed[e.anime.id] > changedAt(e)))
+    .sort((x, y) => changedAt(y) - changedAt(x))
+}
+
+function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
+  const byId = new Map<string, HistoryEntry>()
+  for (const e of [...a, ...b]) {
+    const prev = byId.get(e.animeId)
+    if (!prev || e.updatedAt > prev.updatedAt) byId.set(e.animeId, e)
+  }
+  return [...byId.values()].sort((x, y) => y.updatedAt - x.updatedAt).slice(0, 12)
+}
+
+let pushTimer: ReturnType<typeof setTimeout> | undefined
+let applyingRemote = false
+
+async function push() {
+  if (!state.user) return
+  try {
+    const prefs: SyncedPrefs = { list: listStore.get(), removed: removedStore.get(), history: historyStore.get() }
+    const user = await account.updatePrefs({ ...state.user.prefs, ...prefs })
+    setState({ user, syncError: undefined })
+  } catch (e) {
+    setState({ syncError: e instanceof Error ? e.message : String(e) })
+  }
+}
+
+// Каждое изменение списка или истории уходит в аккаунт, пачкой раз в секунду.
+function schedulePush() {
+  if (!state.user || applyingRemote) return
+  clearTimeout(pushTimer)
+  pushTimer = setTimeout(push, 1000)
+}
+listStore.subscribe(schedulePush)
+historyStore.subscribe(schedulePush)
+
+/** После входа: объединить то, что было в браузере, с тем, что уже лежит в аккаунте. */
+async function adopt(user: User) {
+  const remote = user.prefs as SyncedPrefs
+  applyingRemote = true
+  const removed = mergeRemoved(remote.removed ?? {}, removedStore.get())
+  removedStore.set(removed)
+  listStore.set(mergeList(remote.list ?? [], listStore.get(), removed))
+  historyStore.set(mergeHistory(remote.history ?? [], historyStore.get()))
+  applyingRemote = false
+  setState({ checking: false, user })
+  await push()
+}
+
+async function refresh() {
+  try {
+    await adopt(await account.get())
+  } catch {
+    setState({ checking: false, user: null })
+  }
+}
+
+if (typeof window !== 'undefined') {
+  void refresh()
+  // Вернулись на вкладку: подтягиваем то, что могли поменять на другом устройстве.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.user) void refresh()
+  })
+}
+
+const messages: Record<string, string> = {
+  user_invalid_credentials: 'Неверная почта или пароль.',
+  user_already_exists: 'Аккаунт с этой почтой уже есть. Войдите в него.',
+  user_password_mismatch: 'Пароли не совпадают.',
+  password_recently_used: 'Этот пароль уже использовался, придумайте другой.',
+  password_personal_data: 'Пароль не должен содержать имя или почту.',
+  general_rate_limit_exceeded: 'Слишком много попыток. Подождите немного и попробуйте снова.',
+  general_argument_invalid: 'Проверьте поля: пароль должен быть не короче 8 символов.',
+  general_unknown_origin: 'Сайт ещё не добавлен в настройки Appwrite, вход пока не работает.',
+}
+
+/** Понятное сообщение для формы входа. */
+export function authErrorMessage(e: unknown): string {
+  if (e instanceof AppwriteException) return messages[e.type] ?? e.message
+  return 'Не получилось связаться с сервером. Проверьте интернет и попробуйте ещё раз.'
+}
+
+export async function signIn(email: string, password: string) {
+  await account.createEmailPasswordSession({ email, password })
+  await refresh()
+}
+
+export async function signUp(name: string, email: string, password: string) {
+  await account.create({ userId: ID.unique(), email, password, name: name || undefined })
+  await signIn(email, password)
+}
+
+export async function signOut() {
+  clearTimeout(pushTimer)
+  await push()
+  try {
+    await account.deleteSession({ sessionId: 'current' })
+  } finally {
+    // Список остаётся в браузере: выход не должен ничего стирать.
+    setState({ user: null, syncError: undefined })
+  }
+}

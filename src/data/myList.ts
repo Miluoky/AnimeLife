@@ -16,15 +16,25 @@ export interface ListEntry {
   anime: AnimeCard
   status: ListStatus
   addedAt: number
+  /** когда последний раз меняли статус, для синхронизации между устройствами */
+  updatedAt?: number
 }
 
 const store = createLocalStore<ListEntry[]>('anime.mylist.v1', [])
 
 export const useMyList = store.use
 
+/** Удалённые тайтлы и время удаления: чтобы при синхронизации они не вернулись с другого устройства. */
+const removedStore = createLocalStore<Record<string, number>>('anime.mylist.removed.v1', {})
+
+/** Для синхронизации с аккаунтом. */
+export const listStore = store
+export { removedStore }
+
 export function setListStatus(anime: Anime, status: ListStatus | undefined) {
   const rest = store.get().filter((e) => e.anime.id !== anime.id)
   if (!status) {
+    removedStore.set({ ...removedStore.get(), [anime.id]: Date.now() })
     store.set(rest)
     return
   }
@@ -35,6 +45,7 @@ export function setListStatus(anime: Anime, status: ListStatus | undefined) {
       anime: { id, title, year, kind, episodes, ongoing, score, posterUrl, posterFill },
       status,
       addedAt: prev?.addedAt ?? Date.now(),
+      updatedAt: Date.now(),
     },
     ...rest,
   ])

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { listStatuses, useMyList, type ListStatus } from '../data/myList'
+import { useAuth } from '../data/auth'
 import PosterCard from '../components/PosterCard'
 
 export default function MyList() {
   const list = useMyList()
+  const { user } = useAuth()
   const [tab, setTab] = useState<ListStatus>('watching')
   const items = list.filter((e) => e.status === tab)
 
@@ -46,12 +48,20 @@ export default function MyList() {
                 ? 'В этом разделе пока пусто.'
                 : 'Здесь будут тайтлы, которые вы отметили. Откройте любой тайтл и выберите статус в кнопке «В мой список».'}
             </p>
-            <Link to="/" className="btn btn--accent">
+            <Link to="/catalog" className="btn btn--accent">
               Перейти в каталог
             </Link>
           </div>
         )}
-        <p className="muted source-note">Список хранится в этом браузере.</p>
+        <p className="muted source-note">
+          {user ? (
+            'Список сохраняется в вашем аккаунте и одинаков на всех устройствах.'
+          ) : (
+            <>
+              Список хранится в этом браузере. <Link to="/account">Войдите</Link>, чтобы он был на всех устройствах.
+            </>
+          )}
+        </p>
       </section>
     </main>
   )

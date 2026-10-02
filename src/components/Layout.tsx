@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { CloseIcon, MenuIcon, UserIcon } from './Icons'
 import SearchBox from './SearchBox'
+import { useAuth } from '../data/auth'
 
 export function Logo() {
   return (
@@ -13,6 +14,7 @@ export function Logo() {
 
 export default function Layout() {
   const location = useLocation()
+  const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
 
   // При переходе на другую страницу: закрыть мобильное меню и вернуться наверх.
@@ -43,8 +45,13 @@ export default function Layout() {
           </nav>
           <div style={{ flexGrow: 1 }} />
           <SearchBox className="search" />
-          <Link to="/my-list" className="icon-btn" aria-label="Мой список" title="Мой список">
-            <UserIcon />
+          <Link
+            to="/account"
+            className={`icon-btn${user ? ' icon-btn--active' : ''}`}
+            aria-label={user ? `Аккаунт: ${user.name || user.email}` : 'Войти'}
+            title={user ? user.name || user.email : 'Войти'}
+          >
+            {user ? <span className="avatar">{(user.name || user.email).charAt(0).toUpperCase()}</span> : <UserIcon />}
           </Link>
           <button
             type="button"
