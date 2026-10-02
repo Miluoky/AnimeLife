@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { demoCatalog, demoGenres, getDemoAnime, type Anime } from '../data/catalog'
 import {
   fetchAnime,
+  fetchCharacters,
+  fetchTitleDetails,
   fetchAllGenres,
   fetchCatalog,
   fetchGenres,
@@ -11,6 +13,9 @@ import {
   fetchSimilar,
   fetchWatchLinks,
   type CatalogOrder,
+  type Character,
+  type ScoreStats,
+  type TitleVideo,
   type CatalogQuery,
   type Genre,
   type Related,
@@ -18,7 +23,7 @@ import {
   type WatchLink,
 } from './shikimori'
 
-export type { CatalogOrder, CatalogQuery, Genre, Related, ScheduleItem, WatchLink }
+export type { CatalogOrder, CatalogQuery, Character, Genre, Related, ScheduleItem, ScoreStats, TitleVideo, WatchLink }
 
 export interface Loaded<T> {
   data: T
@@ -90,22 +95,30 @@ export interface TitleExtras {
   similar: Anime[]
   screenshots: string[]
   watchLinks: WatchLink[]
+  characters: Character[]
+  videos: TitleVideo[]
+  scores?: ScoreStats
 }
 
 /** Дополнения к странице тайтла. Каждое грузится отдельно: если одно упало, остальные всё равно покажем. */
 export async function loadTitleExtras(id: string): Promise<TitleExtras> {
-  if (isDemoId(id)) return { related: [], similar: [], screenshots: [], watchLinks: [] }
-  const [related, similar, screenshots, watchLinks] = await Promise.allSettled([
+  if (isDemoId(id)) return { related: [], similar: [], screenshots: [], watchLinks: [], characters: [], videos: [] }
+  const [related, similar, screenshots, watchLinks, characters, details] = await Promise.allSettled([
     fetchRelated(id),
     fetchSimilar(id),
     fetchScreenshots(id),
     fetchWatchLinks(id),
+    fetchCharacters(id),
+    fetchTitleDetails(id),
   ])
   return {
     related: related.status === 'fulfilled' ? related.value : [],
     similar: similar.status === 'fulfilled' ? similar.value : [],
     screenshots: screenshots.status === 'fulfilled' ? screenshots.value : [],
     watchLinks: watchLinks.status === 'fulfilled' ? watchLinks.value : [],
+    characters: characters.status === 'fulfilled' ? characters.value : [],
+    videos: details.status === 'fulfilled' ? details.value.videos : [],
+    scores: details.status === 'fulfilled' ? details.value.scores : undefined,
   }
 }
 

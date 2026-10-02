@@ -43,6 +43,8 @@ interface ShikiAnimeFull extends ShikiAnimeShort {
   genres: ShikiGenre[]
   studios: { id: number; name: string }[]
   videos: ShikiVideo[]
+  rates_scores_stats?: { name: number; value: number }[]
+  rates_statuses_stats?: { name: string; value: number }[]
 }
 
 export interface Genre {
@@ -361,4 +363,89 @@ export async function fetchWatchLinks(id: string): Promise<WatchLink[]> {
       return true
     })
     .map((l) => ({ title: watchServices[l.kind], url: l.url.replace(/^http:/, 'https:') }))
+}
+
+export interface ScoreStats {
+  votes: number
+  /** от 10 до 1 */
+  bars: { score: number; count: number }[]
+  /** сколько человек смотрят, посмотрели и т. д. */
+  statuses: { title: string; count: number }[]
+}
+
+export interface TitleVideo {
+  title: string
+  youtubeId: string
+}
+
+const videoKinds: Record<string, string> = {
+  pv: 'Трейлер',
+  op: 'Опенинг',
+  ed: 'Эндинг',
+  op_ed_clip: 'Клип',
+  clip: 'Клип',
+  character_trailer: 'Трейлер персонажа',
+  episode_preview: 'Анонс серии',
+  cm: 'Реклама',
+  other: 'Видео',
+}
+const videoOrder = Object.keys(videoKinds)
+
+function youtubeId(url: string) {
+  return url.match(/youtube\.com\/embed\/([\w-]{6,})/)?.[1]
+}
+
+/** Оценки зрителей и видео (трейлеры, опенинги, эндинги). Ответ тот же, что у fetchAnime, он берётся из кэша. */
+export async function fetchTitleDetails(id: string): Promise<{ scores?: ScoreStats; videos: TitleVideo[] }> {
+  const a = await get<ShikiAnimeFull>(`/animes/${encodeURIComponent(id)}`)
+  const bars = [...(a.rates_scores_stats ?? [])]
+    .map((r) => ({ score: Number(r.name), count: r.value }))
+    .sort((x, y) => y.score - x.score)
+  const votes = bars.reduce((sum, b) => sum + b.count, 0)
+  const videos = (a.videos ?? [])
+    .map((v) => ({ v, id: youtubeId(v.player_url) }))
+    .filter((x): x is { v: ShikiVideo; id: string } => Boolean(x.id))
+    .sort((x, y) => videoOrder.indexOf(x.v.kind) - videoOrder.indexOf(y.v.kind))
+    .map(({ v, id }) => {
+      const kind = videoKinds[v.kind] ?? 'Видео'
+      const name = v.name?.trim()
+      return { youtubeId: id, title: name && name !== kind ? `${kind}: ${name}` : kind }
+    })
+    .filter((v, i, all) => all.findIndex((o) => o.youtubeId === v.youtubeId) === i)
+  return {
+    scores: votes
+      ? { votes, bars, statuses: (a.rates_statuses_stats ?? []).map((r) => ({ title: r.name, count: r.value })) }
+      : undefined,
+    videos,
+  }
+}
+
+export interface Character {
+  id: number
+  name: string
+  image: string
+  main: boolean
+  url: string
+}
+
+interface ShikiRole {
+  roles: string[]
+  character: { id: number; name: string; russian: string; image: ShikiImage; url: string } | null
+}
+
+/** Главные и второстепенные персонажи с картинками. */
+export async function fetchCharacters(id: string): Promise<Character[]> {
+  const roles = await get<ShikiRole[]>(`/animes/${encodeURIComponent(id)}/roles`)
+  return roles
+    .filter((r): r is ShikiRole & { character: NonNullable<ShikiRole['character']> } => Boolean(r.character))
+    .map((r) => ({
+      id: r.character.id,
+      name: r.character.russian || r.character.name,
+      image: absolute(r.character.image.original) ?? '',
+      main: r.roles.includes('Main'),
+      url: new URL(r.character.url, SHIKIMORI_URL).toString(),
+    }))
+    .filter((c) => c.image)
+    .sort((a, b) => Number(b.main) - Number(a.main))
+    .slice(0, 16)
 }

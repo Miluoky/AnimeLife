@@ -1,5 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useState } from 'react'
+import type { ScoreStats } from '../api'
+import Lightbox from '../components/Lightbox'
 import { loadAnime, loadTitleExtras, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { useHistory } from '../data/history'
@@ -7,6 +9,42 @@ import PosterCard, { Poster } from '../components/PosterCard'
 import ListButton from '../components/ListButton'
 import { PlayIcon } from '../components/Icons'
 import NotFound from './NotFound'
+
+const MAX_SHOTS = 8
+
+function votesLabel(n: number) {
+  const word = new Intl.PluralRules('ru').select(n)
+  return `${n.toLocaleString('ru')} ${word === 'one' ? 'оценка' : word === 'few' ? 'оценки' : 'оценок'}`
+}
+
+/** Распределение оценок зрителей Shikimori. */
+function Scores({ stats }: { stats: ScoreStats }) {
+  const top = Math.max(...stats.bars.map((b) => b.count))
+  return (
+    <div className="stack" style={{ gap: 10 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 500 }}>Оценки зрителей</h2>
+      <div className="score-bars" role="list">
+        {stats.bars.map((b) => (
+          <div key={b.score} className="score-bar" role="listitem" aria-label={`${b.score}: ${votesLabel(b.count)}`}>
+            <span className="score-bar__label">{b.score}</span>
+            <span className="score-bar__track">
+              <span className="score-bar__fill" style={{ width: `${(b.count / top) * 100}%` }} />
+            </span>
+            <span className="score-bar__value muted">{Math.round((b.count / stats.votes) * 100)}%</span>
+          </div>
+        ))}
+      </div>
+      <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+        {votesLabel(stats.votes)}
+        {stats.statuses.length > 0 &&
+          ` · ${stats.statuses
+            .filter((st) => st.count > 0)
+            .map((st) => `${st.title.toLowerCase()} ${st.count.toLocaleString('ru')}`)
+            .join(', ')}`}
+      </p>
+    </div>
+  )
+}
 
 const PAGE_SIZE = 12
 const MAX_PILLS = 8
@@ -21,6 +59,8 @@ export default function TitlePage() {
     const episode = history.find((h) => h.animeId === id)?.episode ?? 1
     return Math.floor((episode - 1) / PAGE_SIZE)
   })
+  const [shotOpen, setShotOpen] = useState<number>()
+  const [videoOpen, setVideoOpen] = useState<number>()
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   const anime = result.value?.data
@@ -39,6 +79,10 @@ export default function TitlePage() {
   const related = extras.value?.related ?? []
   const similar = extras.value?.similar ?? []
   const watchLinks = extras.value?.watchLinks ?? []
+  const characters = extras.value?.characters ?? []
+  const videos = extras.value?.videos ?? []
+  const scores = extras.value?.scores
+  const gallery = shots.slice(0, MAX_SHOTS)
 
   function rangeLabel(i: number) {
     const a = i * PAGE_SIZE + 1
@@ -196,6 +240,7 @@ export default function TitlePage() {
                 </div>
               </div>
             )}
+            {scores && <Scores stats={scores} />}
             {anime.description && (
               <div className="stack" style={{ gap: 10 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 500 }}>Описание</h2>
@@ -214,6 +259,91 @@ export default function TitlePage() {
             )}
           </aside>
         </div>
+
+        {characters.length > 0 && (
+          <section className="stack">
+            <div className="section-head">
+              <h2>Персонажи</h2>
+            </div>
+            <div className="row-scroll row-scroll--compact">
+              {characters.map((c) => (
+                <a
+                  key={c.id}
+                  href={c.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="row-scroll__item character-card"
+                >
+                  <span className="character-card__img">
+                    <img src={c.image} alt="" loading="lazy" />
+                  </span>
+                  <span className="character-card__name">{c.name}</span>
+                  <span className="muted character-card__role">{c.main ? 'Главный герой' : 'Второстепенный'}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {videos.length > 0 && (
+          <section className="stack">
+            <div className="section-head">
+              <h2>Видео</h2>
+            </div>
+            <div className="row-scroll row-scroll--wide">
+              {videos.map((v, i) => (
+                <button key={v.youtubeId} type="button" className="row-scroll__item video-card" onClick={() => setVideoOpen(i)}>
+                  <span className="video-card__img">
+                    <img src={`https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg`} alt="" loading="lazy" />
+                    <span className="video-card__play" aria-hidden="true">
+                      <PlayIcon size={22} />
+                    </span>
+                  </span>
+                  <span className="video-card__title">{v.title}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {gallery.length > 1 && (
+          <section className="stack">
+            <div className="section-head">
+              <h2>Кадры</h2>
+            </div>
+            <div className="shots-grid">
+              {gallery.map((src, i) => (
+                <button key={src} type="button" className="shot" onClick={() => setShotOpen(i)} aria-label={`Кадр ${i + 1}`}>
+                  <img src={src} alt="" loading="lazy" />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {shotOpen !== undefined && gallery[shotOpen] && (
+          <Lightbox
+            label={`Кадр ${shotOpen + 1} из ${gallery.length}`}
+            onClose={() => setShotOpen(undefined)}
+            onPrev={() => setShotOpen((shotOpen + gallery.length - 1) % gallery.length)}
+            onNext={() => setShotOpen((shotOpen + 1) % gallery.length)}
+          >
+            <img className="lightbox__img" src={gallery[shotOpen]} alt={`Кадр ${shotOpen + 1}`} />
+          </Lightbox>
+        )}
+
+        {videoOpen !== undefined && videos[videoOpen] && (
+          <Lightbox label={videos[videoOpen].title} onClose={() => setVideoOpen(undefined)}>
+            <div className="lightbox__video">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${videos[videoOpen].youtubeId}?autoplay=1&rel=0`}
+                title={videos[videoOpen].title}
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            </div>
+          </Lightbox>
+        )}
 
         {related.length > 0 && (
           <section className="stack">
