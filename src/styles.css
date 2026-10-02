@@ -1968,3 +1968,151 @@ h3 {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Уведомления о сериях */
+.push-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.push-card__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.push-card h3 {
+  font-size: 18px;
+}
+
+.push-card p {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .push-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Отзывы */
+.field textarea {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.field textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.review-form {
+  max-width: 760px;
+  gap: 12px;
+}
+
+.review-form__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.review-form__row .btn {
+  height: 48px;
+}
+
+.reviews {
+  gap: 12px;
+}
+
+.review {
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.review--own {
+  border-color: var(--accent);
+}
+
+.review__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review__head .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.review__who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+
+.review__who strong {
+  font-size: 15px;
+}
+
+.review__score {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.review__text {
+  margin: 0;
+  white-space: pre-line;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.clamp-6 {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.link-btn {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-soft);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}

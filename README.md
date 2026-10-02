@@ -66,6 +66,20 @@ curl -X POST https://fra.cloud.appwrite.io/v1/functions/social-login/deployments
 На Android и в Chrome появляется кнопка «Установить», на iPhone подсказка про «На экран Домой».
 Service worker подключается только в собранной версии; при изменении логики кэша поднимите `VERSION` в `sw.js`.
 
+## Отзывы и уведомления о сериях
+
+Функция Appwrite `community` (`functions/community`) и база `anime` (TablesDB, таблицы `reviews`, `push`, `sent`).
+Отзывы читаются с сайта напрямую (чтение открыто всем), а пишет в таблицы только функция: она знает, кто вошёл,
+поэтому чужое имя подставить нельзя. Один отзыв на тайтл от пользователя, 20–3000 символов, оценка 1–10.
+
+Пуши: браузер подписывается в профиле, подписка и список «Смотрю» уходят в функцию и обновляются при изменении списка.
+Каждые 15 минут функция берёт календарь Shikimori, находит серии, вышедшие за последние 3 часа, и шлёт уведомление
+подписчикам (Web Push, ключи VAPID: публичный в `src/api/appwrite.ts`, секретный только в переменной функции
+`VAPID_PRIVATE_KEY`). На iPhone пуши работают только в установленном приложении (iOS 16.4+).
+
+Развернуть функцию: упаковать `package.json` и `src/` в tar.gz и загрузить в `/functions/community/deployments`
+с `entrypoint=src/main.js` и `commands=npm install --omit=dev` (как для `social-login`).
+
 ## Хостинг
 
 - https://anime-night.pages.dev — Cloudflare Pages, workflow `.github/workflows/cloudflare.yml` (нужны секреты `CLOUDFLARE_API_TOKEN` и `CLOUDFLARE_ACCOUNT_ID`)

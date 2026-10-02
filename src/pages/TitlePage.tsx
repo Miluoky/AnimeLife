@@ -7,6 +7,7 @@ import { episodeCount } from '../data/catalog'
 import { useHistory } from '../data/history'
 import PosterCard, { Poster } from '../components/PosterCard'
 import ListButton from '../components/ListButton'
+import Reviews from '../components/Reviews'
 import { PlayIcon } from '../components/Icons'
 import NotFound from './NotFound'
 
@@ -344,6 +345,8 @@ export default function TitlePage() {
             </div>
           </Lightbox>
         )}
+
+        <Reviews animeId={anime.id} />
 
         {related.length > 0 && (
           <section className="stack">

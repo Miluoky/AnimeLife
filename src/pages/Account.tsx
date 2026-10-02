@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { authErrorMessage, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
 import ProfileStats from '../components/ProfileStats'
+import PushSettings from '../components/PushSettings'
 import { SOCIAL_LOGIN } from '../api/appwrite'
 import {
   signInWithOAuth,
@@ -289,6 +290,7 @@ export default function Account() {
           <AuthForm />
         )}
       </section>
+      <PushSettings />
       {(user || list.length > 0) && <ProfileStats />}
     </main>
   )

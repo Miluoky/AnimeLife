@@ -105,3 +105,34 @@ self.addEventListener('fetch', (event) => {
   }
   // Appwrite, YouTube и всё остальное идёт напрямую в сеть.
 })
+
+// Уведомления о новых сериях: их присылает функция community (см. src/data/push.ts).
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { body: event.data && event.data.text() }
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Anime Life', {
+      body: data.body || '',
+      icon: new URL('icon-192.png', scope).toString(),
+      badge: new URL('icon-192.png', scope).toString(),
+      tag: data.tag,
+      data: { url: data.url || scope.toString() },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = (event.notification.data && event.notification.data.url) || scope.toString()
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((w) => w.url.startsWith(scope.toString()))
+      if (open) return open.focus().then((w) => (w && 'navigate' in w ? w.navigate(url) : undefined))
+      return self.clients.openWindow(url)
+    }),
+  )
+})

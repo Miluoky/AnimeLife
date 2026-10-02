@@ -1,4 +1,4 @@
-import { Account, Client, Functions } from 'appwrite'
+import { Account, Client, Functions, TablesDB } from 'appwrite'
 
 // Проект Appwrite (регион Франкфурт). ID проекта не секретный, он и так виден в браузере.
 export const APPWRITE_ENDPOINT =
@@ -8,6 +8,7 @@ export const APPWRITE_PROJECT = (import.meta.env.VITE_APPWRITE_PROJECT as string
 export const client = new Client().setEndpoint(APPWRITE_ENDPOINT).setProject(APPWRITE_PROJECT)
 export const account = new Account(client)
 export const functions = new Functions(client)
+export const tablesDB = new TablesDB(client)
 
 const env = import.meta.env as Record<string, string | undefined>
 
@@ -26,3 +27,11 @@ export const SOCIAL_LOGIN = {
 
 /** Функция Appwrite, которая проверяет вход через VK и Telegram (functions/social-login). */
 export const SOCIAL_FUNCTION = 'social-login'
+
+/** Функция Appwrite для отзывов и уведомлений о сериях (functions/community) и её база. */
+export const COMMUNITY_FUNCTION = 'community'
+export const COMMUNITY_DB = 'anime'
+
+/** Публичный ключ VAPID для пуш-уведомлений. Секретная половина хранится только в переменных функции. */
+export const VAPID_PUBLIC_KEY =
+  env.VITE_VAPID_PUBLIC_KEY ?? 'BHgyQXea-s96oolbzWaTuGkW6TlVgqKpCyl8y7bEQCHA33CJ2MrQdH-w_JPc5iMw7M6BDW4aBsFiEUNVTCURVt8'
