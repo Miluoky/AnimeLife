@@ -19,6 +19,9 @@ const store = createLocalStore<HistoryEntry[]>('anime.history.v1', [])
 export const getHistory = store.get
 export const useHistory = store.use
 
+/** Для синхронизации с аккаунтом. */
+export const historyStore = store
+
 export function getProgress(animeId: string): HistoryEntry | undefined {
   return store.get().find((h) => h.animeId === animeId)
 }

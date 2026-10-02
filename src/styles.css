@@ -1396,3 +1396,62 @@ h3 {
 .search input::-webkit-search-cancel-button {
   display: none;
 }
+
+/* Аккаунт */
+.auth-page {
+  max-width: 460px;
+}
+
+.auth-card {
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.field input {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.auth-card .btn {
+  justify-content: center;
+}
+
+.notice--error {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
+.icon-btn--active {
+  border-color: var(--accent);
+}
+
+.avatar {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--accent);
+}
