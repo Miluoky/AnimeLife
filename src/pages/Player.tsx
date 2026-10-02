@@ -6,6 +6,7 @@ import { saveProgress } from '../data/history'
 import { getEntry, setWatched } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
+import VideoPlayer from '../components/VideoPlayer'
 import { markFlag } from '../data/flags'
 import { usePageMeta } from '../data/pageMeta'
 
@@ -41,30 +42,14 @@ export default function Player() {
   return (
     <main className="container player-page">
       <div className="stack player-main">
-        <div className="player-frame">
-          {anime.trailerUrl ? (
-            <>
-              <iframe
-                className="player-iframe"
-                src={anime.trailerUrl}
-                title={`Трейлер: ${anime.title}`}
-                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-              <span className="player-tag">Трейлер</span>
-            </>
-          ) : (
-            <div className="player-empty">
-              <span className="art-label">Видео пока нет</span>
-            </div>
-          )}
-        </div>
-
-        <p className="notice">
-          Серии появятся, когда подключим легальный источник видео. Пока в плеере официальный трейлер с YouTube, если он
-          есть у тайтла.
-        </p>
+        {/* Мульти-провайдерный плеер вместо трейлера */}
+        <VideoPlayer
+          title={anime.title}
+          originalTitle={anime.originalTitle}
+          shikimoriId={anime.id}
+          episode={current}
+          totalEpisodes={total}
+        />
 
         <div className="section-head" style={{ alignItems: 'flex-start' }}>
           <div>
