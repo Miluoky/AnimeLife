@@ -21,7 +21,7 @@ export const SOCIAL_LOGIN = {
   /** ID приложения VK ID */
   vkAppId: env.VITE_VK_APP_ID ?? '',
   /** числовой ID бота Telegram, первая часть его токена до двоеточия */
-  telegramBotId: env.VITE_TELEGRAM_BOT_ID ?? '',
+  telegramBotId: env.VITE_TELEGRAM_BOT_ID ?? '8920200729',
 }
 
 /** Функция Appwrite, которая проверяет вход через VK и Telegram (functions/social-login). */
