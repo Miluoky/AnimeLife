@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { CloseIcon, MenuIcon, UserIcon } from './Icons'
 import SearchBox from './SearchBox'
+import InstallBanner from './InstallBanner'
 import { useAuth } from '../data/auth'
 
 export function Logo() {
@@ -75,6 +76,8 @@ export default function Layout() {
       </header>
 
       <Outlet />
+
+      <InstallBanner />
 
       <footer className="site-footer">
         <div className="container site-footer__inner">

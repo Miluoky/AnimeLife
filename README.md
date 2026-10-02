@@ -59,6 +59,13 @@ curl -X POST https://fra.cloud.appwrite.io/v1/functions/social-login/deployments
   -F code=@../social-login.tar.gz -F activate=true -F entrypoint=src/main.js
 ```
 
+## Приложение на телефон
+
+Сайт устанавливается как приложение (PWA): `public/manifest.webmanifest` задаёт название, иконки и ярлыки,
+`public/sw.js` кэширует сайт, данные Shikimori и постеры, поэтому открытые раньше страницы работают без сети.
+На Android и в Chrome появляется кнопка «Установить», на iPhone подсказка про «На экран Домой».
+Service worker подключается только в собранной версии; при изменении логики кэша поднимите `VERSION` в `sw.js`.
+
 ## Хостинг
 
 - https://anime-night.pages.dev — Cloudflare Pages, workflow `.github/workflows/cloudflare.yml` (нужны секреты `CLOUDFLARE_API_TOKEN` и `CLOUDFLARE_ACCOUNT_ID`)
