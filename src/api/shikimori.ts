@@ -27,6 +27,7 @@ interface ShikiGenre {
   name: string
   russian: string
   kind: string
+  entry_type?: string
 }
 
 interface ShikiVideo {
@@ -71,12 +72,12 @@ function slot() {
 // Одинаковые запросы (например, двойной рендер в StrictMode) делят один ответ.
 const cache = new Map<string, Promise<unknown>>()
 
-async function request<T>(url: URL, attempt = 0): Promise<T> {
+async function request<T>(url: URL, init: RequestInit = {}, attempt = 0): Promise<T> {
   await slot()
-  const res = await fetch(url, { headers: { Accept: 'application/json' } })
+  const res = await fetch(url, { ...init, headers: { Accept: 'application/json', ...init.headers } })
   if (res.status === 429 && attempt < 3) {
     await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))
-    return request<T>(url, attempt + 1)
+    return request<T>(url, init, attempt + 1)
   }
   if (!res.ok) throw new Error(`Shikimori ${res.status}: ${url.pathname}`)
   return res.json() as Promise<T>
@@ -97,6 +98,46 @@ function get<T>(path: string, params: Record<string, string | number | undefined
   return pending
 }
 
+// Постеры по id. Одинаковые пачки (например, двойной рендер в StrictMode) делят один запрос.
+const posterCache = new Map<number, Promise<string | undefined>>()
+
+const isMissing = (path: string | undefined) => !path || path.includes('missing_')
+
+interface GraphqlPosters {
+  data?: { animes: { id: string; poster: { originalUrl: string } | null }[] }
+}
+
+/**
+ * REST API отдаёт заглушку missing_original вместо постеров, загруженных в новое хранилище
+ * (например, у «Тетради смерти» и почти у всех новинок), а GraphQL знает настоящий адрес.
+ * Подставляем постеры одним запросом на всю пачку. Если GraphQL не ответил, остаются заглушки.
+ */
+async function withPosters<T extends ShikiAnimeShort>(list: T[]): Promise<T[]> {
+  const ids = [...new Set(list.filter((a) => isMissing(a.image?.original) && !posterCache.has(a.id)).map((a) => a.id))]
+  // GraphQL отдаёт не больше 50 тайтлов за запрос, а в расписании их около сотни.
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50)
+    const query = `{ animes(ids: "${chunk.join(',')}", limit: ${chunk.length}) { id poster { originalUrl } } }`
+    const batch = request<GraphqlPosters>(new URL('/api/graphql', SHIKIMORI_URL), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    }).then((res) => new Map(res.data?.animes.map((a) => [Number(a.id), a.poster?.originalUrl]) ?? []))
+    batch.catch((e) => {
+      console.warn('Постеры из GraphQL не загрузились', e)
+      for (const id of chunk) posterCache.delete(id)
+    })
+    for (const id of chunk) posterCache.set(id, batch.then((m) => m.get(id)).catch(() => undefined))
+  }
+  return Promise.all(
+    list.map(async (a) => {
+      if (!isMissing(a.image?.original)) return a
+      const poster = await posterCache.get(a.id)
+      return poster ? { ...a, image: { ...a.image, original: poster } } : a
+    }),
+  )
+}
+
 const kinds: Record<string, string> = {
   tv: 'ТВ-сериал',
   movie: 'Фильм',
@@ -114,7 +155,7 @@ const seasons = ['Зима', 'Зима', 'Весна', 'Весна', 'Весна
 const fills = ['#1e2638', '#2b2340', '#1e3140', '#24332a', '#3a2430', '#3a3122', '#26283f']
 
 function absolute(path: string) {
-  if (!path || path.includes('missing_')) return undefined
+  if (isMissing(path)) return undefined
   return path.startsWith('http') ? path : new URL(path, SHIKIMORI_URL).toString()
 }
 
@@ -140,6 +181,7 @@ function fromShort(a: ShikiAnimeShort): Anime {
     episodesAired: a.episodes_aired || undefined,
     genres: [],
     ongoing: a.status === 'ongoing',
+    upcoming: a.status === 'anons',
     description: '',
     score: Number(a.score) || undefined,
     posterUrl: absolute(a.image?.original),
@@ -155,7 +197,7 @@ function fromFull(a: ShikiAnimeFull): Anime {
     studio: a.studios[0]?.name,
     genres: a.genres.map((g) => g.russian || g.name),
     description: cleanDescription(a.description),
-    trailerUrl: trailer ? trailer.player_url.replace(/^\/\//, 'https://') : undefined,
+    trailerUrl: trailer ? trailer.player_url.replace(/^(https?:)?\/\//, 'https://') : undefined,
   }
 }
 
@@ -169,11 +211,12 @@ export async function fetchCatalog(q: CatalogQuery = {}): Promise<Anime[]> {
     search: q.search,
     censored: 'true',
   })
-  return list.map(fromShort)
+  return (await withPosters(list)).map(fromShort)
 }
 
 export async function fetchAnime(id: string): Promise<Anime> {
-  return fromFull(await get<ShikiAnimeFull>(`/animes/${encodeURIComponent(id)}`))
+  const [anime] = await withPosters([await get<ShikiAnimeFull>(`/animes/${encodeURIComponent(id)}`)])
+  return fromFull(anime)
 }
 
 // Жанры для быстрых фильтров на главной, по английскому названию из API.
@@ -182,7 +225,8 @@ const featuredGenres = ['Action', 'Shounen', 'Fantasy', 'Romance', 'Comedy', 'Dr
 export async function fetchGenres(): Promise<Genre[]> {
   const all = await get<ShikiGenre[]>('/genres')
   return featuredGenres
-    .map((name) => all.find((g) => g.name === name && g.kind === 'anime') ?? all.find((g) => g.name === name))
+    // У манги свои жанры с теми же названиями, а их id в фильтре аниме дают пустой список.
+    .map((name) => all.find((g) => g.name === name && g.entry_type === 'Anime'))
     .filter((g): g is ShikiGenre => Boolean(g))
     .map((g) => ({ id: g.id, title: g.russian || g.name }))
 }
@@ -201,10 +245,9 @@ interface ShikiCalendarItem {
 
 /** Ближайшие серии онгоингов: GET /api/calendar. */
 export async function fetchSchedule(): Promise<ScheduleItem[]> {
-  const list = await get<ShikiCalendarItem[]>('/calendar', { censored: 'true' })
-  return list
-    .filter((i) => i.next_episode_at && i.anime)
-    .map((i) => ({ anime: fromShort(i.anime), episode: i.next_episode, at: new Date(i.next_episode_at) }))
+  const list = (await get<ShikiCalendarItem[]>('/calendar', { censored: 'true' })).filter((i) => i.next_episode_at && i.anime)
+  const animes = await withPosters(list.map((i) => i.anime))
+  return list.map((i, n) => ({ anime: fromShort(animes[n]), episode: i.next_episode, at: new Date(i.next_episode_at) }))
 }
 
 export interface Related {
@@ -218,17 +261,41 @@ interface ShikiRelated {
   anime: ShikiAnimeShort | null
 }
 
+// Сначала то, что смотрят по порядку (предыстория, продолжение), в конце тайтлы с общими персонажами из других франшиз.
+const relationOrder = [
+  'Prequel',
+  'Sequel',
+  'Parent Story',
+  'Full Story',
+  'Side Story',
+  'Alternative Version',
+  'Alternative Setting',
+  'Spin-off',
+  'Summary',
+  'Other',
+  'Character',
+]
+const relationRank = (relation: string) => {
+  const i = relationOrder.indexOf(relation)
+  return i === -1 ? relationOrder.length - 1 : i
+}
+
 /** Сезоны, фильмы и спин-оффы той же франшизы. */
 export async function fetchRelated(id: string): Promise<Related[]> {
-  const list = await get<ShikiRelated[]>(`/animes/${encodeURIComponent(id)}/related`)
-  return list
+  const list = (await get<ShikiRelated[]>(`/animes/${encodeURIComponent(id)}/related`))
     .filter((r): r is ShikiRelated & { anime: ShikiAnimeShort } => Boolean(r.anime))
-    .map((r) => ({ relation: r.relation_russian || r.relation, anime: fromShort(r.anime) }))
+    .sort(
+      (a, b) =>
+        relationRank(a.relation) - relationRank(b.relation) ||
+        (a.anime.aired_on ?? '9999').localeCompare(b.anime.aired_on ?? '9999'),
+    )
+  const animes = await withPosters(list.map((r) => r.anime))
+  return list.map((r, n) => ({ relation: r.relation_russian || r.relation, anime: fromShort(animes[n]) }))
 }
 
 export async function fetchSimilar(id: string): Promise<Anime[]> {
   const list = await get<ShikiAnimeShort[]>(`/animes/${encodeURIComponent(id)}/similar`)
-  return list.slice(0, 12).map(fromShort)
+  return (await withPosters(list.slice(0, 12))).map(fromShort)
 }
 
 /** Кадры из аниме, для баннера и превью серий. */
