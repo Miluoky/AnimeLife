@@ -4,6 +4,7 @@ import { authErrorMessage, signIn, signOut, signUp, useAuth } from '../data/auth
 import { useMyList } from '../data/myList'
 import ProfileStats from '../components/ProfileStats'
 import PushSettings from '../components/PushSettings'
+import ProfileSettings from '../components/ProfileSettings'
 import AppearanceSettings from '../components/AppearanceSettings'
 import { SOCIAL_LOGIN } from '../api/appwrite'
 import {
@@ -299,6 +300,7 @@ export default function Account() {
       <AppearanceSettings />
       <PushSettings />
       {(user || list.length > 0) && <ProfileStats />}
+      <ProfileSettings />
     </main>
   )
 }

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useMyList } from '../data/myList'
 import { toast } from '../data/toast'
+import { markFlag } from '../data/flags'
 
 /** Перенос списка: импорт из Shikimori и MyAnimeList, выгрузка для MAL и резервная копия. */
 export default function ListTools() {
@@ -14,6 +15,7 @@ export default function ListTools() {
     setError(undefined)
     try {
       const r = await job()
+      markFlag('imported')
       toast(`Импортировано ${r.total}: новых ${r.added}, у остальных обновлён прогресс`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не получилось импортировать')

@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { Models } from 'appwrite'
 import { historyStore, type HistoryEntry } from './history'
 import { listStore, removedStore, type ListEntry } from './myList'
+import { flagsStore, mergeFlags, type Flag } from './flags'
 
 /**
  * Аккаунт и синхронизация. «Мой список» и история просмотра лежат в настройках пользователя
@@ -13,6 +14,10 @@ interface SyncedPrefs {
   list?: ListEntry[] | null
   removed?: Record<string, number>
   history?: HistoryEntry[]
+  /** события для достижений */
+  flags?: Partial<Record<Flag, number>>
+  /** открытый профиль /u/:id */
+  publicProfile?: boolean
 }
 
 const REMOVED_TTL = 90 * 24 * 3600 * 1000
@@ -21,6 +26,7 @@ const REMOVED_TTL = 90 * 24 * 3600 * 1000
 const sdk = () => import('../api/appwrite')
 
 export type User = Models.User<Models.Preferences>
+export type { SyncedPrefs }
 
 interface AuthState {
   /** true, пока не выяснили, вошёл ли пользователь */
@@ -130,6 +136,7 @@ async function push() {
       ...(remoteListLoaded ? { list: null } : {}),
       removed: removedStore.get(),
       history: historyStore.get(),
+      flags: flagsStore.get(),
     }
     const { account } = await sdk()
     const user = await account.updatePrefs({ ...state.user.prefs, ...prefs })
@@ -147,6 +154,7 @@ function schedulePush() {
 }
 listStore.subscribe(schedulePush)
 historyStore.subscribe(schedulePush)
+flagsStore.subscribe(schedulePush)
 
 /** После входа: объединить то, что было в браузере, с тем, что уже лежит в аккаунте. */
 async function adopt(user: User) {
@@ -165,6 +173,7 @@ async function adopt(user: User) {
   removedStore.set(removed)
   listStore.set(mergeList(remoteList, listStore.get(), removed))
   historyStore.set(mergeHistory(remote.history ?? [], historyStore.get()))
+  flagsStore.set(mergeFlags(remote.flags, flagsStore.get()))
   applyingRemote = false
   setState({ checking: false, user })
   await push()
@@ -237,4 +246,12 @@ export async function signOut() {
     remoteListLoaded = false
     setState({ user: null, syncError: undefined })
   }
+}
+
+/** Включить или выключить открытый профиль: флаг хранится в настройках аккаунта. */
+export async function setPublicProfile(on: boolean) {
+  if (!state.user) return
+  const { account } = await sdk()
+  const user = await account.updatePrefs({ ...state.user.prefs, publicProfile: on })
+  setState({ user })
 }

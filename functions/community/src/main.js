@@ -10,7 +10,7 @@ import {
   roomPresence,
   roomSignal,
 } from './rooms.js'
-import { listInit } from './profile.js'
+import { commentDelete, commentSave, listInit, profileHide, profileSave } from './profile.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -25,7 +25,7 @@ import { listInit } from './profile.js'
  *   push-subscribe {subscription, animeIds, site}  подписка браузера на тайтлы из «Смотрю»;
  *   push-unsubscribe {endpoint};
  *   room-* совместный просмотр, см. rooms.js;
- *   list-init  строка списка пользователя, см. profile.js.
+ *   list-init, profile-*, comment-*  список, открытый профиль и обсуждение серий, см. profile.js.
  * По расписанию (каждые 15 минут) функция смотрит календарь Shikimori и шлёт пуш подписчикам,
  * у которых вышла новая серия.
  *
@@ -455,6 +455,14 @@ export default async ({ req, res, log, error }) => {
         return res.json(await roomPresence(api, req, body))
       case 'room-signal':
         return res.json(await roomSignal(api, req, body))
+      case 'profile-save':
+        return res.json(await profileSave(api, req, body))
+      case 'profile-hide':
+        return res.json(await profileHide(api, req))
+      case 'comment-save':
+        return res.json(await commentSave(api, req, body))
+      case 'comment-delete':
+        return res.json(await commentDelete(api, req, body))
       case 'list-init':
         return res.json(await listInit(api, req))
       case 'room-time':

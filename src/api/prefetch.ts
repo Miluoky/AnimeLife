@@ -13,6 +13,7 @@ export const pageChunks = {
   notFound: () => import('../pages/NotFound'),
   together: () => import('../pages/Together'),
   togetherHome: () => import('../pages/TogetherHome'),
+  publicProfile: () => import('../pages/PublicProfile'),
 }
 
 const prefetched = new Set<string>()

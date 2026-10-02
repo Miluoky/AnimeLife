@@ -1,11 +1,15 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useEffect } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { loadAnime, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { saveProgress } from '../data/history'
 import { getEntry, setWatched } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
+import { markFlag } from '../data/flags'
+
+// Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
+const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
 
 export default function Player() {
   const { id = '', episode = '1' } = useParams()
@@ -22,6 +26,8 @@ export default function Player() {
     // Открыли серию N: предыдущие считаем просмотренными, если тайтл в списке.
     const entry = getEntry(anime.id)
     if (entry && (entry.watched ?? 0) < current - 1) setWatched(anime.id, current - 1)
+    const hour = new Date().getHours()
+    if (hour < 5) markFlag('nightOwl')
   }, [anime, current, total])
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
@@ -79,6 +85,10 @@ export default function Player() {
             </button>
           </div>
         </div>
+
+        <Suspense fallback={null}>
+          <EpisodeComments animeId={anime.id} episode={current} />
+        </Suspense>
       </div>
 
       <aside className="episode-list">

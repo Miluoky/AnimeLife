@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { useHistory } from '../data/history'
 import CatalogSection from '../components/CatalogSection'
-import Recommendations from '../components/Recommendations'
 import { Poster } from '../components/PosterCard'
 import { PlayIcon } from '../components/Icons'
 import { useMorphLink } from '../components/morph'
+
+// Рекомендации ниже первого экрана: отдельная часть, грузится следом.
+const Recommendations = lazy(() => import('../components/Recommendations'))
 
 const HERO_COUNT = 5
 const HERO_INTERVAL = 8000
@@ -155,7 +157,9 @@ export default function Home() {
     <main className="container home">
       <Hero />
       <ContinueWatching />
-      <Recommendations />
+      <Suspense fallback={null}>
+        <Recommendations />
+      </Suspense>
       <CatalogSection title="Популярное" moreLink="/catalog" />
     </main>
   )

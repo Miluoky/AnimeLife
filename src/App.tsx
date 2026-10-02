@@ -17,6 +17,7 @@ const AuthCallback = lazy(pageChunks.authCallback)
 const NotFound = lazy(pageChunks.notFound)
 const Together = lazy(pageChunks.together)
 const TogetherHome = lazy(pageChunks.togetherHome)
+const PublicProfile = lazy(pageChunks.publicProfile)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -51,6 +52,7 @@ export default function App() {
             }
           />
           <Route path="together" element={<TogetherHome />} />
+          <Route path="u/:id" element={<PublicProfile />} />
           <Route path="together/:code" element={<TogetherRoute />} />
           <Route path="catalog" element={<Catalog />} />
           <Route path="schedule" element={<Schedule />} />

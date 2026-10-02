@@ -31,6 +31,16 @@ export default function Layout() {
     window.scrollTo(0, 0)
   }, [location.pathname])
 
+  // Достижения и открытый профиль не нужны для первого экрана: подключаем, когда браузер свободен.
+  const publicProfile = !!(user?.prefs as { publicProfile?: boolean } | undefined)?.publicProfile
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500))
+    idle(() => void import('../data/achievements').then((m) => m.watchAchievements()))
+  }, [])
+  useEffect(() => {
+    if (publicProfile) void import('../data/profile').then((m) => m.autoPublish())
+  }, [publicProfile])
+
   // Оформление из настроек (тема, акцент) и шапка, которая становится полупрозрачной при прокрутке.
   useEffect(() => {
     applyAppearance()

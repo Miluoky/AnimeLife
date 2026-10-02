@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Anime } from '../../data/catalog'
 import { useAuth } from '../../data/auth'
 import { toast } from '../../data/toast'
+import { markFlag } from '../../data/flags'
 import { PeopleIcon } from '../Icons'
 
 /** «Смотреть вместе»: создаёт комнату с этим тайтлом и серией и открывает её. */
@@ -36,6 +37,7 @@ export default function WatchTogetherButton({
         source: videoId ? 'trailer' : 'file',
         videoId,
       })
+      markFlag('hostedRoom')
       navigate(`/together/${room.$id}`)
     } catch (e) {
       toast(e instanceof Error && e.name === 'CommunityError' ? e.message : 'Не удалось создать комнату')
