@@ -49,3 +49,11 @@ test('баннер «Сейчас в эфире» переключает тай�
   await dots.nth(2).click()
   await expect(dots.nth(2)).toHaveAttribute('aria-selected', 'true')
 })
+
+test('у страницы тайтла свой заголовок вкладки и кнопка «Поделиться»', async ({ page }) => {
+  await page.goto('/anime/1')
+  await expect(page).toHaveTitle('Ковбой Бибоп — Anime Life')
+  await expect(page.getByRole('button', { name: 'Поделиться' })).toBeVisible()
+  await page.goto('/catalog')
+  await expect(page).toHaveTitle('Каталог аниме — Anime Life')
+})

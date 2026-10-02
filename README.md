@@ -127,6 +127,16 @@ STUN Cloudflare и Google). Предложение и ответ с адреса
 Сеанс по расписанию: ведущий задаёт `startsAt`, комната попадает во «Вместе → Скоро», зрители скачивают `.ics`. Заброшенные комнаты
 (6 часов без действий) и сообщения старше суток функция удаляет по расписанию.
 
+## Превью ссылок и поиск
+
+`worker/index.js` работает перед статическими файлами на Cloudflare Workers (`wrangler.jsonc`, `run_worker_first`).
+Для `/anime/:id`, `/watch/:id/:n`, `/together/:code` и `/u/:id` он подставляет в index.html заголовок, описание
+и картинку (Open Graph, Twitter), канонический адрес, а для тайтла разметку schema.org. Так ссылка в Telegram, VK
+и Discord показывает постер и название. `/sitemap.xml` собирается из 500 популярных тайтлов и онгоингов
+(ответ Shikimori кэшируется на сутки), `/robots.txt` указывает на него. Если Shikimori или Appwrite не ответили,
+отдаётся обычный index.html. Проверить локально: `npx wrangler@4 dev`. На GitHub Pages Worker нет, там
+работает только заголовок вкладки, который ставит само приложение.
+
 ## Хостинг
 
 - https://anime-night.pages.dev — Cloudflare Pages, workflow `.github/workflows/cloudflare.yml` (нужны секреты `CLOUDFLARE_API_TOKEN` и `CLOUDFLARE_ACCOUNT_ID`)

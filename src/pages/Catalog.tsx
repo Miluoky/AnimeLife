@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { loadAllGenres, useAsync, type CatalogOrder, type CatalogQuery } from '../api'
 import CatalogGrid from '../components/CatalogGrid'
+import { usePageMeta } from '../data/pageMeta'
 
 const orders: { id: CatalogOrder; title: string }[] = [
   { id: 'popularity', title: 'Популярные' },
@@ -63,6 +64,7 @@ function Filter({ label, name, value, any, options, onChange }: FilterProps) {
 
 /** Каталог с фильтрами. Все фильтры живут в адресе, поэтому подборкой можно поделиться ссылкой. */
 export default function Catalog() {
+  usePageMeta('Каталог аниме')
   const [params, setParams] = useSearchParams()
   const genres = useAsync(loadAllGenres, [])
 

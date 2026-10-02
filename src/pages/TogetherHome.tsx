@@ -7,9 +7,11 @@ import { untilText } from '../components/together/ScheduleSession'
 import { formatTime } from '../components/together/time'
 import { PeopleIcon } from '../components/Icons'
 import Mascot from '../components/Mascot'
+import { usePageMeta } from '../data/pageMeta'
 
 /** Вкладка «Вместе»: войти по коду и открытые комнаты, где смотрят прямо сейчас. */
 export default function TogetherHome() {
+  usePageMeta('Смотреть вместе')
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [rooms, setRooms] = useState<Room[] | null>(null)

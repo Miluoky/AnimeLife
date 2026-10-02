@@ -6,8 +6,10 @@ import PosterCard from '../components/PosterCard'
 import EpisodeProgress from '../components/EpisodeProgress'
 import ListTools from '../components/ListTools'
 import CalendarExport from '../components/CalendarExport'
+import { usePageMeta } from '../data/pageMeta'
 
 export default function MyList() {
+  usePageMeta('Мой список')
   const list = useMyList()
   const { user } = useAuth()
   const [tab, setTab] = useState<ListStatus>('watching')

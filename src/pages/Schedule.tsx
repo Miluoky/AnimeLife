@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { loadSchedule, useAsync, type ScheduleItem } from '../api'
 import { Poster } from '../components/PosterCard'
+import { usePageMeta } from '../data/pageMeta'
 
 const dayFormat = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
 const timeFormat = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -36,6 +37,7 @@ function groupByDay(items: ScheduleItem[]) {
 }
 
 export default function Schedule() {
+  usePageMeta('Расписание серий')
   const result = useAsync(loadSchedule, [])
   const days = result.value ? groupByDay(result.value.data) : []
 

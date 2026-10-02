@@ -7,6 +7,7 @@ import { getEntry, setWatched } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import { markFlag } from '../data/flags'
+import { usePageMeta } from '../data/pageMeta'
 
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
 const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
@@ -29,6 +30,8 @@ export default function Player() {
     const hour = new Date().getHours()
     if (hour < 5) markFlag('nightOwl')
   }, [anime, current, total])
+
+  usePageMeta(anime ? `${anime.title}, серия ${current}` : undefined)
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   if (!anime) return <NotFound title="Тайтл не найден" />

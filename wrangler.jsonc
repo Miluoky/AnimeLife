@@ -1,11 +1,16 @@
-// Публикация на Cloudflare Workers (Workers Builds, подключён к GitHub): сайт как статические файлы.
+// Публикация на Cloudflare Workers (Workers Builds, подключён к GitHub): статические файлы сайта
+// и небольшой Worker (worker/index.js) для превью ссылок, sitemap.xml и robots.txt.
 {
   "name": "anime",
   "compatibility_date": "2026-09-01",
+  "main": "worker/index.js",
   "build": { "command": "npm run build" },
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     // Маршруты React: на любой незнакомый адрес отдаём index.html.
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    // Эти адреса сначала идут в Worker: он подставляет заголовок и картинку для превью ссылки.
+    "run_worker_first": ["/anime/*", "/watch/*", "/together/*", "/u/*", "/sitemap.xml", "/robots.txt"]
   }
 }

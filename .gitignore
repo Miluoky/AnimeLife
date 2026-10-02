@@ -7,3 +7,4 @@ functions/*.tar.gz
 test-results
 playwright-report
 lighthouse.json
+.wrangler/

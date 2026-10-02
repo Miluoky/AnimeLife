@@ -9,6 +9,8 @@ import PosterCard, { Poster } from '../components/PosterCard'
 import ListButton from '../components/ListButton'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import EpisodeProgress from '../components/EpisodeProgress'
+import ShareButton from '../components/ShareButton'
+import { usePageMeta } from '../data/pageMeta'
 import { useMyList } from '../data/myList'
 import Reviews from '../components/Reviews'
 import { PlayIcon } from '../components/Icons'
@@ -65,6 +67,7 @@ export default function TitlePage() {
   })
   const [shotOpen, setShotOpen] = useState<number>()
   const [videoOpen, setVideoOpen] = useState<number>()
+  usePageMeta(result.value?.data?.title, result.value?.data?.description)
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   const anime = result.value?.data
@@ -135,6 +138,7 @@ export default function TitlePage() {
               </Link>
               <ListButton anime={anime} />
               <WatchTogetherButton anime={anime} />
+              <ShareButton title={anime.title} path={`/anime/${anime.id}`} />
             </div>
             <TitleProgress animeId={anime.id} />
           </div>

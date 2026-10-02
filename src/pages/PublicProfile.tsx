@@ -6,12 +6,14 @@ import { listStatuses } from '../data/myList'
 import PosterCard from '../components/PosterCard'
 import Achievements from '../components/Achievements'
 import Mascot from '../components/Mascot'
+import { usePageMeta } from '../data/pageMeta'
 
 /** Открытый профиль зрителя: что смотрит, любимое, оценки, достижения. */
 export default function PublicProfile() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadProfile(id), [id])
   const p = result.value
+  usePageMeta(p ? `${p.name}: профиль` : undefined, p?.about)
 
   if (result.loading && !p) return <main className="container page-fallback" aria-busy="true" />
   if (!p)
