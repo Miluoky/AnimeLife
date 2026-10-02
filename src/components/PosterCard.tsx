@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import type { Anime } from '../data/catalog'
+import type { Anime, AnimeCard } from '../data/catalog'
 
 export function Poster({ anime, className }: { anime: Pick<Anime, 'title' | 'posterUrl' | 'posterFill'>; className?: string }) {
   return anime.posterUrl ? (
@@ -9,7 +9,7 @@ export function Poster({ anime, className }: { anime: Pick<Anime, 'title' | 'pos
   )
 }
 
-export default function PosterCard({ anime }: { anime: Anime }) {
+export default function PosterCard({ anime }: { anime: AnimeCard }) {
   const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} эп.`].filter(Boolean).join(' · ')
 
   return (

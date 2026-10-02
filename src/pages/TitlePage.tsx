@@ -1,9 +1,10 @@
 import { Link, useParams } from 'react-router-dom'
 import { useState } from 'react'
-import { loadAnime, useAsync } from '../api'
+import { loadAnime, loadTitleExtras, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { useHistory } from '../data/history'
-import { Poster } from '../components/PosterCard'
+import PosterCard, { Poster } from '../components/PosterCard'
+import ListButton from '../components/ListButton'
 import { PlayIcon } from '../components/Icons'
 import NotFound from './NotFound'
 
@@ -12,6 +13,7 @@ const PAGE_SIZE = 12
 export default function TitlePage() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadAnime(id), [id])
+  const extras = useAsync(() => loadTitleExtras(id), [id])
   const history = useHistory()
   const [page, setPage] = useState(0)
 
@@ -27,6 +29,10 @@ export default function TitlePage() {
   const episodes = Array.from({ length: to - from + 1 }, (_, i) => from + i)
   const minutes = anime.episodeMinutes ? `${anime.episodeMinutes} мин` : ''
 
+  const shots = extras.value?.screenshots ?? []
+  const related = extras.value?.related ?? []
+  const similar = extras.value?.similar ?? []
+
   function episodeLabel(n: number) {
     if (progress && n < progress.episode) return 'Просмотрено'
     if (progress && n === progress.episode) return 'Вы здесь'
@@ -36,7 +42,9 @@ export default function TitlePage() {
   return (
     <>
       <div className="banner" style={{ background: anime.posterFill }}>
-        {anime.posterUrl ? (
+        {shots.length ? (
+          <img className="banner__img banner__img--shot" src={shots[0]} alt="" />
+        ) : anime.posterUrl ? (
           <img className="banner__img" src={anime.posterUrl} alt="" />
         ) : (
           <span className="art-label">[Широкий баннер тайтла]</span>
@@ -65,6 +73,7 @@ export default function TitlePage() {
                 <PlayIcon />
                 {progress ? `Продолжить: серия ${progress.episode}` : 'Смотреть'}
               </Link>
+              <ListButton anime={anime} />
             </div>
           </div>
         </section>
@@ -99,6 +108,9 @@ export default function TitlePage() {
                 return (
                   <Link key={n} to={`/watch/${anime.id}/${n}`} className="episode-card">
                     <div className="episode-card__img" style={{ background: anime.posterFill }}>
+                      {shots.length > 0 && (
+                        <img className="poster-img episode-card__shot" src={shots[(n - 1) % shots.length]} alt="" loading="lazy" />
+                      )}
                       <span className="episode-card__num">{n}</span>
                       {watched && (
                         <div className="progress-track" style={{ background: 'transparent' }}>
@@ -169,6 +181,37 @@ export default function TitlePage() {
             )}
           </aside>
         </div>
+
+        {related.length > 0 && (
+          <section className="stack">
+            <div className="section-head">
+              <h2>Связанное</h2>
+            </div>
+            <div className="row-scroll">
+              {related.map((r) => (
+                <div key={r.anime.id} className="row-scroll__item">
+                  <span className="relation-label">{r.relation}</span>
+                  <PosterCard anime={r.anime} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {similar.length > 0 && (
+          <section className="stack">
+            <div className="section-head">
+              <h2>Похожее</h2>
+            </div>
+            <div className="row-scroll">
+              {similar.map((a) => (
+                <div key={a.id} className="row-scroll__item">
+                  <PosterCard anime={a} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </>
   )

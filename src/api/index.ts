@@ -1,8 +1,20 @@
 import { useEffect, useState } from 'react'
 import { demoCatalog, demoGenres, getDemoAnime, type Anime } from '../data/catalog'
-import { fetchAnime, fetchCatalog, fetchGenres, type CatalogQuery, type Genre } from './shikimori'
+import {
+  fetchAnime,
+  fetchCatalog,
+  fetchGenres,
+  fetchRelated,
+  fetchSchedule,
+  fetchScreenshots,
+  fetchSimilar,
+  type CatalogQuery,
+  type Genre,
+  type Related,
+  type ScheduleItem,
+} from './shikimori'
 
-export type { CatalogQuery, Genre }
+export type { CatalogQuery, Genre, Related, ScheduleItem }
 
 export interface Loaded<T> {
   data: T
@@ -49,6 +61,36 @@ export async function loadGenres(): Promise<Loaded<Genre[]>> {
     return { data: await fetchGenres(), demo: false }
   } catch {
     return { data: demoGenres, demo: true }
+  }
+}
+
+export async function loadSchedule(): Promise<Loaded<ScheduleItem[]>> {
+  try {
+    return { data: await fetchSchedule(), demo: false }
+  } catch (e) {
+    console.warn('Расписание недоступно', e)
+    return { data: [], demo: true }
+  }
+}
+
+export interface TitleExtras {
+  related: Related[]
+  similar: Anime[]
+  screenshots: string[]
+}
+
+/** Дополнения к странице тайтла. Каждое грузится отдельно: если одно упало, остальные всё равно покажем. */
+export async function loadTitleExtras(id: string): Promise<TitleExtras> {
+  if (isDemoId(id)) return { related: [], similar: [], screenshots: [] }
+  const [related, similar, screenshots] = await Promise.allSettled([
+    fetchRelated(id),
+    fetchSimilar(id),
+    fetchScreenshots(id),
+  ])
+  return {
+    related: related.status === 'fulfilled' ? related.value : [],
+    similar: similar.status === 'fulfilled' ? similar.value : [],
+    screenshots: screenshots.status === 'fulfilled' ? screenshots.value : [],
   }
 }
 

@@ -1016,3 +1016,238 @@ h3 {
   align-items: center;
   justify-content: center;
 }
+
+/* Мобильное меню */
+.menu-btn {
+  display: none;
+}
+
+.site-header__inner > .icon-btn:hover {
+  color: var(--accent-soft);
+}
+
+@media (max-width: 900px) {
+  .site-header__inner {
+    gap: 12px;
+  }
+  .menu-btn {
+    display: flex;
+  }
+}
+
+.mobile-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+  padding-bottom: 20px;
+}
+
+.search.search--mobile {
+  display: flex;
+  width: 100%;
+  max-width: none;
+}
+
+.mobile-menu__nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-menu__nav a {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.mobile-menu__nav a.active {
+  color: var(--text);
+}
+
+@media (min-width: 901px) {
+  .mobile-menu {
+    display: none;
+  }
+}
+
+/* Мой список */
+.page-title {
+  font-weight: 500;
+  font-size: 32px;
+}
+
+.list-select {
+  position: relative;
+  padding: 0;
+}
+
+.list-select select {
+  appearance: none;
+  height: 100%;
+  padding: 0 22px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.list-select select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+.list-select select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.list-select.in-list {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pill__count {
+  margin-left: 8px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 40px 0;
+}
+
+.empty-state p {
+  margin: 0;
+  max-width: 520px;
+}
+
+/* Расписание */
+.schedule {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.schedule-day {
+  padding: 20px;
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.schedule-day__title {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0;
+  margin-bottom: 12px;
+}
+
+.schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  margin: 0 -8px;
+  border-radius: 12px;
+}
+
+.schedule-row:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.schedule-row__time {
+  width: 48px;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.schedule-row__poster {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  width: 40px;
+  height: 56px;
+  border-radius: 8px;
+}
+
+.schedule-row__poster .placeholder-label {
+  display: none;
+}
+
+.schedule-row__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.schedule-row__title {
+  font-weight: 700;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Страница тайтла: кадры, связанное и похожее */
+.banner__img--shot {
+  filter: brightness(0.55);
+  transform: none;
+}
+
+.episode-card__shot {
+  opacity: 0.6;
+}
+
+.episode-card__num {
+  position: relative;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.row-scroll {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(160px, 190px);
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+
+.row-scroll__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-snap-align: start;
+}
+
+.relation-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}

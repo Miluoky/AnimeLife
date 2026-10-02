@@ -5,6 +5,8 @@ import TitlePage from './pages/TitlePage'
 import Player from './pages/Player'
 import NotFound from './pages/NotFound'
 import CatalogSection from './components/CatalogSection'
+import MyList from './pages/MyList'
+import Schedule from './pages/Schedule'
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -27,8 +29,8 @@ export default function App() {
             </main>
           }
         />
-        <Route path="schedule" element={<NotFound title="Расписание" />} />
-        <Route path="my-list" element={<NotFound title="Мой список" />} />
+        <Route path="schedule" element={<Schedule />} />
+        <Route path="my-list" element={<MyList />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

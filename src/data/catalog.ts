@@ -18,6 +18,12 @@ export interface Anime {
   trailerUrl?: string
 }
 
+/** Поля, которых хватает для карточки в сетке. */
+export type AnimeCard = Pick<
+  Anime,
+  'id' | 'title' | 'year' | 'kind' | 'episodes' | 'ongoing' | 'score' | 'posterUrl' | 'posterFill'
+>
+
 // Демо-данные: показываются, если API Shikimori недоступно.
 export const demoCatalog: Anime[] = [
   {

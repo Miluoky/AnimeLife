@@ -1,8 +1,7 @@
-import { useSyncExternalStore } from 'react'
 import type { Anime } from './catalog'
+import { createLocalStore } from './localStore'
 
 // История просмотра хранится в браузере, пока нет аккаунтов.
-const KEY = 'anime.history.v1'
 const LIMIT = 12
 
 export interface HistoryEntry {
@@ -15,25 +14,13 @@ export interface HistoryEntry {
   updatedAt: number
 }
 
-let cache: HistoryEntry[] | undefined
-const listeners = new Set<() => void>()
+const store = createLocalStore<HistoryEntry[]>('anime.history.v1', [])
 
-function read(): HistoryEntry[] {
-  if (cache) return cache
-  try {
-    cache = JSON.parse(localStorage.getItem(KEY) ?? '[]') as HistoryEntry[]
-  } catch {
-    cache = []
-  }
-  return cache
-}
-
-export function getHistory(): HistoryEntry[] {
-  return read()
-}
+export const getHistory = store.get
+export const useHistory = store.use
 
 export function getProgress(animeId: string): HistoryEntry | undefined {
-  return read().find((h) => h.animeId === animeId)
+  return store.get().find((h) => h.animeId === animeId)
 }
 
 export function saveProgress(anime: Anime, episode: number, totalEpisodes: number) {
@@ -46,20 +33,5 @@ export function saveProgress(anime: Anime, episode: number, totalEpisodes: numbe
     totalEpisodes,
     updatedAt: Date.now(),
   }
-  cache = [entry, ...read().filter((h) => h.animeId !== anime.id)].slice(0, LIMIT)
-  try {
-    localStorage.setItem(KEY, JSON.stringify(cache))
-  } catch {
-    // Приватный режим или переполненное хранилище: история живёт до перезагрузки.
-  }
-  listeners.forEach((l) => l())
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-export function useHistory(): HistoryEntry[] {
-  return useSyncExternalStore(subscribe, getHistory, getHistory)
+  store.set([entry, ...store.get().filter((h) => h.animeId !== anime.id)].slice(0, LIMIT))
 }

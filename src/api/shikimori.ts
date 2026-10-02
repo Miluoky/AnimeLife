@@ -186,3 +186,53 @@ export async function fetchGenres(): Promise<Genre[]> {
     .filter((g): g is ShikiGenre => Boolean(g))
     .map((g) => ({ id: g.id, title: g.russian || g.name }))
 }
+
+export interface ScheduleItem {
+  anime: Anime
+  episode: number
+  at: Date
+}
+
+interface ShikiCalendarItem {
+  next_episode: number
+  next_episode_at: string
+  anime: ShikiAnimeShort
+}
+
+/** Ближайшие серии онгоингов: GET /api/calendar. */
+export async function fetchSchedule(): Promise<ScheduleItem[]> {
+  const list = await get<ShikiCalendarItem[]>('/calendar', { censored: 'true' })
+  return list
+    .filter((i) => i.next_episode_at && i.anime)
+    .map((i) => ({ anime: fromShort(i.anime), episode: i.next_episode, at: new Date(i.next_episode_at) }))
+}
+
+export interface Related {
+  relation: string
+  anime: Anime
+}
+
+interface ShikiRelated {
+  relation_russian: string | null
+  relation: string
+  anime: ShikiAnimeShort | null
+}
+
+/** Сезоны, фильмы и спин-оффы той же франшизы. */
+export async function fetchRelated(id: string): Promise<Related[]> {
+  const list = await get<ShikiRelated[]>(`/animes/${encodeURIComponent(id)}/related`)
+  return list
+    .filter((r): r is ShikiRelated & { anime: ShikiAnimeShort } => Boolean(r.anime))
+    .map((r) => ({ relation: r.relation_russian || r.relation, anime: fromShort(r.anime) }))
+}
+
+export async function fetchSimilar(id: string): Promise<Anime[]> {
+  const list = await get<ShikiAnimeShort[]>(`/animes/${encodeURIComponent(id)}/similar`)
+  return list.slice(0, 12).map(fromShort)
+}
+
+/** Кадры из аниме, для баннера и превью серий. */
+export async function fetchScreenshots(id: string): Promise<string[]> {
+  const list = await get<{ original: string; preview: string }[]>(`/animes/${encodeURIComponent(id)}/screenshots`)
+  return list.map((s) => absolute(s.original)).filter((u): u is string => Boolean(u))
+}
