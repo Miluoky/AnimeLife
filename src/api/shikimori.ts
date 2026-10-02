@@ -7,6 +7,8 @@ export const SHIKIMORI_URL = (import.meta.env.VITE_SHIKIMORI_URL as string | und
 interface ShikiImage {
   original: string
   preview: string
+  main?: string
+  main2x?: string
 }
 
 interface ShikiAnimeShort {
@@ -110,30 +112,49 @@ function get<T>(path: string, params: Record<string, string | number | undefined
 }
 
 // Постеры по id. Одинаковые пачки (например, двойной рендер в StrictMode) делят один запрос.
-const posterCache = new Map<number, Promise<string | undefined>>()
+interface PosterSet {
+  original?: string
+  /** webp для карточек: около 225 px в ширину и вдвое больше для экранов с высокой плотностью */
+  main?: string
+  main2x?: string
+}
+const posterCache = new Map<number, Promise<PosterSet | undefined>>()
 
 const isMissing = (path: string | undefined) => !path || path.includes('missing_')
 
 interface GraphqlPosters {
-  data?: { animes: { id: string; poster: { originalUrl: string } | null }[] }
+  data?: {
+    animes: { id: string; poster: { originalUrl: string; mainUrl: string; main2xUrl: string } | null }[]
+  }
 }
 
 /**
- * REST API отдаёт заглушку missing_original вместо постеров, загруженных в новое хранилище
- * (например, у «Тетради смерти» и почти у всех новинок), а GraphQL знает настоящий адрес.
- * Подставляем постеры одним запросом на всю пачку. Если GraphQL не ответил, остаются заглушки.
+ * REST API отдаёт постеры только в полном размере, а для новинок и вовсе заглушку missing_original.
+ * GraphQL знает настоящий адрес и лёгкие webp-версии для сеток, поэтому берём постеры оттуда
+ * одним запросом на всю пачку. Если GraphQL не ответил, остаются постеры из REST.
  */
-async function withPosters<T extends ShikiAnimeShort>(list: T[]): Promise<T[]> {
-  const ids = [...new Set(list.filter((a) => isMissing(a.image?.original) && !posterCache.has(a.id)).map((a) => a.id))]
+async function withPosters<T extends ShikiAnimeShort>(list: T[], { onlyMissing = false } = {}): Promise<T[]> {
+  // Для одного тайтла (страница, подборка недели) полный постер из REST годится: GraphQL ждём,
+  // только если REST отдал заглушку. Для сеток же нужны лёгкие webp, их есть смысл подождать.
+  const need = (a: ShikiAnimeShort) => !posterCache.has(a.id) && (!onlyMissing || isMissing(a.image?.original))
+  const ids = [...new Set(list.filter(need).map((a) => a.id))]
   // GraphQL отдаёт не больше 50 тайтлов за запрос, а в расписании их около сотни.
   for (let i = 0; i < ids.length; i += 50) {
     const chunk = ids.slice(i, i + 50)
-    const query = `{ animes(ids: "${chunk.join(',')}", limit: ${chunk.length}) { id poster { originalUrl } } }`
+    const query = `{ animes(ids: "${chunk.join(',')}", limit: ${chunk.length}) { id poster { originalUrl mainUrl main2xUrl } } }`
     const batch = request<GraphqlPosters>(new URL('/api/graphql', SHIKIMORI_URL), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
-    }).then((res) => new Map(res.data?.animes.map((a) => [Number(a.id), a.poster?.originalUrl]) ?? []))
+    }).then(
+      (res) =>
+        new Map<number, PosterSet | undefined>(
+          res.data?.animes.map((a) => [
+            Number(a.id),
+            a.poster ? { original: a.poster.originalUrl, main: a.poster.mainUrl, main2x: a.poster.main2xUrl } : undefined,
+          ]) ?? [],
+        ),
+    )
     batch.catch((e) => {
       console.warn('Постеры из GraphQL не загрузились', e)
       for (const id of chunk) posterCache.delete(id)
@@ -142,9 +163,9 @@ async function withPosters<T extends ShikiAnimeShort>(list: T[]): Promise<T[]> {
   }
   return Promise.all(
     list.map(async (a) => {
-      if (!isMissing(a.image?.original)) return a
-      const poster = await posterCache.get(a.id)
-      return poster ? { ...a, image: { ...a.image, original: poster } } : a
+      const poster = posterCache.has(a.id) ? await posterCache.get(a.id) : undefined
+      if (!poster) return a
+      return { ...a, image: { ...a.image, original: poster.original ?? a.image?.original, main: poster.main, main2x: poster.main2x } }
     }),
   )
 }
@@ -196,6 +217,8 @@ function fromShort(a: ShikiAnimeShort): Anime {
     description: '',
     score: Number(a.score) || undefined,
     posterUrl: absolute(a.image?.original),
+    posterSmall: a.image?.main,
+    posterSmall2x: a.image?.main2x,
     posterFill: fills[a.id % fills.length],
   }
 }
@@ -229,7 +252,7 @@ export async function fetchCatalog(q: CatalogQuery = {}): Promise<Anime[]> {
 }
 
 export async function fetchAnime(id: string): Promise<Anime> {
-  const [anime] = await withPosters([await get<ShikiAnimeFull>(`/animes/${encodeURIComponent(id)}`)])
+  const [anime] = await withPosters([await get<ShikiAnimeFull>(`/animes/${encodeURIComponent(id)}`)], { onlyMissing: true })
   return fromFull(anime)
 }
 

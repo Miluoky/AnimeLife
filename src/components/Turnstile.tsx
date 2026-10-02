@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { TURNSTILE_SITE_KEY } from '../api/appwrite'
+import { TURNSTILE_SITE_KEY } from '../api/config'
 
 interface TurnstileApi {
   render: (el: HTMLElement, opts: Record<string, unknown>) => string

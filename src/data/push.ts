@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { VAPID_PUBLIC_KEY } from '../api/appwrite'
+import { VAPID_PUBLIC_KEY } from '../api/config'
 import { CommunityError, callCommunity } from './community'
 import { listStore } from './myList'
 

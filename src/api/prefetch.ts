@@ -1,0 +1,38 @@
+import { loadAnime } from './index'
+
+// Код страниц, которые грузятся отдельными частями (см. App.tsx). Повторный вызов import() ничего не стоит.
+export const pageChunks = {
+  title: () => import('../pages/TitlePage'),
+  player: () => import('../pages/Player'),
+  catalog: () => import('../pages/Catalog'),
+  schedule: () => import('../pages/Schedule'),
+  myList: () => import('../pages/MyList'),
+  account: () => import('../pages/Account'),
+  moderation: () => import('../pages/Moderation'),
+  authCallback: () => import('../pages/AuthCallback'),
+  notFound: () => import('../pages/NotFound'),
+}
+
+const prefetched = new Set<string>()
+
+/**
+ * Пока курсор на карточке, заранее тянем код страницы тайтла и данные о нём:
+ * к моменту клика всё уже в кэше, и страница открывается без ожидания.
+ */
+export function prefetchTitle(id: string) {
+  if (prefetched.has(id)) return
+  prefetched.add(id)
+  void pageChunks.title()
+  void loadAnime(id).catch(() => undefined)
+}
+
+/** Код соседних страниц догружаем, когда браузер свободен, чтобы переходы по меню были мгновенными. */
+export function prefetchNavigation() {
+  const run = () => {
+    void pageChunks.catalog()
+    void pageChunks.schedule()
+    void pageChunks.myList()
+  }
+  if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 4000 })
+  else setTimeout(run, 2000)
+}

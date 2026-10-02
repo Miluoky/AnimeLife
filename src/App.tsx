@@ -1,16 +1,20 @@
+import { Suspense, lazy, useEffect } from 'react'
 import { Route, Routes, useParams } from 'react-router-dom'
 import Layout from './components/Layout'
 import Home from './pages/Home'
-import TitlePage from './pages/TitlePage'
-import Player from './pages/Player'
-import NotFound from './pages/NotFound'
 import CatalogSection from './components/CatalogSection'
-import MyList from './pages/MyList'
-import Moderation from './pages/Moderation'
-import Schedule from './pages/Schedule'
-import Catalog from './pages/Catalog'
-import Account from './pages/Account'
-import AuthCallback from './pages/AuthCallback'
+import { pageChunks, prefetchNavigation } from './api/prefetch'
+
+// Главная входит в основную сборку, остальные страницы грузятся отдельными частями при первом открытии.
+const TitlePage = lazy(pageChunks.title)
+const Player = lazy(pageChunks.player)
+const Catalog = lazy(pageChunks.catalog)
+const Schedule = lazy(pageChunks.schedule)
+const MyList = lazy(pageChunks.myList)
+const Account = lazy(pageChunks.account)
+const Moderation = lazy(pageChunks.moderation)
+const AuthCallback = lazy(pageChunks.authCallback)
+const NotFound = lazy(pageChunks.notFound)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -18,30 +22,37 @@ function TitlePageRoute() {
   return <TitlePage key={id} />
 }
 
+// Пока часть страницы едет по сети, место под неё уже занято: вёрстка не прыгает.
+const PageFallback = () => <main className="container page-fallback" aria-busy="true" />
+
 export default function App() {
+  useEffect(prefetchNavigation, [])
+
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route index element={<Home />} />
-        <Route path="anime/:id" element={<TitlePageRoute />} />
-        <Route path="watch/:id/:episode" element={<Player />} />
-        <Route
-          path="ongoing"
-          element={
-            <main className="container home">
-              <CatalogSection title="Онгоинги" status="ongoing" moreLink="/catalog?status=ongoing" />
-            </main>
-          }
-        />
-        <Route path="catalog" element={<Catalog />} />
-        <Route path="schedule" element={<Schedule />} />
-        <Route path="account" element={<Account />} />
-        <Route path="auth/callback" element={<AuthCallback />} />
-        <Route path="auth/vk" element={<AuthCallback />} />
-        <Route path="my-list" element={<MyList />} />
-        <Route path="moderation" element={<Moderation />} />
-        <Route path="*" element={<NotFound />} />
-      </Route>
-    </Routes>
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="anime/:id" element={<TitlePageRoute />} />
+          <Route path="watch/:id/:episode" element={<Player />} />
+          <Route
+            path="ongoing"
+            element={
+              <main className="container home">
+                <CatalogSection title="Онгоинги" status="ongoing" moreLink="/catalog?status=ongoing" />
+              </main>
+            }
+          />
+          <Route path="catalog" element={<Catalog />} />
+          <Route path="schedule" element={<Schedule />} />
+          <Route path="account" element={<Account />} />
+          <Route path="auth/callback" element={<AuthCallback />} />
+          <Route path="auth/vk" element={<AuthCallback />} />
+          <Route path="my-list" element={<MyList />} />
+          <Route path="moderation" element={<Moderation />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </Suspense>
   )
 }

@@ -16,6 +16,9 @@ export interface Anime {
   description: string
   score?: number
   posterUrl?: string
+  /** лёгкий webp для карточек в сетке (и версия для экранов с высокой плотностью) */
+  posterSmall?: string
+  posterSmall2x?: string
   posterFill: string
   trailerUrl?: string
 }
@@ -23,7 +26,7 @@ export interface Anime {
 /** Поля, которых хватает для карточки в сетке. */
 export type AnimeCard = Pick<
   Anime,
-  'id' | 'title' | 'year' | 'kind' | 'episodes' | 'ongoing' | 'score' | 'posterUrl' | 'posterFill'
+  'id' | 'title' | 'year' | 'kind' | 'episodes' | 'ongoing' | 'score' | 'posterUrl' | 'posterSmall' | 'posterSmall2x' | 'posterFill'
 >
 
 // Демо-данные: показываются, если API Shikimori недоступно.

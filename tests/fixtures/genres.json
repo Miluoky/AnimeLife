@@ -1,0 +1,86 @@
+[
+  {
+    "id": 8,
+    "name": "Drama",
+    "russian": "Драма",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 11,
+    "name": "Game",
+    "russian": "Игры",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 40,
+    "name": "Psychological",
+    "russian": "Психологическое",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 19,
+    "name": "Music",
+    "russian": "Музыка",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 1,
+    "name": "Action",
+    "russian": "Экшен",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 4,
+    "name": "Comedy",
+    "russian": "Комедия",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 6,
+    "name": "Demons",
+    "russian": "Демоны",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 39,
+    "name": "Police",
+    "russian": "Полиция",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 9,
+    "name": "Ecchi",
+    "russian": "Этти",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 10,
+    "name": "Fantasy",
+    "russian": "Фэнтези",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 12,
+    "name": "Hentai",
+    "russian": "Хентай",
+    "kind": "genre",
+    "entry_type": "Anime"
+  },
+  {
+    "id": 13,
+    "name": "Historical",
+    "russian": "Исторический",
+    "kind": "genre",
+    "entry_type": "Anime"
+  }
+]

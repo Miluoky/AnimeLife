@@ -42,12 +42,12 @@ export function setListStatus(anime: Anime, status: ListStatus | undefined) {
     store.set(rest)
     return
   }
-  const { id, title, year, kind, episodes, ongoing, score, posterUrl, posterFill } = anime
+  const { id, title, year, kind, episodes, ongoing, score, posterUrl, posterSmall, posterSmall2x, posterFill } = anime
   const prev = store.get().find((e) => e.anime.id === anime.id)
   store.set([
     {
       ...prev,
-      anime: { id, title, year, kind, episodes, ongoing, score, posterUrl, posterFill },
+      anime: { id, title, year, kind, episodes, ongoing, score, posterUrl, posterSmall, posterSmall2x, posterFill },
       status,
       addedAt: prev?.addedAt ?? Date.now(),
       updatedAt: Date.now(),

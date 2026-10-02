@@ -1,6 +1,6 @@
 // Service worker Anime Life: сайт открывается мгновенно и работает без сети на уже открытых страницах.
 // Меняйте VERSION, если меняется логика кэша: старые кэши удалятся при активации.
-const VERSION = 'v1'
+const VERSION = 'v2'
 const SHELL = `shell-${VERSION}`
 const STATIC = `static-${VERSION}`
 const DATA = `data-${VERSION}`
@@ -93,12 +93,8 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    event.respondWith(cacheFirst(request, STATIC))
-    return
-  }
-
-  if (url.hostname.startsWith('shikimori')) {
+  // Данные и картинки Shikimori (постеры могут отдаваться с поддоменов вроде desu.shikimori.one).
+  if (/shikimori\.(io|one|me)$/.test(url.hostname)) {
     if (url.pathname.startsWith('/api/')) event.respondWith(networkFirst(request, DATA))
     else if (/\.(jpe?g|png|webp|gif)$/i.test(url.pathname) || /^\/(system|uploads)\//.test(url.pathname))
       event.respondWith(cacheFirst(request, IMAGES))

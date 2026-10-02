@@ -2175,3 +2175,15 @@ h3 {
 .turnstile {
   min-height: 65px;
 }
+
+/* Место под страницу, пока её код едет по сети (см. Suspense в App.tsx). */
+.page-fallback {
+  min-height: 70vh;
+}
+
+/* Разделы ниже экрана браузер не отрисовывает, пока до них не докрутили. */
+.home > section:not(:first-child),
+.title-page > section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
+}

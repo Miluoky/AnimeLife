@@ -57,7 +57,13 @@ function Hero() {
         {anime.posterUrl ? (
           <>
             <img className="hero__art-bg" src={anime.posterUrl} alt="" />
-            <img className="hero__art-poster" src={anime.posterUrl} alt={`Постер: ${anime.title}`} />
+            <img
+              className="hero__art-poster"
+              src={anime.posterUrl}
+              alt={`Постер: ${anime.title}`}
+              // @ts-expect-error fetchpriority ещё нет в типах React 18
+              fetchpriority="high"
+            />
           </>
         ) : (
           <span className="art-label">[Ключевой арт тайтла, 16:9]</span>

@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { AppwriteException, ID, type Models } from 'appwrite'
-import { account } from '../api/appwrite'
+import type { Models } from 'appwrite'
 import { historyStore, type HistoryEntry } from './history'
 import { listStore, removedStore, type ListEntry } from './myList'
 
@@ -16,6 +15,9 @@ interface SyncedPrefs {
 }
 
 const REMOVED_TTL = 90 * 24 * 3600 * 1000
+
+// SDK Appwrite весит заметно, поэтому едет отдельной частью и подключается при первом обращении к аккаунту.
+const sdk = () => import('../api/appwrite')
 
 export type User = Models.User<Models.Preferences>
 
@@ -84,6 +86,7 @@ async function push() {
   if (!state.user) return
   try {
     const prefs: SyncedPrefs = { list: listStore.get(), removed: removedStore.get(), history: historyStore.get() }
+    const { account } = await sdk()
     const user = await account.updatePrefs({ ...state.user.prefs, ...prefs })
     setState({ user, syncError: undefined })
   } catch (e) {
@@ -115,6 +118,7 @@ async function adopt(user: User) {
 
 async function refresh() {
   try {
+    const { account } = await sdk()
     await adopt(await account.get())
   } catch {
     setState({ checking: false, user: null })
@@ -143,23 +147,27 @@ const messages: Record<string, string> = {
 
 /** Понятное сообщение для формы входа. */
 export function authErrorMessage(e: unknown): string {
-  if (e instanceof AppwriteException) return messages[e.type] ?? e.message
+  // AppwriteException несёт код ошибки в поле type; проверяем по форме, чтобы не тянуть сюда SDK.
+  if (e instanceof Error && 'type' in e && typeof e.type === 'string') return messages[e.type] ?? e.message
   if (e instanceof Error && e.name === 'SocialLoginError') return e.message
   return 'Не получилось связаться с сервером. Проверьте интернет и попробуйте ещё раз.'
 }
 
 export async function signIn(email: string, password: string) {
+  const { account } = await sdk()
   await account.createEmailPasswordSession({ email, password })
   await refresh()
 }
 
 export async function signUp(name: string, email: string, password: string) {
+  const { account, ID } = await sdk()
   await account.create({ userId: ID.unique(), email, password, name: name || undefined })
   await signIn(email, password)
 }
 
 /** Обмен одноразового токена (Google, Яндекс, VK, Telegram) на обычную сессию. */
 export async function finishSession(userId: string, secret: string) {
+  const { account } = await sdk()
   await account.createSession({ userId, secret })
   await refresh()
 }
@@ -168,6 +176,7 @@ export async function signOut() {
   clearTimeout(pushTimer)
   await push()
   try {
+    const { account } = await sdk()
     await account.deleteSession({ sessionId: 'current' })
   } finally {
     // Список остаётся в браузере: выход не должен ничего стирать.
