@@ -6,8 +6,8 @@ import { useAuth } from '../data/auth'
 
 export function Logo() {
   return (
-    <Link to="/" className="logo">
-      аниме<span>.</span>
+    <Link to="/" className="logo" aria-label="Anime Life, на главную">
+      Anime<span>Life</span>
     </Link>
   )
 }
