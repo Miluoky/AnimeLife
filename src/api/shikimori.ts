@@ -50,10 +50,19 @@ export interface Genre {
   title: string
 }
 
+export type CatalogOrder = 'popularity' | 'ranked' | 'aired_on'
+
 export interface CatalogQuery {
   page?: number
   limit?: number
+  order?: CatalogOrder
   status?: 'ongoing' | 'released' | 'anons'
+  /** tv, movie, ova, ona, special */
+  kind?: string
+  /** год (2024) или диапазон лет (2020_2024), как понимает Shikimori */
+  season?: string
+  /** минимальная оценка */
+  score?: number
   genre?: number
   search?: string
 }
@@ -205,8 +214,11 @@ export async function fetchCatalog(q: CatalogQuery = {}): Promise<Anime[]> {
   const list = await get<ShikiAnimeShort[]>('/animes', {
     page: q.page ?? 1,
     limit: q.limit ?? 24,
-    order: 'popularity',
+    order: q.order ?? 'popularity',
     status: q.status,
+    kind: q.kind,
+    season: q.season,
+    score: q.score,
     genre: q.genre,
     search: q.search,
     censored: 'true',
@@ -229,6 +241,15 @@ export async function fetchGenres(): Promise<Genre[]> {
     .map((name) => all.find((g) => g.name === name && g.entry_type === 'Anime'))
     .filter((g): g is ShikiGenre => Boolean(g))
     .map((g) => ({ id: g.id, title: g.russian || g.name }))
+}
+
+/** Все жанры и темы аниме по алфавиту, для фильтра в каталоге. */
+export async function fetchAllGenres(): Promise<Genre[]> {
+  const all = await get<ShikiGenre[]>('/genres')
+  return all
+    .filter((g) => g.entry_type === 'Anime')
+    .map((g) => ({ id: g.id, title: g.russian || g.name }))
+    .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
 }
 
 export interface ScheduleItem {

@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { useHistory } from '../data/history'
 import CatalogSection from '../components/CatalogSection'
@@ -104,11 +104,14 @@ export default function Home() {
   const [params] = useSearchParams()
   const query = (params.get('q') ?? '').trim()
 
+  // Старые ссылки на поиск вида /?q=… ведут в каталог.
+  if (query) return <Navigate to={`/catalog?q=${encodeURIComponent(query)}`} replace />
+
   return (
     <main className="container home">
-      {!query && <Hero />}
-      {!query && <ContinueWatching />}
-      <CatalogSection key={query} title={query ? `Результаты поиска: «${query}»` : 'Каталог'} search={query || undefined} />
+      <Hero />
+      <ContinueWatching />
+      <CatalogSection title="Популярное" moreLink="/catalog" />
     </main>
   )
 }

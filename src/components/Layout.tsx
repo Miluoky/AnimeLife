@@ -1,6 +1,7 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useState, type FormEvent } from 'react'
-import { CloseIcon, MenuIcon, SearchIcon, UserIcon } from './Icons'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { CloseIcon, MenuIcon, UserIcon } from './Icons'
+import SearchBox from './SearchBox'
 
 export function Logo() {
   return (
@@ -11,9 +12,7 @@ export function Logo() {
 }
 
 export default function Layout() {
-  const navigate = useNavigate()
   const location = useLocation()
-  const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
 
   // При переходе на другую страницу: закрыть мобильное меню и вернуться наверх.
@@ -22,31 +21,16 @@ export default function Layout() {
     window.scrollTo(0, 0)
   }, [location.pathname])
 
-  function onSearch(e: FormEvent) {
-    e.preventDefault()
-    setMenuOpen(false)
-    navigate(query ? `/?q=${encodeURIComponent(query)}` : '/')
-  }
-
   const navLinks = (
     <>
       <NavLink to="/" end>
-        Каталог
+        Главная
       </NavLink>
+      <NavLink to="/catalog">Каталог</NavLink>
       <NavLink to="/ongoing">Онгоинги</NavLink>
       <NavLink to="/schedule">Расписание</NavLink>
       <NavLink to="/my-list">Мой список</NavLink>
     </>
-  )
-
-  const searchForm = (id: string, className: string) => (
-    <form className={className} role="search" onSubmit={onSearch}>
-      <SearchIcon />
-      <label htmlFor={id} className="sr-only">
-        Поиск аниме
-      </label>
-      <input id={id} type="search" placeholder="Найти аниме" value={query} onChange={(e) => setQuery(e.target.value)} />
-    </form>
   )
 
   return (
@@ -58,7 +42,7 @@ export default function Layout() {
             {navLinks}
           </nav>
           <div style={{ flexGrow: 1 }} />
-          {searchForm('q', 'search')}
+          <SearchBox className="search" />
           <Link to="/my-list" className="icon-btn" aria-label="Мой список" title="Мой список">
             <UserIcon />
           </Link>
@@ -75,7 +59,7 @@ export default function Layout() {
         </div>
         {menuOpen && (
           <div id="mobile-menu" className="mobile-menu container">
-            {searchForm('q-mobile', 'search search--mobile')}
+            <SearchBox className="search search--mobile" onDone={() => setMenuOpen(false)} />
             <nav className="mobile-menu__nav" aria-label="Основное меню">
               {navLinks}
             </nav>
