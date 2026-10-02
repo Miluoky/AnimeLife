@@ -162,7 +162,7 @@ export default function TitlePage() {
             {!result.value?.demo && (
               <p className="muted source-note">
                 Данные:{' '}
-                <a href={`https://shikimori.one/animes/${anime.id}`} target="_blank" rel="noreferrer">
+                <a href={`https://shikimori.io/animes/${anime.id}`} target="_blank" rel="noreferrer">
                   Shikimori
                 </a>
               </p>

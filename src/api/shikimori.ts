@@ -1,8 +1,8 @@
 import type { Anime } from '../data/catalog'
 
-// Открытое API Shikimori: https://shikimori.one/api/doc
+// Открытое API Shikimori: https://shikimori.io/api/doc
 // Ключ не нужен, лимит 5 запросов в секунду и 90 в минуту.
-export const SHIKIMORI_URL = (import.meta.env.VITE_SHIKIMORI_URL as string | undefined) ?? 'https://shikimori.one'
+export const SHIKIMORI_URL = (import.meta.env.VITE_SHIKIMORI_URL as string | undefined) ?? 'https://shikimori.io'
 
 interface ShikiImage {
   original: string
@@ -57,14 +57,44 @@ export interface CatalogQuery {
   search?: string
 }
 
-async function get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
+// Запросы идут не чаще одного в 250 мс, чтобы не упираться в лимит 5 в секунду.
+const gap = 250
+let nextSlot = 0
+
+function slot() {
+  const now = Date.now()
+  const at = Math.max(now, nextSlot)
+  nextSlot = at + gap
+  return new Promise((resolve) => setTimeout(resolve, at - now))
+}
+
+// Одинаковые запросы (например, двойной рендер в StrictMode) делят один ответ.
+const cache = new Map<string, Promise<unknown>>()
+
+async function request<T>(url: URL, attempt = 0): Promise<T> {
+  await slot()
+  const res = await fetch(url, { headers: { Accept: 'application/json' } })
+  if (res.status === 429 && attempt < 3) {
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))
+    return request<T>(url, attempt + 1)
+  }
+  if (!res.ok) throw new Error(`Shikimori ${res.status}: ${url.pathname}`)
+  return res.json() as Promise<T>
+}
+
+function get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
   const url = new URL(`/api${path}`, SHIKIMORI_URL)
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') url.searchParams.set(key, String(value))
   }
-  const res = await fetch(url, { headers: { Accept: 'application/json' } })
-  if (!res.ok) throw new Error(`Shikimori ${res.status}: ${url.pathname}`)
-  return res.json() as Promise<T>
+  const key = url.toString()
+  let pending = cache.get(key) as Promise<T> | undefined
+  if (!pending) {
+    pending = request<T>(url)
+    pending.catch(() => cache.delete(key))
+    cache.set(key, pending)
+  }
+  return pending
 }
 
 const kinds: Record<string, string> = {
