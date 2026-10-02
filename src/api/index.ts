@@ -174,3 +174,40 @@ export async function loadStatsInfo(ids: string[]): Promise<Map<string, StatsInf
   }
   return out
 }
+
+export interface RecommendationSeed {
+  id: string
+  title: string
+  /** насколько тайтл понравился: чем больше, тем сильнее влияют похожие на него */
+  weight: number
+}
+
+/**
+ * «Вам понравится»: собираем похожие тайтлы для того, что вы высоко оценили или смотрите,
+ * и ранжируем по тому, сколько ваших любимых тайтлов на них указывают. Уже отмеченное в списке убираем.
+ */
+export async function loadRecommendations(seeds: RecommendationSeed[], exclude: Set<string>, limit = 12) {
+  const real = seeds.filter((s) => !isDemoId(s.id))
+  const lists = await Promise.allSettled(real.map((s) => fetchSimilar(s.id)))
+  const scored = new Map<string, { anime: Anime; score: number; because: RecommendationSeed; best: number }>()
+  lists.forEach((res, i) => {
+    if (res.status !== 'fulfilled') return
+    const seed = real[i]
+    res.value.forEach((anime, rank) => {
+      if (exclude.has(anime.id) || anime.upcoming) return
+      const add = seed.weight * (1 - rank / 24)
+      const prev = scored.get(anime.id)
+      if (!prev) {
+        scored.set(anime.id, { anime, score: add + ((anime.score ?? 7) - 7) * 0.4, because: seed, best: add })
+        return
+      }
+      prev.score += add
+      // «Похоже на…» показываем по тайтлу, который сильнее всего повлиял на выбор.
+      if (add > prev.best) Object.assign(prev, { because: seed, best: add })
+    })
+  })
+  const items = [...scored.values()].sort((a, b) => b.score - a.score).slice(0, limit)
+  // У некоторых тайтлов на Shikimori нет похожих: в подписи называем только те, что реально повлияли.
+  const used = seeds.filter((s) => items.some((r) => r.because.id === s.id))
+  return { items, used }
+}

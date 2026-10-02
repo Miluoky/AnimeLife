@@ -1948,3 +1948,23 @@ h3 {
   font-weight: 700;
   color: var(--accent);
 }
+
+/* Рекомендации */
+.section-note {
+  margin: -8px 0 0;
+  font-size: 14px;
+}
+
+.rec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rec-card__because {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

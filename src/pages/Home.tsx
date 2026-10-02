@@ -2,6 +2,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { useHistory } from '../data/history'
 import CatalogSection from '../components/CatalogSection'
+import Recommendations from '../components/Recommendations'
 import { Poster } from '../components/PosterCard'
 import { PlayIcon } from '../components/Icons'
 
@@ -111,6 +112,7 @@ export default function Home() {
     <main className="container home">
       <Hero />
       <ContinueWatching />
+      <Recommendations />
       <CatalogSection title="Популярное" moreLink="/catalog" />
     </main>
   )
