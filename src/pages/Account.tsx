@@ -1,32 +1,123 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { authErrorMessage, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
 import { SOCIAL_LOGIN } from '../api/appwrite'
-import { signInWithOAuth, signInWithTelegram, signInWithVk } from '../data/socialAuth'
+import {
+  signInWithOAuth,
+  signInWithVk,
+  startTelegram,
+  waitForTelegram,
+  type TelegramLogin,
+} from '../data/socialAuth'
 
 const providers = [
   { id: 'vk', title: 'VK ID', mark: 'VK', on: !!SOCIAL_LOGIN.vkAppId },
   { id: 'yandex', title: 'Яндекс', mark: 'Я', on: SOCIAL_LOGIN.yandex },
   { id: 'google', title: 'Google', mark: 'G', on: SOCIAL_LOGIN.google },
-  { id: 'telegram', title: 'Telegram', mark: 'TG', on: !!SOCIAL_LOGIN.telegramBotId },
 ] as const
+
+/**
+ * Вход через бота: ссылка заранее готова, поэтому одно нажатие открывает Telegram,
+ * а сайт ждёт, пока в боте нажмут «Подтвердить».
+ */
+function TelegramButton({ disabled, onError }: { disabled: boolean; onError: (message: string) => void }) {
+  const [login, setLogin] = useState<TelegramLogin>()
+  const [waiting, setWaiting] = useState(false)
+  const wait = useRef<AbortController>()
+
+  // Готовим код заранее и обновляем, когда он устаревает.
+  useEffect(() => {
+    if (waiting) return
+    if (login && login.expiresAt > Date.now()) {
+      const timer = setTimeout(() => setLogin(undefined), login.expiresAt - Date.now())
+      return () => clearTimeout(timer)
+    }
+    let cancelled = false
+    startTelegram()
+      .then((next) => !cancelled && setLogin(next))
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [login, waiting])
+
+  useEffect(() => () => wait.current?.abort(), [])
+
+  function begin() {
+    if (!login) return
+    onError('')
+    setWaiting(true)
+    const controller = new AbortController()
+    wait.current = controller
+    waitForTelegram(login, controller.signal)
+      .catch((err) => !controller.signal.aborted && onError(authErrorMessage(err)))
+      .finally(() => {
+        if (controller.signal.aborted) return
+        setWaiting(false)
+        setLogin(undefined)
+      })
+  }
+
+  function cancel() {
+    wait.current?.abort()
+    setWaiting(false)
+    setLogin(undefined)
+  }
+
+  if (waiting && login) {
+    return (
+      <div className="notice telegram-wait" role="status">
+        <span>
+          Откройте бота в Telegram и нажмите «Подтвердить». Если Telegram не открылся,{' '}
+          <a href={login.link} target="_blank" rel="noopener noreferrer">
+            откройте его по ссылке
+          </a>
+          .
+        </span>
+        <button type="button" className="pill" onClick={cancel}>
+          Отмена
+        </button>
+      </div>
+    )
+  }
+
+  return login ? (
+    <a
+      className={`btn social-btn social-btn--telegram${disabled ? ' social-btn--off' : ''}`}
+      href={login.link}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => (disabled ? e.preventDefault() : begin())}
+    >
+      <span className="social-btn__mark" aria-hidden="true">
+        TG
+      </span>
+      Telegram
+    </a>
+  ) : (
+    <button type="button" className="btn social-btn social-btn--telegram" disabled>
+      <span className="social-btn__mark" aria-hidden="true">
+        TG
+      </span>
+      Telegram
+    </button>
+  )
+}
 
 /** Кнопки входа через другие сервисы. Показываем только те, что уже настроены. */
 function SocialButtons({ onError }: { onError: (message: string) => void }) {
   const [busy, setBusy] = useState('')
   const enabled = providers.filter((p) => p.on)
-  if (!enabled.length) return null
+  if (!enabled.length && !SOCIAL_LOGIN.telegram) return null
 
   async function start(id: (typeof providers)[number]['id']) {
     setBusy(id)
     onError('')
     try {
+      // VK, Google и Яндекс уводят на свою страницу и возвращают на сайт.
       if (id === 'vk') await signInWithVk()
-      else if (id === 'telegram') await signInWithTelegram()
       else signInWithOAuth(id)
-      // VK, Google и Яндекс уводят на свою страницу, Telegram входит прямо здесь.
-      if (id === 'telegram') setBusy('')
     } catch (err) {
       onError(authErrorMessage(err))
       setBusy('')
@@ -50,6 +141,7 @@ function SocialButtons({ onError }: { onError: (message: string) => void }) {
             {busy === p.id ? 'Секунду…' : p.title}
           </button>
         ))}
+        {SOCIAL_LOGIN.telegram && <TelegramButton disabled={!!busy} onError={onError} />}
       </div>
       <div className="divider">
         <span>или по почте</span>

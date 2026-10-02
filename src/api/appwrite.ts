@@ -20,8 +20,8 @@ export const SOCIAL_LOGIN = {
   yandex: (env.VITE_AUTH_YANDEX ?? '0') === '1',
   /** ID приложения VK ID */
   vkAppId: env.VITE_VK_APP_ID ?? '',
-  /** числовой ID бота Telegram, первая часть его токена до двоеточия */
-  telegramBotId: env.VITE_TELEGRAM_BOT_ID ?? '8920200729',
+  /** вход через бота @AnimeLifeAuth_bot (настройки бота живут в функции social-login) */
+  telegram: (env.VITE_AUTH_TELEGRAM ?? '1') === '1',
 }
 
 /** Функция Appwrite, которая проверяет вход через VK и Telegram (functions/social-login). */

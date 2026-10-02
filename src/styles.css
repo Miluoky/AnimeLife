@@ -1519,3 +1519,25 @@ h3 {
   height: 1px;
   background: var(--line);
 }
+
+.social-btn--off {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.social-buttons > :only-child {
+  grid-column: 1 / -1;
+}
+
+.telegram-wait {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.telegram-wait a {
+  color: var(--accent);
+}

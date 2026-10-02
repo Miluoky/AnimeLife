@@ -21,22 +21,38 @@ export function signInWithOAuth(provider: 'google' | 'yandex') {
   })
 }
 
-async function callFunction(body: object) {
+interface FunctionReply {
+  userId?: string
+  secret?: string
+  error?: string
+  pending?: boolean
+  code?: string
+  pollKey?: string
+  bot?: string
+  expiresIn?: number
+}
+
+async function runFunction(body: object): Promise<FunctionReply> {
   const run = await functions.createExecution({
     functionId: SOCIAL_FUNCTION,
     body: JSON.stringify(body),
     async: false,
     method: ExecutionMethod.POST,
   })
-  let reply: { userId?: string; secret?: string; error?: string } = {}
+  let reply: FunctionReply = {}
   try {
     reply = JSON.parse(run.responseBody || '{}')
   } catch {
     // ответ не JSON: ниже покажем общую ошибку
   }
-  if (!reply.userId || !reply.secret) {
+  if (reply.error || run.responseStatusCode >= 300) {
     throw new SocialLoginError(reply.error ?? 'Сервер входа не ответил. Попробуйте ещё раз.')
   }
+  return reply
+}
+
+async function finishWith(reply: FunctionReply) {
+  if (!reply.userId || !reply.secret) throw new SocialLoginError('Сервер входа не ответил. Попробуйте ещё раз.')
   await finishSession(reply.userId, reply.secret)
 }
 
@@ -79,50 +95,63 @@ export async function finishVk(params: URLSearchParams) {
   if (!saved || saved.state !== params.get('state') || !params.get('code')) {
     throw new SocialLoginError('Ссылка входа через VK устарела. Попробуйте ещё раз.')
   }
-  await callFunction({
-    provider: 'vk',
-    code: params.get('code'),
-    deviceId: params.get('device_id'),
-    state: params.get('state'),
-    codeVerifier: saved.verifier,
-    redirectUri: appUrl(VK_CALLBACK_PATH),
-  })
-}
-
-// --- Telegram Login: всплывающее окно Telegram, подпись проверяет функция ---
-
-interface TelegramLogin {
-  auth(options: { bot_id: string; request_access?: string; lang?: string }, callback: (data: object | false) => void): void
-}
-
-let telegramScript: Promise<TelegramLogin> | undefined
-
-function loadTelegram() {
-  telegramScript ??= new Promise((resolve, reject) => {
-    const script = document.createElement('script')
-    script.src = 'https://telegram.org/js/telegram-widget.js?22'
-    script.async = true
-    script.onload = () => {
-      const login = (window as unknown as { Telegram?: { Login?: TelegramLogin } }).Telegram?.Login
-      if (login) resolve(login)
-      else reject(new SocialLoginError('Не удалось загрузить вход Telegram.'))
-    }
-    script.onerror = () => {
-      telegramScript = undefined
-      reject(new SocialLoginError('Не удалось загрузить вход Telegram. Проверьте интернет.'))
-    }
-    document.head.append(script)
-  })
-  return telegramScript
-}
-
-/** Возвращает false, если пользователь закрыл окно Telegram. */
-export async function signInWithTelegram(): Promise<boolean> {
-  const login = await loadTelegram()
-  const data = await new Promise<object | false>((resolve) =>
-    login.auth({ bot_id: SOCIAL_LOGIN.telegramBotId, request_access: 'write', lang: 'ru' }, resolve),
+  await finishWith(
+    await runFunction({
+      provider: 'vk',
+      code: params.get('code'),
+      deviceId: params.get('device_id'),
+      state: params.get('state'),
+      codeVerifier: saved.verifier,
+      redirectUri: appUrl(VK_CALLBACK_PATH),
+    }),
   )
-  if (!data) return false
-  await callFunction({ provider: 'telegram', data })
-  return true
+}
+
+// --- Telegram: вход через бота ---
+// Сайт получает код, пользователь открывает бота по ссылке t.me/<бот>?start=<код> и нажимает
+// «Подтвердить», а сайт тем временем спрашивает функцию, подтверждён ли вход.
+
+export interface TelegramLogin {
+  code: string
+  pollKey: string
+  /** ссылка, которая открывает бота в Telegram */
+  link: string
+  /** когда код перестанет действовать, с небольшим запасом */
+  expiresAt: number
+}
+
+export async function startTelegram(): Promise<TelegramLogin> {
+  const reply = await runFunction({ provider: 'telegram-start' })
+  if (!reply.code || !reply.pollKey || !reply.bot) throw new SocialLoginError('Вход через Telegram сейчас недоступен.')
+  return {
+    code: reply.code,
+    pollKey: reply.pollKey,
+    link: `https://t.me/${reply.bot}?start=${reply.code}`,
+    expiresAt: Date.now() + ((reply.expiresIn ?? 300) - 15) * 1000,
+  }
+}
+
+const POLL_EVERY = 2000
+
+/** Ждёт, пока вход подтвердят в боте, и входит. Прерывается через signal. */
+export async function waitForTelegram(login: TelegramLogin, signal: AbortSignal) {
+  while (!signal.aborted) {
+    if (Date.now() > login.expiresAt) throw new SocialLoginError('Время на вход вышло. Нажмите кнопку Telegram ещё раз.')
+    const reply = await runFunction({ provider: 'telegram-poll', code: login.code, pollKey: login.pollKey })
+    if (signal.aborted) return
+    if (!reply.pending) return finishWith(reply)
+    // Ждём следующей проверки; когда пользователь возвращается из Telegram, проверяем сразу.
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer)
+        document.removeEventListener('visibilitychange', onVisible)
+        signal.removeEventListener('abort', done)
+        resolve()
+      }
+      const onVisible = () => document.visibilityState === 'visible' && done()
+      const timer = setTimeout(done, POLL_EVERY)
+      document.addEventListener('visibilitychange', onVisible)
+      signal.addEventListener('abort', done)
+    })
+  }
 }

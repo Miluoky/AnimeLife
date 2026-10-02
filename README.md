@@ -42,10 +42,13 @@ Appwrite принимает запросы только с зарегистри�
 
 ### Вход через VK, Яндекс, Google и Telegram
 
-Кнопки на `/account` появляются, только когда сервис включён в `SOCIAL_LOGIN` (`src/api/appwrite.ts`, или переменными `VITE_AUTH_GOOGLE=1`, `VITE_AUTH_YANDEX=1`, `VITE_VK_APP_ID`, `VITE_TELEGRAM_BOT_ID`).
+Кнопки на `/account` появляются, только когда сервис включён в `SOCIAL_LOGIN` (`src/api/appwrite.ts`, или переменными `VITE_AUTH_GOOGLE=1`, `VITE_AUTH_YANDEX=1`, `VITE_VK_APP_ID`, `VITE_AUTH_TELEGRAM=0` выключает Telegram).
 
 - **Google и Яндекс** встроены в Appwrite. Сайт получает от Appwrite одноразовый токен на `/auth/callback` (`account.createOAuth2Token`), поэтому вход не зависит от сторонних cookie. Ключи приложения вносятся в консоли Appwrite: Auth → Settings → Google / Yandex. Адрес возврата для приложения у сервиса: `https://fra.cloud.appwrite.io/v1/account/sessions/oauth2/callback/<google|yandex>/6abf65850016889f9b1b`.
-- **VK ID и Telegram** проверяет функция Appwrite `social-login` (`functions/social-login`). VK возвращает на `/auth/vk` с кодом (OAuth 2.1 + PKCE), функция обменивает его у VK. Telegram открывает своё окно входа, функция проверяет подпись. Затем функция находит или создаёт пользователя `vk_<id>` / `tg_<id>` и выдаёт токен на минуту. Переменные функции: `VK_APP_ID`, `TELEGRAM_BOT_TOKEN` (секрет). У VK доверенный адрес возврата `https://anime-night.pages.dev/auth/vk`, у бота Telegram домен задаётся в @BotFather командой `/setdomain`.
+- **VK ID и Telegram** обслуживает функция Appwrite `social-login` (`functions/social-login`), она находит или создаёт пользователя `vk_<id>` / `tg_<id>` и выдаёт токен на минуту.
+  - VK возвращает на `/auth/vk` с кодом (OAuth 2.1 + PKCE), функция обменивает его у VK. Доверенный адрес возврата у VK: `https://anime-night.pages.dev/auth/vk`.
+  - Telegram работает как у других ботов: кнопка открывает `t.me/AnimeLifeAuth_bot?start=<код>`, бот спрашивает «Подтвердить вход?», а сайт раз в две секунды спрашивает функцию, подтверждён ли вход. Бот получает сообщения через вебхук на `https://anime-night-login.fra.appwrite.run` (домен функции) с секретом `TELEGRAM_WEBHOOK_SECRET`. Незавершённый вход хранится во временном заблокированном пользователе `tgl_<код>` и удаляется через 5 минут.
+  - Переменные функции: `VK_APP_ID`, `TELEGRAM_BOT_TOKEN` (секрет), `TELEGRAM_WEBHOOK_SECRET` (секрет), `TELEGRAM_BOT_USERNAME`, `SITE_URL`.
 
 Выложить новую версию функции:
 
