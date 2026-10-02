@@ -99,7 +99,7 @@ async function bot(method, params) {
   return res.json().catch(() => ({}))
 }
 
-const siteUrl = () => process.env.SITE_URL || 'https://anime-night.pages.dev'
+const siteUrl = () => process.env.SITE_URL || 'https://animelife.top'
 const siteName = () => new URL(siteUrl()).host
 
 async function pendingLogin(api, code) {

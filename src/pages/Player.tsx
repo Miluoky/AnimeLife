@@ -42,13 +42,16 @@ export default function Player() {
   return (
     <main className="container player-page">
       <div className="stack player-main">
-        {/* Мульти-провайдерный плеер вместо трейлера */}
+        {/* Мульти-провайдерный плеер; если серию взять негде — трейлер */}
         <VideoPlayer
           title={anime.title}
           originalTitle={anime.originalTitle}
+          englishTitle={anime.englishTitle}
           shikimoriId={anime.id}
           episode={current}
           totalEpisodes={total}
+          onEpisodeChange={goTo}
+          trailerUrl={anime.trailerUrl}
         />
 
         <div className="section-head" style={{ alignItems: 'flex-start' }}>

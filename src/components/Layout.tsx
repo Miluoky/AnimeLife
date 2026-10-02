@@ -4,6 +4,7 @@ import { CloseIcon, MenuIcon, UserIcon } from './Icons'
 import SearchBox from './SearchBox'
 import BottomNav from './BottomNav'
 import Toasts from './Toasts'
+import PageErrorBoundary from './PageErrorBoundary'
 import { useAuth } from '../data/auth'
 import { applyAppearance } from '../data/theme'
 
@@ -119,7 +120,9 @@ export default function Layout() {
       </header>
 
       <div className="page" key={location.pathname}>
-        <Outlet />
+        <PageErrorBoundary>
+          <Outlet />
+        </PageErrorBoundary>
       </div>
 
       <Suspense fallback={null}>

@@ -91,6 +91,19 @@ test('вкладка «Вместе»: открытые комнаты и вхо
   await expect(page.getByRole('heading', { name: /Смотрим первую серию/ })).toBeVisible()
 })
 
+test('вкладка «Вместе» на телефоне 390px: страница не шире экрана, нижнее меню видно', async ({ page, isMobile }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mockRoom(page, baseRoom)
+  await page.goto('/together')
+  await expect(page.getByRole('link', { name: /Смотрим первую серию/ })).toBeVisible()
+  const { scroll, client } = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    client: document.documentElement.clientWidth,
+  }))
+  expect(scroll).toBeLessThanOrEqual(client)
+  if (isMobile) await expect(page.locator('.bottom-nav')).toBeInViewport()
+})
+
 test('комната: плей, пауза и перемотка ведущего доходят до гостя, чат и реакции живые', async ({ page }) => {
   const push = await mockRoom(page, baseRoom)
   await page.goto(`/together/${CODE}`)

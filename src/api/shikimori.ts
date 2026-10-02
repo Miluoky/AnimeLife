@@ -40,6 +40,7 @@ interface ShikiVideo {
 }
 
 interface ShikiAnimeFull extends ShikiAnimeShort {
+  english?: (string | null)[]
   description: string | null
   duration: number
   genres: ShikiGenre[]
@@ -227,6 +228,7 @@ function fromFull(a: ShikiAnimeFull): Anime {
   const trailer = a.videos.find((v) => v.kind === 'pv' && v.hosting === 'youtube') ?? a.videos.find((v) => v.hosting === 'youtube')
   return {
     ...fromShort(a),
+    englishTitle: a.english?.[0] || undefined,
     episodeMinutes: a.duration || undefined,
     studio: a.studios[0]?.name,
     genres: a.genres.map((g) => g.russian || g.name),

@@ -12,6 +12,7 @@ const Catalog = lazy(pageChunks.catalog)
 const Schedule = lazy(pageChunks.schedule)
 const MyList = lazy(pageChunks.myList)
 const Account = lazy(pageChunks.account)
+const PasswordRecovery = lazy(pageChunks.passwordRecovery)
 const Moderation = lazy(pageChunks.moderation)
 const AuthCallback = lazy(pageChunks.authCallback)
 const NotFound = lazy(pageChunks.notFound)
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="catalog" element={<Catalog />} />
           <Route path="schedule" element={<Schedule />} />
           <Route path="account" element={<Account />} />
+          <Route path="account/recovery" element={<PasswordRecovery />} />
           <Route path="auth/callback" element={<AuthCallback />} />
           <Route path="auth/vk" element={<AuthCallback />} />
           <Route path="my-list" element={<MyList />} />

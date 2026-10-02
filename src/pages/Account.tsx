@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { authErrorMessage, signIn, signOut, signUp, useAuth } from '../data/auth'
+import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
 import ProfileStats from '../components/ProfileStats'
 import PushSettings from '../components/PushSettings'
@@ -160,22 +160,39 @@ function titles(n: number) {
 }
 
 function AuthForm() {
-  const [mode, setMode] = useState<'in' | 'up'>('in')
+  // reset — «Забыли пароль?»: письмо со ссылкой на /account/recovery
+  const [mode, setMode] = useState<'in' | 'up' | 'reset'>('in')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [sent, setSent] = useState(false)
+
+  function switchMode(next: typeof mode) {
+    setMode(next)
+    setError('')
+    setSent(false)
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
     setError('')
     try {
-      if (mode === 'in') await signIn(email.trim(), password)
+      if (mode === 'reset') {
+        await requestRecovery(email.trim())
+        setSent(true)
+      } else if (mode === 'in') await signIn(email.trim(), password)
       else await signUp(name.trim(), email.trim(), password)
     } catch (err) {
-      setError(authErrorMessage(err))
+      // У формы сброса нет пароля: «неверный аргумент» здесь — почта или адрес сайта для ссылки.
+      const badArgument = err instanceof Error && 'type' in err && err.type === 'general_argument_invalid'
+      setError(
+        mode === 'reset' && badArgument
+          ? 'Не получилось отправить письмо: проверьте почту. Если она верная, восстановление пароля на этом сайте пока не настроено.'
+          : authErrorMessage(err),
+      )
     } finally {
       setBusy(false)
     }
@@ -189,24 +206,31 @@ function AuthForm() {
             ['in', 'Вход'],
             ['up', 'Регистрация'],
           ] as const
-        ).map(([id, title]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={mode === id}
-            className={`pill${mode === id ? ' active' : ''}`}
-            onClick={() => {
-              setMode(id)
-              setError('')
-            }}
-          >
-            {title}
-          </button>
-        ))}
+        ).map(([id, title]) => {
+          // Сброс пароля — часть входа: вкладка «Вход» остаётся выбранной.
+          const selected = mode === id || (mode === 'reset' && id === 'in')
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              className={`pill${selected ? ' active' : ''}`}
+              onClick={() => switchMode(id)}
+            >
+              {title}
+            </button>
+          )
+        })}
       </div>
 
-      <SocialButtons onError={setError} />
+      {mode === 'reset' ? (
+        <p className="muted" style={{ margin: 0 }}>
+          Укажите почту аккаунта: пришлём письмо со ссылкой, по которой можно задать новый пароль.
+        </p>
+      ) : (
+        <SocialButtons onError={setError} />
+      )}
 
       {mode === 'up' && (
         <label className="field">
@@ -218,18 +242,25 @@ function AuthForm() {
         <span>Почта</span>
         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
       </label>
-      <label className="field">
-        <span>Пароль</span>
-        <input
-          type="password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
-        />
-        {mode === 'up' && <small className="muted">Не короче 8 символов.</small>}
-      </label>
+      {mode !== 'reset' && (
+        <label className="field">
+          <span>Пароль</span>
+          <input
+            type="password"
+            required
+            minLength={8}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
+          />
+          {mode === 'up' && <small className="muted">Не короче 8 символов.</small>}
+        </label>
+      )}
+      {mode === 'in' && (
+        <button type="button" className="link-btn" onClick={() => switchMode('reset')}>
+          Забыли пароль?
+        </button>
+      )}
 
       {error && (
         <p className="notice notice--error" role="alert">
@@ -237,9 +268,23 @@ function AuthForm() {
         </p>
       )}
 
+      {sent && (
+        <p className="notice" role="status">
+          Письмо отправлено на {email.trim()}. Откройте ссылку из него в течение часа. Если письма нет, проверьте папку
+          «Спам».
+        </p>
+      )}
+
       <button type="submit" className="btn btn--accent" disabled={busy}>
-        {busy ? 'Секунду…' : mode === 'in' ? 'Войти' : 'Создать аккаунт'}
+        {busy
+          ? 'Секунду…'
+          : { in: 'Войти', up: 'Создать аккаунт', reset: sent ? 'Отправить ещё раз' : 'Отправить ссылку' }[mode]}
       </button>
+      {mode === 'reset' && (
+        <button type="button" className="link-btn" onClick={() => switchMode('in')}>
+          Назад ко входу
+        </button>
+      )}
       <p className="muted" style={{ margin: 0, fontSize: 14 }}>
         После входа «Мой список» и история просмотра сохраняются в аккаунте. То, что уже отмечено в этом браузере,
         перенесётся автоматически.

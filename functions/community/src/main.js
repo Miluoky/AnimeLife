@@ -364,7 +364,7 @@ async function notify(api, log) {
   if (!due.length) return { due: 0, sent: 0 }
 
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:noreply@anime-night.pages.dev',
+    process.env.VAPID_SUBJECT || 'mailto:noreply@animelife.top',
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY,
   )

@@ -66,10 +66,7 @@ async function metaFor(path, origin) {
         numberOfEpisodes: a.episodes || undefined,
         startDate: a.aired_on || undefined,
         genre: (a.genres ?? []).map((g) => g.russian || g.name),
-        aggregateRating:
-          Number(a.score) > 0
-            ? { '@type': 'AggregateRating', ratingValue: Number(a.score), bestRating: 10, ratingCount: 100 }
-            : undefined,
+        // aggregateRating не ставим: у Shikimori есть оценка, но нет числа голосов, а выдумывать его нельзя.
       },
     }
   }
@@ -108,6 +105,13 @@ class SetContent {
   }
 }
 
+// В index.html картинка превью — полный адрес на animelife.top (соцсетям нужен полный адрес, а «/» и прочие
+// страницы приложения отдаются без Worker). На своих адресах Worker подставляет сайт, с которого пришёл запрос.
+const withSiteImage = (res, url) =>
+  (res.headers.get('Content-Type') ?? '').includes('text/html')
+    ? new HTMLRewriter().on('meta[property="og:image"]', new SetContent(`${url.origin}/og-image.png`)).transform(res)
+    : res
+
 async function page(request, env, url) {
   // Адрес «/» отдаёт index.html (запрос «/index.html» сервер ассетов перенаправил бы на «/»).
   const asset = await env.ASSETS.fetch(new Request(new URL('/', url), request))
@@ -117,7 +121,7 @@ async function page(request, env, url) {
   } catch {
     // Тайтла или комнаты нет, сервис не ответил: обычная страница, приложение само покажет ошибку.
   }
-  if (!meta) return asset
+  if (!meta) return withSiteImage(asset, url)
   const canonical = url.origin + url.pathname.replace(/\/$/, '')
   const image = meta.image ?? `${url.origin}/og-image.png`
   const extra = [

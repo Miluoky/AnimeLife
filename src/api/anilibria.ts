@@ -1,104 +1,88 @@
 /**
- * Клиент REST API AniLibria v3 — поиск тайтлов и получение HLS-потоков.
- * Документация: https://anilibria.tv/api/v3/
+ * Клиент REST API AniLibria v1 — поиск релиза по id Shikimori и получение HLS-потоков.
+ * Документация: https://anilibria.top/api/docs/v1
  */
 
-const API_BASE = 'https://api.anilibria.tv/v3'
+const API_BASE = 'https://anilibria.top/api/v1'
 
 /* ──────────────── Типы ──────────────── */
 
-/** Один HLS-поток в определённом качестве. */
-export interface AniLibriaHls {
-  fhd: string | null
-  hd: string | null
-  sd: string | null
-}
-
-/** Одна серия из поля `player.list`. */
+/** Одна серия релиза: ссылки на HLS-плейлисты абсолютные. */
 export interface AniLibriaEpisode {
-  episode: number
+  ordinal: number
   name: string | null
-  uuid: string
-  /** Дата создания серии (unix timestamp). */
-  created_timestamp: number
-  hls: AniLibriaHls
+  hls_480: string | null
+  hls_720: string | null
+  hls_1080: string | null
 }
 
-/** Блок `player` в ответе тайтла. */
-export interface AniLibriaPlayer {
-  host: string
-  /** Объект, где ключ — номер серии (строка), значение — AniLibriaEpisode. */
-  list: Record<string, AniLibriaEpisode>
-  episodes: { first: number | null; last: number | null; string: string }
-}
-
-/** Минимальная выборка полей тайтла, нужная для плеера. */
-export interface AniLibriaTitle {
+/** Минимальная выборка полей релиза, нужная плееру. */
+export interface AniLibriaRelease {
   id: number
-  code: string
-  names: { ru: string; en: string; alternative: string | null }
-  player: AniLibriaPlayer
+  shikimori: { id: number } | null
+  episodes: AniLibriaEpisode[]
 }
 
-export type AniLibriaQuality = 'fhd' | 'hd' | 'sd'
+/** Качества по убыванию: первое доступное — лучшее. */
+export const qualities = ['1080', '720', '480'] as const
+export type AniLibriaQuality = (typeof qualities)[number]
 
 /* ──────────────── Запросы ──────────────── */
 
-/**
- * Поиск тайтла по запросу. Возвращает массив найденных тайтлов.
- * Фильтруем, чтобы получать только поля, нужные плееру.
- */
-export async function searchTitle(query: string): Promise<AniLibriaTitle[]> {
-  const url = new URL(`${API_BASE}/title/search`)
-  url.searchParams.set('search', query)
-  url.searchParams.set('filter', 'id,code,names,player')
-  url.searchParams.set('limit', '5')
-
+async function get<T>(path: string, params: Record<string, string> = {}): Promise<T> {
+  const url = new URL(`${API_BASE}${path}`)
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
   const res = await fetch(url.toString())
-  if (!res.ok) throw new Error(`AniLibria search ${res.status}`)
-  const json = await res.json()
-  return json.list ?? []
+  if (!res.ok) throw new Error(`AniLibria ${path} ${res.status}`)
+  return res.json()
 }
 
-/**
- * Получить тайтл по коду (slug, например «shingeki-no-kyojin»).
- */
-export async function getTitleByCode(code: string): Promise<AniLibriaTitle | null> {
-  const url = new URL(`${API_BASE}/title`)
-  url.searchParams.set('code', code)
-  url.searchParams.set('filter', 'id,code,names,player')
+// Найденные релизы по id Shikimori: при переходе к другой серии плеер создаётся заново, а искать снова незачем.
+const releases = new Map<string, Promise<AniLibriaRelease | null>>()
 
-  const res = await fetch(url.toString())
-  if (!res.ok) return null
-  return res.json()
+/**
+ * Ищет релиз, у которого id Shikimori совпадает с нужным: перебирает запросы по очереди
+ * (русское, оригинальное, английское название). Без совпадения по id — null,
+ * чтобы не показать чужое аниме с похожим названием.
+ */
+export function findRelease(shikimoriId: string | undefined, queries: (string | undefined)[]): Promise<AniLibriaRelease | null> {
+  if (!shikimoriId) return Promise.resolve(null)
+  let found = releases.get(shikimoriId)
+  if (!found) {
+    found = searchRelease(shikimoriId, queries)
+    releases.set(shikimoriId, found)
+    // Ошибку сети не запоминаем: в следующий раз попробуем снова.
+    found.catch(() => releases.delete(shikimoriId))
+  }
+  return found
+}
+
+async function searchRelease(shikimoriId: string, queries: (string | undefined)[]): Promise<AniLibriaRelease | null> {
+  let failure: unknown = null
+  for (const query of new Set(queries.filter(Boolean) as string[])) {
+    let found: AniLibriaRelease[]
+    try {
+      found = await get<AniLibriaRelease[]>('/app/search/releases', { query })
+    } catch (e) {
+      // Запрос не ответил — пробуем следующее название.
+      failure = e
+      continue
+    }
+    const match = found.find((r) => String(r.shikimori?.id) === shikimoriId)
+    if (!match) continue
+    const release = await get<AniLibriaRelease>(`/anime/releases/${match.id}`)
+    return { ...release, episodes: [...(release.episodes ?? [])].sort((a, b) => a.ordinal - b.ordinal) }
+  }
+  // Не нашли, но какой-то запрос не ответил: это ошибка сети, а не «релиза нет».
+  if (failure) throw failure
+  return null
 }
 
 /* ──────────────── Хелперы ──────────────── */
 
-/**
- * Превращает player.list (объект с числовыми ключами) в отсортированный массив серий.
- */
-export function episodeList(player: AniLibriaPlayer): AniLibriaEpisode[] {
-  return Object.values(player.list).sort((a, b) => a.episode - b.episode)
-}
-
-/**
- * Собирает полный URL потока с учётом host из player.
- * AniLibria отдаёт относительный путь вроде `/videos/ts/...`, а host — `cache.libria.fun`.
- */
-export function hlsUrl(host: string, path: string): string {
-  // Убираем двойные протоколы, если host уже содержит https.
-  const base = host.startsWith('http') ? host : `https://${host}`
-  return `${base}${path}`
-}
-
-/**
- * Выбирает лучшее доступное качество из HLS-объекта.
- * Приоритет: fhd → hd → sd.
- */
-export function bestQuality(hls: AniLibriaHls): { quality: AniLibriaQuality; path: string } | null {
-  if (hls.fhd) return { quality: 'fhd', path: hls.fhd }
-  if (hls.hd) return { quality: 'hd', path: hls.hd }
-  if (hls.sd) return { quality: 'sd', path: hls.sd }
-  return null
+/** Поток серии в нужном качестве, а если его нет — в лучшем из доступных. */
+export function episodeStream(ep: AniLibriaEpisode, quality: AniLibriaQuality): { quality: AniLibriaQuality; url: string } | null {
+  const order = [quality, ...qualities.filter((q) => q !== quality)]
+  const best = order.find((q) => ep[`hls_${q}` as const])
+  return best ? { quality: best, url: ep[`hls_${best}` as const]! } : null
 }

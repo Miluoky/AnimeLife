@@ -205,6 +205,7 @@ const messages: Record<string, string> = {
   general_rate_limit_exceeded: 'Слишком много попыток. Подождите немного и попробуйте снова.',
   general_argument_invalid: 'Проверьте поля: пароль должен быть не короче 8 символов.',
   user_invalid_token: 'Ссылка входа устарела. Попробуйте войти ещё раз.',
+  user_not_found: 'Аккаунта с этой почтой нет. Проверьте адрес или зарегистрируйтесь.',
   general_unknown_origin: 'Сайт ещё не добавлен в настройки Appwrite, вход пока не работает.',
 }
 
@@ -233,6 +234,18 @@ export async function finishSession(userId: string, secret: string) {
   const { account } = await sdk()
   await account.createSession({ userId, secret })
   await refresh()
+}
+
+/** Письмо со ссылкой для нового пароля. Ссылка ведёт на /account/recovery этого же сайта. */
+export async function requestRecovery(email: string) {
+  const { account } = await sdk()
+  await account.createRecovery({ email, url: `${window.location.origin}${import.meta.env.BASE_URL}account/recovery` })
+}
+
+/** Новый пароль по ссылке из письма (userId и secret приходят в адресе). */
+export async function finishRecovery(userId: string, secret: string, password: string) {
+  const { account } = await sdk()
+  await account.updateRecovery({ userId, secret, password })
 }
 
 export async function signOut() {

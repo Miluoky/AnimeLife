@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { devices, expect, test } from '@playwright/test'
 import { mockServices } from './mocks'
 
 test.beforeEach(async ({ page }) => {
@@ -13,6 +13,22 @@ test('нижнее меню на телефоне ведёт по раздела
   await nav.getByRole('link', { name: 'Мой список' }).click()
   await expect(page).toHaveURL(/\/my-list$/)
   await expect(nav.getByRole('link', { name: 'Мой список' })).toHaveClass(/active/)
+})
+
+test.describe('iPhone', () => {
+  const { userAgent, viewport, deviceScaleFactor, isMobile, hasTouch } = devices['iPhone 13']
+  test.use({ userAgent, viewport, deviceScaleFactor, isMobile, hasTouch })
+
+  test('баннер «Anime Life на телефоне» стоит над нижним меню и не закрывает его', async ({ page }) => {
+    await page.goto('/')
+    const banner = page.getByRole('dialog', { name: 'Установить приложение' })
+    await expect(banner).toBeVisible()
+    const nav = page.getByRole('navigation', { name: 'Разделы сайта' })
+    const [b, n] = await Promise.all([banner.boundingBox(), nav.boundingBox()])
+    expect(b!.y + b!.height).toBeLessThanOrEqual(n!.y)
+    await nav.getByRole('link', { name: 'Мой список' }).click()
+    await expect(page).toHaveURL(/\/my-list$/)
+  })
 })
 
 test('Ctrl+K ставит курсор в поиск', async ({ page, isMobile }) => {

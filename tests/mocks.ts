@@ -31,4 +31,7 @@ export async function mockServices(page: Page) {
     route.fulfill({ status: 401, json: { message: 'User (role: guests) missing scope (account)', type: 'general_unauthorized_scope' } }),
   )
   await page.route(/challenges\.cloudflare\.com\/.*/, (route) => route.fulfill({ status: 204, body: '' }))
+  // AniLibria по умолчанию ничего не находит (плеер показывает трейлер), трейлер YouTube — пустая страница.
+  await page.route(/anilibria\.top\/api\/.*/, (route) => route.fulfill({ json: [] }))
+  await page.route(/youtube\.com\/embed\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Трейлер</title>' }))
 }

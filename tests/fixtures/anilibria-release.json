@@ -1,0 +1,56 @@
+{
+  "id": 8443,
+  "type": {
+    "value": "TV",
+    "description": "ТВ"
+  },
+  "year": 1998,
+  "name": {
+    "main": "Ковбой Бибоп",
+    "english": "Cowboy Bebop",
+    "alternative": null
+  },
+  "alias": "cowboy-bebop",
+  "shikimori": {
+    "id": 1,
+    "url": "https://shikimori.io/animes/1",
+    "votes": 65091,
+    "rating": 8.81
+  },
+  "episodes_total": 26,
+  "episodes": [
+    {
+      "id": "95c9cb66-789e-11ec-ae92-0242ac120002",
+      "name": "Блюз малых планет",
+      "ordinal": 1,
+      "hls_480": "https://cache.libria.fun/videos/media/ts/8443/1/480/8899e2a608146908947101cba9733e69.m3u8",
+      "hls_720": "https://cache.libria.fun/videos/media/ts/8443/1/720/c5609f8202d6369d423b4eb79ebe2e73.m3u8",
+      "hls_1080": "https://cache.libria.fun/videos/media/ts/8443/1/1080/84e1313ddf902f5eaff30733ed29c2d5.m3u8",
+      "duration": 1483,
+      "sort_order": 1,
+      "release_id": 8443
+    },
+    {
+      "id": "95c9cbd4-789e-11ec-ae92-0242ac120002",
+      "name": "Потерявшийся Пёс",
+      "ordinal": 2,
+      "hls_480": "https://cache.libria.fun/videos/media/ts/8443/2/480/b79b75ed2e2adf49e485d77b4fb2cd8b.m3u8",
+      "hls_720": "https://cache.libria.fun/videos/media/ts/8443/2/720/cd7e5a29feacab64a3ac8cf41b0cf93d.m3u8",
+      "hls_1080": "https://cache.libria.fun/videos/media/ts/8443/2/1080/b742ddc122b121cb6784229e20e6f833.m3u8",
+      "duration": 1337,
+      "sort_order": 2,
+      "release_id": 8443
+    },
+    {
+      "id": "95c9cc3d-789e-11ec-ae92-0242ac120002",
+      "name": "Женщины на Подсадку",
+      "ordinal": 3,
+      "hls_480": "https://cache.libria.fun/videos/media/ts/8443/3/480/34951cb2558310f7c295594c2e7ae22b.m3u8",
+      "hls_720": "https://cache.libria.fun/videos/media/ts/8443/3/720/5a2897bc319d0e8f58318785cd647e75.m3u8",
+      "hls_1080": "https://cache.libria.fun/videos/media/ts/8443/3/1080/8ed5c53dbbf92197b22c12d8de0603b5.m3u8",
+      "duration": 1482,
+      "sort_order": 3,
+      "release_id": 8443
+    }
+  ]
+}

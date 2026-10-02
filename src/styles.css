@@ -1179,6 +1179,16 @@ h3 {
   max-width: 400px;
 }
 
+/* Пояснение под трейлером, когда серий нет ни в одном источнике */
+.vp-note {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 /* Адаптивность: на узких экранах табы скроллятся, контролы стакаются */
 @media (max-width: 640px) {
   .vp-tab {
@@ -1984,6 +1994,13 @@ h3 {
   border: 0;
   background: transparent;
   color: var(--muted);
+}
+
+/* На телефоне баннер стоит над нижним меню и не закрывает его, как и уведомления. */
+@media (max-width: 900px) {
+  .install-banner {
+    bottom: calc(80px + env(safe-area-inset-bottom));
+  }
 }
 
 @keyframes install-in {

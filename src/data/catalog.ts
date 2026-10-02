@@ -2,6 +2,7 @@ export interface Anime {
   id: string
   title: string
   originalTitle?: string
+  englishTitle?: string
   year?: number
   kind: string
   episodes?: number
