@@ -1,12 +1,14 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { CloseIcon, MenuIcon, UserIcon } from './Icons'
 import SearchBox from './SearchBox'
-import InstallBanner from './InstallBanner'
 import BottomNav from './BottomNav'
 import Toasts from './Toasts'
 import { useAuth } from '../data/auth'
 import { applyAppearance } from '../data/theme'
+
+// Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
+const InstallBanner = lazy(() => import('./InstallBanner'))
 
 export function Logo() {
   return (
@@ -110,7 +112,9 @@ export default function Layout() {
         <Outlet />
       </div>
 
-      <InstallBanner />
+      <Suspense fallback={null}>
+        <InstallBanner />
+      </Suspense>
       <Toasts />
       <BottomNav />
 

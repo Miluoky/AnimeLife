@@ -3,6 +3,9 @@ import { useState } from 'react'
 import { listStatuses, useMyList, type ListStatus } from '../data/myList'
 import { useAuth } from '../data/auth'
 import PosterCard from '../components/PosterCard'
+import EpisodeProgress from '../components/EpisodeProgress'
+import ListTools from '../components/ListTools'
+import CalendarExport from '../components/CalendarExport'
 
 export default function MyList() {
   const list = useMyList()
@@ -38,7 +41,10 @@ export default function MyList() {
         {items.length ? (
           <div className="grid grid--posters">
             {items.map((e) => (
-              <PosterCard key={e.anime.id} anime={e.anime} />
+              <div key={e.anime.id} className="list-item">
+                <PosterCard anime={e.anime} />
+                {(e.status === 'watching' || (e.watched ?? 0) > 0) && <EpisodeProgress entry={e} compact />}
+              </div>
             ))}
           </div>
         ) : (
@@ -53,6 +59,10 @@ export default function MyList() {
             </Link>
           </div>
         )}
+        <div className="actions">
+          <CalendarExport />
+        </div>
+        <ListTools />
         <p className="muted source-note">
           {user ? (
             'Список сохраняется в вашем аккаунте и одинаков на всех устройствах.'

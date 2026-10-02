@@ -10,6 +10,7 @@ import {
   roomPresence,
   roomSignal,
 } from './rooms.js'
+import { listInit } from './profile.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -23,7 +24,8 @@ import {
  *   mod-list, mod-action {reviewId, decision: hide|show|delete}  только для админов (метка admin в Appwrite);
  *   push-subscribe {subscription, animeIds, site}  подписка браузера на тайтлы из «Смотрю»;
  *   push-unsubscribe {endpoint};
- *   room-* совместный просмотр, см. rooms.js.
+ *   room-* совместный просмотр, см. rooms.js;
+ *   list-init  строка списка пользователя, см. profile.js.
  * По расписанию (каждые 15 минут) функция смотрит календарь Shikimori и шлёт пуш подписчикам,
  * у которых вышла новая серия.
  *
@@ -453,6 +455,8 @@ export default async ({ req, res, log, error }) => {
         return res.json(await roomPresence(api, req, body))
       case 'room-signal':
         return res.json(await roomSignal(api, req, body))
+      case 'list-init':
+        return res.json(await listInit(api, req))
       case 'room-time':
         return res.json({ serverNow: Date.now() })
       case 'push-unsubscribe':

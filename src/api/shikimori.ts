@@ -296,6 +296,51 @@ export async function fetchSchedule(): Promise<ScheduleItem[]> {
   return list.map((i, n) => ({ anime: fromShort(animes[n]), episode: i.next_episode, at: new Date(i.next_episode_at) }))
 }
 
+export interface UserRate {
+  anime: Anime
+  status: string
+  episodes: number
+  score: number
+  updatedAt: number
+}
+
+interface ShikiUserRate {
+  score: number
+  status: string
+  episodes: number
+  updated_at: string
+  anime: ShikiAnimeShort | null
+}
+
+/** Открытый список пользователя Shikimori по нику (или id). Ник с ошибкой даёт 404. */
+export async function fetchUserRates(nickname: string): Promise<UserRate[]> {
+  const out: ShikiUserRate[] = []
+  for (let page = 1; page <= 10; page++) {
+    const chunk = await get<ShikiUserRate[]>(`/users/${encodeURIComponent(nickname)}/anime_rates`, { limit: 1000, page })
+    out.push(...chunk.filter((r) => r.anime))
+    if (chunk.length < 1000) break
+  }
+  const animes = await withPosters(out.map((r) => r.anime!), { onlyMissing: true })
+  return out.map((r, i) => ({
+    anime: fromShort(animes[i]),
+    status: r.status,
+    episodes: r.episodes,
+    score: r.score,
+    updatedAt: Date.parse(r.updated_at) || Date.now(),
+  }))
+}
+
+/** Тайтлы по списку id пачками по 50 (id Shikimori совпадают с id MyAnimeList). */
+export async function fetchAnimesByIds(ids: string[]): Promise<Anime[]> {
+  const out: Anime[] = []
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50)
+    const list = await get<ShikiAnimeShort[]>('/animes', { ids: chunk.join(','), limit: 50 })
+    out.push(...(await withPosters(list, { onlyMissing: true })).map(fromShort))
+  }
+  return out
+}
+
 export interface Related {
   relation: string
   anime: Anime

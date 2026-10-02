@@ -1,3 +1,4 @@
+import './together.css'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { loadPublicRooms, loadUpcomingRooms, roomPosition, serverNow, syncClock, type Room } from '../data/rooms'

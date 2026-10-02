@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { serverNow, type Room } from '../../data/rooms'
 import { CalendarIcon } from '../Icons'
-import { download, icsFile } from './ics'
+import { download, icsFile } from '../../data/ics'
 
 const timeFmt = new Intl.DateTimeFormat('ru-RU', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 

@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { loadAnime, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { saveProgress } from '../data/history'
+import { getEntry, setWatched } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
 
@@ -16,7 +17,11 @@ export default function Player() {
   const current = Math.min(Math.max(1, Number(episode) || 1), total)
 
   useEffect(() => {
-    if (anime) saveProgress(anime, current, total)
+    if (!anime) return
+    saveProgress(anime, current, total)
+    // Открыли серию N: предыдущие считаем просмотренными, если тайтл в списке.
+    const entry = getEntry(anime.id)
+    if (entry && (entry.watched ?? 0) < current - 1) setWatched(anime.id, current - 1)
   }, [anime, current, total])
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />

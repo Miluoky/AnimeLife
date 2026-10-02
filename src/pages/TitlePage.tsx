@@ -8,6 +8,8 @@ import { useHistory } from '../data/history'
 import PosterCard, { Poster } from '../components/PosterCard'
 import ListButton from '../components/ListButton'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
+import EpisodeProgress from '../components/EpisodeProgress'
+import { useMyList } from '../data/myList'
 import Reviews from '../components/Reviews'
 import { PlayIcon } from '../components/Icons'
 import NotFound from './NotFound'
@@ -134,6 +136,7 @@ export default function TitlePage() {
               <ListButton anime={anime} />
               <WatchTogetherButton anime={anime} />
             </div>
+            <TitleProgress animeId={anime.id} />
           </div>
         </section>
 
@@ -383,4 +386,10 @@ export default function TitlePage() {
       </main>
     </>
   )
+}
+
+/** Прогресс по сериям, если тайтл в списке. */
+function TitleProgress({ animeId }: { animeId: string }) {
+  const entry = useMyList().find((e) => e.anime.id === animeId)
+  return entry ? <EpisodeProgress entry={entry} /> : null
 }

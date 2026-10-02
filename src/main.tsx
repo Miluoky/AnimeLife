@@ -5,6 +5,13 @@ import App from './App'
 import './fonts.css'
 import './styles.css'
 
+// Окно «Установить приложение» Chrome предлагает один раз и рано: сохраняем событие для баннера,
+// который грузится позже отдельной частью.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault()
+  ;(window as Window & { __installPrompt?: Event }).__installPrompt = e
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter basename={import.meta.env.BASE_URL}>

@@ -52,6 +52,9 @@ export default function InstallBanner() {
     const onInstalled = () => setOpen(false)
     window.addEventListener('beforeinstallprompt', onPrompt)
     window.addEventListener('appinstalled', onInstalled)
+    // Баннер грузится отдельной частью: событие могло прийти раньше, его поймал main.tsx.
+    const early = (window as Window & { __installPrompt?: Event }).__installPrompt
+    if (early) onPrompt(early)
     if (isIosSafari() && window.matchMedia('(max-width: 900px)').matches) {
       setIos(true)
       setOpen(true)

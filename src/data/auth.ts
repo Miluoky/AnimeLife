@@ -9,7 +9,8 @@ import { listStore, removedStore, type ListEntry } from './myList'
  * поэтому сайт работает и без входа, и без сети.
  */
 interface SyncedPrefs {
-  list?: ListEntry[]
+  /** старое место списка: настройки аккаунта вмещают только 64 КБ, теперь список в таблице lists */
+  list?: ListEntry[] | null
   removed?: Record<string, number>
   history?: HistoryEntry[]
 }
@@ -79,13 +80,57 @@ function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
   return [...byId.values()].sort((x, y) => y.updatedAt - x.updatedAt).slice(0, 12)
 }
 
+/**
+ * Список хранится в таблице lists (строка = ID пользователя, читать и править может только он):
+ * в настройках аккаунта места хватало примерно на 150 тайтлов, а после импорта их бывает тысячи.
+ */
+async function loadRemoteList(userId: string): Promise<ListEntry[] | null> {
+  const { tablesDB, COMMUNITY_DB } = await sdk()
+  try {
+    const row = await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId: 'lists', rowId: userId })
+    return JSON.parse(String((row as unknown as { data: string }).data || '[]')) as ListEntry[]
+  } catch (e) {
+    if (e && typeof e === 'object' && 'code' in e && e.code === 404) return null
+    throw e
+  }
+}
+
+async function saveRemoteList(userId: string, list: ListEntry[]) {
+  const { tablesDB, COMMUNITY_DB } = await sdk()
+  const write = () =>
+    tablesDB.updateRow({
+      databaseId: COMMUNITY_DB,
+      tableId: 'lists',
+      rowId: userId,
+      data: { data: JSON.stringify(list), updatedAt: Date.now() },
+    })
+  try {
+    await write()
+  } catch (e) {
+    if (!(e && typeof e === 'object' && 'code' in e && e.code === 404)) throw e
+    // Первая запись: строку с правами владельца создаёт функция, потом пишем как обычно.
+    const { callCommunity } = await import('./community')
+    await callCommunity({ action: 'list-init' })
+    await write()
+  }
+}
+
+/** Список из аккаунта прочитан: только после этого можно записывать свой, иначе затрём чужие изменения. */
+let remoteListLoaded = false
+
 let pushTimer: ReturnType<typeof setTimeout> | undefined
 let applyingRemote = false
 
 async function push() {
   if (!state.user) return
   try {
-    const prefs: SyncedPrefs = { list: listStore.get(), removed: removedStore.get(), history: historyStore.get() }
+    if (remoteListLoaded) await saveRemoteList(state.user.$id, listStore.get())
+    // Старую копию списка в настройках убираем только когда он уже лежит в таблице.
+    const prefs: SyncedPrefs = {
+      ...(remoteListLoaded ? { list: null } : {}),
+      removed: removedStore.get(),
+      history: historyStore.get(),
+    }
     const { account } = await sdk()
     const user = await account.updatePrefs({ ...state.user.prefs, ...prefs })
     setState({ user, syncError: undefined })
@@ -106,10 +151,19 @@ historyStore.subscribe(schedulePush)
 /** После входа: объединить то, что было в браузере, с тем, что уже лежит в аккаунте. */
 async function adopt(user: User) {
   const remote = user.prefs as SyncedPrefs
+  // Пока список не переехал в таблицу, берём его из настроек аккаунта.
+  let remoteList: ListEntry[]
+  try {
+    remoteList = (await loadRemoteList(user.$id)) ?? remote.list ?? []
+    remoteListLoaded = true
+  } catch {
+    // Таблица не ответила: работаем со своим списком, но в аккаунт его не пишем, пока не прочитаем.
+    remoteList = remote.list ?? []
+  }
   applyingRemote = true
   const removed = mergeRemoved(remote.removed ?? {}, removedStore.get())
   removedStore.set(removed)
-  listStore.set(mergeList(remote.list ?? [], listStore.get(), removed))
+  listStore.set(mergeList(remoteList, listStore.get(), removed))
   historyStore.set(mergeHistory(remote.history ?? [], historyStore.get()))
   applyingRemote = false
   setState({ checking: false, user })
@@ -180,6 +234,7 @@ export async function signOut() {
     await account.deleteSession({ sessionId: 'current' })
   } finally {
     // Список остаётся в браузере: выход не должен ничего стирать.
+    remoteListLoaded = false
     setState({ user: null, syncError: undefined })
   }
 }
