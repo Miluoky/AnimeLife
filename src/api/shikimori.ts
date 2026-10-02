@@ -324,3 +324,41 @@ export async function fetchScreenshots(id: string): Promise<string[]> {
   const list = await get<{ original: string; preview: string }[]>(`/animes/${encodeURIComponent(id)}/screenshots`)
   return list.map((s) => absolute(s.original)).filter((u): u is string => Boolean(u))
 }
+
+export interface WatchLink {
+  title: string
+  url: string
+}
+
+// Легальные площадки, на которые Shikimori даёт ссылки. Порядок: сначала те, где обычно можно сразу смотреть.
+const watchServices: Record<string, string> = {
+  kinopoisk_hd: 'Кинопоиск',
+  okko: 'Okko',
+  wink: 'Wink',
+  ivi: 'Иви',
+  amediateka: 'Амедиатека',
+  crunchyroll: 'Crunchyroll',
+  netflix: 'Netflix',
+  hidive: 'HIDIVE',
+  youtube: 'YouTube',
+  kinopoisk: 'Кинопоиск',
+  official_site: 'Официальный сайт',
+}
+const watchOrder = Object.keys(watchServices)
+
+/** Где посмотреть тайтл легально: онлайн-кинотеатры и официальный сайт. */
+export async function fetchWatchLinks(id: string): Promise<WatchLink[]> {
+  const list = await get<{ kind: string; url: string }[]>(`/animes/${encodeURIComponent(id)}/external_links`)
+  const seen = new Set<string>()
+  return list
+    .filter((l) => watchServices[l.kind] && /^https?:\/\//.test(l.url))
+    .sort((a, b) => watchOrder.indexOf(a.kind) - watchOrder.indexOf(b.kind))
+    .filter((l) => {
+      // Кинопоиск HD и обычный Кинопоиск ведут на одну страницу: оставляем одну кнопку.
+      const title = watchServices[l.kind]
+      if (seen.has(title)) return false
+      seen.add(title)
+      return true
+    })
+    .map((l) => ({ title: watchServices[l.kind], url: l.url.replace(/^http:/, 'https:') }))
+}

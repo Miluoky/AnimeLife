@@ -9,14 +9,16 @@ import {
   fetchSchedule,
   fetchScreenshots,
   fetchSimilar,
+  fetchWatchLinks,
   type CatalogOrder,
   type CatalogQuery,
   type Genre,
   type Related,
   type ScheduleItem,
+  type WatchLink,
 } from './shikimori'
 
-export type { CatalogOrder, CatalogQuery, Genre, Related, ScheduleItem }
+export type { CatalogOrder, CatalogQuery, Genre, Related, ScheduleItem, WatchLink }
 
 export interface Loaded<T> {
   data: T
@@ -87,20 +89,23 @@ export interface TitleExtras {
   related: Related[]
   similar: Anime[]
   screenshots: string[]
+  watchLinks: WatchLink[]
 }
 
 /** Дополнения к странице тайтла. Каждое грузится отдельно: если одно упало, остальные всё равно покажем. */
 export async function loadTitleExtras(id: string): Promise<TitleExtras> {
-  if (isDemoId(id)) return { related: [], similar: [], screenshots: [] }
-  const [related, similar, screenshots] = await Promise.allSettled([
+  if (isDemoId(id)) return { related: [], similar: [], screenshots: [], watchLinks: [] }
+  const [related, similar, screenshots, watchLinks] = await Promise.allSettled([
     fetchRelated(id),
     fetchSimilar(id),
     fetchScreenshots(id),
+    fetchWatchLinks(id),
   ])
   return {
     related: related.status === 'fulfilled' ? related.value : [],
     similar: similar.status === 'fulfilled' ? similar.value : [],
     screenshots: screenshots.status === 'fulfilled' ? screenshots.value : [],
+    watchLinks: watchLinks.status === 'fulfilled' ? watchLinks.value : [],
   }
 }
 

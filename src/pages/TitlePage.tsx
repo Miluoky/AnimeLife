@@ -38,6 +38,7 @@ export default function TitlePage() {
   const shots = extras.value?.screenshots ?? []
   const related = extras.value?.related ?? []
   const similar = extras.value?.similar ?? []
+  const watchLinks = extras.value?.watchLinks ?? []
 
   function rangeLabel(i: number) {
     const a = i * PAGE_SIZE + 1
@@ -183,6 +184,18 @@ export default function TitlePage() {
                 </div>
               )}
             </dl>
+            {watchLinks.length > 0 && (
+              <div className="stack" style={{ gap: 10 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 500 }}>Где смотреть легально</h2>
+                <div className="chips">
+                  {watchLinks.map((l) => (
+                    <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="pill pill--link">
+                      {l.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             {anime.description && (
               <div className="stack" style={{ gap: 10 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 500 }}>Описание</h2>
