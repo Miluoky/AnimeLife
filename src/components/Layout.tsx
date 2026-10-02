@@ -1,9 +1,12 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CloseIcon, MenuIcon, UserIcon } from './Icons'
 import SearchBox from './SearchBox'
 import InstallBanner from './InstallBanner'
+import BottomNav from './BottomNav'
+import Toasts from './Toasts'
 import { useAuth } from '../data/auth'
+import { applyAppearance } from '../data/theme'
 
 export function Logo() {
   return (
@@ -17,12 +20,39 @@ export default function Layout() {
   const location = useLocation()
   const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const header = useRef<HTMLElement>(null)
 
   // При переходе на другую страницу: закрыть мобильное меню и вернуться наверх.
   useEffect(() => {
     setMenuOpen(false)
     window.scrollTo(0, 0)
   }, [location.pathname])
+
+  // Оформление из настроек (тема, акцент) и шапка, которая становится полупрозрачной при прокрутке.
+  useEffect(() => {
+    applyAppearance()
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Ctrl+K (⌘K на Mac) или «/» вне поля ввода: курсор в поиск из любого места сайта.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const typing = (e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]')
+      const combo = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'
+      if (!combo && (e.key !== '/' || typing)) return
+      e.preventDefault()
+      const desktop = header.current?.querySelector<HTMLInputElement>('.search:not(.search--mobile) input')
+      if (desktop && desktop.offsetParent) return desktop.focus()
+      setMenuOpen(true)
+      setTimeout(() => header.current?.querySelector<HTMLInputElement>('.search--mobile input')?.focus(), 50)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const navLinks = (
     <>
@@ -38,7 +68,7 @@ export default function Layout() {
 
   return (
     <>
-      <header className="site-header">
+      <header ref={header} className={`site-header${scrolled ? ' site-header--scrolled' : ''}`}>
         <div className="container site-header__inner">
           <Logo />
           <nav className="site-nav" aria-label="Основное меню">
@@ -75,9 +105,13 @@ export default function Layout() {
         )}
       </header>
 
-      <Outlet />
+      <div className="page" key={location.pathname}>
+        <Outlet />
+      </div>
 
       <InstallBanner />
+      <Toasts />
+      <BottomNav />
 
       <footer className="site-footer">
         <div className="container site-footer__inner">

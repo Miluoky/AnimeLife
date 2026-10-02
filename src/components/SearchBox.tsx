@@ -114,6 +114,7 @@ export default function SearchBox({ className, onDone }: Props) {
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
       />
+      {!query && <kbd className="search__kbd" aria-hidden="true">Ctrl K</kbd>}
       {showHints && (
         <ul id={listId} className="search-hints" role="listbox" aria-label="Подсказки">
           {hints.map((a, i) => (

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { useHistory } from '../data/history'
@@ -5,27 +6,47 @@ import CatalogSection from '../components/CatalogSection'
 import Recommendations from '../components/Recommendations'
 import { Poster } from '../components/PosterCard'
 import { PlayIcon } from '../components/Icons'
+import { useMorphLink } from '../components/morph'
+
+const HERO_COUNT = 5
+const HERO_INTERVAL = 8000
 
 function Hero() {
-  // Подборка недели: самый популярный онгоинг, с подробностями для описания и жанров.
-  const featured = useAsync(async () => {
-    const list = await loadCatalog({ status: 'ongoing', limit: 1 })
-    const first = list.data[0]
-    if (!first) return undefined
-    return (await loadAnime(first.id)).data ?? first
-  }, [])
-  const anime = featured.value
+  // «Сейчас в эфире»: пять самых популярных онгоингов сменяют друг друга, пауза при наведении.
+  const list = useAsync(() => loadCatalog({ status: 'ongoing', limit: HERO_COUNT }), [])
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const items = list.value?.data ?? []
+  const current = items[index] ?? items[0]
+  const details = useAsync(async () => (current ? (await loadAnime(current.id)).data : undefined), [current?.id])
+  const anime = details.value ?? current
+  const morph = useMorphLink(`/anime/${anime?.id}`)
+
+  useEffect(() => {
+    if (items.length < 2 || paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const timer = setInterval(() => setIndex((i) => (i + 1) % items.length), HERO_INTERVAL)
+    return () => clearInterval(timer)
+  }, [items.length, paused])
 
   if (!anime) {
-    return <section className="hero skeleton hero--loading" aria-busy={featured.loading} />
+    return <section className="hero skeleton hero--loading" aria-busy={list.loading} />
   }
 
   const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} серий`, anime.studio].filter(Boolean)
 
   return (
-    <section className="hero">
-      <div className="hero__text">
-        <div className="eyebrow">Подборка недели</div>
+    <section
+      className="hero"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <div className="hero__text" key={anime.id}>
+        <div className="eyebrow">
+          <span className="live-dot" aria-hidden="true" />
+          Сейчас в эфире
+        </div>
         <h1 className="hero__title">{anime.title}</h1>
         <div className="meta-line">
           {meta.map((m, i) => (
@@ -48,16 +69,32 @@ function Hero() {
             <PlayIcon />
             Смотреть
           </Link>
-          <Link to={`/anime/${anime.id}`} className="btn btn--ghost">
+          <Link to={`/anime/${anime.id}`} className="btn btn--ghost" onClick={morph}>
             Подробнее
           </Link>
         </div>
+        {items.length > 1 && (
+          <div className="hero__dots" role="tablist" aria-label="Онгоинги в эфире">
+            {items.map((a, i) => (
+              <button
+                key={a.id}
+                type="button"
+                role="tab"
+                aria-selected={i === index}
+                aria-label={a.title}
+                className={`hero__dot${i === index ? ' hero__dot--on' : ''}`}
+                onClick={() => setIndex(i)}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <div className="hero__art" style={{ background: anime.posterFill }}>
         {anime.posterUrl ? (
           <>
-            <img className="hero__art-bg" src={anime.posterUrl} alt="" />
+            <img key={`bg-${anime.id}`} className="hero__art-bg" src={anime.posterUrl} alt="" />
             <img
+              key={anime.id}
               className="hero__art-poster"
               src={anime.posterUrl}
               alt={`Постер: ${anime.title}`}

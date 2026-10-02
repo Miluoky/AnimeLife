@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useMorphLink } from './morph'
 import type { Anime, AnimeCard } from '../data/catalog'
 import { prefetchTitle } from '../api/prefetch'
 
@@ -39,9 +40,12 @@ export function Poster({
 export default function PosterCard({ anime, priority }: { anime: AnimeCard; priority?: boolean }) {
   const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} эп.`].filter(Boolean).join(' · ')
   const prefetch = () => prefetchTitle(anime.id)
+  const to = `/anime/${anime.id}`
+  // При переходе на страницу тайтла постер карточки «перелетает» в шапку страницы (View Transitions).
+  const morph = useMorphLink(to, '.poster-card__img')
 
   return (
-    <Link to={`/anime/${anime.id}`} className="poster-card" onMouseEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch}>
+    <Link to={to} className="poster-card" onClick={morph} onMouseEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch}>
       <div className="poster-card__img" style={{ background: anime.posterFill }}>
         <Poster anime={anime} priority={priority} />
         {anime.ongoing && <span className="poster-card__badge">Онгоинг</span>}

@@ -19,7 +19,7 @@ export async function mockServices(page: Page) {
     if (path === '/graphql') return json(posters)
     if (path === '/genres') return json(genres)
     if (path === '/calendar') return json([])
-    if (path === '/animes') return json(animes)
+    if (path === '/animes') return json(animes.slice(0, Number(url.searchParams.get('limit')) || animes.length))
     if (/^\/animes\/\d+$/.test(path)) return json(anime)
     // related, similar, screenshots, roles, external_links и прочее
     return json([])

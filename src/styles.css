@@ -2187,3 +2187,388 @@ h3 {
   content-visibility: auto;
   contain-intrinsic-size: auto 480px;
 }
+
+/* ===== Оформление (шаг 2): темы, переходы, анимации, нижнее меню ===== */
+
+/* Темы и цвет акцента ставятся атрибутами на <html> (см. src/data/theme.ts). */
+:root[data-theme='oled'] {
+  --bg: #000000;
+  --surface: #0f0f12;
+  --surface-2: #17171c;
+  --line: #26262d;
+}
+:root[data-accent='teal'] {
+  --accent: #4fd1c5;
+  --accent-soft: #8ae7de;
+}
+:root[data-accent='amber'] {
+  --accent: #f6ad55;
+  --accent-soft: #fbd38d;
+}
+:root[data-accent='violet'] {
+  --accent: #a78bfa;
+  --accent-soft: #c4b5fd;
+}
+
+/* Без анимаций: системная настройка или переключатель в профиле. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+:root[data-calm='1'] *,
+:root[data-calm='1'] *::before,
+:root[data-calm='1'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Шапка остаётся наверху и становится полупрозрачной при прокрутке. */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--bg);
+  transition: background 0.3s, backdrop-filter 0.3s;
+}
+.site-header--scrolled {
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* Переходы между страницами: страница мягко появляется, постер «перелетает» в шапку тайтла. */
+.page {
+  animation: page-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.28s;
+}
+::view-transition-group(poster) {
+  animation-duration: 0.4s;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+::view-transition-old(poster),
+::view-transition-new(poster) {
+  height: 100%;
+  object-fit: cover;
+  overflow: clip;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Скелетоны: перелив вместо мигания. */
+.skeleton {
+  background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%);
+  background-size: 300% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -300% 0;
+  }
+}
+
+/* Карточка: приподнимается, по постеру пробегает блик. */
+.poster-card__img {
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s;
+}
+.poster-card__img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.18) 50%, transparent 65%);
+  transform: translateX(-120%);
+  pointer-events: none;
+  z-index: 2;
+}
+@media (hover: hover) {
+  .poster-card:hover .poster-card__img,
+  .poster-card:focus-visible .poster-card__img {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .poster-card:hover .poster-card__img::after {
+    animation: shine 0.9s ease;
+  }
+}
+@keyframes shine {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* Баннер «Сейчас в эфире»: медленное приближение фона, смена тайтла с мягким появлением, точки. */
+.hero__art-bg {
+  animation: ken-burns 16s ease-in-out infinite alternate;
+}
+@keyframes ken-burns {
+  from {
+    transform: scale(1.05);
+  }
+  to {
+    transform: scale(1.18) translate(-2%, 2%);
+  }
+}
+.hero__text,
+.hero__art-poster {
+  animation: page-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  margin-right: 8px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: live-pulse 1.8s ease-out infinite;
+}
+@keyframes live-pulse {
+  to {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+.hero__dots {
+  display: flex;
+  gap: 8px;
+}
+.hero__dot {
+  width: 24px;
+  height: 6px;
+  border-radius: 999px;
+  border: 0;
+  padding: 0;
+  background: var(--line);
+  transition: background 0.3s, width 0.3s;
+}
+.hero__dot--on {
+  width: 40px;
+  background: var(--accent);
+}
+
+/* Страница тайтла: мягкое свечение в цвете постера за шапкой. */
+.title-head {
+  position: relative;
+}
+.title-head::before {
+  content: '';
+  position: absolute;
+  inset: -80px -40px auto;
+  height: 360px;
+  background: radial-gradient(60% 80% at 20% 0%, color-mix(in srgb, var(--glow, var(--surface)) 55%, transparent), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(20px);
+}
+
+/* Микроанимации: нажатые чипы и выбор в списке чуть «подпрыгивают». */
+.chip-btn,
+.list-select,
+.swatch {
+  transition: transform 0.15s, border-color 0.2s, color 0.2s, background 0.2s;
+}
+.chip-btn:active,
+.swatch:active {
+  transform: scale(0.94);
+}
+.chip-btn--on,
+.list-select.in-list {
+  animation: pop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes pop {
+  40% {
+    transform: scale(1.08);
+  }
+}
+
+/* Всплывающие уведомления. */
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 60;
+  width: min(92vw, 420px);
+}
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.8);
+  font-weight: 600;
+  animation: toast-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+.toast__action {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.toast__action:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+@media (max-width: 900px) {
+  .toasts {
+    bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Поиск: подсказка горячей клавиши. */
+.search__kbd {
+  font: 600 11px/1 var(--font-body);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+.search--mobile .search__kbd {
+  display: none;
+}
+
+/* Нижнее меню на телефоне. */
+.bottom-nav {
+  display: none;
+}
+@media (max-width: 900px) {
+  .bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border-top: 1px solid var(--surface-2);
+  }
+  .bottom-nav__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 0 4px;
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    transition: color 0.2s, transform 0.15s;
+  }
+  .bottom-nav__item:active {
+    transform: scale(0.94);
+  }
+  .bottom-nav__item.active {
+    color: var(--accent);
+  }
+  .bottom-nav__item svg {
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .bottom-nav__item.active svg {
+    transform: translateY(-2px);
+  }
+  /* Верхнее меню на телефоне больше не нужно: разделы в нижнем меню, в шапке остаётся поиск. */
+  .mobile-menu__nav {
+    display: none;
+  }
+  body {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .site-footer {
+    margin-top: 48px;
+  }
+}
+
+/* Оформление в профиле. */
+.appearance__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.appearance__row > .muted {
+  min-width: 56px;
+}
+.swatches {
+  display: flex;
+  gap: 10px;
+}
+.swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  color: #0d0e13;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.swatch--on {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--text);
+}
+.appearance__toggle {
+  cursor: pointer;
+  font-weight: 600;
+}
+.appearance__toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+/* Маскот на пустых страницах. */
+.mascot {
+  display: block;
+}
+.mascot__body {
+  animation: float 4s ease-in-out infinite;
+  transform-origin: 70px 80px;
+}
+@keyframes float {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.empty-page .mascot {
+  margin-bottom: 8px;
+}

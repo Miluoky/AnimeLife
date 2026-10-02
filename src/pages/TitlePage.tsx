@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { loadAnime, loadTitleExtras, useAsync } from '../api'
@@ -108,8 +108,8 @@ export default function TitlePage() {
         )}
       </div>
       <main className="container title-page">
-        <section className="title-head">
-          <div className="title-head__poster" style={{ background: anime.posterFill }}>
+        <section className="title-head" style={{ '--glow': anime.posterFill } as CSSProperties}>
+          <div className="title-head__poster" style={{ background: anime.posterFill, viewTransitionName: 'poster' }}>
             <Poster anime={anime} />
           </div>
           <div className="title-head__info">

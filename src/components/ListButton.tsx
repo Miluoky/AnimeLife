@@ -1,5 +1,6 @@
 import { listStatuses, setListRating, setListStatus, useMyList, type ListStatus } from '../data/myList'
 import type { Anime } from '../data/catalog'
+import { toast } from '../data/toast'
 
 /** Выбор статуса в «Моём списке» и своя оценка. Обычные select: работают с клавиатуры и на телефоне. */
 export default function ListButton({ anime }: { anime: Anime }) {
@@ -13,7 +14,16 @@ export default function ListButton({ anime }: { anime: Anime }) {
         <span className="sr-only">Статус в моём списке</span>
         <select
           value={current ?? ''}
-          onChange={(e) => setListStatus(anime, (e.target.value || undefined) as ListStatus | undefined)}
+          onChange={(e) => {
+            const next = (e.target.value || undefined) as ListStatus | undefined
+            const prev = current
+            setListStatus(anime, next)
+            const title = next && listStatuses.find((s) => s.id === next)?.title
+            toast(title ? `${anime.title}: «${title}»` : `${anime.title} убран из списка`, {
+              label: 'Отменить',
+              onClick: () => setListStatus(anime, prev),
+            })
+          }}
         >
           <option value="">{current ? 'Убрать из списка' : '+ В мой список'}</option>
           {listStatuses.map((s) => (

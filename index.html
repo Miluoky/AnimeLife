@@ -24,6 +24,17 @@
     <link rel="preconnect" href="https://fra.cloud.appwrite.io" />
   </head>
   <body>
+    <script>
+      // Оформление (тема, акцент) применяется до первой отрисовки, чтобы страница не мигала. См. src/data/theme.ts.
+      try {
+        var a = JSON.parse(localStorage.getItem('anime.appearance') || '{}')
+        var d = document.documentElement.dataset
+        d.theme = a.theme || 'night'
+        d.accent = a.accent || 'rose'
+        d.calm = a.calm ? '1' : ''
+        if (a.theme === 'oled') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000000')
+      } catch (e) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
