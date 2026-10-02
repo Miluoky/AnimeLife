@@ -137,12 +137,14 @@ const messages: Record<string, string> = {
   password_personal_data: 'Пароль не должен содержать имя или почту.',
   general_rate_limit_exceeded: 'Слишком много попыток. Подождите немного и попробуйте снова.',
   general_argument_invalid: 'Проверьте поля: пароль должен быть не короче 8 символов.',
+  user_invalid_token: 'Ссылка входа устарела. Попробуйте войти ещё раз.',
   general_unknown_origin: 'Сайт ещё не добавлен в настройки Appwrite, вход пока не работает.',
 }
 
 /** Понятное сообщение для формы входа. */
 export function authErrorMessage(e: unknown): string {
   if (e instanceof AppwriteException) return messages[e.type] ?? e.message
+  if (e instanceof Error && e.name === 'SocialLoginError') return e.message
   return 'Не получилось связаться с сервером. Проверьте интернет и попробуйте ещё раз.'
 }
 
@@ -154,6 +156,12 @@ export async function signIn(email: string, password: string) {
 export async function signUp(name: string, email: string, password: string) {
   await account.create({ userId: ID.unique(), email, password, name: name || undefined })
   await signIn(email, password)
+}
+
+/** Обмен одноразового токена (Google, Яндекс, VK, Telegram) на обычную сессию. */
+export async function finishSession(userId: string, secret: string) {
+  await account.createSession({ userId, secret })
+  await refresh()
 }
 
 export async function signOut() {

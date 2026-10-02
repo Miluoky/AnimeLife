@@ -1455,3 +1455,67 @@ h3 {
   font-size: 16px;
   color: var(--accent);
 }
+
+/* Вход через другие сервисы */
+.social-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.social-btn {
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.social-btn:hover {
+  border-color: var(--text-soft);
+}
+
+.social-btn__mark {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.social-btn--vk .social-btn__mark {
+  background: #0077ff;
+}
+
+.social-btn--yandex .social-btn__mark {
+  background: #fc3f1d;
+}
+
+.social-btn--google .social-btn__mark {
+  background: #fff;
+  color: #4285f4;
+}
+
+.social-btn--telegram .social-btn__mark {
+  background: #27a7e7;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}

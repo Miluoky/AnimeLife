@@ -9,6 +9,7 @@ import MyList from './pages/MyList'
 import Schedule from './pages/Schedule'
 import Catalog from './pages/Catalog'
 import Account from './pages/Account'
+import AuthCallback from './pages/AuthCallback'
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -34,6 +35,8 @@ export default function App() {
         <Route path="catalog" element={<Catalog />} />
         <Route path="schedule" element={<Schedule />} />
         <Route path="account" element={<Account />} />
+        <Route path="auth/callback" element={<AuthCallback />} />
+        <Route path="auth/vk" element={<AuthCallback />} />
         <Route path="my-list" element={<MyList />} />
         <Route path="*" element={<NotFound />} />
       </Route>

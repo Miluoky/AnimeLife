@@ -2,6 +2,61 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { authErrorMessage, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
+import { SOCIAL_LOGIN } from '../api/appwrite'
+import { signInWithOAuth, signInWithTelegram, signInWithVk } from '../data/socialAuth'
+
+const providers = [
+  { id: 'vk', title: 'VK ID', mark: 'VK', on: !!SOCIAL_LOGIN.vkAppId },
+  { id: 'yandex', title: 'Яндекс', mark: 'Я', on: SOCIAL_LOGIN.yandex },
+  { id: 'google', title: 'Google', mark: 'G', on: SOCIAL_LOGIN.google },
+  { id: 'telegram', title: 'Telegram', mark: 'TG', on: !!SOCIAL_LOGIN.telegramBotId },
+] as const
+
+/** Кнопки входа через другие сервисы. Показываем только те, что уже настроены. */
+function SocialButtons({ onError }: { onError: (message: string) => void }) {
+  const [busy, setBusy] = useState('')
+  const enabled = providers.filter((p) => p.on)
+  if (!enabled.length) return null
+
+  async function start(id: (typeof providers)[number]['id']) {
+    setBusy(id)
+    onError('')
+    try {
+      if (id === 'vk') await signInWithVk()
+      else if (id === 'telegram') await signInWithTelegram()
+      else signInWithOAuth(id)
+      // VK, Google и Яндекс уводят на свою страницу, Telegram входит прямо здесь.
+      if (id === 'telegram') setBusy('')
+    } catch (err) {
+      onError(authErrorMessage(err))
+      setBusy('')
+    }
+  }
+
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="social-buttons">
+        {enabled.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`btn social-btn social-btn--${p.id}`}
+            disabled={!!busy}
+            onClick={() => start(p.id)}
+          >
+            <span className="social-btn__mark" aria-hidden="true">
+              {p.mark}
+            </span>
+            {busy === p.id ? 'Секунду…' : p.title}
+          </button>
+        ))}
+      </div>
+      <div className="divider">
+        <span>или по почте</span>
+      </div>
+    </div>
+  )
+}
 
 function titles(n: number) {
   const word = new Intl.PluralRules('ru').select(n)
@@ -54,6 +109,8 @@ function AuthForm() {
           </button>
         ))}
       </div>
+
+      <SocialButtons onError={setError} />
 
       {mode === 'up' && (
         <label className="field">
@@ -109,8 +166,8 @@ export default function Account() {
         {user ? (
           <div className="auth-card stack">
             <div>
-              <div style={{ fontWeight: 700, fontSize: 20 }}>{user.name || user.email}</div>
-              {user.name && <div className="muted">{user.email}</div>}
+              <div style={{ fontWeight: 700, fontSize: 20 }}>{user.name || user.email || 'Без имени'}</div>
+              {user.name && user.email && <div className="muted">{user.email}</div>}
             </div>
             <p className={syncError ? 'notice notice--error' : 'notice'} role="status">
               {syncError

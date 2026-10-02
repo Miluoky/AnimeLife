@@ -19,7 +19,7 @@ npm run build    # сборка в dist/
 - `/schedule` — расписание новых серий на неделю
 - `/my-list` — «Мой список» со статусами «Смотрю», «Буду смотреть», «Просмотрено», «Брошено»
 - `/watch/:id/:episode` — плеер: официальный трейлер и список серий
-- `/account` — вход и регистрация
+- `/account` — вход и регистрация (почта, VK ID, Яндекс, Google, Telegram)
 
 ## Данные
 
@@ -39,6 +39,22 @@ Appwrite принимает запросы только с зарегистри�
 - `maintech67.me` (GitHub Pages)
 
 `localhost` разрешён по умолчанию. Новый домен сайта нужно добавить в консоли Appwrite: Overview → Platforms → Add platform → Web.
+
+### Вход через VK, Яндекс, Google и Telegram
+
+Кнопки на `/account` появляются, только когда сервис включён в `SOCIAL_LOGIN` (`src/api/appwrite.ts`, или переменными `VITE_AUTH_GOOGLE=1`, `VITE_AUTH_YANDEX=1`, `VITE_VK_APP_ID`, `VITE_TELEGRAM_BOT_ID`).
+
+- **Google и Яндекс** встроены в Appwrite. Сайт получает от Appwrite одноразовый токен на `/auth/callback` (`account.createOAuth2Token`), поэтому вход не зависит от сторонних cookie. Ключи приложения вносятся в консоли Appwrite: Auth → Settings → Google / Yandex. Адрес возврата для приложения у сервиса: `https://fra.cloud.appwrite.io/v1/account/sessions/oauth2/callback/<google|yandex>/6abf65850016889f9b1b`.
+- **VK ID и Telegram** проверяет функция Appwrite `social-login` (`functions/social-login`). VK возвращает на `/auth/vk` с кодом (OAuth 2.1 + PKCE), функция обменивает его у VK. Telegram открывает своё окно входа, функция проверяет подпись. Затем функция находит или создаёт пользователя `vk_<id>` / `tg_<id>` и выдаёт токен на минуту. Переменные функции: `VK_APP_ID`, `TELEGRAM_BOT_TOKEN` (секрет). У VK доверенный адрес возврата `https://anime-night.pages.dev/auth/vk`, у бота Telegram домен задаётся в @BotFather командой `/setdomain`.
+
+Выложить новую версию функции:
+
+```bash
+cd functions/social-login && tar -czf ../social-login.tar.gz package.json src
+curl -X POST https://fra.cloud.appwrite.io/v1/functions/social-login/deployments \
+  -H "X-Appwrite-Project: 6abf65850016889f9b1b" -H "X-Appwrite-Key: $APPWRITE_API_KEY" \
+  -F code=@../social-login.tar.gz -F activate=true -F entrypoint=src/main.js
+```
 
 ## Хостинг
 
