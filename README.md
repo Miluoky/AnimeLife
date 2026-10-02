@@ -48,6 +48,8 @@ Appwrite принимает запросы только с зарегистри�
 
 - `anime-night.pages.dev` и `*.anime-night.pages.dev` (Cloudflare Pages и превью)
 - `maintech67.me` (GitHub Pages)
+- `animelife.top` и `www.animelife.top` (основной домен)
+- `anime.artemdrr61f9.workers.dev` (Workers Builds)
 
 `localhost` разрешён по умолчанию. Новый домен сайта нужно добавить в консоли Appwrite: Overview → Platforms → Add platform → Web.
 
@@ -139,5 +141,7 @@ STUN Cloudflare и Google). Предложение и ответ с адреса
 
 ## Хостинг
 
+- https://animelife.top — основной адрес. Домен и Worker `anime` живут в аккаунте Cloudflare от регистратора, публикует workflow `.github/workflows/animelife.yml` с настройками `wrangler.animelife.jsonc` (нужны секреты `ANIMELIFE_CF_EMAIL` и `ANIMELIFE_CF_API_KEY`)
+- https://anime.artemdrr61f9.workers.dev — Cloudflare Workers Builds из `main` (`wrangler.jsonc`)
 - https://anime-night.pages.dev — Cloudflare Pages, workflow `.github/workflows/cloudflare.yml` (нужны секреты `CLOUDFLARE_API_TOKEN` и `CLOUDFLARE_ACCOUNT_ID`)
 - http://maintech67.me/Anime/ — GitHub Pages, workflow `.github/workflows/pages.yml`

@@ -51,6 +51,8 @@ const PUSH_HOSTS = [/\.googleapis\.com$/, /\.mozilla\.com$/, /\.push\.apple\.com
 const SITES = [
   /^https:\/\/([a-z0-9-]+\.)?anime-night\.pages\.dev\/$/,
   /^https?:\/\/maintech67\.me\/Anime\/$/,
+  /^https:\/\/(www\.)?animelife\.top\/$/,
+  /^https:\/\/anime\.artemdrr61f9\.workers\.dev\/$/,
   /^http:\/\/localhost:\d+\/$/,
 ]
 

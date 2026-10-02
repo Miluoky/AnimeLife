@@ -1,0 +1,18 @@
+// Публикация на собственный домен animelife.top. Домен и этот Worker живут в аккаунте Cloudflare от регистратора,
+// поэтому публикует их не Workers Builds, а GitHub Actions (.github/workflows/animelife.yml).
+// Остальные настройки совпадают с wrangler.jsonc.
+{
+  "name": "anime",
+  "compatibility_date": "2026-09-01",
+  "main": "worker/index.js",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/anime/*", "/watch/*", "/together/*", "/u/*", "/sitemap.xml", "/robots.txt"]
+  },
+  "routes": [
+    { "pattern": "animelife.top", "custom_domain": true },
+    { "pattern": "www.animelife.top", "custom_domain": true }
+  ]
+}

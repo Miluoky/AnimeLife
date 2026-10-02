@@ -1,0 +1,49 @@
+name: Публикация на animelife.top
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: animelife
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Аккаунт Cloudflare, где живёт домен animelife.top (выдан регистратором).
+      CLOUDFLARE_ACCOUNT_ID: e5e2946534888354d25b918e204bb745
+      CLOUDFLARE_EMAIL: ${{ secrets.ANIMELIFE_CF_EMAIL }}
+      CLOUDFLARE_API_KEY: ${{ secrets.ANIMELIFE_CF_API_KEY }}
+    steps:
+      # Пока ключ не добавлен в секреты репозитория, публикация просто пропускается.
+      - name: Проверить ключ Cloudflare
+        id: keys
+        run: |
+          if [ -n "$CLOUDFLARE_EMAIL" ] && [ -n "$CLOUDFLARE_API_KEY" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Секреты ANIMELIFE_CF_EMAIL и ANIMELIFE_CF_API_KEY не заданы, публикация на animelife.top пропущена."
+          fi
+      - if: steps.keys.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - if: steps.keys.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - if: steps.keys.outputs.ok == 'true'
+        run: npm ci
+      - if: steps.keys.outputs.ok == 'true'
+        run: npm run build
+        env:
+          VITE_KODIK_TOKEN: ${{ secrets.VITE_KODIK_TOKEN }}
+          VITE_ALLOHA_TOKEN: ${{ secrets.VITE_ALLOHA_TOKEN }}
+      - if: steps.keys.outputs.ok == 'true'
+        name: Выложить Worker с сайтом
+        run: npx --yes wrangler@4 deploy -c wrangler.animelife.jsonc
