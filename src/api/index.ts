@@ -2,19 +2,21 @@ import { useEffect, useState } from 'react'
 import { demoCatalog, demoGenres, getDemoAnime, type Anime } from '../data/catalog'
 import {
   fetchAnime,
+  fetchAllGenres,
   fetchCatalog,
   fetchGenres,
   fetchRelated,
   fetchSchedule,
   fetchScreenshots,
   fetchSimilar,
+  type CatalogOrder,
   type CatalogQuery,
   type Genre,
   type Related,
   type ScheduleItem,
 } from './shikimori'
 
-export type { CatalogQuery, Genre, Related, ScheduleItem }
+export type { CatalogOrder, CatalogQuery, Genre, Related, ScheduleItem }
 
 export interface Loaded<T> {
   data: T
@@ -59,6 +61,14 @@ export async function loadAnime(id: string): Promise<Loaded<Anime | undefined>> 
 export async function loadGenres(): Promise<Loaded<Genre[]>> {
   try {
     return { data: await fetchGenres(), demo: false }
+  } catch {
+    return { data: demoGenres, demo: true }
+  }
+}
+
+export async function loadAllGenres(): Promise<Loaded<Genre[]>> {
+  try {
+    return { data: await fetchAllGenres(), demo: false }
   } catch {
     return { data: demoGenres, demo: true }
   }

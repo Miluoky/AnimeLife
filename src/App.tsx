@@ -7,6 +7,7 @@ import NotFound from './pages/NotFound'
 import CatalogSection from './components/CatalogSection'
 import MyList from './pages/MyList'
 import Schedule from './pages/Schedule'
+import Catalog from './pages/Catalog'
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -25,10 +26,11 @@ export default function App() {
           path="ongoing"
           element={
             <main className="container home">
-              <CatalogSection title="Онгоинги" status="ongoing" />
+              <CatalogSection title="Онгоинги" status="ongoing" moreLink="/catalog?status=ongoing" />
             </main>
           }
         />
+        <Route path="catalog" element={<Catalog />} />
         <Route path="schedule" element={<Schedule />} />
         <Route path="my-list" element={<MyList />} />
         <Route path="*" element={<NotFound />} />
