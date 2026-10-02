@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import webpush from 'web-push'
+import { DB, UserError, query } from './util.js'
+import { cleanRooms, roomClose, roomControl, roomCreate, roomMessage } from './rooms.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -12,7 +14,8 @@ import webpush from 'web-push'
  *   review-my-votes {animeId}             что пользователь уже отметил на странице тайтла;
  *   mod-list, mod-action {reviewId, decision: hide|show|delete}  только для админов (метка admin в Appwrite);
  *   push-subscribe {subscription, animeIds, site}  подписка браузера на тайтлы из «Смотрю»;
- *   push-unsubscribe {endpoint}.
+ *   push-unsubscribe {endpoint};
+ *   room-* совместный просмотр, см. rooms.js.
  * По расписанию (каждые 15 минут) функция смотрит календарь Shikimori и шлёт пуш подписчикам,
  * у которых вышла новая серия.
  *
@@ -22,7 +25,6 @@ import webpush from 'web-push'
  * TURNSTILE_SECRET (секрет, необязательно: с ним отзывы и жалобы проверяются капчей Cloudflare).
  */
 
-const DB = '/tablesdb/anime/tables'
 const SHIKIMORI = 'https://shikimori.io'
 /** Серии, вышедшие раньше, считаем уже старыми: календарь Shikimori иногда долго не обновляется. */
 const FRESH_WINDOW = 3 * 60 * 60 * 1000
@@ -41,8 +43,6 @@ const SITES = [
   /^https?:\/\/maintech67\.me\/Anime\/$/,
   /^http:\/\/localhost:\d+\/$/,
 ]
-
-class UserError extends Error {}
 
 const hash = (text) => createHash('sha256').update(text).digest('hex').slice(0, 32)
 
@@ -63,8 +63,6 @@ function appwrite(req) {
     return { status: res.status, json }
   }
 }
-
-const query = (q) => `queries[]=${encodeURIComponent(JSON.stringify(q))}`
 
 // --- Отзывы ---
 
@@ -398,7 +396,7 @@ export default async ({ req, res, log, error }) => {
 
   if (req.headers['x-appwrite-trigger'] === 'schedule') {
     try {
-      const result = await notify(api, log)
+      const result = { ...(await notify(api, log)), cleaned: await cleanRooms(api) }
       log(JSON.stringify(result))
       return res.json(result)
     } catch (e) {
@@ -435,6 +433,16 @@ export default async ({ req, res, log, error }) => {
         return res.json(await modAction(api, req, body))
       case 'push-subscribe':
         return res.json(await pushSubscribe(api, req, body))
+      case 'room-create':
+        return res.json(await roomCreate(api, req, body))
+      case 'room-control':
+        return res.json(await roomControl(api, req, body))
+      case 'room-message':
+        return res.json(await roomMessage(api, req, body))
+      case 'room-close':
+        return res.json(await roomClose(api, req, body))
+      case 'room-time':
+        return res.json({ serverNow: Date.now() })
       case 'push-unsubscribe':
         return res.json(await pushUnsubscribe(api, body))
       default:

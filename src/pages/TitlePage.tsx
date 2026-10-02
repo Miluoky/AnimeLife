@@ -7,6 +7,7 @@ import { episodeCount } from '../data/catalog'
 import { useHistory } from '../data/history'
 import PosterCard, { Poster } from '../components/PosterCard'
 import ListButton from '../components/ListButton'
+import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import Reviews from '../components/Reviews'
 import { PlayIcon } from '../components/Icons'
 import NotFound from './NotFound'
@@ -131,6 +132,7 @@ export default function TitlePage() {
                 {progress ? `Продолжить: серия ${progress.episode}` : 'Смотреть'}
               </Link>
               <ListButton anime={anime} />
+              <WatchTogetherButton anime={anime} />
             </div>
           </div>
         </section>

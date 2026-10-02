@@ -4,6 +4,7 @@ import { loadAnime, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { saveProgress } from '../data/history'
 import NotFound from './NotFound'
+import WatchTogetherButton from '../components/together/WatchTogetherButton'
 
 export default function Player() {
   const { id = '', episode = '1' } = useParams()
@@ -59,6 +60,7 @@ export default function Player() {
             <h1 style={{ fontSize: 30 }}>Серия {current}</h1>
           </div>
           <div className="actions">
+            <WatchTogetherButton anime={anime} episode={current} />
             <button type="button" className="btn btn--ghost" disabled={current <= 1} onClick={() => goTo(current - 1)}>
               Предыдущая
             </button>

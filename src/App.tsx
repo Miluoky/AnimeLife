@@ -15,11 +15,18 @@ const Account = lazy(pageChunks.account)
 const Moderation = lazy(pageChunks.moderation)
 const AuthCallback = lazy(pageChunks.authCallback)
 const NotFound = lazy(pageChunks.notFound)
+const Together = lazy(pageChunks.together)
+const TogetherHome = lazy(pageChunks.togetherHome)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
   const { id } = useParams()
   return <TitlePage key={id} />
+}
+
+function TogetherRoute() {
+  const { code } = useParams()
+  return <Together key={code} />
 }
 
 // Пока часть страницы едет по сети, место под неё уже занято: вёрстка не прыгает.
@@ -43,6 +50,8 @@ export default function App() {
               </main>
             }
           />
+          <Route path="together" element={<TogetherHome />} />
+          <Route path="together/:code" element={<TogetherRoute />} />
           <Route path="catalog" element={<Catalog />} />
           <Route path="schedule" element={<Schedule />} />
           <Route path="account" element={<Account />} />

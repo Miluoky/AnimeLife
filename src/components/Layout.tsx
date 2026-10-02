@@ -62,6 +62,7 @@ export default function Layout() {
       <NavLink to="/catalog">Каталог</NavLink>
       <NavLink to="/ongoing">Онгоинги</NavLink>
       <NavLink to="/schedule">Расписание</NavLink>
+      <NavLink to="/together">Вместе</NavLink>
       <NavLink to="/my-list">Мой список</NavLink>
     </>
   )

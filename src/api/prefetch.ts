@@ -11,6 +11,8 @@ export const pageChunks = {
   moderation: () => import('../pages/Moderation'),
   authCallback: () => import('../pages/AuthCallback'),
   notFound: () => import('../pages/NotFound'),
+  together: () => import('../pages/Together'),
+  togetherHome: () => import('../pages/TogetherHome'),
 }
 
 const prefetched = new Set<string>()

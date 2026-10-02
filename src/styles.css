@@ -2474,8 +2474,8 @@ h3 {
     bottom: 0;
     z-index: 40;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    grid-template-columns: repeat(6, 1fr);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     background: color-mix(in srgb, var(--bg) 85%, transparent);
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
@@ -2489,8 +2489,9 @@ h3 {
     padding: 6px 0 4px;
     border-radius: 12px;
     color: var(--muted);
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
+    white-space: nowrap;
     transition: color 0.2s, transform 0.15s;
   }
   .bottom-nav__item:active {
@@ -2571,4 +2572,378 @@ h3 {
 }
 .empty-page .mascot {
   margin-bottom: 8px;
+}
+
+/* ---------- Совместный просмотр (шаг 3) ---------- */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+}
+.together {
+  padding-top: 32px;
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.together__stage {
+  flex: 1 1 720px;
+  min-width: 0;
+  gap: 16px;
+}
+.together__frame .player-iframe,
+.together__frame .sync-yt iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.sync-yt {
+  position: absolute;
+  inset: 0;
+}
+.sync-file {
+  background: #000;
+  object-fit: contain;
+}
+.together__gate {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text);
+  font: inherit;
+  border: 0;
+  cursor: pointer;
+  background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+    rgba(5, 6, 10, 0.82);
+  backdrop-filter: blur(6px);
+}
+.together__gate .muted {
+  max-width: 420px;
+}
+.together__play {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #0d0e13;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: live-pulse 2s infinite;
+}
+.together__gate--join:hover .together__play {
+  transform: scale(1.06);
+}
+.together__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.together__title {
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.together__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.together__host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+}
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.live-badge--on {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.live-badge--on::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: live-pulse 1.6s infinite;
+}
+
+/* Реакции всплывают поверх видео */
+.bursts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 3;
+}
+.burst {
+  position: absolute;
+  bottom: 8%;
+  font-size: 34px;
+  animation: burst-up 2.6s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+}
+@keyframes burst-up {
+  0% {
+    transform: translateY(0) scale(0.4);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(-20px) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-260px) scale(0.9) rotate(-8deg);
+    opacity: 0;
+  }
+}
+
+/* Чат */
+.together__chat {
+  flex: 1 1 320px;
+  max-width: 400px;
+  height: min(78vh, 680px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--surface);
+}
+.chat {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overscroll-behavior: contain;
+}
+.chat__empty {
+  margin: auto;
+}
+.chat__msg {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  animation: pop 0.25s ease-out;
+}
+.chat__msg--mine {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+}
+.chat__msg p {
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.chat__name {
+  font-weight: 700;
+  font-size: 13px;
+}
+.chat__time {
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.chat__time:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.chat__form {
+  display: flex;
+  gap: 8px;
+}
+.chat__form input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.chat__form .btn {
+  padding-inline: 14px;
+}
+.chat__login {
+  margin: 0;
+}
+.chat__login a {
+  color: var(--accent);
+}
+.reactions {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+.reaction {
+  flex: 1;
+  font-size: 20px;
+  padding: 6px 0;
+  border-radius: 12px;
+  border: 0;
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.reaction:hover {
+  transform: translateY(-2px) scale(1.08);
+}
+.reaction:active {
+  transform: scale(0.9);
+}
+
+/* Приглашение */
+.invite {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--surface);
+  animation: pop 0.25s ease-out;
+}
+.invite__qr {
+  width: 132px;
+  height: 132px;
+  padding: 6px;
+  border-radius: 14px;
+  background: #fff;
+}
+.invite__qr svg {
+  width: 100%;
+  height: 100%;
+}
+.invite__code {
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.18em;
+}
+.invite__link {
+  width: min(420px, 100%);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 14px;
+}
+
+/* Вкладка «Вместе» */
+.together-home {
+  padding-top: 32px;
+  gap: 40px;
+}
+.together-hero {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 32px;
+  border-radius: 28px;
+  background: radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 55%),
+    var(--surface);
+}
+.together-hero h1 {
+  font-size: clamp(26px, 4vw, 40px);
+}
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.join-form input {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.room-card {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  min-height: 112px;
+  border-radius: 18px;
+  background: var(--surface);
+  transition: transform 0.2s, background 0.2s;
+}
+.room-card:hover {
+  transform: translateY(-3px);
+  background: var(--surface-2);
+}
+.room-card__img {
+  flex: 0 0 64px;
+  height: 88px;
+  border-radius: 10px;
+  background: var(--surface-2) center / cover;
+}
+.room-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .together__chat {
+    max-width: none;
+    height: 60vh;
+  }
+  .together-hero {
+    grid-template-columns: 1fr;
+    padding: 22px;
+  }
+}
+:root[data-calm='1'] .burst {
+  animation-duration: 0.01s;
 }
