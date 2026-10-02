@@ -1,14 +1,17 @@
 import { randomInt } from 'node:crypto'
-import { DB, UserError, listRows } from './util.js'
+import { DB, UserError, hash, listRows } from './util.js'
 
 /**
  * Совместный просмотр: комнаты и чат.
  *
  *   room-create {animeId, animeTitle, poster, episode, source, videoId, title, public, controlAll}
  *       создать комнату (у одного человека одна комната: старая закрывается);
- *   room-control {roomId, playing, position, episode?, source?, videoId?, controlAll?, public?, title?}
+ *   room-control {roomId, playing, position, episode?, source?, videoId?, controlAll?, public?, title?, startsAt?}
  *       плей, пауза, перемотка, смена серии. Управляет ведущий или все, если он разрешил;
  *   room-message {roomId, kind: chat|reaction, text, t}  сообщение или реакция в чат;
+ *   room-message-delete {messageId}  убрать сообщение (ведущий комнаты или модератор);
+ *   room-presence {roomId, voice?, muted?, leave?}  «я в комнате» раз в 45 секунд, флаги голосового чата;
+ *   room-signal {roomId, to, kind: offer|answer|bye, data}  сигналы WebRTC для голоса: строку видит только адресат;
  *   room-close {roomId}  закрыть комнату (только ведущий);
  *   room-time  время сервера, чтобы все устройства считали позицию видео одинаково.
  *
@@ -25,6 +28,11 @@ const MESSAGES_PER_10S = 5
 /** Комната без действий дольше этого закрывается автоматически. */
 const ROOM_TTL = 6 * 3600 * 1000
 const MESSAGE_TTL = 24 * 3600 * 1000
+/** Зритель считается в комнате, если отмечался за последние 2 минуты. */
+const MEMBER_TTL = 2 * 60 * 1000
+/** Не больше стольких человек в голосовом чате: голос идёт напрямую между браузерами (mesh). */
+export const VOICE_LIMIT = 6
+const MAX_SIGNAL = 20000
 
 async function signedIn(api, req, what) {
   const userId = req.headers['x-appwrite-user-id']
@@ -74,6 +82,15 @@ function source(body, data) {
   return data
 }
 
+/** Сеанс по расписанию: не раньше чем через 5 минут и не позже чем через 2 недели. */
+function startsAt(value, now) {
+  if (value == null || value === '') return null
+  const t = Number(value)
+  if (!Number.isFinite(t) || t < now + 5 * 60 * 1000 || t > now + 14 * 24 * 3600 * 1000)
+    throw new UserError('Время сеанса: от 5 минут до 2 недель вперёд.')
+  return t
+}
+
 export async function roomCreate(api, req, body) {
   const user = await signedIn(api, req, 'создать комнату')
   if (!/^\d{1,10}$/.test(String(body.animeId ?? ''))) throw new UserError('Неизвестный тайтл.')
@@ -96,6 +113,7 @@ export async function roomCreate(api, req, body) {
       lastActive: now,
       viewers: 0,
       actor: displayName(user),
+      startsAt: startsAt(body.startsAt, now),
     },
   )
   // Одна комната на человека: прошлую закрываем, чтобы список не засорялся.
@@ -126,6 +144,7 @@ export async function roomControl(api, req, body) {
     if (body.controlAll != null) data.controlAll = Boolean(body.controlAll)
     if (body.public != null) data.public = Boolean(body.public)
     if (body.title != null) data.title = text(body.title, 80)
+    if (body.startsAt !== undefined) data.startsAt = startsAt(body.startsAt, now)
   }
   await api('PATCH', `${DB}/rooms/rows/${room.$id}`, { data })
   return { ok: true, serverNow: Date.now() }
@@ -170,6 +189,75 @@ export async function roomClose(api, req, body) {
   const room = await getRoom(api, body.roomId)
   if (room.hostId !== user.$id) throw new UserError('Закрыть комнату может только ведущий.')
   await api('DELETE', `${DB}/rooms/rows/${room.$id}`)
+  const members = await listRows(api, 'members', [
+    { method: 'equal', attribute: 'roomId', values: [room.$id] },
+    { method: 'limit', values: [100] },
+  ])
+  await Promise.all(members.map((m) => api('DELETE', `${DB}/members/rows/${m.$id}`)))
+  return { ok: true }
+}
+
+export async function roomMessageDelete(api, req, body) {
+  const user = await signedIn(api, req, 'управлять чатом')
+  if (!/^[a-zA-Z0-9]{1,36}$/.test(String(body.messageId ?? ''))) throw new UserError('Сообщение не найдено.')
+  const msg = await api('GET', `${DB}/messages/rows/${body.messageId}`)
+  if (msg.status === 404) return { ok: true }
+  const room = await api('GET', `${DB}/rooms/rows/${msg.json.roomId}`)
+  const isAdmin = (user.labels ?? []).includes('admin')
+  const isHost = room.status !== 404 && room.json.hostId === user.$id
+  if (!isAdmin && !isHost && msg.json.userId !== user.$id) throw new UserError('Убрать сообщение может ведущий.')
+  await api('DELETE', `${DB}/messages/rows/${body.messageId}`)
+  return { ok: true }
+}
+
+const memberId = (roomId, userId) => 'm' + hash(`${roomId}:${userId}`)
+
+export async function roomPresence(api, req, body) {
+  const user = await signedIn(api, req, 'войти в комнату')
+  const room = await getRoom(api, body.roomId)
+  const id = memberId(room.$id, user.$id)
+  if (body.leave) {
+    await api('DELETE', `${DB}/members/rows/${id}`)
+    return { ok: true, serverNow: Date.now() }
+  }
+  const now = Date.now()
+  const voice = Boolean(body.voice)
+  if (voice) {
+    const inVoice = await listRows(api, 'members', [
+      { method: 'equal', attribute: 'roomId', values: [room.$id] },
+      { method: 'equal', attribute: 'voice', values: [true] },
+      { method: 'greaterThan', attribute: 'at', values: [now - MEMBER_TTL] },
+      { method: 'limit', values: [VOICE_LIMIT + 1] },
+    ])
+    if (inVoice.filter((m) => m.userId !== user.$id).length >= VOICE_LIMIT)
+      throw new UserError(`В голосовом чате уже ${VOICE_LIMIT} человек. Можно писать в чат.`)
+  }
+  await api('PUT', `${DB}/members/rows/${id}`, {
+    data: { roomId: room.$id, userId: user.$id, name: displayName(user), voice, muted: Boolean(body.muted), at: now },
+  })
+  if (now - (room.lastActive ?? 0) > 60_000) {
+    await api('PATCH', `${DB}/rooms/rows/${room.$id}`, { data: { lastActive: now } })
+  }
+  return { ok: true, serverNow: Date.now() }
+}
+
+export async function roomSignal(api, req, body) {
+  const user = await signedIn(api, req, 'говорить в комнате')
+  const room = await getRoom(api, body.roomId)
+  if (!['offer', 'answer', 'bye'].includes(body.kind)) throw new UserError('Неизвестный сигнал.')
+  const self = await api('GET', `${DB}/members/rows/${memberId(room.$id, user.$id)}`)
+  if (self.status === 404 || !self.json.voice) throw new UserError('Сначала войдите в голосовой чат.')
+  const to = String(body.to ?? '')
+  const target = await api('GET', `${DB}/members/rows/${memberId(room.$id, to)}`)
+  if (target.status === 404 || !target.json.voice) throw new UserError('Собеседник уже вышел из голосового чата.')
+  const data = String(body.data ?? '')
+  if (data.length > MAX_SIGNAL) throw new UserError('Слишком длинный сигнал.')
+  // Описание соединения содержит IP-адреса, поэтому строку может прочитать только адресат.
+  await api('POST', `${DB}/signals/rows`, {
+    rowId: 'unique()',
+    data: { roomId: room.$id, from: user.$id, to, kind: body.kind, data, at: Date.now() },
+    permissions: [`read("user:${to}")`],
+  })
   return { ok: true }
 }
 
@@ -179,13 +267,16 @@ export async function cleanRooms(api) {
   let rooms = 0
   let messages = 0
   for (let i = 0; i < 10; i++) {
-    const old = await listRows(api, 'rooms', [
+    const stale = await listRows(api, 'rooms', [
       { method: 'lessThan', attribute: 'lastActive', values: [now - ROOM_TTL] },
       { method: 'limit', values: [50] },
+      { method: 'offset', values: [i * 50 - rooms] },
     ])
+    // Комнату с сеансом по расписанию не трогаем, пока сеанс не прошёл.
+    const old = stale.filter((r) => !(r.startsAt && r.startsAt > now - 3600 * 1000))
     await Promise.all(old.map((r) => api('DELETE', `${DB}/rooms/rows/${r.$id}`)))
     rooms += old.length
-    if (old.length < 50) break
+    if (stale.length < 50) break
   }
   for (let i = 0; i < 10; i++) {
     const old = await listRows(api, 'messages', [
@@ -195,6 +286,20 @@ export async function cleanRooms(api) {
     await Promise.all(old.map((r) => api('DELETE', `${DB}/messages/rows/${r.$id}`)))
     messages += old.length
     if (old.length < 100) break
+  }
+  // Отметки присутствия и сигналы голоса живут недолго.
+  for (const [table, ttl] of [
+    ['members', 3600 * 1000],
+    ['signals', 10 * 60 * 1000],
+  ]) {
+    for (let i = 0; i < 10; i++) {
+      const old = await listRows(api, table, [
+        { method: 'lessThan', attribute: 'at', values: [now - ttl] },
+        { method: 'limit', values: [100] },
+      ])
+      await Promise.all(old.map((r) => api('DELETE', `${DB}/${table}/rows/${r.$id}`)))
+      if (old.length < 100) break
+    }
   }
   return { rooms, messages }
 }

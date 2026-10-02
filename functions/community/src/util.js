@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 /** Общие мелочи функции: путь к таблицам, ошибка для пользователя, запросы фильтров. */
 export const DB = '/tablesdb/anime/tables'
 
@@ -8,3 +10,5 @@ export const query = (q) => `queries[]=${encodeURIComponent(JSON.stringify(q))}`
 
 export const listRows = async (api, table, queries) =>
   (await api('GET', `${DB}/${table}/rows?${queries.map(query).join('&')}`)).json.rows ?? []
+
+export const hash = (text) => createHash('sha256').update(text).digest('hex').slice(0, 32)

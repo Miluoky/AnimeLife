@@ -24,6 +24,8 @@ export interface Room {
   lastActive: number
   /** кто последним нажал плей, паузу или перемотал */
   actor?: string
+  /** сеанс по расписанию: время начала (мс) */
+  startsAt?: number | null
 }
 
 export interface RoomMessage {
@@ -105,11 +107,14 @@ export const controlRoom = (
     controlAll?: boolean
     public?: boolean
     title?: string
+    startsAt?: number | null
   },
 ) => timed<{ serverNow: number }>({ action: 'room-control', roomId, ...state })
 
 export const sendRoomMessage = (roomId: string, kind: RoomMessage['kind'], text: string, t: number) =>
   callCommunity<{ message: RoomMessage }>({ action: 'room-message', roomId, kind, text, t }).then((r) => r.message)
+
+export const deleteRoomMessage = (messageId: string) => callCommunity({ action: 'room-message-delete', messageId })
 
 export const closeRoom = (roomId: string) => callCommunity({ action: 'room-close', roomId })
 
@@ -147,13 +152,32 @@ export async function loadPublicRooms(): Promise<Room[]> {
   return res.rows as unknown as Room[]
 }
 
+/** Открытые сеансы по расписанию, ближайшие первыми. */
+export async function loadUpcomingRooms(): Promise<Room[]> {
+  const res = await tablesDB.listRows({
+    databaseId: COMMUNITY_DB,
+    tableId: 'rooms',
+    queries: [
+      Query.equal('public', true),
+      Query.greaterThan('startsAt', serverNow()),
+      Query.orderAsc('startsAt'),
+      Query.limit(12),
+    ],
+  })
+  return res.rows as unknown as Room[]
+}
+
 /**
  * Живые обновления комнаты через Appwrite Realtime (WebSocket).
  * onRoom(null) значит, что комнату закрыли.
  */
 export function subscribeRoom(
   code: string,
-  handlers: { onRoom: (room: Room | null) => void; onMessage: (m: RoomMessage) => void },
+  handlers: {
+    onRoom: (room: Room | null) => void
+    onMessage: (m: RoomMessage) => void
+    onMessageGone?: (id: string) => void
+  },
 ) {
   const roomChannel = `databases.${COMMUNITY_DB}.tables.rooms.rows.${code}`
   const messagesChannel = `databases.${COMMUNITY_DB}.tables.messages.rows`
@@ -162,8 +186,9 @@ export function subscribeRoom(
     const isRoom = e.events.some((ev) => ev.includes('.rooms.'))
     if (isRoom) {
       if ((e.payload as Room).$id === code) handlers.onRoom(deleted ? null : (e.payload as Room))
-    } else if ((e.payload as RoomMessage).roomId === code && !deleted) {
-      handlers.onMessage(e.payload as RoomMessage)
+    } else if ((e.payload as RoomMessage).roomId === code) {
+      if (deleted) handlers.onMessageGone?.((e.payload as RoomMessage).$id)
+      else handlers.onMessage(e.payload as RoomMessage)
     }
   })
 }

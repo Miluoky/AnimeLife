@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { loadPublicRooms, roomPosition, syncClock, type Room } from '../data/rooms'
+import { loadPublicRooms, loadUpcomingRooms, roomPosition, serverNow, syncClock, type Room } from '../data/rooms'
+import { MEMBER_TTL, countMembers } from '../data/voice'
+import { untilText } from '../components/together/ScheduleSession'
 import { formatTime } from '../components/together/time'
 import { PeopleIcon } from '../components/Icons'
 import Mascot from '../components/Mascot'
@@ -10,13 +12,27 @@ export default function TogetherHome() {
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [rooms, setRooms] = useState<Room[] | null>(null)
+  const [upcoming, setUpcoming] = useState<Room[]>([])
+  const [viewers, setViewers] = useState(new Map<string, number>())
 
   useEffect(() => {
     let alive = true
-    const refresh = () =>
-      loadPublicRooms()
-        .then((list) => alive && setRooms(list))
-        .catch(() => alive && setRooms([]))
+    const refresh = async () => {
+      const [live, soon] = await Promise.all([
+        loadPublicRooms().catch(() => [] as Room[]),
+        loadUpcomingRooms().catch(() => [] as Room[]),
+      ])
+      if (!alive) return
+      // Комната с будущим сеансом живёт в «Скоро», а не среди тех, где смотрят прямо сейчас.
+      const now = serverNow()
+      setRooms(live.filter((r) => !(r.startsAt && r.startsAt > now)))
+      setUpcoming(soon.filter((r) => r.startsAt && r.startsAt > now))
+      const counts = await countMembers(
+        live.map((r) => r.$id),
+        serverNow() - MEMBER_TTL,
+      ).catch(() => new Map<string, number>())
+      if (alive) setViewers(counts)
+    }
     void syncClock(1).then(refresh)
     const timer = setInterval(refresh, 20_000)
     return () => {
@@ -62,6 +78,31 @@ export default function TogetherHome() {
         </form>
       </section>
 
+      {upcoming.length > 0 && (
+        <section className="stack">
+          <div className="section-head">
+            <h2>Скоро</h2>
+          </div>
+          <div className="rooms-grid">
+            {upcoming.map((r) => (
+              <Link key={r.$id} to={`/together/${r.$id}`} className="room-card room-card--soon">
+                <div className="room-card__img" style={r.poster ? { backgroundImage: `url(${r.poster})` } : undefined} />
+                <div className="stack" style={{ gap: 4 }}>
+                  <strong>{r.title || r.animeTitle}</strong>
+                  <span className="muted">
+                    {r.title ? `${r.animeTitle} · ` : ''}серия {r.episode}
+                  </span>
+                  <span className="muted room-card__meta">
+                    <span className="live-badge">{untilText(r.startsAt! - serverNow())}</span>
+                    {r.hostName}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="stack">
         <div className="section-head">
           <h2>Открытые комнаты</h2>
@@ -96,6 +137,11 @@ export default function TogetherHome() {
                       {r.playing ? formatTime(roomPosition(r)) : 'Пауза'}
                     </span>
                     {r.hostName}
+                    {viewers.get(r.$id) ? (
+                      <span className="room-card__viewers">
+                        <PeopleIcon size={14} /> {viewers.get(r.$id)}
+                      </span>
+                    ) : null}
                   </span>
                 </div>
               </Link>

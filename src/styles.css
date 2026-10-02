@@ -2947,3 +2947,118 @@ input[type='radio'] {
 :root[data-calm='1'] .burst {
   animation-duration: 0.01s;
 }
+
+/* ---------- Комнаты: люди, голос, расписание (шаг 4) ---------- */
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.people__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 13px;
+  transition: box-shadow 0.15s;
+}
+.person__avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: #0d0e13;
+  background: var(--accent);
+}
+.person--speaking {
+  box-shadow: 0 0 0 2px var(--accent), 0 0 14px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.person__mic {
+  display: inline-flex;
+  color: var(--accent);
+}
+.person__mic--off {
+  color: var(--muted);
+}
+.people__actions {
+  gap: 8px;
+}
+.people__join {
+  align-self: flex-start;
+}
+.chat__msg {
+  position: relative;
+}
+.chat__delete {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  opacity: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.chat__msg:hover .chat__delete,
+.chat__delete:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .chat__delete {
+    opacity: 0.6;
+  }
+}
+.schedule-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text-soft);
+}
+.schedule-card--on {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+.schedule-card--on > svg {
+  color: var(--accent);
+}
+.schedule-card__input {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  color-scheme: dark;
+}
+.room-card__viewers {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.room-card--soon .live-badge {
+  color: var(--accent);
+}

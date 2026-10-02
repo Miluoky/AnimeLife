@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../data/auth'
 import { CommunityError } from '../data/community'
@@ -6,6 +6,7 @@ import {
   REACTIONS,
   closeRoom,
   controlRoom,
+  deleteRoomMessage,
   loadMessages,
   loadRoom,
   roomPosition,
@@ -22,6 +23,9 @@ import InviteCard from '../components/together/InviteCard'
 import { formatTime } from '../components/together/time'
 import { PeopleIcon, PlayIcon, SendIcon } from '../components/Icons'
 import Mascot from '../components/Mascot'
+import People from '../components/together/People'
+import Schedule from '../components/together/ScheduleSession'
+import { MEMBER_TTL, PRESENCE_EVERY, loadMembers, presence, subscribeMembers, type Member } from '../data/voice'
 
 /** Расхождение больше этого (секунд) исправляем перемоткой, меньше — подстройкой скорости. */
 const HARD_DRIFT = 1.5
@@ -47,6 +51,7 @@ export default function Together() {
   const [file, setFile] = useState<File | null>(null)
   const [bursts, setBursts] = useState<Burst[]>([])
   const [showInvite, setShowInvite] = useState(false)
+  const [members, setMembers] = useState<Member[]>([])
   const video = useRef<VideoControl>(null)
   const roomRef = useRef<Room | null | undefined>(undefined)
   roomRef.current = room
@@ -111,6 +116,7 @@ export default function Together() {
         }
         setRoom(next)
       },
+      onMessageGone: (id) => setMessages((list) => list.filter((x) => x.$id !== id)),
       onMessage: (m) => {
         setMessages((list) => (list.some((x) => x.$id === m.$id) ? list : [...list.slice(-199), m]))
         if (m.kind === 'reaction') {
@@ -126,6 +132,35 @@ export default function Together() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId])
+
+  // Кто в комнате: вошедшие зрители отмечаются раз в 45 секунд, список обновляется живьём.
+  const myId = user?.$id
+  useEffect(() => {
+    let alive = true
+    const fresh = (list: Member[]) => list.filter((m) => m.at > serverNow() - MEMBER_TTL)
+    const reload = () =>
+      loadMembers(roomId, serverNow() - MEMBER_TTL)
+        .then((list) => alive && setMembers(fresh(list)))
+        .catch(() => undefined)
+    void reload()
+    const unsubscribe = subscribeMembers(roomId, (m, gone) =>
+      setMembers((list) => fresh([...list.filter((x) => x.userId !== m.userId), ...(gone ? [] : [m])])),
+    )
+    const prune = setInterval(() => setMembers((list) => fresh(list)), 30_000)
+    let beat: ReturnType<typeof setInterval> | undefined
+    if (myId) {
+      const ping = () => void presence(roomId).catch(() => undefined)
+      ping()
+      beat = setInterval(ping, PRESENCE_EVERY)
+    }
+    return () => {
+      alive = false
+      unsubscribe()
+      clearInterval(prune)
+      clearInterval(beat)
+      if (myId) void presence(roomId, { leave: true }).catch(() => undefined)
+    }
+  }, [roomId, myId])
 
   const send = async (state: Partial<Room> & { playing: boolean; position: number }) => {
     const r = roomRef.current
@@ -256,6 +291,12 @@ export default function Together() {
 
         {showInvite && <InviteCard code={room.$id} title={room.animeTitle} />}
 
+        <Schedule
+          room={room}
+          isHost={isHost}
+          onChange={(startsAt) => void send({ startsAt, playing: room.playing, position: roomPosition(room) })}
+        />
+
         {isHost && (
           <div className="together__host chips">
             <span className="muted">Видео:</span>
@@ -314,6 +355,8 @@ export default function Together() {
       </div>
 
       <Chat
+        people={<People roomId={room.$id} members={members} myId={user?.$id} hostId={room.hostId} />}
+        canModerate={isHost}
         room={room}
         messages={messages}
         signedIn={!!user}
@@ -326,6 +369,8 @@ export default function Together() {
 }
 
 function Chat({
+  people,
+  canModerate,
   room,
   messages,
   signedIn,
@@ -333,6 +378,8 @@ function Chat({
   currentTime,
   onSeek,
 }: {
+  people: ReactNode
+  canModerate: boolean
   room: Room
   messages: RoomMessage[]
   signedIn: boolean
@@ -373,6 +420,7 @@ function Chat({
         <h2 style={{ fontSize: 18, fontWeight: 500 }}>Чат</h2>
         <span className="muted">код {room.$id}</span>
       </div>
+      {people}
       <ol className="chat" ref={list}>
         {chat.length === 0 && <li className="muted chat__empty">Пока тихо. Напишите первым!</li>}
         {chat.map((m) => (
@@ -388,6 +436,16 @@ function Chat({
               {formatTime(m.t)}
             </button>
             <p>{m.text}</p>
+            {(canModerate || m.userId === myId) && (
+              <button
+                type="button"
+                className="chat__delete"
+                aria-label="Убрать сообщение"
+                onClick={() => void deleteRoomMessage(m.$id).catch((err) => toast(errorText(err)))}
+              >
+                ×
+              </button>
+            )}
           </li>
         ))}
       </ol>

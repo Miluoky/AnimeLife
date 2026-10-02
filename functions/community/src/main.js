@@ -1,7 +1,15 @@
-import { createHash } from 'node:crypto'
 import webpush from 'web-push'
-import { DB, UserError, query } from './util.js'
-import { cleanRooms, roomClose, roomControl, roomCreate, roomMessage } from './rooms.js'
+import { DB, UserError, hash, query } from './util.js'
+import {
+  cleanRooms,
+  roomClose,
+  roomControl,
+  roomCreate,
+  roomMessage,
+  roomMessageDelete,
+  roomPresence,
+  roomSignal,
+} from './rooms.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -43,8 +51,6 @@ const SITES = [
   /^https?:\/\/maintech67\.me\/Anime\/$/,
   /^http:\/\/localhost:\d+\/$/,
 ]
-
-const hash = (text) => createHash('sha256').update(text).digest('hex').slice(0, 32)
 
 function appwrite(req) {
   const headers = {
@@ -441,6 +447,12 @@ export default async ({ req, res, log, error }) => {
         return res.json(await roomMessage(api, req, body))
       case 'room-close':
         return res.json(await roomClose(api, req, body))
+      case 'room-message-delete':
+        return res.json(await roomMessageDelete(api, req, body))
+      case 'room-presence':
+        return res.json(await roomPresence(api, req, body))
+      case 'room-signal':
+        return res.json(await roomSignal(api, req, body))
       case 'room-time':
         return res.json({ serverNow: Date.now() })
       case 'push-unsubscribe':

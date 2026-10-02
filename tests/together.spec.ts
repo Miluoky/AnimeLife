@@ -28,7 +28,10 @@ const baseRoom = {
  * Комната на подставном Appwrite: строка комнаты, пустой чат, часы сервера и Realtime.
  * Возвращает функцию, которая «присылает» событие так, будто его отправил сервер.
  */
-async function mockRoom(page: Page, room: Record<string, unknown> | null) {
+async function mockRoom(page: Page, room: Record<string, unknown> | null, members: Record<string, unknown>[] = []) {
+  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/members\/rows\?.*/, (route) =>
+    route.fulfill({ json: { total: members.length, rows: members } }),
+  )
   await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/rooms\/rows\/.*/, (route) =>
     room ? route.fulfill({ json: room }) : route.fulfill({ status: 404, json: { message: 'Row not found' } }),
   )
@@ -129,4 +132,38 @@ test('закрытая комната показывает понятный эк
   await mockRoom(page, null)
   await page.goto('/together/ZZZ999')
   await expect(page.getByRole('heading', { name: 'Комната закрыта' })).toBeVisible()
+})
+
+test('кто в комнате и кто в голосовом чате, список обновляется живьём', async ({ page }) => {
+  const now = Date.now()
+  const push = await mockRoom(page, baseRoom, [
+    { $id: 'a', roomId: CODE, userId: 'host1', name: 'Ведущий', voice: true, muted: false, at: now },
+  ])
+  await page.goto(`/together/${CODE}`)
+  const people = page.getByRole('region', { name: 'Кто в комнате' })
+  await expect(people.getByText('Ведущий · ведущий')).toBeVisible()
+  await expect(people.getByLabel('В голосовом чате')).toHaveCount(1)
+  await push('members', { $id: 'b', roomId: CODE, userId: 'u2', name: 'Аня', voice: true, muted: true, at: now }, 'create')
+  await expect(people.getByText('Аня')).toBeVisible()
+  await expect(people.getByLabel('Микрофон выключен')).toHaveCount(1)
+  await push('members', { $id: 'b', roomId: CODE, userId: 'u2', name: 'Аня', voice: false, muted: false, at: now }, 'delete')
+  await expect(people.getByText('Аня')).toHaveCount(0)
+})
+
+test('сеанс по расписанию: обратный отсчёт и файл для календаря', async ({ page }) => {
+  const startsAt = Date.now() + 90 * 60 * 1000
+  await mockRoom(page, { ...baseRoom, startsAt })
+  await page.goto(`/together/${CODE}`)
+  await expect(page.getByText(/через 1 ч (29|30) мин/)).toBeVisible()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'В календарь' }).click()
+  const file = await download
+  expect(file.suggestedFilename()).toBe(`anime-life-${CODE}.ics`)
+})
+
+test('вкладка «Вместе»: сеансы по расписанию в разделе «Скоро»', async ({ page }) => {
+  await mockRoom(page, { ...baseRoom, startsAt: Date.now() + 3 * 3600 * 1000 })
+  await page.goto('/together')
+  await expect(page.getByRole('heading', { name: 'Скоро' })).toBeVisible()
+  await expect(page.locator('.room-card--soon')).toContainText('через 3 ч')
 })
