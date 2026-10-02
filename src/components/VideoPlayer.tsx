@@ -168,7 +168,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       video.src = src
       video.addEventListener('loadedmetadata', () => setLoading(false), { once: true })
     } else {
-      import('hls.js').then(({ default: Hls }) => {
+      import('hls.js/light').then(({ default: Hls }) => {
         if (!Hls.isSupported()) {
           setError('Ваш браузер не поддерживает HLS-воспроизведение.')
           return

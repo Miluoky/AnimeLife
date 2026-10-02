@@ -42,6 +42,9 @@ jobs:
       # Сайт на Cloudflare живёт в корне домена, поэтому BASE_PATH не нужен.
       - if: steps.keys.outputs.ok == 'true'
         run: npm run build
+        env:
+          VITE_KODIK_TOKEN: ${{ secrets.VITE_KODIK_TOKEN }}
+          VITE_ALLOHA_TOKEN: ${{ secrets.VITE_ALLOHA_TOKEN }}
       # wrangler 4 пытается сам настроить Vite и требует Vite 6, поэтому закреплён wrangler 3.
       # Первый запуск создаёт проект; если он уже есть, команда ничего не меняет.
       - if: steps.keys.outputs.ok == 'true'

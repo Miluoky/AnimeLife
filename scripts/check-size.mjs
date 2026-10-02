@@ -11,6 +11,8 @@ const BUDGET_KB = {
   chunk: 40,
   // SDK Appwrite грузится отдельно и только когда нужен
   appwrite: 30,
+  // hls.js (облегчённая сборка) грузится только при выборе плеера AniLibria в браузерах без нативного HLS
+  hls: 120,
   css: 10,
 }
 
@@ -28,7 +30,9 @@ for (const file of readdirSync(dir)) {
       ? BUDGET_KB.main
       : file.startsWith('appwrite-')
         ? BUDGET_KB.appwrite
-        : BUDGET_KB.chunk
+        : file.startsWith('hls')
+          ? BUDGET_KB.hls
+          : BUDGET_KB.chunk
   const over = gzip > budget
   if (over) failed = true
   rows.push({ file, 'KB': raw.toFixed(1), 'gzip KB': gzip.toFixed(1), 'бюджет': budget, ok: over ? 'ПРЕВЫШЕН' : 'ок' })

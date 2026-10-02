@@ -30,6 +30,9 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          # Токены плееров Kodik и Alloha (секреты репозитория). Без них эти вкладки плеера показывают заглушку.
+          VITE_KODIK_TOKEN: ${{ secrets.VITE_KODIK_TOKEN }}
+          VITE_ALLOHA_TOKEN: ${{ secrets.VITE_ALLOHA_TOKEN }}
       # Pages не знает о маршрутах React: на прямой заход по /Anime/anime/123 отдаёт 404.html, пусть это будет сам сайт.
       - run: cp dist/index.html dist/404.html
       - uses: actions/configure-pages@v5
