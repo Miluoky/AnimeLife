@@ -1,0 +1,51 @@
+name: Публикация на Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Имя проекта задаёт адрес сайта: <имя>.pages.dev. Можно поменять в Settings → Variables.
+      PROJECT: ${{ vars.CLOUDFLARE_PROJECT || 'anime-night' }}
+    steps:
+      # Пока ключи Cloudflare не добавлены в секреты репозитория, публикация просто пропускается.
+      - name: Проверить ключи Cloudflare
+        id: keys
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Секреты CLOUDFLARE_API_TOKEN и CLOUDFLARE_ACCOUNT_ID не заданы, публикация на Cloudflare пропущена."
+          fi
+      - if: steps.keys.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - if: steps.keys.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - if: steps.keys.outputs.ok == 'true'
+        run: npm ci
+      # Сайт на Cloudflare живёт в корне домена, поэтому BASE_PATH не нужен.
+      - if: steps.keys.outputs.ok == 'true'
+        run: npm run build
+      # Первый запуск создаёт проект; если он уже есть, команда ничего не меняет.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Создать проект Pages, если его ещё нет
+        run: npx --yes wrangler@4 pages project create "$PROJECT" --production-branch main || true
+      - if: steps.keys.outputs.ok == 'true'
+        name: Выложить
+        run: npx --yes wrangler@4 pages deploy dist --project-name "$PROJECT" --branch main --commit-dirty=true
