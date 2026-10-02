@@ -11,6 +11,8 @@ export interface Anime {
   season?: string
   genres: string[]
   ongoing: boolean
+  /** анонс: ещё не вышло ни одной серии */
+  upcoming?: boolean
   description: string
   score?: number
   posterUrl?: string

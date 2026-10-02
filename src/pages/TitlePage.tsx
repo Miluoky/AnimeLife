@@ -9,13 +9,18 @@ import { PlayIcon } from '../components/Icons'
 import NotFound from './NotFound'
 
 const PAGE_SIZE = 12
+const MAX_PILLS = 8
 
 export default function TitlePage() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadAnime(id), [id])
   const extras = useAsync(() => loadTitleExtras(id), [id])
   const history = useHistory()
-  const [page, setPage] = useState(0)
+  // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.
+  const [pageWanted, setPage] = useState(() => {
+    const episode = history.find((h) => h.animeId === id)?.episode ?? 1
+    return Math.floor((episode - 1) / PAGE_SIZE)
+  })
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   const anime = result.value?.data
@@ -24,6 +29,7 @@ export default function TitlePage() {
   const progress = history.find((h) => h.animeId === anime.id)
   const total = episodeCount(anime)
   const pages = Math.ceil(total / PAGE_SIZE)
+  const page = Math.min(pageWanted, pages - 1)
   const from = page * PAGE_SIZE + 1
   const to = Math.min(total, from + PAGE_SIZE - 1)
   const episodes = Array.from({ length: to - from + 1 }, (_, i) => from + i)
@@ -32,6 +38,11 @@ export default function TitlePage() {
   const shots = extras.value?.screenshots ?? []
   const related = extras.value?.related ?? []
   const similar = extras.value?.similar ?? []
+
+  function rangeLabel(i: number) {
+    const a = i * PAGE_SIZE + 1
+    return `${a}–${Math.min(total, a + PAGE_SIZE - 1)}`
+  }
 
   function episodeLabel(n: number) {
     if (progress && n < progress.episode) return 'Просмотрено'
@@ -59,7 +70,7 @@ export default function TitlePage() {
             {anime.originalTitle && <div className="muted">{anime.originalTitle}</div>}
             <h1 className="title-head__title">{anime.title}</h1>
             <div className="chips">
-              <span className="chip chip--accent">{anime.ongoing ? 'Онгоинг' : 'Вышел'}</span>
+              <span className="chip chip--accent">{anime.ongoing ? 'Онгоинг' : anime.upcoming ? 'Анонс' : 'Вышел'}</span>
               {anime.score ? <span className="chip">★ {anime.score.toFixed(1)}</span> : null}
               {anime.year && <span className="chip">{anime.year}</span>}
               {anime.genres.map((g) => (
@@ -82,24 +93,33 @@ export default function TitlePage() {
           <div className="stack">
             <div className="section-head" style={{ alignItems: 'center' }}>
               <h2>Серии</h2>
-              {pages > 1 && (
+              {pages > 1 && pages <= MAX_PILLS && (
                 <div className="chips">
-                  {Array.from({ length: pages }, (_, i) => {
-                    const a = i * PAGE_SIZE + 1
-                    const b = Math.min(total, a + PAGE_SIZE - 1)
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        className={`pill${i === page ? ' active' : ''}`}
-                        aria-pressed={i === page}
-                        onClick={() => setPage(i)}
-                      >
-                        {a}–{b}
-                      </button>
-                    )
-                  })}
+                  {Array.from({ length: pages }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className={`pill${i === page ? ' active' : ''}`}
+                      aria-pressed={i === page}
+                      onClick={() => setPage(i)}
+                    >
+                      {rangeLabel(i)}
+                    </button>
+                  ))}
                 </div>
+              )}
+              {pages > MAX_PILLS && (
+                // У длинных сериалов (Ван-Пис, Конан) сотня диапазонов: кнопками это стена, поэтому список.
+                <label className="btn btn--ghost list-select">
+                  <span className="sr-only">Диапазон серий</span>
+                  <select value={page} onChange={(e) => setPage(Number(e.target.value))}>
+                    {Array.from({ length: pages }, (_, i) => (
+                      <option key={i} value={i}>
+                        Серии {rangeLabel(i)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
             </div>
             <div className="grid grid--episodes">
