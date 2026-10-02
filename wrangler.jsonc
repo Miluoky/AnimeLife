@@ -1,0 +1,11 @@
+// Публикация на Cloudflare Workers (Workers Builds, подключён к GitHub): сайт как статические файлы.
+{
+  "name": "anime",
+  "compatibility_date": "2026-09-01",
+  "build": { "command": "npm run build" },
+  "assets": {
+    "directory": "./dist",
+    // Маршруты React: на любой незнакомый адрес отдаём index.html.
+    "not_found_handling": "single-page-application"
+  }
+}
