@@ -35,3 +35,9 @@ export const COMMUNITY_DB = 'anime'
 /** Публичный ключ VAPID для пуш-уведомлений. Секретная половина хранится только в переменных функции. */
 export const VAPID_PUBLIC_KEY =
   env.VITE_VAPID_PUBLIC_KEY ?? 'BHgyQXea-s96oolbzWaTuGkW6TlVgqKpCyl8y7bEQCHA33CJ2MrQdH-w_JPc5iMw7M6BDW4aBsFiEUNVTCURVt8'
+
+/**
+ * Капча Cloudflare Turnstile для отзывов и жалоб. Ключ сайта публичный; пока он пустой, капчи нет.
+ * Включать вместе с секретом TURNSTILE_SECRET в переменных функции community.
+ */
+export const TURNSTILE_SITE_KEY = env.VITE_TURNSTILE_SITE_KEY ?? ''

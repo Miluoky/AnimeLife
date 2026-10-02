@@ -1,0 +1,17 @@
+# Заголовки безопасности для Cloudflare Pages (GitHub Pages этот файл игнорирует).
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000
+
+# Service worker и манифест должны обновляться сразу, а не из кэша браузера.
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+# Файлы сборки с хэшем в имени не меняются: кэшируем надолго.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

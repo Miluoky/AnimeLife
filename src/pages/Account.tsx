@@ -272,6 +272,11 @@ export default function Account() {
               <Link to="/my-list" className="btn btn--accent">
                 Мой список
               </Link>
+              {user.labels?.includes('admin') && (
+                <Link to="/moderation" className="btn btn--ghost">
+                  Модерация
+                </Link>
+              )}
               <button
                 type="button"
                 className="btn btn--ghost"

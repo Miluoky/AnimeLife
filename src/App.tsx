@@ -6,6 +6,7 @@ import Player from './pages/Player'
 import NotFound from './pages/NotFound'
 import CatalogSection from './components/CatalogSection'
 import MyList from './pages/MyList'
+import Moderation from './pages/Moderation'
 import Schedule from './pages/Schedule'
 import Catalog from './pages/Catalog'
 import Account from './pages/Account'
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="auth/callback" element={<AuthCallback />} />
         <Route path="auth/vk" element={<AuthCallback />} />
         <Route path="my-list" element={<MyList />} />
+        <Route path="moderation" element={<Moderation />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
