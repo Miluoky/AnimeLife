@@ -1,124 +1,114 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { useState } from 'react'
-import { catalog, continueWatching, genres, getAnime } from '../data/catalog'
-import PosterCard from '../components/PosterCard'
-import { FilterIcon, PlayIcon } from '../components/Icons'
+import { loadAnime, loadCatalog, useAsync } from '../api'
+import { useHistory } from '../data/history'
+import CatalogSection from '../components/CatalogSection'
+import { Poster } from '../components/PosterCard'
+import { PlayIcon } from '../components/Icons'
+
+function Hero() {
+  // Подборка недели: самый популярный онгоинг, с подробностями для описания и жанров.
+  const featured = useAsync(async () => {
+    const list = await loadCatalog({ status: 'ongoing', limit: 1 })
+    const first = list.data[0]
+    if (!first) return undefined
+    return (await loadAnime(first.id)).data ?? first
+  }, [])
+  const anime = featured.value
+
+  if (!anime) {
+    return <section className="hero skeleton hero--loading" aria-busy={featured.loading} />
+  }
+
+  const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} серий`, anime.studio].filter(Boolean)
+
+  return (
+    <section className="hero">
+      <div className="hero__text">
+        <div className="eyebrow">Подборка недели</div>
+        <h1 className="hero__title">{anime.title}</h1>
+        <div className="meta-line">
+          {meta.map((m, i) => (
+            <span key={i}>
+              {i > 0 && <span className="meta-dot">·</span>}
+              {m}
+            </span>
+          ))}
+        </div>
+        <div className="chips">
+          {anime.genres.slice(0, 4).map((g) => (
+            <span key={g} className="chip">
+              {g}
+            </span>
+          ))}
+        </div>
+        {anime.description && <p className="hero__desc clamp-4">{anime.description}</p>}
+        <div className="actions">
+          <Link to={`/watch/${anime.id}/1`} className="btn btn--accent">
+            <PlayIcon />
+            Смотреть
+          </Link>
+          <Link to={`/anime/${anime.id}`} className="btn btn--ghost">
+            Подробнее
+          </Link>
+        </div>
+      </div>
+      <div className="hero__art" style={{ background: anime.posterFill }}>
+        {anime.posterUrl ? (
+          <>
+            <img className="hero__art-bg" src={anime.posterUrl} alt="" />
+            <img className="hero__art-poster" src={anime.posterUrl} alt={`Постер: ${anime.title}`} />
+          </>
+        ) : (
+          <span className="art-label">[Ключевой арт тайтла, 16:9]</span>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function ContinueWatching() {
+  const history = useHistory()
+  if (!history.length) return null
+
+  return (
+    <section className="stack">
+      <div className="section-head">
+        <h2>Продолжить просмотр</h2>
+      </div>
+      <div className="grid grid--wide">
+        {history.slice(0, 4).map((h) => (
+          <Link key={h.animeId} to={`/watch/${h.animeId}/${h.episode}`} className="continue-card">
+            <div className="continue-card__img" style={{ background: h.posterFill }}>
+              <Poster anime={h} className="poster-img--cover" />
+              <span className="continue-card__play">
+                <PlayIcon size={20} />
+              </span>
+              <div className="progress-track">
+                <div className="progress-bar" style={{ width: `${(h.episode / h.totalEpisodes) * 100}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="poster-card__title">{h.title}</div>
+              <div className="poster-card__meta">
+                Серия {h.episode} из {h.totalEpisodes}
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
 
 export default function Home() {
   const [params] = useSearchParams()
-  const query = (params.get('q') ?? '').trim().toLowerCase()
-  const [genre, setGenre] = useState('Все')
-  const featured = getAnime('frieren')!
-
-  const filtered = catalog.filter(
-    (a) =>
-      (genre === 'Все' || a.genres.includes(genre)) &&
-      (!query || a.title.toLowerCase().includes(query) || a.originalTitle?.toLowerCase().includes(query)),
-  )
+  const query = (params.get('q') ?? '').trim()
 
   return (
     <main className="container home">
-      {!query && (
-        <section className="hero">
-          <div className="hero__text">
-            <div className="eyebrow">Подборка недели</div>
-            <h1 className="hero__title">{featured.title}</h1>
-            <div className="meta-line">
-              <span>{featured.year}</span>
-              <span>·</span>
-              <span>{featured.kind}</span>
-              <span>·</span>
-              <span>{featured.episodes} серий</span>
-              <span>·</span>
-              <span>{featured.studio}</span>
-            </div>
-            <div className="chips">
-              {featured.genres.map((g) => (
-                <span key={g} className="chip">
-                  {g}
-                </span>
-              ))}
-            </div>
-            <p className="hero__desc">{featured.description}</p>
-            <div className="actions">
-              <Link to={`/watch/${featured.id}/1`} className="btn btn--accent">
-                <PlayIcon />
-                Смотреть 1 серию
-              </Link>
-              <Link to={`/anime/${featured.id}`} className="btn btn--ghost">
-                Подробнее
-              </Link>
-            </div>
-          </div>
-          <div className="hero__art" style={{ background: featured.posterFill }}>
-            <span className="art-label">[Ключевой арт тайтла, 16:9]</span>
-          </div>
-        </section>
-      )}
-
-      {!query && (
-        <section className="stack">
-          <div className="section-head">
-            <h2>Продолжить просмотр</h2>
-            <a href="#">Вся история</a>
-          </div>
-          <div className="grid grid--wide">
-            {continueWatching.map((item) => {
-              const anime = getAnime(item.animeId)!
-              return (
-                <Link key={item.animeId} to={`/watch/${anime.id}/${item.episode}`} className="continue-card">
-                  <div className="continue-card__img" style={{ background: anime.posterFill }}>
-                    <span className="continue-card__play">
-                      <PlayIcon size={20} />
-                    </span>
-                    <div className="progress-track">
-                      <div className="progress-bar" style={{ width: `${item.progressPercent}%` }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="poster-card__title">{anime.title}</div>
-                    <div className="poster-card__meta">
-                      Серия {item.episode} из {item.totalEpisodes}
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      <section className="stack">
-        <div className="section-head" style={{ alignItems: 'center' }}>
-          <h2>{query ? `Результаты поиска: «${params.get('q')}»` : 'Каталог'}</h2>
-          <div className="chips">
-            {genres.map((g) => (
-              <button
-                key={g}
-                type="button"
-                className={`pill${g === genre ? ' active' : ''}`}
-                aria-pressed={g === genre}
-                onClick={() => setGenre(g)}
-              >
-                {g}
-              </button>
-            ))}
-            <button type="button" className="pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <FilterIcon />
-              Фильтры
-            </button>
-          </div>
-        </div>
-        {filtered.length ? (
-          <div className="grid grid--posters">
-            {filtered.map((a) => (
-              <PosterCard key={a.id} anime={a} />
-            ))}
-          </div>
-        ) : (
-          <p className="muted">Ничего не нашлось. Попробуйте другой запрос или жанр.</p>
-        )}
-      </section>
+      {!query && <Hero />}
+      {!query && <ContinueWatching />}
+      <CatalogSection key={query} title={query ? `Результаты поиска: «${query}»` : 'Каталог'} search={query || undefined} />
     </main>
   )
 }

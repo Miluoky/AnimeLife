@@ -1,93 +1,55 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useState } from 'react'
-import { getAnime } from '../data/catalog'
-import {
-  FullscreenIcon,
-  NextIcon,
-  PauseIcon,
-  PlayIcon,
-  SkipIcon,
-  SubtitlesIcon,
-  VolumeIcon,
-} from '../components/Icons'
+import { useEffect } from 'react'
+import { loadAnime, useAsync } from '../api'
+import { episodeCount } from '../data/catalog'
+import { saveProgress } from '../data/history'
 import NotFound from './NotFound'
-
-const voices = ['Русская озвучка', 'Русские субтитры', 'Оригинал']
-const qualities = ['1080p', '720p', '480p']
 
 export default function Player() {
   const { id = '', episode = '1' } = useParams()
   const navigate = useNavigate()
-  const anime = getAnime(id)
-  const [playing, setPlaying] = useState(false)
-  const [voice, setVoice] = useState(voices[0])
-  const [quality, setQuality] = useState(qualities[0])
+  const result = useAsync(() => loadAnime(id), [id])
+  const anime = result.value?.data
 
-  if (!anime) return <NotFound />
-
-  const total = anime.episodes ?? 12
+  const total = anime ? episodeCount(anime) : 1
   const current = Math.min(Math.max(1, Number(episode) || 1), total)
-  const goTo = (n: number) => {
-    setPlaying(false)
-    navigate(`/watch/${anime.id}/${n}`)
-  }
+
+  useEffect(() => {
+    if (anime) saveProgress(anime, current, total)
+  }, [anime, current, total])
+
+  if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
+  if (!anime) return <NotFound title="Тайтл не найден" />
+
+  const goTo = (n: number) => navigate(`/watch/${anime.id}/${n}`)
 
   return (
     <main className="container player-page">
       <div className="stack player-main">
         <div className="player-frame">
-          <span className="art-label" style={{ position: 'absolute', top: 20, left: 20 }}>
-            [Видео]
-          </span>
-          <button
-            type="button"
-            className="player-big-btn"
-            aria-label={playing ? 'Пауза' : 'Смотреть'}
-            onClick={() => setPlaying(!playing)}
-          >
-            {playing ? <PauseIcon size={30} /> : <PlayIcon size={30} />}
-          </button>
-          <button type="button" className="skip-btn">
-            Пропустить опенинг
-            <SkipIcon />
-          </button>
-          <div className="player-controls">
-            <div className="seek">
-              <div className="seek__fill" style={{ width: '40%' }} />
-              <div className="seek__thumb" style={{ left: '40%' }} />
+          {anime.trailerUrl ? (
+            <>
+              <iframe
+                className="player-iframe"
+                src={anime.trailerUrl}
+                title={`Трейлер: ${anime.title}`}
+                allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+              <span className="player-tag">Трейлер</span>
+            </>
+          ) : (
+            <div className="player-empty">
+              <span className="art-label">Видео пока нет</span>
             </div>
-            <div className="player-controls__row">
-              <button
-                type="button"
-                className="player-btn"
-                aria-label={playing ? 'Пауза' : 'Смотреть'}
-                onClick={() => setPlaying(!playing)}
-              >
-                {playing ? <PauseIcon size={22} /> : <PlayIcon size={22} />}
-              </button>
-              <button
-                type="button"
-                className="player-btn"
-                aria-label="Следующая серия"
-                disabled={current >= total}
-                onClick={() => goTo(current + 1)}
-              >
-                <NextIcon />
-              </button>
-              <button type="button" className="player-btn" aria-label="Громкость">
-                <VolumeIcon />
-              </button>
-              <span className="soft">9:36 / 24:00</span>
-              <div style={{ flexGrow: 1 }} />
-              <button type="button" className="player-btn" aria-label="Субтитры">
-                <SubtitlesIcon />
-              </button>
-              <button type="button" className="player-btn" aria-label="Во весь экран">
-                <FullscreenIcon />
-              </button>
-            </div>
-          </div>
+          )}
         </div>
+
+        <p className="notice">
+          Серии появятся, когда подключим легальный источник видео. Пока в плеере официальный трейлер с YouTube, если он
+          есть у тайтла.
+        </p>
 
         <div className="section-head" style={{ alignItems: 'flex-start' }}>
           <div>
@@ -110,41 +72,6 @@ export default function Player() {
             </button>
           </div>
         </div>
-
-        <div className="player-options">
-          <fieldset>
-            <legend>Озвучка</legend>
-            <div className="chips">
-              {voices.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  className={`option-chip${v === voice ? ' active' : ''}`}
-                  aria-pressed={v === voice}
-                  onClick={() => setVoice(v)}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend>Качество</legend>
-            <div className="chips">
-              {qualities.map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  className={`option-chip${q === quality ? ' active' : ''}`}
-                  aria-pressed={q === quality}
-                  onClick={() => setQuality(q)}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-        </div>
       </div>
 
       <aside className="episode-list">
@@ -164,7 +91,7 @@ export default function Player() {
               <span className="episode-row__num">{n}</span>
               <span style={{ flexGrow: 1, fontWeight: 600 }}>Серия {n}</span>
               <span className="muted" style={{ fontSize: 13 }}>
-                {n === current ? 'Сейчас' : `${anime.episodeMinutes ?? 24} мин`}
+                {n === current ? 'Сейчас' : anime.episodeMinutes ? `${anime.episodeMinutes} мин` : ''}
               </span>
             </button>
           ))}

@@ -2,19 +2,24 @@ export interface Anime {
   id: string
   title: string
   originalTitle?: string
-  year: number
+  year?: number
   kind: string
   episodes?: number
+  episodesAired?: number
   episodeMinutes?: number
   studio?: string
   season?: string
   genres: string[]
   ongoing: boolean
   description: string
+  score?: number
+  posterUrl?: string
   posterFill: string
+  trailerUrl?: string
 }
 
-export const catalog: Anime[] = [
+// Демо-данные: показываются, если API Shikimori недоступно.
+export const demoCatalog: Anime[] = [
   {
     id: 'frieren',
     title: 'Провожающая в последний путь Фрирен',
@@ -161,22 +166,14 @@ export const catalog: Anime[] = [
   },
 ]
 
-export const genres = ['Все', 'Сёнэн', 'Фэнтези', 'Романтика', 'Комедия']
+export const demoGenres = ['Сёнэн', 'Фэнтези', 'Романтика', 'Комедия', 'Драма'].map((title, id) => ({ id: -(id + 1), title }))
 
-export interface WatchProgress {
-  animeId: string
-  episode: number
-  totalEpisodes: number
-  progressPercent: number
+export function getDemoAnime(id: string): Anime | undefined {
+  return demoCatalog.find((a) => a.id === id)
 }
 
-export const continueWatching: WatchProgress[] = [
-  { animeId: 'frieren', episode: 5, totalEpisodes: 28, progressPercent: 40 },
-  { animeId: 'jujutsu-kaisen', episode: 12, totalEpisodes: 24, progressPercent: 72 },
-  { animeId: 'vinland-saga', episode: 3, totalEpisodes: 24, progressPercent: 15 },
-  { animeId: 'cowboy-bebop', episode: 20, totalEpisodes: 26, progressPercent: 88 },
-]
-
-export function getAnime(id: string): Anime | undefined {
-  return catalog.find((a) => a.id === id)
+/** Сколько серий можно выбрать в списке: для онгоинга только вышедшие. */
+export function episodeCount(anime: Anime): number {
+  if (anime.ongoing && anime.episodesAired) return anime.episodesAired
+  return anime.episodes ?? anime.episodesAired ?? 1
 }
