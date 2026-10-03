@@ -19,8 +19,9 @@ const BackToTop = lazy(() => import('./BackToTop'))
 
 export function Logo() {
   return (
+    // Пробел настоящий, а не отступ: так видимый текст входит в название ссылки для экранного диктора.
     <Link to="/" className="logo" aria-label="Anime Life, на главную">
-      Anime<span>Life</span>
+      Anime <span>Life</span>
     </Link>
   )
 }

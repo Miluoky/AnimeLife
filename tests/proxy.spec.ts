@@ -85,19 +85,20 @@ function fakeEnv() {
   const store: Stored = new Map()
   const calls: Upstream[] = []
   const pending: Promise<unknown>[] = []
-  let reply: () => Response | Promise<Response> = () => Response.json([{ id: 1 }])
+  let reply: (url: string) => Response | Promise<Response> = () => Response.json([{ id: 1 }])
   const clock = { now: Date.parse('2026-10-03T12:00:00Z') }
   const g = globalThis as Record<string, unknown>
   const saved = { caches: g.caches, fetch: g.fetch, now: Date.now }
   g.caches = {
     default: {
       match: async (req: Request) => store.get(req.url)?.clone(),
-      put: async (req: Request, res: Response) => void store.set(req.url, res),
+      // Как настоящий Cache API: тело читается целиком в момент сохранения.
+      put: async (req: Request, res: Response) => void store.set(req.url, new Response(await res.arrayBuffer(), res)),
     },
   }
   g.fetch = async (url: string, init: RequestInit) => {
     calls.push({ url, init })
-    return reply()
+    return reply(String(url))
   }
   Date.now = () => clock.now
   const ctx = { waitUntil: (p: Promise<unknown>) => void pending.push(p) }
@@ -105,7 +106,12 @@ function fakeEnv() {
     store,
     calls,
     clock,
+    ctx,
     respond: (fn: typeof reply) => (reply = fn),
+    /** Дожидается фоновой работы Worker (ctx.waitUntil). */
+    settle: async () => {
+      while (pending.length) await Promise.all(pending.splice(0))
+    },
     async call(path: string, init?: RequestInit) {
       const res = await shikiProxy(new Request(`https://animelife.top${path}`, init), ctx)
       await Promise.all(pending.splice(0))
@@ -269,6 +275,84 @@ test.describe('Worker: прокси Shikimori', () => {
       expect(api.headers.get('X-Cache')).toBe('MISS')
       const robots = await (await worker.fetch(new Request('https://animelife.top/robots.txt'), {}, ctx)).text()
       expect(robots).toContain('Disallow: /api/\n')
+    } finally {
+      env.restore()
+    }
+  })
+})
+
+test.describe('Worker: кэш готовых страниц', () => {
+  test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'без браузера, достаточно одного прогона'))
+
+  /** Worker с index.html версии version; HTMLRewriter в Node нет, поэтому страница — сам index.html. */
+  function site(env: ReturnType<typeof fakeEnv>) {
+    let version = '"v1"'
+    const g = globalThis as Record<string, unknown>
+    g.HTMLRewriter = class {
+      on() {
+        return this
+      }
+      transform(res: Response) {
+        return new Response(res.body, res)
+      }
+    }
+    const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { ETag: version } }) }
+    return {
+      deploy: (v: string) => (version = v),
+      async open(path: string, init?: RequestInit) {
+        const before = env.calls.length
+        const res = await worker.fetch(new Request(`https://animelife.top${path}`, init), { ASSETS: assets }, env.ctx)
+        await env.settle()
+        return { status: res.status, cache: res.headers.get('X-Page-Cache'), upstream: env.calls.length - before }
+      },
+    }
+  }
+
+  const fixture = (failing?: RegExp) => (url: string) => {
+    const u = new URL(url.replace('/api/shiki', ''))
+    if (failing?.test(u.pathname)) return new Response('busy', { status: 503 })
+    return Response.json(shikimoriFixture(u.pathname.replace(/^\/api/, ''), u.searchParams))
+  }
+
+  test('страница собирается один раз, потом сразу из кэша; через 5 минут обновляется в фоне', async () => {
+    const env = fakeEnv()
+    try {
+      env.respond(fixture())
+      const s = site(env)
+      const first = await s.open('/anime/1')
+      expect([first.status, first.cache]).toEqual([200, 'MISS'])
+      expect(first.upstream).toBeGreaterThan(0)
+      expect(await s.open('/anime/1')).toMatchObject({ cache: 'HIT', upstream: 0 })
+      env.clock.now += 6 * 60_000
+      const stale = await s.open('/anime/1')
+      // Зритель получил старую копию, а Worker в фоне собрал свежую.
+      expect(stale.cache).toBe('STALE')
+      expect(stale.upstream).toBeGreaterThan(0)
+      expect(await s.open('/anime/1')).toMatchObject({ cache: 'HIT', upstream: 0 })
+    } finally {
+      env.restore()
+    }
+  })
+
+  test('неполная страница, новая сборка сайта, комнаты и HEAD мимо кэша', async () => {
+    const env = fakeEnv()
+    try {
+      // Похожие не ответили: страница отдаётся без них, но не сохраняется.
+      env.respond(fixture(/\/similar$/))
+      const s = site(env)
+      expect((await s.open('/anime/1')).cache).toBe('MISS')
+      expect((await s.open('/anime/1')).cache).toBe('MISS')
+      env.respond(fixture())
+      await s.open('/anime/1')
+      expect((await s.open('/anime/1')).cache).toBe('HIT')
+      s.deploy('"v2"')
+      expect((await s.open('/anime/1')).cache).toBe('MISS')
+      expect((await s.open('/together/ABC123')).cache).toBeNull()
+      expect((await s.open('/anime/1', { method: 'HEAD' })).cache).toBeNull()
+      // Тайтла нет: 404 тоже хранится.
+      env.respond((url: string) => (url.includes('/animes/999') ? new Response('', { status: 404 }) : fixture()(url)))
+      expect(await s.open('/anime/999')).toMatchObject({ status: 404, cache: 'MISS' })
+      expect(await s.open('/anime/999')).toMatchObject({ status: 404, cache: 'HIT', upstream: 0 })
     } finally {
       env.restore()
     }

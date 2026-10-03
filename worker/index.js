@@ -78,6 +78,16 @@ async function json(url, init, ttl = 3600) {
 const notFound = () => Object.assign(new Error('not found'), { status: 404 })
 
 /**
+ * Необязательная часть страницы: при сбое страница соберётся без неё, но отметка partial не пустит
+ * такую неполную страницу в кэш (см. cachedPage).
+ */
+const optional = (promise, fallback, gaps) =>
+  promise.catch(() => {
+    gaps.partial = true
+    return fallback
+  })
+
+/**
  * Ключ готового ответа для приложения: путь API без /api и параметры по алфавиту.
  * Так же ключ считает preloadKey в src/api/shikimori.ts, поэтому приложение не запрашивает эти данные второй раз.
  */
@@ -211,15 +221,16 @@ const HERO = animes({ status: 'ongoing', limit: 5, page: 1 })
 
 async function home() {
   const year = new Date().getFullYear()
+  const gaps = {}
   const [items, hero] = await Promise.all([
-    json(popular(1), undefined, DAY).catch(() => []),
-    json(HERO, undefined, 1800).catch(() => []),
+    optional(json(popular(1), undefined, DAY), [], gaps),
+    optional(json(HERO, undefined, 1800), [], gaps),
   ])
   // Для первого тайтла баннера нужны подробности и постеры: тоже отдаём сразу, иначе это ещё два запроса после загрузки кода.
   const first = hero[0]
   const [details, art] = await Promise.all([
-    first ? json(`${SHIKIMORI}/api/animes/${first.id}`).catch(() => null) : null,
-    hero.length ? posters(hero.map((a) => a.id)).catch(() => null) : null,
+    first ? optional(json(`${SHIKIMORI}/api/animes/${first.id}`), null, gaps) : null,
+    hero.length ? optional(posters(hero.map((a) => a.id)), null, gaps) : null,
   ])
   const preload = {}
   if (hero.length) preload[preloadKey(HERO)] = hero
@@ -227,6 +238,7 @@ async function home() {
   if (art) preload[art.key] = art.data
   const heroPoster = art?.data?.data?.animes?.find((x) => String(x.id) === String(first?.id))?.poster
   return {
+    ...gaps,
     preload,
     // Постер баннера — самая крупная картинка первого экрана: браузер начинает качать его сразу с HTML.
     lcpImage: heroPoster?.main2xUrl,
@@ -264,7 +276,8 @@ const timeFormat = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow',
 
 /** Расписание: ближайшие серии онгоингов на неделю по московскому времени, из того же календаря Shikimori. */
 async function schedule() {
-  const list = await json(`${SHIKIMORI}/api/calendar?censored=true`).catch(() => [])
+  const gaps = {}
+  const list = await optional(json(`${SHIKIMORI}/api/calendar?censored=true`), [], gaps)
   const now = Date.now()
   const days = new Map()
   for (const i of list) {
@@ -278,6 +291,7 @@ async function schedule() {
   }
   const crumbs = breadcrumbs([['Расписание серий', '/schedule']])
   return {
+    ...gaps,
     title: `Расписание выхода серий аниме на неделю | ${SITE}`,
     description: 'Когда выйдет новая серия: расписание онгоингов на ближайшую неделю с днём и временем выхода каждой серии. Напоминания и экспорт в календарь.',
     body:
@@ -315,10 +329,11 @@ function episodeLinks(id, total) {
 
 async function titlePage(id) {
   // Связанное и похожее меняются редко: кэш на сутки, и запросы идут параллельно с основным.
+  const gaps = {}
   const [a, related, similar] = await Promise.all([
     json(`${SHIKIMORI}/api/animes/${id}`),
-    json(`${SHIKIMORI}/api/animes/${id}/related`, undefined, DAY).catch(() => []),
-    json(`${SHIKIMORI}/api/animes/${id}/similar`, undefined, DAY).catch(() => []),
+    optional(json(`${SHIKIMORI}/api/animes/${id}/related`, undefined, DAY), [], gaps),
+    optional(json(`${SHIKIMORI}/api/animes/${id}/similar`, undefined, DAY), [], gaps),
   ])
   const info = titleInfo(a)
   const movie = info.movie
@@ -346,6 +361,7 @@ async function titlePage(id) {
     .slice(0, 20)
   const alternate = [a.name, ...(a.english ?? []), ...(a.japanese ?? [])].filter((n) => n && n !== info.title)
   return {
+    ...gaps,
     preload: {
       [preloadKey(`${SHIKIMORI}/api/animes/${id}`)]: a,
       [preloadKey(`${SHIKIMORI}/api/animes/${id}/related`)]: related,
@@ -563,18 +579,31 @@ function canonicalFor(path, params) {
   return ORIGIN + path + (page > 1 && onlyPage ? `?page=${page}` : '')
 }
 
+/** Всегда свежий index.html без условных заголовков: иначе сервер ассетов может ответить 304 без тела. */
+const indexHtml = (env, url) => env.ASSETS.fetch(new Request(new URL('/', url)))
+
 async function page(env, url, status = 200) {
+  return (await render(env, url, status)).res
+}
+
+/**
+ * Страница приложения с заголовками, текстом для поисковиков и данными Shikimori.
+ * complete — всё нужное получено: такую страницу можно хранить в кэше (см. cachedPage).
+ */
+async function render(env, url, status = 200, asset) {
   // Без слэша на конце, кроме «/»: так адрес совпадает с canonical и sitemap.
   const path = url.pathname.replace(/(.)\/+$/, '$1')
-  // Всегда свежий index.html без условных заголовков: иначе сервер ассетов может ответить 304 без тела.
-  const asset = await env.ASSETS.fetch(new Request(new URL('/', url)))
+  asset ??= await indexHtml(env, url)
   let meta = null
+  let complete = status === 200
   if (status === 200) {
     try {
       meta = await metaFor(path, url.searchParams)
+      if (meta?.partial) complete = false
     } catch (e) {
       // Тайтла, комнаты или профиля нет — 404. Сервис не ответил — обычная страница, приложение само покажет ошибку.
       if (e.status === 404) status = 404
+      else complete = false
     }
   }
   // Результаты поиска по сайту в выдаче не нужны: у каждого запроса своя страница без своего содержания.
@@ -629,6 +658,50 @@ async function page(env, url, status = 200) {
   // ETag принадлежит index.html, а страница у каждого адреса своя.
   out.headers.delete('ETag')
   if (noindex) out.headers.set('X-Robots-Tag', 'noindex')
+  return { res: out, complete }
+}
+
+// Готовая страница хранится в кэше Cloudflare: первые 5 минут отдаётся как есть, потом ещё сутки тоже сразу,
+// а свежая собирается в фоне. Так зритель не ждёт ответов Shikimori, пока Worker собирает страницу.
+const PAGE_FRESH = 300
+const PAGE_KEEP = DAY
+// Комнаты и профили меняются сразу (закрыли комнату, скрыли профиль): их не храним.
+const UNCACHED = /^\/(?:together\/|u\/)/
+
+const pageKey = (url, version) => new Request(`${url.origin}/__page/${version}${url.pathname}${url.search}`)
+
+/** Собирает страницу и, если она полная, кладёт копию в кэш с отметкой времени сборки. */
+async function renderAndStore(env, ctx, url, key, asset) {
+  const { res, complete } = await render(env, url, 200, asset)
+  if (complete) {
+    const copy = new Response(res.clone().body, res)
+    copy.headers.set('Cache-Control', `public, max-age=${PAGE_KEEP}`)
+    copy.headers.set('X-Rendered-At', String(Date.now()))
+    ctx.waitUntil(caches.default.put(key, copy))
+  }
+  return res
+}
+
+async function cachedPage(request, env, ctx, url) {
+  if (request.method !== 'GET' || UNCACHED.test(url.pathname)) return page(env, url)
+  const asset = await indexHtml(env, url)
+  // В ключе версия index.html: после выкладки страницы со ссылками на прежние файлы сборки не отдаются.
+  const version = (asset.headers.get('ETag') ?? '').replace(/[^\w-]/g, '')
+  if (!version) return (await render(env, url, 200, asset)).res
+  const key = pageKey(url, version)
+  const hit = await caches.default.match(key)
+  if (!hit) {
+    const res = await renderAndStore(env, ctx, url, key, asset)
+    res.headers.set('X-Page-Cache', 'MISS')
+    return res
+  }
+  await asset.body?.cancel()
+  const age = Date.now() - Number(hit.headers.get('X-Rendered-At'))
+  if (!(age < PAGE_FRESH * 1000)) ctx.waitUntil(renderAndStore(env, ctx, url, key).then((r) => r.body?.cancel()))
+  const out = new Response(hit.body, hit)
+  out.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300')
+  out.headers.delete('X-Rendered-At')
+  out.headers.set('X-Page-Cache', age < PAGE_FRESH * 1000 ? 'HIT' : 'STALE')
   return out
 }
 
@@ -733,7 +806,7 @@ export default {
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')
     if (url.pathname === '/sitemap-episodes.xml') return sitemapTitles(ctx, 'episodes')
     if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request)
-    if (ROUTES.test(url.pathname)) return page(env, url)
+    if (ROUTES.test(url.pathname)) return cachedPage(request, env, ctx, url)
     // Файлы сборки (и ключ IndexNow из public/) отдаём как есть. Вместо отсутствующего файла сервер ассетов
     // присылает index.html: это 404.
     const res = await env.ASSETS.fetch(request)
