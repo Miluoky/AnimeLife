@@ -22,6 +22,7 @@ import {
   KINDS,
   LEGAL_LINKS,
   MAX_PAGES,
+  MOVED_GENRES,
   PAGE_SIZE,
   SITE,
   ageLabel,
@@ -723,6 +724,8 @@ export default {
     // robots.txt отдаём на любом адресе: и на зеркале он указывает на карту сайта основного домена.
     if (url.pathname === '/robots.txt') return robots()
     if (MIRRORS.has(url.hostname)) return Response.redirect(ORIGIN + url.pathname + url.search, 301)
+    const moved = url.pathname.match(/^\/genre\/([a-z-]+)\/?$/)?.[1]
+    if (moved && MOVED_GENRES[moved]) return Response.redirect(`${ORIGIN}/genre/${MOVED_GENRES[moved]}${url.search}`, 301)
     // Данные Shikimori для приложения через кэш Cloudflare (worker/shikiProxy.js).
     if (isShikiProxy(url.pathname)) return shikiProxy(request, ctx)
     if (url.pathname === '/sitemap.xml') return sitemapIndex()

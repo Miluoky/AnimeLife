@@ -189,7 +189,7 @@ export default function Together() {
 
   const currentTime = () => video.current?.time() ?? (room ? roomPosition(room) : 0)
 
-  usePageMeta(room ? `Смотрим вместе: ${room.title || room.animeTitle}` : undefined)
+  usePageMeta(room ? `Смотрим вместе: ${room.title || room.animeTitle}` : room === null ? 'Комната закрыта' : undefined)
 
   if (room === undefined) return <main className="container page-fallback" aria-busy="true" />
   if (room === null)

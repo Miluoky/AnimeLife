@@ -179,17 +179,41 @@ async function adopt(user: User) {
   await push()
 }
 
+// Был ли зритель гостем в прошлый раз. Гостю при открытии страницы не грузим библиотеку Appwrite (~27 КБ)
+// и не спрашиваем сервер ради ответа «не вошёл». Любой вход проходит через refresh() и снимает отметку.
+const GUEST_KEY = 'anime.guest.v1'
+function rememberGuest(on: boolean) {
+  try {
+    if (on) localStorage.setItem(GUEST_KEY, '1')
+    else localStorage.removeItem(GUEST_KEY)
+  } catch {
+    // Хранилище недоступно (приватный режим): просто проверяем вход каждый раз.
+  }
+}
+function knownGuest() {
+  try {
+    return localStorage.getItem(GUEST_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 async function refresh() {
   try {
     const { account } = await sdk()
-    await adopt(await account.get())
-  } catch {
+    const user = await account.get()
+    rememberGuest(false)
+    await adopt(user)
+  } catch (e) {
+    // Гостем считаем только по ответу 401: при сбое сети в следующий раз проверим снова.
+    if (e instanceof Error && 'code' in e && e.code === 401) rememberGuest(true)
     setState({ checking: false, user: null })
   }
 }
 
 if (typeof window !== 'undefined') {
-  void refresh()
+  if (knownGuest()) setState({ checking: false, user: null })
+  else void refresh()
   // Вернулись на вкладку: подтягиваем то, что могли поменять на другом устройстве.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && state.user) void refresh()
@@ -257,6 +281,7 @@ export async function signOut() {
   } finally {
     // Список остаётся в браузере: выход не должен ничего стирать.
     remoteListLoaded = false
+    rememberGuest(true)
     setState({ user: null, syncError: undefined })
   }
 }

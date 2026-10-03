@@ -127,7 +127,13 @@ export async function shikiProxy(request, ctx) {
   const freshUntil = Number(cached?.headers.get('X-Fresh-Until')) || 0
   if (cached && Date.now() < freshUntil) return reply(cached.body, cached.status, 'HIT')
 
-  const got = await upstream(r)
+  let got = await upstream(r)
+  // Shikimori просит подождать, а копии нет: один раз повторяем сами (до 1.5 с), чтобы зритель не видел ошибку.
+  if (got.error === 429 && !cached) {
+    const wait = Math.min(1500, Number(got.retryAfter) * 1000 || 800)
+    await new Promise((resolve) => setTimeout(resolve, wait))
+    got = await upstream(r)
+  }
   if (got.error === undefined) {
     const ttl = got.status === 404 ? Math.min(r.ttl, NOT_FOUND_TTL) : r.ttl
     const stored = new Response(got.text, {

@@ -184,6 +184,21 @@ test.describe('Worker: прокси Shikimori', () => {
     }
   })
 
+  test('429 без копии: Worker сам повторяет один раз, и зритель получает ответ', async () => {
+    const env = fakeEnv()
+    try {
+      let n = 0
+      env.respond(() => (n++ === 0 ? new Response('Too Many Requests', { status: 429, headers: { 'Retry-After': '1' } }) : Response.json([{ id: 7 }])))
+      const got = await env.call('/api/shiki/api/animes?season=fall_2025')
+      expect(got.res.status).toBe(200)
+      expect(got.cache).toBe('MISS')
+      expect(got.body).toBe('[{"id":7}]')
+      expect(env.calls).toHaveLength(2)
+    } finally {
+      env.restore()
+    }
+  })
+
   test('404 от Shikimori кэшируется ненадолго', async () => {
     const env = fakeEnv()
     try {
@@ -237,6 +252,13 @@ test.describe('Worker: прокси Shikimori', () => {
     } finally {
       env.restore()
     }
+  })
+
+  test('убранный жанр «Магия»: старый адрес ведёт на «Фэнтези» (301)', async () => {
+    const ctx = { waitUntil: () => undefined }
+    const res = await worker.fetch(new Request('https://animelife.top/genre/magic?page=2'), {}, ctx)
+    expect(res.status).toBe(301)
+    expect(res.headers.get('Location')).toBe('https://animelife.top/genre/fantasy?page=2')
   })
 
   test('Worker отдаёт /api/shiki через прокси, а robots.txt закрывает /api/', async () => {

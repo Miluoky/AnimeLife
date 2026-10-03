@@ -97,3 +97,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* На телефоне диапазоны серий листаются вбок внутри своей строки, а не раздвигают страницу. */
+@media (max-width: 640px) {
+  .episode-tools {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}

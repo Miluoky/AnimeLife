@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 
 import { Link } from 'react-router-dom'
 import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
+import { usePageMeta } from '../data/pageMeta'
 import ProfileStats from '../components/ProfileStats'
 import PushSettings from '../components/PushSettings'
 import ProfileSettings from '../components/ProfileSettings'
@@ -298,6 +299,7 @@ export default function Account() {
   const { checking, user, syncError } = useAuth()
   const list = useMyList()
   const [busy, setBusy] = useState(false)
+  usePageMeta(checking ? undefined : user ? 'Профиль' : 'Вход и регистрация')
 
   if (checking) return <main className="container empty-page" aria-busy="true" />
 

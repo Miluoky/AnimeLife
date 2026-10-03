@@ -70,3 +70,12 @@ test('карточки серий: кадры и названия из AniLibria
   await expect(page.locator('.episode-card').nth(1).locator('.episode-card__shot--frame')).toHaveCount(0)
   await expect(page.locator('.episode-card').nth(1)).toContainText('Потерявшийся Пёс')
 })
+
+test('длинный сериал на телефоне: диапазоны серий не раздвигают страницу', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'только телефон')
+  await page.route(/\/api\/(shiki\/)?animes\/1(\?|$)/, (route) => route.fulfill({ json: { ...anime, episodes: 64, episodes_aired: 64 } }))
+  await page.goto('/anime/1')
+  await expect(page.getByRole('button', { name: '61–64' })).toBeAttached()
+  const [scroll, client] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
+  expect(scroll).toBeLessThanOrEqual(client)
+})

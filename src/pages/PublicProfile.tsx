@@ -13,7 +13,7 @@ export default function PublicProfile() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadProfile(id), [id])
   const p = result.value
-  usePageMeta(p ? `${p.name}: профиль` : undefined, p?.about)
+  usePageMeta(p ? `${p.name}: профиль` : result.loading ? undefined : 'Профиль скрыт', p?.about)
 
   if (result.loading && !p) return <main className="container page-fallback" aria-busy="true" />
   if (!p)

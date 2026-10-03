@@ -324,11 +324,14 @@ export async function fetchGenres(): Promise<Genre[]> {
     .map((g) => ({ id: g.id, title: g.russian || g.name }))
 }
 
+// Жанры из /api/genres, по которым Shikimori больше ничего не находит: «Магия» (16) убрана из жанров аниме.
+const DEAD_GENRE_IDS = [16]
+
 /** Все жанры и темы аниме по алфавиту, для фильтра в каталоге. */
 export async function fetchAllGenres(): Promise<Genre[]> {
   const all = await get<ShikiGenre[]>('/genres')
   return all
-    .filter((g) => g.entry_type === 'Anime')
+    .filter((g) => g.entry_type === 'Anime' && !DEAD_GENRE_IDS.includes(g.id))
     .map((g) => ({ id: g.id, title: g.russian || g.name }))
     .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
 }

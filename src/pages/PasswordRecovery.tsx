@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { authErrorMessage, finishRecovery } from '../data/auth'
+import { usePageMeta } from '../data/pageMeta'
 
 /** Сюда ведёт ссылка из письма «Забыли пароль?»: userId и secret в адресе, здесь задают новый пароль. */
 export default function PasswordRecovery() {
@@ -10,6 +11,7 @@ export default function PasswordRecovery() {
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
   const [busy, setBusy] = useState(false)
+  usePageMeta('Новый пароль')
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
 

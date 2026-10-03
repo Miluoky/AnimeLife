@@ -153,7 +153,6 @@ export const GENRES: { slug: string; id: number; name: string }[] = [
   { slug: 'school', id: 23, name: 'Школа' },
   { slug: 'sports', id: 30, name: 'Спорт' },
   { slug: 'mecha', id: 18, name: 'Меха' },
-  { slug: 'magic', id: 16, name: 'Магия' },
   { slug: 'martial-arts', id: 17, name: 'Боевые искусства' },
   { slug: 'historical', id: 13, name: 'Исторический' },
   { slug: 'military', id: 38, name: 'Военное' },
@@ -176,6 +175,12 @@ export const GENRES: { slug: string; id: number; name: string }[] = [
   { slug: 'shoujo', id: 25, name: 'Сёдзё' },
   { slug: 'josei', id: 43, name: 'Дзёсей' },
 ]
+
+/**
+ * Жанры, которых больше нет: Shikimori убрал «Магию» (id 16) из жанров аниме, фильтр по ней пустой.
+ * Старый адрес ведёт на ближайшую живую страницу (301), чтобы не терять ссылки из поиска.
+ */
+export const MOVED_GENRES: Record<string, string> = { magic: 'fantasy' }
 
 /** Адрес посадочной страницы жанра по русскому названию из Shikimori, если такая страница есть. */
 export const genrePath = (name: string) => {

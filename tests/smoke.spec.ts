@@ -95,3 +95,33 @@ test('«Забыли пароль?»: письмо со ссылкой на эт
   await expect(page.getByRole('status').filter({ hasText: 'Пароль изменён' })).toBeVisible()
   expect(requests[1]).toEqual({ method: 'PUT', body: { userId: 'u1', secret: 's3cret', password: 'новый-пароль' } })
 })
+
+test('гостю при повторном заходе не грузим вход: ни запроса аккаунта, ни библиотеки Appwrite', async ({ page }) => {
+  const account: string[] = []
+  page.on('request', (r) => {
+    if (/appwrite\.io\/v1\/account$/.test(r.url())) account.push(r.url())
+  })
+  await page.goto('/')
+  await expect.poll(() => account.length).toBe(1)
+  await expect(page.locator('.hero__title')).toBeVisible()
+
+  const sdk: string[] = []
+  page.on('request', (r) => {
+    if (/\/assets\/appwrite-.*\.js$/.test(r.url())) sdk.push(r.url())
+  })
+  await page.reload()
+  await expect(page.locator('.hero__title')).toBeVisible()
+  await page.waitForTimeout(500)
+  expect(account).toHaveLength(1)
+  expect(sdk).toEqual([])
+  // Страница входа по-прежнему предлагает войти.
+  await page.goto('/account')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Вход')
+  await expect(page).toHaveTitle('Вход и регистрация | Anime Life')
+})
+
+test('у страницы 404 свой заголовок вкладки', async ({ page }) => {
+  await page.goto('/nope-page')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Страница не найдена')
+  await expect(page).toHaveTitle('Страница не найдена | Anime Life')
+})

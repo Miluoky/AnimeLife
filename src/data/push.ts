@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { VAPID_PUBLIC_KEY } from '../api/config'
-import { CommunityError, callCommunity } from './community'
+// Функция community тянет SDK Appwrite: подключаем её, только когда пуши правда включают или выключают.
+const community = () => import('./community')
 import { createLocalStore } from './localStore'
 import { listStore } from './myList'
 
@@ -95,6 +96,7 @@ async function currentSubscription() {
 }
 
 async function send(sub: PushSubscription) {
+  const { callCommunity } = await community()
   await callCommunity({ action: 'push-subscribe', subscription: sub.toJSON(), animeIds: watchingIds(), site: site() })
 }
 
@@ -130,7 +132,7 @@ export async function initPush() {
 
 export async function enablePush() {
   const reg = await registration()
-  if (!reg) throw new CommunityError('Обновите страницу и попробуйте ещё раз.')
+  if (!reg) throw new (await community()).CommunityError('Обновите страницу и попробуйте ещё раз.')
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') {
     setState(permission === 'denied' ? 'denied' : 'off')
@@ -146,6 +148,7 @@ export async function enablePush() {
 export async function disablePush() {
   const sub = await currentSubscription()
   if (sub) {
+    const { callCommunity } = await community()
     await callCommunity({ action: 'push-unsubscribe', endpoint: sub.endpoint }).catch(() => undefined)
     await sub.unsubscribe()
   }
