@@ -90,6 +90,8 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin === self.location.origin) {
     if (url.pathname.includes('/assets/')) event.respondWith(cacheFirst(request, STATIC))
+    // Данные Shikimori через прокси Worker (на animelife.top): как и прямые запросы ниже, без сети — из кэша.
+    else if (url.pathname.startsWith('/api/shiki/')) event.respondWith(networkFirst(request, DATA))
     return
   }
 

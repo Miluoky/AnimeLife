@@ -36,7 +36,7 @@ npm run size     # бюджет размера сборки после npm run b
 
 ## Данные
 
-Каталог, постеры, описания и трейлеры берутся из открытого API [Shikimori](https://shikimori.io/api/doc) прямо из браузера, ключ не нужен (`src/api/shikimori.ts`). Адрес можно поменять переменной `VITE_SHIKIMORI_URL`.
+Каталог, постеры, описания и трейлеры берутся из открытого API [Shikimori](https://shikimori.io/api/doc), ключ не нужен (`src/api/shikimori.ts`). На animelife.top запросы идут через кэширующий прокси в Worker (`/api/shiki`, см. «Хостинг»), на зеркалах и локально — прямо из браузера. Адрес можно поменять переменной `VITE_SHIKIMORI_URL`.
 
 Если API недоступно, сайт показывает демо-данные из `src/data/catalog.ts`. История просмотра и «Мой список» хранятся в браузере (`localStorage`), а после входа синхронизируются через аккаунт.
 
@@ -226,3 +226,18 @@ TXT-запись `google-site-verification=…` в DNS домена (Cloudflare 
 - https://anime.artemdrr61f9.workers.dev — Cloudflare Workers Builds из `main` (`wrangler.jsonc`)
 - https://anime-night.pages.dev — Cloudflare Pages, workflow `.github/workflows/cloudflare.yml` (нужны секреты `CLOUDFLARE_API_TOKEN` и `CLOUDFLARE_ACCOUNT_ID`)
 - Код: https://github.com/temos123fox/AnimeLife (с 3 октября 2026; прежний репозиторий ShizukuZK/Anime и копия на GitHub Pages maintech67.me больше недоступны)
+
+### Прокси Shikimori
+
+На animelife.top (и `www`) приложение берёт данные не прямо с Shikimori, а через Worker: `/api/shiki/<путь API>`,
+например `/api/shiki/api/animes?limit=1` (`worker/shikiProxy.js`). Ответы лежат в кэше Cloudflare, общем для всех
+зрителей: тайтл — 6 часов, связанное, похожее, кадры, персонажи и ссылки — 12 часов, списки — 30 минут (поиск — час),
+расписание — 15 минут, жанры — неделю, постеры из GraphQL — сутки. Если Shikimori тормозит дольше 8 секунд, отвечает
+429 или ошибкой, отдаётся последняя копия (хранится ещё неделю), заголовок `X-Cache: HIT | MISS | STALE` показывает,
+откуда ответ. Пропускаются только адреса, которые нужны приложению, остальное — 404; GraphQL — только запрос постеров.
+Списки пользователей Shikimori (импорт по нику) и статистика профиля идут напрямую, мимо прокси. Картинки всегда
+грузятся прямо с Shikimori. Каждый запрос к прокси тратит лимит Worker (100 тыс. в сутки), поэтому браузер держит
+ответы 5 минут, а `/api/` закрыт в robots.txt. Зеркала, локальный запуск и тесты ходят на Shikimori напрямую; включить
+прокси на другой сборке, где есть этот Worker: `VITE_SHIKIMORI_PROXY=1 npm run build`. Проверить локально:
+`npm run build && npx wrangler@4 dev -c wrangler.animelife.jsonc`, затем дважды
+`curl -i localhost:8787/api/shiki/api/animes?limit=1` (`X-Cache: MISS`, потом `HIT`).

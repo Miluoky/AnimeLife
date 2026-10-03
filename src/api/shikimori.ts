@@ -4,6 +4,15 @@ import type { Anime } from '../data/catalog'
 // Ключ не нужен, лимит 5 запросов в секунду и 90 в минуту.
 export const SHIKIMORI_URL = (import.meta.env.VITE_SHIKIMORI_URL as string | undefined) ?? 'https://shikimori.io'
 
+// На animelife.top данные идут через свой Worker (/api/shiki, worker/shikiProxy.js): он кэширует ответы для всех
+// зрителей и при сбое Shikimori отдаёт последнюю копию. Зеркала, локальный запуск и тесты ходят на Shikimori
+// напрямую (на сборке можно включить прокси флагом VITE_SHIKIMORI_PROXY=1). Картинки и ссылки — всегда с SHIKIMORI_URL.
+const host = globalThis.location?.hostname
+const API_URL =
+  import.meta.env.VITE_SHIKIMORI_PROXY === '1' || host === 'animelife.top' || host === 'www.animelife.top'
+    ? `${location.origin}/api/shiki`
+    : SHIKIMORI_URL
+
 interface ShikiImage {
   original: string
   preview: string
@@ -99,8 +108,8 @@ async function request<T>(url: URL, init: RequestInit = {}, attempt = 0): Promis
   return res.json() as Promise<T>
 }
 
-function get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
-  const url = new URL(`/api${path}`, SHIKIMORI_URL)
+function get<T>(path: string, params: Record<string, string | number | undefined> = {}, base = API_URL): Promise<T> {
+  const url = new URL(`${base}/api${path}`)
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') url.searchParams.set(key, String(value))
   }
@@ -145,7 +154,7 @@ async function withPosters<T extends ShikiAnimeShort>(list: T[], { onlyMissing =
   for (let i = 0; i < ids.length; i += 50) {
     const chunk = ids.slice(i, i + 50)
     const query = `{ animes(ids: "${chunk.join(',')}", limit: ${chunk.length}) { id poster { originalUrl mainUrl main2xUrl } } }`
-    const batch = request<GraphqlPosters>(new URL('/api/graphql', SHIKIMORI_URL), {
+    const batch = request<GraphqlPosters>(new URL(`${API_URL}/api/graphql`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
@@ -321,7 +330,8 @@ interface ShikiUserRate {
 export async function fetchUserRates(nickname: string): Promise<UserRate[]> {
   const out: ShikiUserRate[] = []
   for (let page = 1; page <= 10; page++) {
-    const chunk = await get<ShikiUserRate[]>(`/users/${encodeURIComponent(nickname)}/anime_rates`, { limit: 1000, page })
+    // Список пользователя — личное: идёт напрямую в Shikimori, мимо кэша на нашей стороне.
+    const chunk = await get<ShikiUserRate[]>(`/users/${encodeURIComponent(nickname)}/anime_rates`, { limit: 1000, page }, SHIKIMORI_URL)
     out.push(...chunk.filter((r) => r.anime))
     if (chunk.length < 1000) break
   }
@@ -552,6 +562,7 @@ export async function fetchStatsInfo(ids: string[]): Promise<Map<string, StatsIn
   for (let i = 0; i < ids.length; i += 50) {
     const chunk = ids.slice(i, i + 50)
     const query = `{ animes(ids: "${chunk.join(',')}", limit: ${chunk.length}) { id episodes episodesAired duration kind genres { russian kind } } }`
+    // Тоже напрямую: прокси пропускает только запросы постеров, а набор тайтлов здесь из личного списка.
     const res = await request<GraphqlStats>(new URL('/api/graphql', SHIKIMORI_URL), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

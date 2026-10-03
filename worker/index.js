@@ -8,12 +8,14 @@
  * посадочных страниц (жанры, годы, сезоны, типы) — список тайтлов со ссылками и страницами ?page=N,
  * у служебных страниц (правообладателям, контакты, политика, соглашение) — их текст из src/data/legal.ts.
  * Несуществующие страницы получают код 404, временные и личные — noindex. Старые адреса (www, workers.dev)
- * постоянно перенаправляются на animelife.top. Плюс карта сайта (/sitemap.xml — индекс из трёх частей) и /robots.txt.
+ * постоянно перенаправляются на animelife.top. Плюс карта сайта (/sitemap.xml — индекс из трёх частей), /robots.txt
+ * и прокси к API Shikimori с кэшем для приложения (/api/shiki/*, worker/shikiProxy.js).
  * Шаблоны заголовков и посадочные страницы общие с приложением: src/data/seo.ts и src/data/landings.ts.
  * Если внешний сервис не ответил, отдаётся обычный index.html: сайт работает как раньше.
  */
 import { CATALOG, landingFor, landingPaths } from '../src/data/landings.ts'
 import { LEGAL, textParts } from '../src/data/legal.ts'
+import { isShikiProxy, shikiProxy } from './shikiProxy.js'
 import {
   DISCLAIMER,
   GENRES,
@@ -613,7 +615,8 @@ async function sitemapTitles(ctx, which) {
 
 function robots() {
   const body =
-    'User-agent: *\nAllow: /\nDisallow: /account\nDisallow: /auth/\nDisallow: /moderation\n' +
+    // /api/ — прокси данных для приложения: обход роботами только тратил бы лимит Worker.
+    'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /account\nDisallow: /auth/\nDisallow: /moderation\n' +
     // Яндекс склеивает адреса с метками рекламы и рассылок с основным адресом страницы.
     'Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&yclid&gclid&fbclid\n\n' +
     `Sitemap: ${ORIGIN}/sitemap.xml\n`
@@ -626,6 +629,8 @@ export default {
     // robots.txt отдаём на любом адресе: и на зеркале он указывает на карту сайта основного домена.
     if (url.pathname === '/robots.txt') return robots()
     if (MIRRORS.has(url.hostname)) return Response.redirect(ORIGIN + url.pathname + url.search, 301)
+    // Данные Shikimori для приложения через кэш Cloudflare (worker/shikiProxy.js).
+    if (isShikiProxy(url.pathname)) return shikiProxy(request, ctx)
     if (url.pathname === '/sitemap.xml') return sitemapIndex()
     if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')

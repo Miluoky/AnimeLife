@@ -7,6 +7,17 @@ const anime = fixture('anime')
 const genres = fixture('genres')
 const posters = fixture('posters')
 
+/** Заготовка ответа API Shikimori по пути без /api (/animes, /graphql…). Её же отдаёт подменённый прокси /api/shiki. */
+export function shikimoriFixture(path: string, params: URLSearchParams): unknown {
+  if (path === '/graphql') return posters
+  if (path === '/genres') return genres
+  if (path === '/calendar') return []
+  if (path === '/animes') return animes.slice(0, Number(params.get('limit')) || animes.length)
+  if (/^\/animes\/\d+$/.test(path)) return anime
+  // related, similar, screenshots, roles, external_links и прочее
+  return []
+}
+
 /**
  * Подменяет внешние сервисы заготовками. Любой список тайтлов отдаёт одни и те же 8 онгоингов,
  * любой тайтл — «Ковбоя Бибопа». Appwrite отвечает «не вошли», картинки — пустым ответом.
@@ -14,15 +25,7 @@ const posters = fixture('posters')
 export async function mockServices(page: Page) {
   await page.route(/shikimori\.(io|one)\/api\/.*/, async (route) => {
     const url = new URL(route.request().url())
-    const json = (body: unknown) => route.fulfill({ json: body })
-    const path = url.pathname.replace('/api', '')
-    if (path === '/graphql') return json(posters)
-    if (path === '/genres') return json(genres)
-    if (path === '/calendar') return json([])
-    if (path === '/animes') return json(animes.slice(0, Number(url.searchParams.get('limit')) || animes.length))
-    if (/^\/animes\/\d+$/.test(path)) return json(anime)
-    // related, similar, screenshots, roles, external_links и прочее
-    return json([])
+    return route.fulfill({ json: shikimoriFixture(url.pathname.replace('/api', ''), url.searchParams) })
   })
   await page.route(/shikimori\.(io|one)\/(system|uploads)\/.*/, (route) =>
     route.fulfill({ status: 200, contentType: 'image/webp', body: Buffer.alloc(0) }),
