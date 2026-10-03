@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /auth/
+Disallow: /moderation
+
+Sitemap: https://animelife.top/sitemap.xml

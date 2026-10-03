@@ -1,0 +1,44 @@
+[
+  {
+    "id": 8444,
+    "type": {
+      "value": "MOVIE",
+      "description": "Фильм"
+    },
+    "year": 2001,
+    "name": {
+      "main": "Ковбой Бибоп: Достучаться до небес",
+      "english": "Cowboy Bebop: Tengoku no Tobira",
+      "alternative": null
+    },
+    "alias": "cowboy-bebop-movie",
+    "shikimori": {
+      "id": 5,
+      "url": "https://shikimori.io/animes/5",
+      "votes": 0,
+      "rating": 8.4
+    },
+    "episodes_total": 1
+  },
+  {
+    "id": 8443,
+    "type": {
+      "value": "TV",
+      "description": "ТВ"
+    },
+    "year": 1998,
+    "name": {
+      "main": "Ковбой Бибоп",
+      "english": "Cowboy Bebop",
+      "alternative": null
+    },
+    "alias": "cowboy-bebop",
+    "shikimori": {
+      "id": 1,
+      "url": "https://shikimori.io/animes/1",
+      "votes": 65091,
+      "rating": 8.81
+    },
+    "episodes_total": 26
+  }
+]

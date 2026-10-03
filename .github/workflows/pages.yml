@@ -1,0 +1,43 @@
+name: Публикация на GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+          # Токены плееров Kodik и Alloha (секреты репозитория). Без них эти вкладки плеера показывают заглушку.
+          VITE_KODIK_TOKEN: ${{ secrets.VITE_KODIK_TOKEN }}
+          VITE_ALLOHA_TOKEN: ${{ secrets.VITE_ALLOHA_TOKEN }}
+      # Pages не знает о маршрутах React: на прямой заход по /Anime/anime/123 отдаёт 404.html, пусть это будет сам сайт.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
