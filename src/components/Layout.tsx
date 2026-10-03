@@ -8,6 +8,7 @@ import PageErrorBoundary from './PageErrorBoundary'
 import { useAuth } from '../data/auth'
 import { applyAppearance } from '../data/theme'
 import { useViewTransitions } from './morph'
+import { useCanonical } from '../data/pageMeta'
 
 // Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
 const InstallBanner = lazy(() => import('./InstallBanner'))
@@ -30,6 +31,7 @@ export default function Layout() {
   const header = useRef<HTMLElement>(null)
 
   useViewTransitions()
+  useCanonical()
 
   const toggleMenu = (open: boolean) => {
     if (open === menuOpen) return

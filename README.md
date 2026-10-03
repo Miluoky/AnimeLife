@@ -132,12 +132,42 @@ STUN Cloudflare и Google). Предложение и ответ с адреса
 ## Превью ссылок и поиск
 
 `worker/index.js` работает перед статическими файлами на Cloudflare Workers (`wrangler.jsonc`, `run_worker_first`).
-Для `/anime/:id`, `/watch/:id/:n`, `/together/:code` и `/u/:id` он подставляет в index.html заголовок, описание
-и картинку (Open Graph, Twitter), канонический адрес, а для тайтла разметку schema.org. Так ссылка в Telegram, VK
-и Discord показывает постер и название. `/sitemap.xml` собирается из 500 популярных тайтлов и онгоингов
-(ответ Shikimori кэшируется на сутки), `/robots.txt` указывает на него. Если Shikimori или Appwrite не ответили,
-отдаётся обычный index.html. Проверить локально: `npx wrangler@4 dev`. На GitHub Pages Worker нет, там
-работает только заголовок вкладки, который ставит само приложение.
+Через него идут все страницы, а файлы сборки (`/assets/*`), картинки, манифест и `sw.js` отдаются напрямую и не
+тратят лимит Worker.
+
+- **Один адрес для поисковиков.** Основной сайт — `https://animelife.top` (`ORIGIN` в Worker). С `www.animelife.top`
+  и `anime.artemdrr61f9.workers.dev` Worker отвечает постоянным редиректом 301 на тот же путь на animelife.top.
+  `canonical`, `og:url`, разметка schema.org, `/sitemap.xml` и `/robots.txt` везде указывают на animelife.top.
+  Копия на GitHub Pages тоже называет канонической страницу на animelife.top (`useCanonical` в `src/data/pageMeta.ts`).
+- **Превью и текст без JavaScript.** Для `/anime/:id`, `/watch/:id/:n`, `/together/:code` и `/u/:id` подставляются
+  заголовок, описание и картинка (Open Graph, Twitter), для тайтла ещё разметка schema.org и простой текст страницы:
+  название, год, жанры, описание, ссылки. На `/`, `/catalog` и `/ongoing` — список ссылок на популярные тайтлы.
+  Приложение заменяет этот текст при запуске.
+- **404 и noindex.** Незнакомый адрес, тайтл, которого нет на Shikimori, и закрытый или удалённый профиль отдаются
+  с кодом 404 (приложение само показывает «Страница не найдена»). Комнаты `/together/:code`, `/account`, `/auth/*`,
+  `/my-list` и `/moderation` получают `noindex`.
+- `/sitemap.xml` собирается из 500 популярных тайтлов и онгоингов в постоянном порядке, у онгоингов есть `lastmod`.
+  Полная карта кэшируется на сутки; если Shikimori ответил не на все запросы, неполная отдаётся без сохранения.
+
+Если Shikimori или Appwrite не ответили за 3 секунды, отдаётся обычный index.html. Проверить локально:
+`npx wrangler@4 dev`, затем `curl -H "Host: www.animelife.top" localhost:8787/catalog` (редирект) или
+`curl -H "Host: animelife.top" localhost:8787/anime/52991` (страница тайтла).
+
+### Подтверждение сайта в Google и Яндексе
+
+Worker добавляет в `<head>` каждой страницы `<meta name="google-site-verification">` и `<meta name="yandex-verification">`,
+если заданы переменные `GOOGLE_SITE_VERIFICATION` и `YANDEX_VERIFICATION`. Значение — только код из атрибута `content`,
+который выдаёт Search Console или Вебмастер. Задать их можно двумя способами, код менять не нужно:
+
+- в `wrangler.animelife.jsonc` добавить `"vars": { "GOOGLE_SITE_VERIFICATION": "код", "YANDEX_VERIFICATION": "код" }`
+  и опубликовать (workflow `animelife.yml`);
+- или в панели Cloudflare (аккаунт регистратора): Workers & Pages → `anime` → Settings → Variables and Secrets → Add,
+  тип Text. Публикация их не сотрёт: в настройках стоит `"keep_vars": true`.
+
+Другой способ без кода — DNS: в Google Search Console добавить ресурс типа «Доменное имя» `animelife.top` и
+TXT-запись `google-site-verification=…` в DNS домена (Cloudflare → DNS → Add record, тип TXT, имя `@`); так подтверждаются
+сразу все адреса домена. Яндекс Вебмастер тоже умеет подтверждение через DNS (TXT `yandex-verification: …`).
+После подтверждения добавьте карту сайта `https://animelife.top/sitemap.xml`.
 
 ## Хостинг
 
