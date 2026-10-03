@@ -358,6 +358,8 @@ export async function fetchAnimesByIds(ids: string[]): Promise<Anime[]> {
 
 export interface Related {
   relation: string
+  /** предыстория или продолжение: то, что смотрят по порядку */
+  chain: boolean
   anime: Anime
 }
 
@@ -396,7 +398,11 @@ export async function fetchRelated(id: string): Promise<Related[]> {
         (a.anime.aired_on ?? '9999').localeCompare(b.anime.aired_on ?? '9999'),
     )
   const animes = await withPosters(list.map((r) => r.anime))
-  return list.map((r, n) => ({ relation: r.relation_russian || r.relation, anime: fromShort(animes[n]) }))
+  return list.map((r, n) => ({
+    relation: r.relation_russian || r.relation,
+    chain: r.relation === 'Prequel' || r.relation === 'Sequel',
+    anime: fromShort(animes[n]),
+  }))
 }
 
 export async function fetchSimilar(id: string): Promise<Anime[]> {

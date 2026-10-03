@@ -27,6 +27,7 @@ import {
   allohaEmbedUrl,
   isBalancerAvailable,
 } from '../api/balancers'
+import { kodikTranslationUrl } from '../api/kodik'
 
 /* ──────────────── Типы ──────────────── */
 
@@ -55,6 +56,14 @@ export interface VideoPlayerProps {
   onEpisodes?: (episodes: AniLibriaEpisode[]) => void
   /** Embed-ссылка на трейлер: показывается, когда серию взять негде. */
   trailerUrl?: string
+  /**
+   * Источник выбирает страница (список озвучек сбоку): тогда табов над видео нет,
+   * а смена источника из плеера («Попробовать другой источник») приходит в onProviderChange.
+   */
+  provider?: Provider
+  onProviderChange?: (provider: Provider) => void
+  /** Выбранная озвучка Kodik: ссылка на её плеер из API. Без неё Kodik ищет тайтл сам. */
+  kodikLink?: string
 }
 
 /* ──────────────── Конфигурация табов ──────────────── */
@@ -99,15 +108,18 @@ function saveProvider(id: Provider) {
 /* ──────────────── Компонент ──────────────── */
 
 export default function VideoPlayer(props: VideoPlayerProps) {
-  const { title, originalTitle, englishTitle, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl } = props
+  const { title, originalTitle, englishTitle, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink } = props
+  const controlled = props.provider !== undefined
 
   const tabs = buildTabs()
   // Выбранный ранее провайдер, иначе первый доступный; если источников нет вовсе — сразу трейлер.
-  const [provider, setProviderState] = useState<Provider | undefined>(() => {
+  const [ownProvider, setProviderState] = useState<Provider | undefined>(() => {
     const saved = savedProvider()
     return (tabs.find((t) => t.available && t.id === saved) ?? tabs.find((t) => t.available))?.id
   })
+  const provider = controlled ? props.provider : ownProvider
   const setProvider = (id: Provider) => {
+    if (props.onProviderChange) return props.onProviderChange(id)
     saveProvider(id)
     setProviderState(id)
   }
@@ -130,7 +142,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     setLoading(true)
     setError(null)
-  }, [provider])
+  }, [provider, kodikLink])
 
   const onEpisodesRef = useRef(onEpisodes)
   onEpisodesRef.current = onEpisodes
@@ -248,7 +260,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   /* ─── Рендер провайдеров ─── */
 
   function renderKodik() {
-    const src = kodikEmbedUrl({
+    const src = kodikLink ? kodikTranslationUrl(kodikLink, episode) : kodikEmbedUrl({
       shikimoriId,
       kinopoiskId,
       imdbId,
@@ -295,7 +307,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   function unavailableReason(): string | null {
     if (!provider) return NO_SOURCES
-    if (provider === 'kodik' && !kodikEmbedUrl({ shikimoriId, kinopoiskId, imdbId, title, episode })) {
+    if (provider === 'kodik' && !kodikLink && !kodikEmbedUrl({ shikimoriId, kinopoiskId, imdbId, title, episode })) {
       return 'Kodik: токен не настроен или нет идентификатора тайтла'
     }
     if (provider === 'alloha' && !allohaEmbedUrl({ kinopoiskId, imdbId, episode })) {
@@ -327,7 +339,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   return (
     <div className="video-player">
       {/* Табы переключения провайдера: подложка выбранного таба скользит между источниками (--i, --n) */}
-      <div
+      {!controlled && <div
         className="vp-tabs seg"
         role="tablist"
         aria-label="Источник видео"
@@ -345,7 +357,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             {tab.label}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Контейнер плеера 16:9 */}
       <div className="player-frame" ref={frameRef}>
@@ -363,6 +375,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             quality={alStream.quality}
             onQuality={setAlQuality}
             onNext={hasNext ? () => onEpisodeChange?.(episode + 1) : undefined}
+            nextLabel={`${episode + 1} серия`}
           />
         )}
 
