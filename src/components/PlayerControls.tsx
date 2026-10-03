@@ -18,6 +18,8 @@ interface Props {
   onQuality: (q: AniLibriaQuality) => void
   /** переход к следующей серии; кнопка появляется под конец серии */
   onNext?: () => void
+  /** подпись кнопки следующей серии в углу, например «3 серия» */
+  nextLabel?: string
 }
 
 type FsDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void }
@@ -47,7 +49,7 @@ function bufferedEnd(v: HTMLVideoElement) {
   return 0
 }
 
-export default function PlayerControls({ video, frame, loading, qualities, quality, onQuality, onNext }: Props) {
+export default function PlayerControls({ video, frame, loading, qualities, quality, onQuality, onNext, nextLabel }: Props) {
   // Состояние берём прямо из <video>, а события лишь просят перерисовать кнопки.
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [active, setActive] = useState(true)
@@ -252,6 +254,14 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
             <PlayIcon size={34} />
           </button>
         )
+      )}
+
+      {/* Следующая серия всегда под рукой в углу, а под конец серии — большая кнопка. */}
+      {onNext && !nearEnd && (
+        <button type="button" className="vp-next-top" onClick={onNext} aria-label={`Следующая: ${nextLabel ?? 'серия'}`}>
+          <span>{nextLabel ?? 'Дальше'}</span>
+          <SkipIcon />
+        </button>
       )}
 
       {nearEnd && (

@@ -4,6 +4,8 @@
  */
 
 const API_BASE = 'https://anilibria.top/api/v1'
+// Проект переезжает на новый адрес; если старый не отвечает вовсе, пробуем его.
+const MIRROR_BASE = 'https://aniliberty.top/api/v1'
 
 /* ──────────────── Типы ──────────────── */
 
@@ -30,9 +32,13 @@ export type AniLibriaQuality = (typeof qualities)[number]
 /* ──────────────── Запросы ──────────────── */
 
 async function get<T>(path: string, params: Record<string, string> = {}): Promise<T> {
-  const url = new URL(`${API_BASE}${path}`)
-  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
-  const res = await fetch(url.toString())
+  const build = (base: string) => {
+    const url = new URL(`${base}${path}`)
+    for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
+    return url.toString()
+  }
+  // Ответ с ошибкой — это ответ: зеркало пробуем, только когда сеть до основного адреса не дошла.
+  const res = await fetch(build(API_BASE)).catch(() => fetch(build(MIRROR_BASE)))
   if (!res.ok) throw new Error(`AniLibria ${path} ${res.status}`)
   return res.json()
 }

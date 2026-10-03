@@ -14,6 +14,8 @@ import { useCanonical } from '../data/pageMeta'
 const InstallBanner = lazy(() => import('./InstallBanner'))
 // Ссылки на документы, жанры и годы в подвале тоже не нужны для первого экрана.
 const FooterLinks = lazy(() => import('./FooterLinks'))
+// Кнопка «Наверх» нужна только на длинных страницах и после прокрутки.
+const BackToTop = lazy(() => import('./BackToTop'))
 
 export function Logo() {
   return (
@@ -165,6 +167,12 @@ export default function Layout() {
         <InstallBanner />
       </Suspense>
       <Toasts />
+      {/* В плеере и комнатах своя прокрутка и свои кнопки в углу. */}
+      {!/^\/(watch|together)\//.test(location.pathname) && (
+        <Suspense fallback={null}>
+          <BackToTop />
+        </Suspense>
+      )}
       <BottomNav />
 
       <footer className="site-footer">

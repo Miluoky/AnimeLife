@@ -1,5 +1,5 @@
-import { Link, useParams } from 'react-router-dom'
-import { type CSSProperties, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { type CSSProperties, type FormEvent, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { loadAnime, loadTitleExtras, useAsync } from '../api'
@@ -14,6 +14,7 @@ import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { useMyList } from '../data/myList'
 import Reviews from '../components/Reviews'
+import Shelf from '../components/Shelf'
 import { PlayIcon } from '../components/Icons'
 import NotFound from './NotFound'
 
@@ -84,6 +85,20 @@ export default function TitlePage() {
   const to = Math.min(total, from + PAGE_SIZE - 1)
   const episodes = Array.from({ length: to - from + 1 }, (_, i) => from + i)
   const minutes = anime.episodeMinutes ? `${anime.episodeMinutes} мин` : ''
+  const facts: [string, string | number][] = [
+    ['Тип', anime.kind],
+    [
+      'Серии',
+      anime.ongoing && anime.episodesAired
+        ? anime.episodes
+          ? `${anime.episodesAired} из ${anime.episodes}`
+          : `${anime.episodesAired} вышло`
+        : (anime.episodes ?? '?'),
+    ],
+    ['Длительность', minutes],
+    ['Студия', anime.studio ?? ''],
+    ['Сезон', anime.season ?? anime.year ?? ''],
+  ].filter((f): f is [string, string | number] => f[1] !== '' && f[1] !== undefined)
 
   const shots = extras.value?.screenshots ?? []
   const related = extras.value?.related ?? []
@@ -160,7 +175,18 @@ export default function TitlePage() {
               <WatchTogetherButton anime={anime} />
               <ShareButton title={anime.title} path={`/anime/${anime.id}`} />
             </div>
+            {facts.length > 0 && (
+              <dl className="fact-pills">
+                {facts.map(([label, value]) => (
+                  <div key={label} className="fact-pill">
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
             <TitleProgress animeId={anime.id} />
+            {anime.description && <About text={anime.description} />}
           </div>
         </section>
 
@@ -168,34 +194,37 @@ export default function TitlePage() {
           <div className="stack">
             <div className="section-head" style={{ alignItems: 'center' }}>
               <h2>Серии</h2>
-              {pages > 1 && pages <= MAX_PILLS && (
-                <div className="chips">
-                  {Array.from({ length: pages }, (_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className={`pill${i === page ? ' active' : ''}`}
-                      aria-pressed={i === page}
-                      onClick={() => setPage(i)}
-                    >
-                      {rangeLabel(i)}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {pages > MAX_PILLS && (
-                // У длинных сериалов (Ван-Пис, Конан) сотня диапазонов: кнопками это стена, поэтому список.
-                <label className="btn btn--ghost list-select">
-                  <span className="sr-only">Диапазон серий</span>
-                  <select value={page} onChange={(e) => setPage(Number(e.target.value))}>
+              <div className="episode-tools">
+                {pages > 1 && pages <= MAX_PILLS && (
+                  <div className="chips">
                     {Array.from({ length: pages }, (_, i) => (
-                      <option key={i} value={i}>
-                        Серии {rangeLabel(i)}
-                      </option>
+                      <button
+                        key={i}
+                        type="button"
+                        className={`pill${i === page ? ' active' : ''}`}
+                        aria-pressed={i === page}
+                        onClick={() => setPage(i)}
+                      >
+                        {rangeLabel(i)}
+                      </button>
                     ))}
-                  </select>
-                </label>
-              )}
+                  </div>
+                )}
+                {pages > MAX_PILLS && (
+                  // У длинных сериалов (Ван-Пис, Конан) сотня диапазонов: кнопками это стена, поэтому список.
+                  <label className="btn btn--ghost list-select">
+                    <span className="sr-only">Диапазон серий</span>
+                    <select value={page} onChange={(e) => setPage(Number(e.target.value))}>
+                      {Array.from({ length: pages }, (_, i) => (
+                        <option key={i} value={i}>
+                          Серии {rangeLabel(i)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {total > PAGE_SIZE && <EpisodeJump animeId={anime.id} total={total} />}
+              </div>
             </div>
             <div className="grid grid--episodes">
               {episodes.map((n) => {
@@ -224,40 +253,6 @@ export default function TitlePage() {
           </div>
 
           <aside className="stack title-aside">
-            <dl className="facts">
-              <div>
-                <dt>Тип</dt>
-                <dd>{anime.kind}</dd>
-              </div>
-              <div>
-                <dt>Серии</dt>
-                <dd>
-                  {anime.ongoing && anime.episodesAired
-                    ? anime.episodes
-                      ? `${anime.episodesAired} из ${anime.episodes}`
-                      : `${anime.episodesAired} вышло`
-                    : (anime.episodes ?? '?')}
-                </dd>
-              </div>
-              {anime.episodeMinutes && (
-                <div>
-                  <dt>Длительность</dt>
-                  <dd>{anime.episodeMinutes} мин</dd>
-                </div>
-              )}
-              {anime.studio && (
-                <div>
-                  <dt>Студия</dt>
-                  <dd>{anime.studio}</dd>
-                </div>
-              )}
-              {(anime.season || anime.year) && (
-                <div>
-                  <dt>Сезон</dt>
-                  <dd>{anime.season ?? anime.year}</dd>
-                </div>
-              )}
-            </dl>
             {watchLinks.length > 0 && (
               <div className="stack" style={{ gap: 10 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 500 }}>Где смотреть легально</h2>
@@ -271,14 +266,6 @@ export default function TitlePage() {
               </div>
             )}
             {scores && <Scores stats={scores} />}
-            {anime.description && (
-              <div className="stack" style={{ gap: 10 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 500 }}>Описание</h2>
-                <p className="soft prewrap" style={{ margin: 0 }}>
-                  {anime.description}
-                </p>
-              </div>
-            )}
             {!result.value?.demo && (
               <p className="muted source-note">
                 Данные:{' '}
@@ -291,11 +278,7 @@ export default function TitlePage() {
         </div>
 
         {characters.length > 0 && (
-          <section className="stack">
-            <div className="section-head">
-              <h2>Персонажи</h2>
-            </div>
-            <div className="row-scroll row-scroll--compact">
+          <Shelf title="Персонажи" variant="compact">
               {characters.map((c) => (
                 <a
                   key={c.id}
@@ -311,16 +294,11 @@ export default function TitlePage() {
                   <span className="muted character-card__role">{c.main ? 'Главный герой' : 'Второстепенный'}</span>
                 </a>
               ))}
-            </div>
-          </section>
+          </Shelf>
         )}
 
         {videos.length > 0 && (
-          <section className="stack">
-            <div className="section-head">
-              <h2>Видео</h2>
-            </div>
-            <div className="row-scroll row-scroll--wide">
+          <Shelf title="Видео" variant="wide">
               {videos.map((v, i) => (
                 <button key={v.youtubeId} type="button" className="row-scroll__item video-card" onClick={() => setVideoOpen(i)}>
                   <span className="video-card__img">
@@ -332,8 +310,7 @@ export default function TitlePage() {
                   <span className="video-card__title">{v.title}</span>
                 </button>
               ))}
-            </div>
-          </section>
+          </Shelf>
         )}
 
         {gallery.length > 1 && (
@@ -378,34 +355,23 @@ export default function TitlePage() {
         <Reviews animeId={anime.id} />
 
         {related.length > 0 && (
-          <section className="stack">
-            <div className="section-head">
-              <h2>Связанное</h2>
-            </div>
-            <div className="row-scroll">
-              {related.map((r) => (
-                <div key={r.anime.id} className="row-scroll__item">
-                  <span className="relation-label">{r.relation}</span>
-                  <PosterCard anime={r.anime} />
-                </div>
-              ))}
-            </div>
-          </section>
+          <Shelf title="Связанное" subtitle="Сначала то, что смотрят по порядку, потом остальные части">
+            {related.map((r) => (
+              <div key={r.anime.id} className="row-scroll__item">
+                <PosterCard anime={r.anime} tag={{ text: r.relation, accent: r.chain }} />
+              </div>
+            ))}
+          </Shelf>
         )}
 
         {similar.length > 0 && (
-          <section className="stack">
-            <div className="section-head">
-              <h2>Похожее</h2>
-            </div>
-            <div className="row-scroll">
-              {similar.map((a) => (
-                <div key={a.id} className="row-scroll__item">
-                  <PosterCard anime={a} />
-                </div>
-              ))}
-            </div>
-          </section>
+          <Shelf title="Похожее" subtitle="Если понравилось это, загляните сюда">
+            {similar.map((a) => (
+              <div key={a.id} className="row-scroll__item">
+                <PosterCard anime={a} />
+              </div>
+            ))}
+          </Shelf>
         )}
       </main>
     </>
@@ -416,4 +382,54 @@ export default function TitlePage() {
 function TitleProgress({ animeId }: { animeId: string }) {
   const entry = useMyList().find((e) => e.anime.id === animeId)
   return entry ? <EpisodeProgress entry={entry} /> : null
+}
+
+const ABOUT_LIMIT = 320
+
+/** «О чём»: описание сразу под названием, длинное свёрнуто до нескольких строк. */
+function About({ text }: { text: string }) {
+  const long = text.length > ABOUT_LIMIT
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="about-card">
+      <h2 className="about-card__title">О чём</h2>
+      <p className={`soft prewrap about-card__text${long && !open ? ' clamp-4' : ''}`}>{text}</p>
+      {long && (
+        <button type="button" className="about-card__toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? 'Свернуть' : 'Показать полностью'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Переход к серии по номеру: у длинных сериалов листать диапазоны долго. */
+function EpisodeJump({ animeId, total }: { animeId: string; total: number }) {
+  const navigate = useNavigate()
+  const [value, setValue] = useState('')
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const n = Math.round(Number(value))
+    if (n >= 1 && n <= total) navigate(`/watch/${animeId}/${n}`)
+  }
+  return (
+    <form className="episode-jump" onSubmit={submit} role="search">
+      <label className="sr-only" htmlFor="episode-jump">
+        Номер серии
+      </label>
+      <input
+        id="episode-jump"
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={total}
+        placeholder={`Серия 1–${total}`}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <button type="submit" className="btn btn--ghost">
+        Перейти
+      </button>
+    </form>
+  )
 }

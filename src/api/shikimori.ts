@@ -97,6 +97,32 @@ function slot() {
 // Одинаковые запросы (например, двойной рендер в StrictMode) делят один ответ.
 const cache = new Map<string, Promise<unknown>>()
 
+/**
+ * Ответы, которые Worker уже получил, пока собирал страницу (worker/index.js, #shiki-preload):
+ * тайтл, связанное, похожее, баннер главной. Берём их один раз вместо запроса после загрузки кода.
+ */
+const preloaded: Record<string, unknown> = (() => {
+  try {
+    const el = globalThis.document?.getElementById('shiki-preload')
+    return el?.textContent ? JSON.parse(el.textContent) : {}
+  } catch {
+    return {}
+  }
+})()
+
+/** Путь API и параметры по алфавиту: так же ключ считает preloadKey в worker/index.js. */
+function preloadKey(path: string, params: URLSearchParams) {
+  const sorted = [...params].sort(([a], [b]) => a.localeCompare(b))
+  return path + (sorted.length ? `?${new URLSearchParams(sorted)}` : '')
+}
+
+function takePreloaded<T>(key: string): Promise<T> | undefined {
+  if (!(key in preloaded)) return undefined
+  const data = preloaded[key] as T
+  delete preloaded[key]
+  return Promise.resolve(data)
+}
+
 async function request<T>(url: URL, init: RequestInit = {}, attempt = 0): Promise<T> {
   await slot()
   const res = await fetch(url, { ...init, headers: { Accept: 'application/json', ...init.headers } })
@@ -116,7 +142,7 @@ function get<T>(path: string, params: Record<string, string | number | undefined
   const key = url.toString()
   let pending = cache.get(key) as Promise<T> | undefined
   if (!pending) {
-    pending = request<T>(url)
+    pending = takePreloaded<T>(preloadKey(path, url.searchParams)) ?? request<T>(url)
     pending.catch(() => cache.delete(key))
     cache.set(key, pending)
   }
@@ -154,11 +180,14 @@ async function withPosters<T extends ShikiAnimeShort>(list: T[], { onlyMissing =
   for (let i = 0; i < ids.length; i += 50) {
     const chunk = ids.slice(i, i + 50)
     const query = `{ animes(ids: "${chunk.join(',')}", limit: ${chunk.length}) { id poster { originalUrl mainUrl main2xUrl } } }`
-    const batch = request<GraphqlPosters>(new URL(`${API_URL}/api/graphql`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    }).then(
+    const batch = (
+      takePreloaded<GraphqlPosters>(`graphql:${query}`) ??
+      request<GraphqlPosters>(new URL(`${API_URL}/api/graphql`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      })
+    ).then(
       (res) =>
         new Map<number, PosterSet | undefined>(
           res.data?.animes.map((a) => [
@@ -358,6 +387,8 @@ export async function fetchAnimesByIds(ids: string[]): Promise<Anime[]> {
 
 export interface Related {
   relation: string
+  /** предыстория или продолжение: то, что смотрят по порядку */
+  chain: boolean
   anime: Anime
 }
 
@@ -396,7 +427,11 @@ export async function fetchRelated(id: string): Promise<Related[]> {
         (a.anime.aired_on ?? '9999').localeCompare(b.anime.aired_on ?? '9999'),
     )
   const animes = await withPosters(list.map((r) => r.anime))
-  return list.map((r, n) => ({ relation: r.relation_russian || r.relation, anime: fromShort(animes[n]) }))
+  return list.map((r, n) => ({
+    relation: r.relation_russian || r.relation,
+    chain: r.relation === 'Prequel' || r.relation === 'Sequel',
+    anime: fromShort(animes[n]),
+  }))
 }
 
 export async function fetchSimilar(id: string): Promise<Anime[]> {

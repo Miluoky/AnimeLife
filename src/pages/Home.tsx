@@ -8,6 +8,9 @@ import { PlayIcon } from '../components/Icons'
 
 // Рекомендации ниже первого экрана: отдельная часть, грузится следом.
 const Recommendations = lazy(() => import('../components/Recommendations'))
+// Полки «сезон», «скоро», «лучшее» тоже ниже баннера: своей частью, чтобы не утяжелять первый экран.
+const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.SeasonShelf })))
+const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 
 const HERO_COUNT = 5
 const HERO_INTERVAL = 8000
@@ -92,11 +95,12 @@ function Hero() {
       <div className="hero__art" style={{ background: anime.posterFill }}>
         {anime.posterUrl ? (
           <>
-            <img key={`bg-${anime.id}`} className="hero__art-bg" src={anime.posterUrl} alt="" />
+            {/* Фон и постер берут один и тот же webp 2x (около 450 px): один запрос вместо оригинала на пару мегабайт. */}
+            <img key={`bg-${anime.id}`} className="hero__art-bg" src={anime.posterSmall2x ?? anime.posterUrl} alt="" />
             <img
               key={anime.id}
               className="hero__art-poster"
-              src={anime.posterUrl}
+              src={anime.posterSmall2x ?? anime.posterUrl}
               alt={`Постер: ${anime.title}`}
               // @ts-expect-error fetchpriority ещё нет в типах React 18
               fetchpriority="high"
@@ -158,7 +162,9 @@ export default function Home() {
       <Hero />
       <ContinueWatching />
       <Suspense fallback={null}>
+        <SeasonShelf />
         <Recommendations />
+        <MoreShelves />
       </Suspense>
       <CatalogSection title="Популярное" moreLink="/catalog" />
     </main>

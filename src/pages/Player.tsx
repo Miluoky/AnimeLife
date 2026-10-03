@@ -1,16 +1,18 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { loadAnime, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { saveProgress } from '../data/history'
 import { getEntry, setWatched, useMyList } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
-import VideoPlayer from '../components/VideoPlayer'
+import VideoPlayer, { type Provider } from '../components/VideoPlayer'
+import { isBalancerAvailable } from '../api/balancers'
+import { fetchKodikTranslations } from '../api/kodik'
 import { markFlag } from '../data/flags'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
-import { BackIcon, SkipIcon } from '../components/Icons'
+import { BackIcon, SearchIcon, SkipIcon } from '../components/Icons'
 
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
 const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
@@ -28,6 +30,17 @@ export default function Player() {
   const seen = (anime && list.find((e) => e.anime.id === anime.id)?.watched) || 0
 
   const total = anime ? episodeCount(anime) : 1
+  const kodik = useAsync(() => fetchKodikTranslations(id).catch(() => []), [id])
+  const voices = useMemo(
+    () => buildVoices(kodik.value ?? [], Object.keys(names).length),
+    [kodik.value, names],
+  )
+  const [voiceKey, setVoiceKey] = useState(savedVoice)
+  const voice = voices.find((v) => v.key === voiceKey) ?? voices[0]
+  const chooseVoice = (key: string) => {
+    saveVoice(key)
+    setVoiceKey(key)
+  }
   const current = Math.min(Math.max(1, Number(episode) || 1), total)
 
   useEffect(() => {
@@ -54,6 +67,12 @@ export default function Player() {
   return (
     <main className="container player-page">
       {/* Мульти-провайдерный плеер; если серию взять негде — трейлер */}
+      {/* Пока не знаем озвучки Kodik, плеер не включаем: иначе он начнёт с одной озвучки и тут же сменит её. */}
+      {kodik.loading ? (
+        <div className="video-player">
+          <div className="player-frame" aria-busy="true" />
+        </div>
+      ) : (
       <VideoPlayer
         title={anime.title}
         originalTitle={anime.originalTitle}
@@ -64,9 +83,26 @@ export default function Player() {
         onEpisodeChange={goTo}
         onEpisodes={(eps) => setNames(Object.fromEntries(eps.map((e) => [e.ordinal, e.name ?? ''])))}
         trailerUrl={anime.trailerUrl}
+        provider={voice?.provider}
+        kodikLink={voice?.kodikLink}
+        onProviderChange={(p) => {
+          const next = voices.find((v) => v.provider === p)
+          if (next) chooseVoice(next.key)
+        }}
       />
+      )}
 
-      <EpisodePicker animeId={anime.id} total={total} current={current} seen={seen} names={names} provider="AniLibria" />
+      <div className="watch-side">
+        {voices.length > 0 && <VoicePicker voices={voices} current={voice?.key} onChoose={chooseVoice} />}
+        <EpisodePicker
+          animeId={anime.id}
+          total={total}
+          current={current}
+          seen={seen}
+          names={voice?.provider === 'anilibria' ? names : {}}
+          provider="AniLibria"
+        />
+      </div>
 
       <div className="watch-head">
         <div className="watch-head__info">
@@ -133,6 +169,7 @@ function EpisodePicker({
   provider: string
 }) {
   const [range, setRange] = useState(Math.floor((current - 1) / RANGE))
+  const [query, setQuery] = useState('')
   const strip = useRef<HTMLDivElement>(null)
   const ranges = Math.ceil(total / RANGE)
   const from = range * RANGE + 1
@@ -140,6 +177,11 @@ function EpisodePicker({
   // Источник озвучил не всё: остальные номера приглушены, чтобы не казалось, что есть все серии.
   const voiced = Object.keys(names).length
   const missing = (n: number) => voiced > 0 && !(n in names)
+  // Поиск по номеру или названию серии ищет по всем сериям, а не только в открытом диапазоне.
+  const q = query.trim().toLowerCase()
+  const shown = q
+    ? Array.from({ length: total }, (_, i) => i + 1).filter((n) => String(n).startsWith(q) || names[n]?.toLowerCase().includes(q))
+    : Array.from({ length: to - from + 1 }, (_, i) => from + i)
 
   // Текущая серия сразу на виду: прокручиваем только саму полосу, не страницу.
   useEffect(() => {
@@ -163,7 +205,20 @@ function EpisodePicker({
           В озвучке {provider}: {voiced} из {total}. Приглушённых серий у источника нет.
         </p>
       )}
-      {ranges > 1 && (
+      {total > 12 && (
+        <label className="side-search">
+          <SearchIcon size={16} />
+          <span className="sr-only">Найти серию</span>
+          <input
+            type="search"
+            inputMode={voiced ? 'text' : 'numeric'}
+            placeholder={voiced ? 'Номер или название' : 'Номер серии'}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+      )}
+      {ranges > 1 && !q && (
         <div className="ep-ranges" role="group" aria-label="Диапазон серий">
           {Array.from({ length: ranges }, (_, i) => (
             <button
@@ -179,7 +234,8 @@ function EpisodePicker({
         </div>
       )}
       <nav className="ep-strip" ref={strip} aria-label="Серии">
-        {Array.from({ length: to - from + 1 }, (_, i) => from + i).map((n) => (
+        {shown.length === 0 && <span className="muted side-empty">Такой серии нет</span>}
+        {shown.map((n) => (
           <Link
             key={n}
             to={`/watch/${animeId}/${n}`}
@@ -198,5 +254,107 @@ function EpisodePicker({
         </p>
       )}
     </aside>
+  )
+}
+
+/* ─── Озвучки: список сбоку, как выбор студии в кинотеатрах ─── */
+
+interface Voice {
+  key: string
+  provider: Provider
+  title: string
+  kind: 'voice' | 'subtitles'
+  /** сколько серий в этой озвучке; неизвестно, пока источник не ответил */
+  episodes?: number
+  kodikLink?: string
+}
+
+const VOICE_KEY = 'player-voice'
+
+function savedVoice() {
+  try {
+    return sessionStorage.getItem(VOICE_KEY) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+function saveVoice(key: string) {
+  try {
+    sessionStorage.setItem(VOICE_KEY, key)
+  } catch {
+    // Без хранилища на следующей серии будет озвучка по умолчанию.
+  }
+}
+
+/** Все озвучки тайтла из подключённых источников: Kodik (если есть токен), Alloha, AniLibria. */
+function buildVoices(kodik: Awaited<ReturnType<typeof fetchKodikTranslations>>, aniLibriaEpisodes: number): Voice[] {
+  const list: Voice[] = [...kodik]
+    .sort((a, b) => b.episodes - a.episodes)
+    .map((t) => ({ key: `kodik:${t.id}`, provider: 'kodik', title: t.title, kind: t.kind, episodes: t.episodes, kodikLink: t.link }))
+  if (isBalancerAvailable('alloha')) list.push({ key: 'alloha', provider: 'alloha', title: 'Alloha', kind: 'voice' })
+  list.push({ key: 'anilibria', provider: 'anilibria', title: 'AniLibria', kind: 'voice', episodes: aniLibriaEpisodes || undefined })
+  return list
+}
+
+type VoiceSort = 'episodes' | 'title'
+
+function VoicePicker({ voices, current, onChoose }: { voices: Voice[]; current?: string; onChoose: (key: string) => void }) {
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<VoiceSort>('episodes')
+  const q = query.trim().toLowerCase()
+  const shown = voices
+    .filter((v) => !q || v.title.toLowerCase().includes(q))
+    .sort((a, b) => (sort === 'title' ? a.title.localeCompare(b.title, 'ru') : (b.episodes ?? 0) - (a.episodes ?? 0)))
+
+  return (
+    <section className="voices" aria-labelledby="voices-title">
+      <div className="episodes__head">
+        <div>
+          <div className="voices__eyebrow">Озвучка</div>
+          <h2 id="voices-title">Выберите студию</h2>
+        </div>
+        <span className="voices__count">{voices.length}</span>
+      </div>
+      {voices.length > 4 && (
+        <>
+          <label className="side-search">
+            <SearchIcon size={16} />
+            <span className="sr-only">Найти озвучку</span>
+            <input type="search" placeholder="Поиск студии" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </label>
+          <div className="voices__sort" role="group" aria-label="Порядок">
+            {(
+              [
+                ['episodes', 'Больше серий'],
+                ['title', 'По названию'],
+              ] as const
+            ).map(([id, label]) => (
+              <button key={id} type="button" className={`pill${sort === id ? ' active' : ''}`} aria-pressed={sort === id} onClick={() => setSort(id)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      <ul className="voices__list">
+        {shown.map((v) => (
+          <li key={v.key}>
+            <button type="button" className="voice" aria-pressed={v.key === current} onClick={() => onChoose(v.key)}>
+              <span className="voice__mark" aria-hidden="true">
+                {v.title.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="voice__text">
+                <span className="voice__title">{v.title}</span>
+                <span className="voice__kind">{v.kind === 'subtitles' ? 'Субтитры' : 'Озвучка'}</span>
+              </span>
+              {v.episodes ? <span className="voice__eps">{v.episodes} эп.</span> : null}
+            </button>
+          </li>
+        ))}
+        {shown.length === 0 && <li className="muted side-empty">Ничего не нашлось</li>}
+      </ul>
+      {voices.length === 1 && <p className="muted voices__note">Других озвучек этого аниме пока нет.</p>}
+    </section>
   )
 }

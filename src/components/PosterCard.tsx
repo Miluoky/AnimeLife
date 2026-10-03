@@ -44,7 +44,16 @@ export function Poster({
   )
 }
 
-export default function PosterCard({ anime, priority }: { anime: AnimeCard; priority?: boolean }) {
+export default function PosterCard({
+  anime,
+  priority,
+  tag,
+}: {
+  anime: AnimeCard
+  priority?: boolean
+  /** плашка внизу постера, например отношение к тайтлу («Продолжение») */
+  tag?: { text: string; accent?: boolean }
+}) {
   const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} эп.`].filter(Boolean).join(' · ')
   const prefetch = () => prefetchTitle(anime.id)
   const to = `/anime/${anime.id}`
@@ -56,6 +65,7 @@ export default function PosterCard({ anime, priority }: { anime: AnimeCard; prio
         <Poster anime={anime} priority={priority} />
         {anime.ongoing && <span className="poster-card__badge">Онгоинг</span>}
         {anime.score ? <span className="poster-card__score">★ {anime.score.toFixed(1)}</span> : null}
+        {tag && <span className={`poster-card__tag${tag.accent ? ' poster-card__tag--accent' : ''}`}>{tag.text}</span>}
       </div>
       <div>
         <div className="poster-card__title">{anime.title}</div>

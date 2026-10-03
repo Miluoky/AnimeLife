@@ -15,12 +15,15 @@
     column-gap: 32px;
     padding-top: 32px;
   }
-  .episodes {
+  .watch-side {
     grid-column: 2;
     grid-row: 1 / span 3;
     position: sticky;
     top: 96px;
     align-self: start;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
 }
 
@@ -791,5 +794,221 @@
   .vp-time {
     padding: 0 4px;
     font-size: 12px;
+  }
+}
+
+/* ─── Боковая колонка: озвучки и серии ─── */
+.watch-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.voices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.voices h2 {
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.voices__eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.voices__count {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text-soft);
+}
+
+.voices__sort {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.voices__sort .pill {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.voices__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.voice {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.voice:hover {
+  background: var(--surface-2);
+}
+
+.voice[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.voice__mark {
+  flex: 0 0 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  background: var(--surface-2);
+  color: var(--text-soft);
+}
+
+.voice[aria-pressed='true'] .voice__mark {
+  background: var(--accent);
+  color: #0d0e13;
+}
+
+.voice__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.voice__title {
+  font-weight: 700;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice__kind {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.voice__eps {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--text-soft);
+}
+
+.voices__note {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Поиск в боковой колонке: по озвучкам и по сериям. */
+.side-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.side-search:focus-within {
+  border-color: var(--accent);
+}
+
+.side-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.side-empty {
+  font-size: 14px;
+  padding: 6px 2px;
+}
+
+/* Следующая серия в правом верхнем углу видео. */
+.vp-next-top {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  background: color-mix(in srgb, #000 55%, transparent);
+  backdrop-filter: blur(8px);
+  transition: opacity 0.25s, background 0.2s;
+}
+
+.vp-next-top:hover {
+  background: var(--accent);
+  color: #0d0e13;
+}
+
+.vp-ui--hidden .vp-next-top {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .vp-next-top {
+    top: 10px;
+    right: 10px;
+    height: 34px;
+    padding: 0 12px;
+    font-size: 13px;
   }
 }

@@ -29,7 +29,8 @@ test('плеер: AniLibria берёт релиз с тем же id Shikimori и
   await expect(episodes.locator('[aria-current="page"]')).toHaveText('2')
   await expect(episodes.getByRole('link', { name: 'Серия 2: Потерявшийся Пёс' })).toBeVisible()
   // Вкладка источника без обещания «без рекламы»: в новых потоках AniLibria она бывает.
-  await expect(page.getByRole('tab', { name: 'AniLibria', exact: true })).toHaveAttribute('aria-selected', 'true')
+  // Источник выбирается в списке озвучек сбоку от видео.
+  await expect(page.getByRole('button', { name: /^AniLibria/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText(/вот трейлер/)).toHaveCount(0)
 })
 
@@ -107,4 +108,18 @@ test('плеер: свои кнопки поверх видео — пауза �
   await expect(page).toHaveURL(/\/watch\/1\/3$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Ковбой Бибоп Серия 3' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Серии' }).locator('[aria-current="page"]')).toHaveText('3')
+})
+
+test('плеер: озвучки списком сбоку и поиск серии по номеру или названию', async ({ page }) => {
+  await mockAniLibria(page, search)
+  await page.goto('/watch/1/1')
+  const voices = page.getByRole('region', { name: 'Выберите студию' })
+  await expect(voices.getByRole('button', { name: /^AniLibria/ })).toHaveAttribute('aria-pressed', 'true')
+  const episodes = page.getByRole('navigation', { name: 'Серии' })
+  await expect(episodes.getByRole('link', { name: /^Серия 2: / })).toBeVisible()
+  await page.getByRole('searchbox', { name: 'Найти серию' }).fill('Пёс')
+  await expect(episodes.getByRole('link')).toHaveCount(1)
+  await expect(episodes.getByRole('link')).toHaveText('2')
+  await page.getByRole('searchbox', { name: 'Найти серию' }).fill('99')
+  await expect(page.getByText('Такой серии нет')).toBeVisible()
 })
