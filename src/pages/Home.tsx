@@ -95,11 +95,12 @@ function Hero() {
       <div className="hero__art" style={{ background: anime.posterFill }}>
         {anime.posterUrl ? (
           <>
-            <img key={`bg-${anime.id}`} className="hero__art-bg" src={anime.posterUrl} alt="" />
+            {/* Фон и постер берут один и тот же webp 2x (около 450 px): один запрос вместо оригинала на пару мегабайт. */}
+            <img key={`bg-${anime.id}`} className="hero__art-bg" src={anime.posterSmall2x ?? anime.posterUrl} alt="" />
             <img
               key={anime.id}
               className="hero__art-poster"
-              src={anime.posterUrl}
+              src={anime.posterSmall2x ?? anime.posterUrl}
               alt={`Постер: ${anime.title}`}
               // @ts-expect-error fetchpriority ещё нет в типах React 18
               fetchpriority="high"

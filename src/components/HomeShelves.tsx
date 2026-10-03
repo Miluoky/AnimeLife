@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { loadCatalog, useAsync, type CatalogQuery } from '../api'
 import Shelf from './Shelf'
 import PosterCard from './PosterCard'
@@ -15,8 +15,28 @@ export function currentSeason(now = new Date()) {
   return { code: `${name}_${year}`, label: `${SEASON_NAMES[name]} ${year}` }
 }
 
+/**
+ * Полок на главной много, а Shikimori пускает 5 запросов в секунду: полка грузится, только когда
+ * до неё почти докрутили. До этого на её месте пустое место той же высоты, чтобы страница не прыгала.
+ */
+function CatalogShelf(props: Parameters<typeof LoadedShelf>[0]) {
+  const box = useRef<HTMLDivElement>(null)
+  const [near, setNear] = useState(false)
+  useEffect(() => {
+    const el = box.current
+    if (!el || near) return
+    if (!('IntersectionObserver' in window)) return setNear(true)
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), {
+      rootMargin: '800px 0px',
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [near])
+  return near ? <LoadedShelf {...props} /> : <div ref={box} style={{ height: 420 }} aria-hidden="true" />
+}
+
 /** Полка постеров по запросу к каталогу. Пустую (API ничего не вернуло) не показываем совсем. */
-function CatalogShelf({
+function LoadedShelf({
   title,
   subtitle,
   icon,

@@ -76,6 +76,31 @@ async function json(url, init, ttl = 3600) {
 
 const notFound = () => Object.assign(new Error('not found'), { status: 404 })
 
+/**
+ * Ключ готового ответа для приложения: путь API без /api и параметры по алфавиту.
+ * Так же ключ считает preloadKey в src/api/shikimori.ts, поэтому приложение не запрашивает эти данные второй раз.
+ */
+function preloadKey(url) {
+  const u = new URL(url)
+  const params = [...u.searchParams].sort(([a], [b]) => a.localeCompare(b))
+  return u.pathname.replace(/^\/api/, '') + (params.length ? `?${new URLSearchParams(params)}` : '')
+}
+
+/** Постеры пачки тайтлов из GraphQL тем же запросом, что шлёт приложение (withPosters). */
+const posterQuery = (ids) => `{ animes(ids: "${ids.join(',')}", limit: ${ids.length}) { id poster { originalUrl mainUrl main2xUrl } } }`
+
+async function posters(ids) {
+  const query = posterQuery(ids)
+  const res = await fetch(`${SHIKIMORI}/api/graphql`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'AnimeLife/1.0 (+https://animelife.top)' },
+    body: JSON.stringify({ query }),
+    signal: AbortSignal.timeout(2000),
+  })
+  if (!res.ok) throw new Error(`graphql ${res.status}`)
+  return { key: `graphql:${query}`, data: await res.json() }
+}
+
 const absolute = (path) => (!path || path.includes('missing_') ? undefined : path.startsWith('http') ? path : SHIKIMORI + path)
 
 const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
@@ -180,10 +205,30 @@ async function listing(l, page) {
   }
 }
 
+// Баннер главной: пять популярных онгоингов, как запрашивает Hero в src/pages/Home.tsx.
+const HERO = animes({ status: 'ongoing', limit: 5, page: 1 })
+
 async function home() {
   const year = new Date().getFullYear()
-  const items = await json(popular(1), undefined, DAY).catch(() => [])
+  const [items, hero] = await Promise.all([
+    json(popular(1), undefined, DAY).catch(() => []),
+    json(HERO, undefined, 1800).catch(() => []),
+  ])
+  // Для первого тайтла баннера нужны подробности и постеры: тоже отдаём сразу, иначе это ещё два запроса после загрузки кода.
+  const first = hero[0]
+  const [details, art] = await Promise.all([
+    first ? json(`${SHIKIMORI}/api/animes/${first.id}`).catch(() => null) : null,
+    hero.length ? posters(hero.map((a) => a.id)).catch(() => null) : null,
+  ])
+  const preload = {}
+  if (hero.length) preload[preloadKey(HERO)] = hero
+  if (details) preload[preloadKey(`${SHIKIMORI}/api/animes/${first.id}`)] = details
+  if (art) preload[art.key] = art.data
+  const heroPoster = art?.data?.data?.animes?.find((x) => String(x.id) === String(first?.id))?.poster
   return {
+    preload,
+    // Постер баннера — самая крупная картинка первого экрана: браузер начинает качать его сразу с HTML.
+    lcpImage: heroPoster?.main2xUrl,
     title: `Смотреть аниме онлайн бесплатно с русской озвучкой | ${SITE}`,
     description: `Аниме онлайн бесплатно с русской озвучкой: онгоинги ${year}, каталог по жанрам и годам, расписание новых серий и «Мой список» с синхронизацией.`,
     body:
@@ -300,6 +345,12 @@ async function titlePage(id) {
     .slice(0, 20)
   const alternate = [a.name, ...(a.english ?? []), ...(a.japanese ?? [])].filter((n) => n && n !== info.title)
   return {
+    preload: {
+      [preloadKey(`${SHIKIMORI}/api/animes/${id}`)]: a,
+      [preloadKey(`${SHIKIMORI}/api/animes/${id}/related`)]: related,
+      [preloadKey(`${SHIKIMORI}/api/animes/${id}/similar`)]: similar,
+    },
+    lcpImage: image,
     title: titlePageTitle(info),
     description,
     image,
@@ -354,6 +405,7 @@ async function watchPage(id, episode) {
   if (episode < count) near.push([`${episode + 1} серия →`, `/watch/${a.id}/${episode + 1}`])
   const genres = info.genres.map((g) => [g, genrePath(g)]).filter(([, p]) => p)
   return {
+    preload: { [preloadKey(`${SHIKIMORI}/api/animes/${id}`)]: a },
     title: watchPageTitle(info, episode),
     description: watchPageDescription(info, episode, count),
     image: absolute(a.image?.original),
@@ -523,6 +575,13 @@ async function page(env, url, status = 200) {
   if (meta?.type) rewriter = rewriter.on('meta[property="og:type"]', content(meta.type))
   if (meta?.jsonLd) {
     extra.push(`<script type="application/ld+json">${JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c')}</script>`)
+  }
+  // Данные, которые Worker уже получил от Shikimori: приложение берёт их отсюда, а не новым запросом после загрузки.
+  if (meta?.preload && Object.keys(meta.preload).length) {
+    extra.push(`<script id="shiki-preload" type="application/json">${JSON.stringify(meta.preload).replace(/</g, '\\u003c')}</script>`)
+  }
+  if (meta?.lcpImage) {
+    extra.push(`<link rel="preload" as="image" href="${escapeHtml(meta.lcpImage)}" fetchpriority="high" />`)
   }
   if (meta?.body) {
     const body = `<main class="container">${meta.body}</main>`
