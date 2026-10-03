@@ -43,15 +43,30 @@ function Description({ parts }: { parts: Character['description'] }) {
 /** Страница персонажа: имя, описание со скрытыми спойлерами, сэйю и аниме с его участием. */
 export default function CharacterPage() {
   const { id = '' } = useParams()
-  // null — персонажа нет или Shikimori не ответил; прежний персонаж, пока грузится новый, не показываем.
-  const state = useAsync(() => fetchCharacter(id).catch(() => null), [id])
-  const c = state.value?.id === id ? state.value : undefined
+  const [attempt, setAttempt] = useState(0)
+  // null — такого персонажа нет (404), 'error' — Shikimori не ответил: тогда предлагаем повторить, а не «не найдено».
+  const state = useAsync(
+    () => fetchCharacter(id).catch((e: Error) => (/ 404:/.test(e.message) ? null : ('error' as const))),
+    [id, attempt],
+  )
+  // Прежний персонаж, пока грузится новый, не показываем.
+  const c = state.value && state.value !== 'error' && state.value.id === id ? state.value : undefined
   usePageMeta(
     c ? `${c.name}: персонаж аниме` : 'Персонаж',
     c ? `${c.name}${c.originalName ? ` (${c.originalName})` : ''}: описание, кто озвучивает и в каких аниме появляется.` : '',
   )
 
   if (state.value === null && !state.loading) return <NotFound />
+  if (state.value === 'error' && !state.loading)
+    return (
+      <main className="container empty-page">
+        <h1>Не удалось загрузить персонажа</h1>
+        <p className="muted">Shikimori сейчас не отвечает. Попробуйте ещё раз через минуту.</p>
+        <button type="button" className="btn btn--accent" onClick={() => setAttempt(attempt + 1)}>
+          Повторить
+        </button>
+      </main>
+    )
   if (!c) return <main className="container empty-page" aria-busy="true" />
 
   return (

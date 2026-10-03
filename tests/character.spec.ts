@@ -52,3 +52,17 @@ test('персонаж: своя страница с описанием, спо�
   await expect(cards.first()).toContainText(animes[0].russian)
   await expect(cards.nth(1)).toContainText('Второстепенная')
 })
+
+test('персонаж: «не найдено» только для 404, при сбое Shikimori — «Повторить»', async ({ page }) => {
+  await page.route(/\/api\/(shiki\/api\/)?characters\/404$/, (route) => route.fulfill({ status: 404, json: { message: 'Not found' } }))
+  await page.goto('/character/404')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Страница не найдена')
+
+  let fail = true
+  await page.route(/\/api\/(shiki\/api\/)?characters\/1$/, (route) => (fail ? route.fulfill({ status: 503, body: '' }) : route.fallback()))
+  await page.goto('/character/1')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Не удалось загрузить персонажа')
+  fail = false
+  await page.getByRole('button', { name: 'Повторить' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Спайк Шпигель')
+})
