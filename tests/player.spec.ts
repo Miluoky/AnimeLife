@@ -48,6 +48,11 @@ test('плеер: серии нет в релизе AniLibria — так и го
   await page.goto('/watch/1/5')
   await expect(page.getByText('Серии 5 пока нет в AniLibria — вот трейлер.')).toBeVisible()
   await expect(page.locator('video')).toHaveCount(0)
+  // Полоса серий не делает вид, что озвучены все: у AniLibria только 1–3 из 26, остальные приглушены.
+  await expect(page.getByText('В озвучке AniLibria: 3 из 26.')).toBeVisible()
+  const episodes = page.getByRole('navigation', { name: 'Серии' })
+  await expect(episodes.getByRole('link', { name: 'Серия 5, нет в озвучке AniLibria' })).toHaveClass(/ep-chip--missing/)
+  await expect(episodes.getByRole('link', { name: /^Серия 2: / })).not.toHaveClass(/ep-chip--missing/)
 })
 
 test('плеер: поиск по одному названию не ответил — ищем по следующему', async ({ page }) => {

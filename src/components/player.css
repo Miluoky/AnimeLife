@@ -175,6 +175,15 @@
   background: var(--accent);
 }
 
+.ep-chip--missing {
+  opacity: 0.4;
+}
+
+.ep-voiced {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+}
+
 .ep-chip[aria-current='page'] {
   background: var(--accent);
   border-color: var(--accent);

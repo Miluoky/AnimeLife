@@ -22,6 +22,8 @@ export default function Player() {
   const anime = result.value?.data
   // Названия серий приходят от AniLibria, когда плеер нашёл релиз.
   const [names, setNames] = useState<Record<number, string>>({})
+  // Другой тайтл — серии прошлого релиза не в счёт.
+  useEffect(() => setNames({}), [id])
   const list = useMyList()
   const seen = (anime && list.find((e) => e.anime.id === anime.id)?.watched) || 0
 
@@ -64,7 +66,7 @@ export default function Player() {
         trailerUrl={anime.trailerUrl}
       />
 
-      <EpisodePicker animeId={anime.id} total={total} current={current} seen={seen} names={names} />
+      <EpisodePicker animeId={anime.id} total={total} current={current} seen={seen} names={names} provider="AniLibria" />
 
       <div className="watch-head">
         <div className="watch-head__info">
@@ -115,18 +117,24 @@ function EpisodePicker({
   current,
   seen,
   names,
+  provider,
 }: {
   animeId: string
   total: number
   current: number
   seen: number
+  /** Серии, которые нашлись у источника (номер → название). Пусто — источник ещё не ответил. */
   names: Record<number, string>
+  provider: string
 }) {
   const [range, setRange] = useState(Math.floor((current - 1) / RANGE))
   const strip = useRef<HTMLDivElement>(null)
   const ranges = Math.ceil(total / RANGE)
   const from = range * RANGE + 1
   const to = Math.min(total, from + RANGE - 1)
+  // Источник озвучил не всё: остальные номера приглушены, чтобы не казалось, что есть все серии.
+  const voiced = Object.keys(names).length
+  const missing = (n: number) => voiced > 0 && !(n in names)
 
   // Текущая серия сразу на виду: прокручиваем только саму полосу, не страницу.
   useEffect(() => {
@@ -145,6 +153,11 @@ function EpisodePicker({
         <h2>Серии</h2>
         <span className="muted">{total}</span>
       </div>
+      {voiced > 0 && voiced < total && (
+        <p className="ep-voiced muted">
+          В озвучке {provider}: {voiced} из {total}. Приглушённых серий у источника нет.
+        </p>
+      )}
       {ranges > 1 && (
         <div className="ep-ranges" role="group" aria-label="Диапазон серий">
           {Array.from({ length: ranges }, (_, i) => (
@@ -165,9 +178,9 @@ function EpisodePicker({
           <Link
             key={n}
             to={`/watch/${animeId}/${n}`}
-            className={`ep-chip${n <= seen && n !== current ? ' ep-chip--seen' : ''}`}
+            className={`ep-chip${n <= seen && n !== current ? ' ep-chip--seen' : ''}${missing(n) ? ' ep-chip--missing' : ''}`}
             aria-current={n === current ? 'page' : undefined}
-            aria-label={`Серия ${n}${names[n] ? `: ${names[n]}` : ''}${n <= seen ? ', просмотрена' : ''}`}
+            aria-label={`Серия ${n}${names[n] ? `: ${names[n]}` : ''}${n <= seen ? ', просмотрена' : ''}${missing(n) ? `, нет в озвучке ${provider}` : ''}`}
             title={names[n] || undefined}
           >
             {n}

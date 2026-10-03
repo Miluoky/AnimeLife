@@ -174,6 +174,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const alStream = provider === 'anilibria' && alEp ? episodeStream(alEp, alQuality) : null
   const src = alStream?.url
 
+  // Позиция переносится только при смене качества: новая серия всегда начинается с начала.
+  // Эффект объявлен раньше потока, поэтому сбрасывает позицию до того, как поток её прочитает.
+  useEffect(() => {
+    resumeAt.current = 0
+  }, [shikimoriId, episode])
+
   /* ─── Инициализация HLS потока для AniLibria ─── */
   useEffect(() => {
     const video = videoRef.current

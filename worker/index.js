@@ -57,7 +57,7 @@ const KIND_NAMES = { tv: 'ТВ-сериал', movie: 'Фильм', ova: 'OVA', o
 async function json(url, init, ttl = 3600) {
   const res = await fetch(url, {
     ...init,
-    headers: { Accept: 'application/json', 'User-Agent': 'AnimeLife/1.0 (+https://github.com/ShizukuZK/Anime)', ...init?.headers },
+    headers: { Accept: 'application/json', 'User-Agent': 'AnimeLife/1.0 (+https://animelife.top)', ...init?.headers },
     cf: { cacheTtl: ttl, cacheEverything: true },
     // Страница не ждёт зависший сервис дольше 3 секунд: дальше отдаётся обычный index.html.
     signal: AbortSignal.timeout(3000),

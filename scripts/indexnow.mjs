@@ -19,7 +19,7 @@ if (readFileSync(new URL(`../public/${file}`, import.meta.url), 'utf8').trim() !
 
 async function get(url) {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'AnimeLife/1.0 (+https://github.com/ShizukuZK/Anime)' },
+    headers: { 'User-Agent': 'AnimeLife/1.0 (+https://animelife.top)' },
     signal: AbortSignal.timeout(20_000),
   })
   if (!res.ok) throw new Error(`${res.status} ${url}`)

@@ -49,7 +49,7 @@ npm run size     # бюджет размера сборки после npm run b
 Appwrite принимает запросы только с зарегистрированных адресов. В проекте добавлены Web-платформы:
 
 - `anime-night.pages.dev` и `*.anime-night.pages.dev` (Cloudflare Pages и превью)
-- `maintech67.me` (GitHub Pages)
+- `maintech67.me` (бывшая копия на GitHub Pages, больше не работает)
 - `animelife.top` и `www.animelife.top` (основной домен)
 - `anime.artemdrr61f9.workers.dev` (Workers Builds)
 
@@ -140,7 +140,7 @@ STUN Cloudflare и Google). Предложение и ответ с адреса
 - **Один адрес для поисковиков.** Основной сайт — `https://animelife.top` (`ORIGIN` в Worker). С `www.animelife.top`
   и `anime.artemdrr61f9.workers.dev` Worker отвечает постоянным редиректом 301 на тот же путь на animelife.top.
   `canonical`, `og:url`, разметка schema.org, `/sitemap.xml` и `/robots.txt` везде указывают на animelife.top.
-  Копия на GitHub Pages тоже называет канонической страницу на animelife.top (`useCanonical` в `src/data/pageMeta.ts`).
+  Копии сайта на других адресах тоже называют канонической страницу на animelife.top (`useCanonical` в `src/data/pageMeta.ts`).
 - **Превью и текст без JavaScript.** Для `/anime/:id`, `/watch/:id/:n`, `/together/:code` и `/u/:id` подставляются
   заголовок, описание и картинка (Open Graph, Twitter), для тайтла ещё разметка schema.org и простой текст страницы:
   название, год, жанры, описание, ссылки. На `/`, `/catalog` и `/ongoing` — список ссылок на популярные тайтлы.
@@ -209,4 +209,4 @@ TXT-запись `google-site-verification=…` в DNS домена (Cloudflare 
 - https://animelife.top — основной адрес. Домен и Worker `anime` живут в аккаунте Cloudflare от регистратора, публикует workflow `.github/workflows/animelife.yml` с настройками `wrangler.animelife.jsonc` (нужны секреты `ANIMELIFE_CF_EMAIL` и `ANIMELIFE_CF_API_KEY`)
 - https://anime.artemdrr61f9.workers.dev — Cloudflare Workers Builds из `main` (`wrangler.jsonc`)
 - https://anime-night.pages.dev — Cloudflare Pages, workflow `.github/workflows/cloudflare.yml` (нужны секреты `CLOUDFLARE_API_TOKEN` и `CLOUDFLARE_ACCOUNT_ID`)
-- http://maintech67.me/Anime/ — GitHub Pages, workflow `.github/workflows/pages.yml`
+- Код: https://github.com/temos123fox/AnimeLife (с 3 октября 2026; прежний репозиторий ShizukuZK/Anime и копия на GitHub Pages maintech67.me больше недоступны)
