@@ -1,0 +1,410 @@
+/**
+ * Свои кнопки поверх HLS-видео AniLibria вместо системных: большая кнопка воспроизведения,
+ * полоса перемотки с загруженным куском и подсказкой времени, громкость, качество, скорость,
+ * полный экран, «картинка в картинке», двойное касание для перемотки и горячие клавиши.
+ */
+import { useEffect, useReducer, useRef, useState, type CSSProperties, type PointerEvent, type RefObject } from 'react'
+import { FullscreenIcon, PauseIcon, PlayIcon, SkipIcon, VolumeIcon } from './Icons'
+import type { AniLibriaQuality } from '../api/anilibria'
+
+interface Props {
+  video: RefObject<HTMLVideoElement>
+  /** рамка плеера: её разворачиваем на весь экран, чтобы кнопки остались видны */
+  frame: RefObject<HTMLDivElement>
+  /** поток ещё не готов: вместо большой кнопки крутится загрузка */
+  loading: boolean
+  qualities: readonly AniLibriaQuality[]
+  quality: AniLibriaQuality
+  onQuality: (q: AniLibriaQuality) => void
+  /** переход к следующей серии; кнопка появляется под конец серии */
+  onNext?: () => void
+}
+
+type FsDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void }
+type FsEl = HTMLElement & { webkitRequestFullscreen?: () => void }
+type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
+
+const SPEEDS = [0.75, 1, 1.25, 1.5, 2]
+const SEEK_STEP = 10
+const HIDE_AFTER = 2600
+// Кнопка «Следующая серия» появляется за полторы минуты до конца — на титрах.
+const NEXT_BEFORE = 90
+
+export function formatTime(s: number) {
+  if (!Number.isFinite(s) || s < 0) s = 0
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = String(Math.floor(s % 60)).padStart(2, '0')
+  return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`
+}
+
+const clamp = (n: number) => Math.min(1, Math.max(0, n))
+
+function bufferedEnd(v: HTMLVideoElement) {
+  for (let i = 0; i < v.buffered.length; i++) {
+    if (v.buffered.start(i) <= v.currentTime + 0.5 && v.currentTime <= v.buffered.end(i)) return v.buffered.end(i)
+  }
+  return 0
+}
+
+export default function PlayerControls({ video, frame, loading, qualities, quality, onQuality, onNext }: Props) {
+  // Состояние берём прямо из <video>, а события лишь просят перерисовать кнопки.
+  const [, refresh] = useReducer((n: number) => n + 1, 0)
+  const [active, setActive] = useState(true)
+  const [menu, setMenu] = useState(false)
+  const [waiting, setWaiting] = useState(false)
+  const [preview, setPreview] = useState<number | null>(null)
+  const [dragging, setDragging] = useState(false)
+  // Подсказки: вспышка значка по центру и волна при перемотке двойным касанием.
+  const [flash, setFlash] = useState<{ key: number; play: boolean } | null>(null)
+  const [ripple, setRipple] = useState<{ key: number; side: 'back' | 'fwd' } | null>(null)
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>()
+  const lastTap = useRef(0)
+  const bar = useRef<HTMLDivElement>(null)
+
+  const v = video.current
+  const duration = v && Number.isFinite(v.duration) ? v.duration : 0
+  const time = v?.currentTime ?? 0
+  const paused = v ? v.paused : true
+  // Поток ещё не отдал даже длительность: показываем загрузку вместо кнопки.
+  const notReady = loading || !v || v.readyState < 1
+  const muted = !v || v.muted || v.volume === 0
+  const fsEl = (document as FsDoc).fullscreenElement ?? (document as FsDoc).webkitFullscreenElement
+  const fullscreen = !!fsEl && fsEl === frame.current
+  const pip = typeof document !== 'undefined' && document.pictureInPictureEnabled
+
+  useEffect(() => {
+    const el = video.current
+    if (!el) return
+    const events = ['play', 'pause', 'timeupdate', 'durationchange', 'progress', 'volumechange', 'ratechange', 'ended', 'loadedmetadata']
+    events.forEach((e) => el.addEventListener(e, refresh))
+    const wait = () => setWaiting(true)
+    const go = () => setWaiting(false)
+    el.addEventListener('waiting', wait)
+    el.addEventListener('playing', go)
+    el.addEventListener('canplay', go)
+    document.addEventListener('fullscreenchange', refresh)
+    document.addEventListener('webkitfullscreenchange', refresh)
+    refresh()
+    return () => {
+      events.forEach((e) => el.removeEventListener(e, refresh))
+      el.removeEventListener('waiting', wait)
+      el.removeEventListener('playing', go)
+      el.removeEventListener('canplay', go)
+      document.removeEventListener('fullscreenchange', refresh)
+      document.removeEventListener('webkitfullscreenchange', refresh)
+    }
+  }, [video])
+
+  // Кнопки прячутся через пару секунд без движения, пока видео идёт и меню закрыто.
+  const poke = () => {
+    setActive(true)
+    clearTimeout(hideTimer.current)
+    hideTimer.current = setTimeout(() => setActive(false), HIDE_AFTER)
+  }
+  useEffect(() => () => clearTimeout(hideTimer.current), [])
+
+  const togglePlay = () => {
+    const el = video.current
+    if (!el) return
+    const start = el.paused
+    if (start) void el.play().catch(() => undefined)
+    else el.pause()
+    setFlash({ key: Date.now(), play: start })
+    poke()
+  }
+
+  const seekBy = (delta: number) => {
+    const el = video.current
+    if (!el) return
+    el.currentTime = Math.min(Math.max(0, el.currentTime + delta), el.duration || el.currentTime + delta)
+    poke()
+  }
+
+  const toggleMute = () => {
+    const el = video.current
+    if (!el) return
+    el.muted = !muted
+    if (!el.muted && el.volume === 0) el.volume = 0.5
+  }
+
+  const toggleFullscreen = () => {
+    const doc = document as FsDoc
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      void (doc.exitFullscreen?.() ?? doc.webkitExitFullscreen?.())
+      return
+    }
+    const el = frame.current as FsEl | null
+    if (el?.requestFullscreen) void el.requestFullscreen().catch(() => undefined)
+    else if (el?.webkitRequestFullscreen) el.webkitRequestFullscreen()
+    // iPhone не умеет разворачивать элементы: на весь экран уходит само видео с системными кнопками.
+    else (video.current as IosVideo | null)?.webkitEnterFullscreen?.()
+  }
+
+  const togglePip = () => {
+    if (document.pictureInPictureElement) void document.exitPictureInPicture().catch(() => undefined)
+    else void video.current?.requestPictureInPicture().catch(() => undefined)
+  }
+
+  const setRate = (r: number) => {
+    const el = video.current
+    if (!el) return
+    el.defaultPlaybackRate = r
+    el.playbackRate = r
+  }
+
+  // Горячие клавиши на компьютере: пробел/K, стрелки, F, M.
+  const keys = useRef({ togglePlay, seekBy, toggleFullscreen, toggleMute })
+  keys.current = { togglePlay, seekBy, toggleFullscreen, toggleMute }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (e.ctrlKey || e.metaKey || e.altKey || target?.closest('input, textarea, select, [contenteditable]')) return
+      const inside = !!target && !!frame.current?.contains(target)
+      // Пробел на чужой кнопке или ссылке нажимает её, а не ставит паузу.
+      const onControl = !inside && !!target?.closest('button, a, [role="slider"]')
+      const k = e.key.toLowerCase()
+      const run = keys.current
+      if ((k === ' ' && !onControl) || k === 'k' || k === 'л') run.togglePlay()
+      else if (k === 'arrowleft' && !onControl) run.seekBy(-5)
+      else if (k === 'arrowright' && !onControl) run.seekBy(5)
+      else if (k === 'f' || k === 'а') run.toggleFullscreen()
+      else if (k === 'm' || k === 'ь') run.toggleMute()
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [frame])
+
+  /* ─── Полоса перемотки ─── */
+  const ratioAt = (e: PointerEvent) => {
+    const rect = bar.current!.getBoundingClientRect()
+    return clamp((e.clientX - rect.left) / rect.width)
+  }
+  const onSeekDown = (e: PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setDragging(true)
+    setPreview(ratioAt(e))
+  }
+  const onSeekMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (dragging || e.pointerType === 'mouse') setPreview(ratioAt(e))
+    poke()
+  }
+  const onSeekUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return
+    setDragging(false)
+    const el = video.current
+    if (el && duration) el.currentTime = ratioAt(e) * duration
+    if (e.pointerType !== 'mouse') setPreview(null)
+  }
+
+  /* ─── Касания и клики по самому видео ─── */
+  const onSurface = (e: PointerEvent<HTMLDivElement>) => {
+    if (menu) return setMenu(false)
+    if (e.pointerType === 'mouse') return togglePlay()
+    // Двойное касание у края: ±10 секунд; одиночное — показать или спрятать кнопки.
+    const now = Date.now()
+    if (now - lastTap.current < 320) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const side = e.clientX - rect.left < rect.width / 2 ? 'back' : 'fwd'
+      seekBy(side === 'back' ? -SEEK_STEP : SEEK_STEP)
+      setRipple({ key: now, side })
+      lastTap.current = 0
+      return
+    }
+    lastTap.current = now
+    if (active) {
+      clearTimeout(hideTimer.current)
+      setActive(false)
+    } else poke()
+  }
+
+  const played = duration ? (dragging && preview !== null ? preview : time / duration) : 0
+  const buffered = v && duration ? bufferedEnd(v) / duration : 0
+  const hidden = !active && !paused && !menu && !dragging
+  const nearEnd = !!onNext && duration > 0 && (duration - time < NEXT_BEFORE || !!v?.ended)
+
+  return (
+    <div
+      className={`vp-ui${hidden ? ' vp-ui--hidden' : ''}`}
+      onPointerMove={(e) => e.pointerType === 'mouse' && poke()}
+      onMouseLeave={() => !paused && setActive(false)}
+    >
+      <div className="vp-surface" onPointerUp={onSurface} onDoubleClick={toggleFullscreen} aria-hidden="true" />
+
+      {ripple && (
+        <span key={ripple.key} className={`vp-ripple vp-ripple--${ripple.side}`} aria-hidden="true">
+          {ripple.side === 'back' ? `−${SEEK_STEP}` : `+${SEEK_STEP}`} с
+        </span>
+      )}
+      {flash && (
+        <span key={flash.key} className="vp-flash" aria-hidden="true">
+          {flash.play ? <PlayIcon size={36} /> : <PauseIcon size={36} />}
+        </span>
+      )}
+
+      {notReady || (waiting && !paused) ? (
+        <span className="vp-loader" role="status" aria-label="Загрузка…" />
+      ) : (
+        paused && (
+          <button type="button" className="vp-big-play" aria-label="Смотреть" onClick={togglePlay}>
+            <PlayIcon size={34} />
+          </button>
+        )
+      )}
+
+      {nearEnd && (
+        <button type="button" className="btn btn--accent btn--small vp-next" onClick={onNext}>
+          Следующая серия
+          <SkipIcon />
+        </button>
+      )}
+
+      <div className="vp-bar">
+        <div
+          ref={bar}
+          className="vp-seek"
+          role="slider"
+          tabIndex={0}
+          aria-label="Перемотка"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(time)}
+          aria-valuetext={`${formatTime(time)} из ${formatTime(duration)}`}
+          style={{ '--played': played, '--buffered': buffered } as CSSProperties}
+          onPointerDown={onSeekDown}
+          onPointerMove={onSeekMove}
+          onPointerUp={onSeekUp}
+          onPointerLeave={() => !dragging && setPreview(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+              e.preventDefault()
+              e.stopPropagation()
+              seekBy(e.key === 'ArrowLeft' ? -5 : 5)
+            }
+          }}
+        >
+          <span className="vp-seek__track" />
+          <span className="vp-seek__thumb" />
+          {preview !== null && duration > 0 && (
+            <span className="vp-seek__tip" style={{ '--at': preview } as CSSProperties}>
+              {formatTime(preview * duration)}
+            </span>
+          )}
+        </div>
+
+        <div className="vp-row">
+          <button type="button" className="vp-btn" aria-label={paused ? 'Смотреть' : 'Пауза'} onClick={togglePlay}>
+            {paused ? <PlayIcon size={22} /> : <PauseIcon size={22} />}
+          </button>
+          <div className="vp-volume">
+            <button type="button" className="vp-btn" aria-label={muted ? 'Включить звук' : 'Выключить звук'} onClick={toggleMute}>
+              {muted ? <MutedIcon /> : <VolumeIcon />}
+            </button>
+            <input
+              type="range"
+              className="vp-volume__range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={muted ? 0 : v?.volume ?? 1}
+              aria-label="Громкость"
+              style={{ '--vol': muted ? 0 : v?.volume ?? 1 } as CSSProperties}
+              onChange={(e) => {
+                if (!v) return
+                v.volume = Number(e.target.value)
+                v.muted = v.volume === 0
+              }}
+            />
+          </div>
+          <span className="vp-time">
+            {formatTime(time)} <span className="vp-time__total">/ {formatTime(duration)}</span>
+          </span>
+          <span className="vp-row__gap" />
+
+          <div className="vp-menu-wrap">
+            <button
+              type="button"
+              className={`vp-btn vp-btn--gear${menu ? ' vp-btn--on' : ''}`}
+              aria-label="Качество и скорость"
+              aria-expanded={menu}
+              onClick={() => setMenu(!menu)}
+            >
+              <GearIcon />
+              <span className="vp-badge">{quality}p</span>
+            </button>
+            {menu && (
+              <div className="vp-menu" role="group" aria-label="Качество и скорость">
+                {qualities.length > 1 && (
+                  <>
+                    <div className="vp-menu__title">Качество</div>
+                    <div className="vp-menu__opts">
+                      {qualities.map((q) => (
+                        <button key={q} type="button" aria-pressed={q === quality} onClick={() => onQuality(q)}>
+                          {q}p
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div className="vp-menu__title">Скорость</div>
+                <div className="vp-menu__opts">
+                  {SPEEDS.map((r) => (
+                    <button key={r} type="button" aria-pressed={(v?.playbackRate ?? 1) === r} onClick={() => setRate(r)}>
+                      {r === 1 ? 'Обычная' : `${r}×`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {pip && (
+            <button type="button" className="vp-btn vp-btn--pip" aria-label="Картинка в картинке" onClick={togglePip}>
+              <PipIcon />
+            </button>
+          )}
+          <button
+            type="button"
+            className="vp-btn"
+            aria-label={fullscreen ? 'Выйти из полноэкранного режима' : 'На весь экран'}
+            onClick={toggleFullscreen}
+          >
+            <FullscreenIcon />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Значки, которые нужны только плееру ─── */
+
+const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+
+function MutedIcon() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6" />
+    </svg>
+  )
+}
+
+function GearIcon() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+      <circle cx="15" cy="7" r="2" />
+      <circle cx="9" cy="17" r="2" />
+    </svg>
+  )
+}
+
+function PipIcon() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <rect x="12" y="11" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}

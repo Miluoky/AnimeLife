@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
@@ -200,7 +200,8 @@ function AuthForm() {
 
   return (
     <form className="auth-card stack" onSubmit={onSubmit}>
-      <div className="chips" role="tablist" aria-label="Вход или регистрация">
+      {/* Подложка выбранной вкладки скользит между «Входом» и «Регистрацией» */}
+      <div className="seg seg--wide" role="tablist" aria-label="Вход или регистрация" style={{ '--i': mode === 'up' ? 1 : 0, '--n': 2 } as CSSProperties}>
         {(
           [
             ['in', 'Вход'],
@@ -215,7 +216,7 @@ function AuthForm() {
               type="button"
               role="tab"
               aria-selected={selected}
-              className={`pill${selected ? ' active' : ''}`}
+              className={`seg__item${selected ? ' seg__item--on' : ''}`}
               onClick={() => switchMode(id)}
             >
               {title}

@@ -1,5 +1,8 @@
 import { devices, expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import { mockServices } from './mocks'
+
+const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
 
 test.beforeEach(async ({ page }) => {
   await mockServices(page)
@@ -72,4 +75,51 @@ test('у страницы тайтла свой заголовок вкладк�
   await expect(page.getByRole('button', { name: 'Поделиться' })).toBeVisible()
   await page.goto('/catalog')
   await expect(page).toHaveTitle('Каталог аниме — Anime Life')
+})
+
+test.describe('вёрстка на телефоне', () => {
+  // Узкие iPhone, обычный и большой: ни одна страница не шире экрана (иначе её можно сдвинуть пальцем вбок).
+  for (const width of [360, 390, 430]) {
+    test(`ничего не вылезает за край экрана шириной ${width}`, async ({ page, isMobile }) => {
+      test.skip(!isMobile, 'только телефон')
+      await page.setViewportSize({ width, height: 844 })
+      // Серия с очень длинным названием: раньше из-за него страница плеера уезжала влево.
+      const release = fixture('anilibria-release')
+      release.episodes[0].name = 'Я — Луффи! Тот, кто станет королём пиратов! И очень длинное продолжение названия серии'
+      await page.route(/anilibria\.top\/api\/v1\/app\/search\/releases/, (route) => route.fulfill({ json: fixture('anilibria-search') }))
+      await page.route(/anilibria\.top\/api\/v1\/anime\/releases\/8443$/, (route) => route.fulfill({ json: release }))
+      await page.route(/cache\.libria\.fun\/.*/, () => {})
+
+      const routes: [string, string][] = [
+        ['/', '.poster-card'],
+        ['/catalog', '.poster-card'],
+        ['/anime/1', '.episode-card'],
+        ['/watch/1/1', '.vp-bar'],
+        ['/account', '.auth-card'],
+        ['/together', 'main'],
+        ['/schedule', 'main'],
+        ['/my-list', 'main'],
+      ]
+      for (const [path, ready] of routes) {
+        await page.goto(path)
+        await expect(page.locator(ready).first()).toBeVisible()
+        if (path.startsWith('/watch')) await expect(page.getByText(/Луффи/).first()).toBeAttached()
+        const [scroll, client] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
+        expect(scroll, `ширина страницы ${path}`).toBeLessThanOrEqual(client)
+      }
+    })
+  }
+})
+
+test('меню в шапке на телефоне открывается листом и закрывается по фону', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'только телефон')
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Открыть меню' }).click()
+  const menu = page.locator('#mobile-menu')
+  await expect(menu.getByRole('link', { name: 'Онгоинги' })).toBeVisible()
+  // Страница под меню не прокручивается.
+  await expect(page.locator('html')).toHaveClass(/scroll-lock/)
+  await page.locator('.menu-backdrop').click({ position: { x: 20, y: 700 } })
+  await expect(menu).toHaveCount(0)
+  await expect(page.locator('html')).not.toHaveClass(/scroll-lock/)
 })

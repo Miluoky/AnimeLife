@@ -5,7 +5,6 @@ import { useHistory } from '../data/history'
 import CatalogSection from '../components/CatalogSection'
 import { Poster } from '../components/PosterCard'
 import { PlayIcon } from '../components/Icons'
-import { useMorphLink } from '../components/morph'
 
 // Рекомендации ниже первого экрана: отдельная часть, грузится следом.
 const Recommendations = lazy(() => import('../components/Recommendations'))
@@ -22,7 +21,6 @@ function Hero() {
   const current = items[index] ?? items[0]
   const details = useAsync(async () => (current ? (await loadAnime(current.id)).data : undefined), [current?.id])
   const anime = details.value ?? current
-  const morph = useMorphLink(`/anime/${anime?.id}`)
 
   useEffect(() => {
     if (items.length < 2 || paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -71,7 +69,7 @@ function Hero() {
             <PlayIcon />
             Смотреть
           </Link>
-          <Link to={`/anime/${anime.id}`} className="btn btn--ghost" onClick={morph}>
+          <Link to={`/anime/${anime.id}`} className="btn btn--ghost">
             Подробнее
           </Link>
         </div>

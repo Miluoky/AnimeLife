@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom'
-import { useMorphLink } from './morph'
+import type { SyntheticEvent } from 'react'
 import type { Anime, AnimeCard } from '../data/catalog'
 import { prefetchTitle } from '../api/prefetch'
+
+/** Картинка проявляется, когда догрузилась, а не появляется построчно. */
+export const fadeIn = (e: SyntheticEvent<HTMLImageElement>) => e.currentTarget.classList.add('is-loaded')
 
 type PosterAnime = Pick<Anime, 'title' | 'posterUrl' | 'posterSmall' | 'posterSmall2x' | 'posterFill'>
 
@@ -23,7 +26,8 @@ export function Poster({
   if (!src) return <span className="placeholder-label">[Постер]</span>
   return (
     <img
-      className={`poster-img ${className ?? ''}`}
+      className={`poster-img poster-img--fade ${className ?? ''}`}
+      onLoad={fadeIn}
       src={src}
       srcSet={anime.posterSmall && anime.posterSmall2x ? `${anime.posterSmall} 1x, ${anime.posterSmall2x} 2x` : undefined}
       alt=""
@@ -41,12 +45,11 @@ export default function PosterCard({ anime, priority }: { anime: AnimeCard; prio
   const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} эп.`].filter(Boolean).join(' · ')
   const prefetch = () => prefetchTitle(anime.id)
   const to = `/anime/${anime.id}`
-  // При переходе на страницу тайтла постер карточки «перелетает» в шапку страницы (View Transitions).
-  const morph = useMorphLink(to, '.poster-card__img')
 
   return (
-    <Link to={to} className="poster-card" onClick={morph} onMouseEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch}>
-      <div className="poster-card__img" style={{ background: anime.posterFill }}>
+    <Link to={to} className="poster-card" onMouseEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch}>
+      {/* data-morph: при переходе на страницу тайтла постер «перелетает» в её шапку (см. morph.ts) */}
+      <div className="poster-card__img" data-morph style={{ background: anime.posterFill }}>
         <Poster anime={anime} priority={priority} />
         {anime.ongoing && <span className="poster-card__badge">Онгоинг</span>}
         {anime.score ? <span className="poster-card__score">★ {anime.score.toFixed(1)}</span> : null}

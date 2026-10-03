@@ -10,6 +10,8 @@
   --accent-soft: #ff8098;
   --font-display: 'Unbounded', sans-serif;
   --font-body: 'Manrope', sans-serif;
+  /* плавное торможение для всех анимаций */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 * {
@@ -331,97 +333,6 @@ h3 {
   justify-content: center;
 }
 
-.player-controls {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 16px 24px 18px;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.player-controls__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.player-btn {
-  width: 44px;
-  height: 44px;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.seek {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--line);
-  position: relative;
-}
-
-.seek__fill {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--accent);
-}
-
-.seek__thumb {
-  position: absolute;
-  top: -5px;
-  width: 16px;
-  height: 16px;
-  margin-left: -8px;
-  border-radius: 999px;
-  background: var(--text);
-}
-
-.episode-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 14px;
-  border-radius: 12px;
-  font-size: 15px;
-  color: var(--text);
-  border: 1px solid transparent;
-  background: transparent;
-  width: 100%;
-  text-align: left;
-}
-
-.episode-row.active {
-  border-color: var(--accent);
-  background: var(--surface-2);
-}
-
-.option-chip {
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text);
-}
-
-.option-chip.active {
-  border: 0;
-  background: var(--text);
-  color: var(--bg);
-  font-weight: 700;
-}
-
 /* Utilities */
 .sr-only {
   position: absolute;
@@ -459,8 +370,7 @@ h3 {
   gap: 12px;
 }
 
-.btn:disabled,
-.player-btn:disabled {
+.btn:disabled {
   opacity: 0.4;
   cursor: default;
 }
@@ -723,111 +633,6 @@ h3 {
   }
 }
 
-/* Player page */
-.player-page {
-  padding-top: 32px;
-  display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
-  align-items: flex-start;
-}
-
-.player-main {
-  flex: 1 1 760px;
-  gap: 24px;
-}
-
-.player-big-btn {
-  width: 84px;
-  height: 84px;
-  border-radius: 999px;
-  border: 0;
-  background: var(--accent);
-  color: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.skip-btn {
-  position: absolute;
-  right: 24px;
-  bottom: 96px;
-  height: 44px;
-  padding: 0 18px;
-  border-radius: 10px;
-  border: 1px solid #3a3b48;
-  background: var(--bg);
-  color: var(--text);
-  font-weight: 700;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.player-options {
-  display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
-  padding: 20px 24px;
-  border-radius: 16px;
-  background: var(--surface);
-}
-
-.player-options fieldset {
-  border: 0;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.player-options legend {
-  padding: 0;
-  margin-bottom: 10px;
-  font-size: 13px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.episode-list {
-  flex: 1 1 320px;
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  border-radius: 20px;
-  background: var(--surface);
-}
-
-.episode-list__items {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 640px;
-  overflow-y: auto;
-}
-
-.episode-row__num {
-  width: 40px;
-  font-family: var(--font-display);
-  font-weight: 700;
-}
-
-@media (max-width: 640px) {
-  .skip-btn {
-    bottom: 110px;
-    right: 12px;
-  }
-  .episode-list {
-    max-width: none;
-  }
-}
-
 /* Empty page */
 .empty-page {
   padding-top: 80px;
@@ -998,213 +803,10 @@ h3 {
   border: 0;
 }
 
-.player-tag {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--bg);
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-}
-
 .player-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* ─────── VideoPlayer: мульти-провайдерный блок ─────── */
-
-.video-player {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* Табы переключения провайдера */
-.vp-tabs {
-  display: flex;
-  gap: 2px;
-  background: var(--surface);
-  border-radius: 14px 14px 0 0;
-  padding: 6px 6px 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.vp-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.vp-tab {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 42px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 10px 10px 0 0;
-  background: transparent;
-  color: var(--muted);
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.vp-tab:hover {
-  color: var(--text);
-  background: var(--surface-2);
-}
-
-.vp-tab--active {
-  color: var(--text);
-  background: #05060a;
-}
-
-/* Спиннер загрузки внутри player-frame */
-.vp-spinner {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-  background: #05060a;
-}
-
-.vp-spinner__ring {
-  width: 48px;
-  height: 48px;
-  border: 3px solid var(--surface-2);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: vp-spin 0.8s linear infinite;
-}
-
-@keyframes vp-spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vp-spinner__ring {
-    animation: none;
-    border-top-color: var(--muted);
-  }
-}
-
-/* Нативный <video> внутри player-frame для AniLibria */
-.player-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: #000;
-  outline: none;
-}
-
-/* Панель управления AniLibria (серия + качество) под плеером */
-.al-controls {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 14px 20px;
-  border-radius: 0 0 16px 16px;
-  background: var(--surface);
-}
-
-.al-control-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.al-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.al-select {
-  height: 36px;
-  padding: 0 32px 0 12px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 14px;
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%23a3a3b2' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
-
-.al-select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-/* Fallback-сообщение при ошибке */
-.vp-fallback {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 32px;
-  text-align: center;
-  background: #05060a;
-}
-
-.vp-fallback__text {
-  margin: 0;
-  color: var(--text-soft);
-  font-size: 15px;
-  max-width: 400px;
-}
-
-/* Пояснение под трейлером, когда серий нет ни в одном источнике */
-.vp-note {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-/* Адаптивность: на узких экранах табы скроллятся, контролы стакаются */
-@media (max-width: 640px) {
-  .vp-tab {
-    padding: 0 12px;
-    font-size: 13px;
-  }
-
-  .al-controls {
-    padding: 10px 14px;
-    gap: 10px;
-  }
-
-  .al-select {
-    font-size: 13px;
-    height: 32px;
-  }
 }
 
 /* Мобильное меню */
@@ -1225,41 +827,125 @@ h3 {
   }
 }
 
-.mobile-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 8px;
-  padding-bottom: 20px;
-}
-
 .search.search--mobile {
   display: flex;
   width: 100%;
   max-width: none;
 }
 
+/* Меню под шапкой: выезжает листом, пункты появляются друг за другом, страница под ним затемнена. */
+.mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  padding-bottom: 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0 0 24px 24px;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.8);
+  transform-origin: top;
+  animation: sheet-in 0.32s var(--ease) both;
+}
+
+.mobile-menu--closing {
+  animation: sheet-out 0.22s ease-in both;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scaleY(0.96);
+  }
+}
+
+@keyframes sheet-out {
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+.mobile-menu > *,
+.mobile-menu__nav a {
+  animation: rise 0.4s var(--ease) both;
+}
+
+.mobile-menu__nav a:nth-child(1) { animation-delay: 40ms; }
+.mobile-menu__nav a:nth-child(2) { animation-delay: 70ms; }
+.mobile-menu__nav a:nth-child(3) { animation-delay: 100ms; }
+.mobile-menu__nav a:nth-child(4) { animation-delay: 130ms; }
+.mobile-menu__nav a:nth-child(5) { animation-delay: 160ms; }
+.mobile-menu__nav a:nth-child(6) { animation-delay: 190ms; }
+
 .mobile-menu__nav {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .mobile-menu__nav a {
   min-height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   font-weight: 600;
   font-size: 17px;
-  color: var(--muted);
-  border-bottom: 1px solid var(--surface-2);
+  color: var(--text-soft);
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+}
+
+.mobile-menu__nav a:active {
+  transform: scale(0.98);
+  background: var(--surface-2);
 }
 
 .mobile-menu__nav a.active {
   color: var(--text);
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: rgba(5, 6, 10, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fade-in 0.3s both;
+}
+
+.menu-backdrop--closing {
+  animation: fade-out 0.22s both;
+}
+
+.scroll-lock,
+.scroll-lock body {
+  overflow: hidden;
+}
+
+/* Значок меню поворачивается при смене «гамбургер» ↔ «крестик» */
+.menu-btn__icon {
+  display: grid;
+  animation: spin-in 0.3s var(--ease);
+}
+
+@keyframes spin-in {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
+  }
 }
 
 @media (min-width: 901px) {
-  .mobile-menu {
+  .mobile-menu,
+  .menu-backdrop {
     display: none;
   }
 }
@@ -2377,7 +2063,7 @@ h3 {
 
 /* Разделы ниже экрана браузер не отрисовывает, пока до них не докрутили. */
 .home > section:not(:first-child),
-.title-page > section {
+.title-page > section:not(.title-head) {
   content-visibility: auto;
   contain-intrinsic-size: auto 480px;
 }
@@ -2436,23 +2122,36 @@ h3 {
   -webkit-backdrop-filter: blur(16px) saturate(140%);
 }
 
-/* Переходы между страницами: страница мягко появляется, постер «перелетает» в шапку тайтла. */
+/* Переходы между страницами (см. morph.ts): старая страница уходит, новая поднимается снизу,
+   шапка и нижнее меню стоят на месте, постер «перелетает» в шапку тайтла.
+   Без View Transitions (Safari до 18) страница просто мягко появляется. */
 .page {
-  animation: page-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: page-in 0.4s var(--ease) both;
+}
+.vt .page {
+  animation: none;
 }
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(12px);
   }
 }
-::view-transition-old(root),
+::view-transition-old(root) {
+  animation: 0.2s ease-in both vt-out;
+}
 ::view-transition-new(root) {
-  animation-duration: 0.28s;
+  animation: 0.38s var(--ease) both page-in;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
 }
 ::view-transition-group(poster) {
-  animation-duration: 0.4s;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-duration: 0.45s;
+  animation-timing-function: var(--ease);
 }
 ::view-transition-old(poster),
 ::view-transition-new(poster) {
@@ -2566,7 +2265,8 @@ h3 {
 .title-head::before {
   content: '';
   position: absolute;
-  inset: -80px -40px auto;
+  /* вправо не выходим: иначе на телефоне страница шире экрана */
+  inset: -80px 0 auto -40px;
   height: 360px;
   background: radial-gradient(60% 80% at 20% 0%, color-mix(in srgb, var(--glow, var(--surface)) 55%, transparent), transparent 70%);
   pointer-events: none;
@@ -2668,41 +2368,58 @@ h3 {
     bottom: 0;
     z-index: 40;
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    view-transition-name: bottom-nav;
     background: color-mix(in srgb, var(--bg) 85%, transparent);
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
     border-top: 1px solid var(--surface-2);
   }
   .bottom-nav__item {
+    position: relative;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 3px;
-    padding: 6px 0 4px;
-    border-radius: 12px;
+    padding: 7px 2px 5px;
+    border-radius: 14px;
     color: var(--muted);
     font-size: 10.5px;
     font-weight: 600;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.25s, transform 0.15s;
+  }
+  .bottom-nav__item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    transition: color 0.2s, transform 0.15s;
   }
   .bottom-nav__item:active {
-    transform: scale(0.94);
+    transform: scale(0.9);
   }
   .bottom-nav__item.active {
     color: var(--accent);
   }
-  .bottom-nav__item svg {
-    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
+  /* Значок активного раздела подпрыгивает */
   .bottom-nav__item.active svg {
-    transform: translateY(-2px);
+    animation: nav-bounce 0.5s var(--ease);
   }
-  /* Верхнее меню на телефоне больше не нужно: разделы в нижнем меню, в шапке остаётся поиск. */
-  .mobile-menu__nav {
-    display: none;
+  /* Подложка под активным пунктом переезжает между разделами */
+  .bottom-nav__glider {
+    position: absolute;
+    top: 6px;
+    left: 4px;
+    width: calc((100% - 8px) / 6);
+    height: 50px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    transform: translateX(calc(var(--i) * 100%));
+    transition: transform 0.45s cubic-bezier(0.3, 1.3, 0.5, 1);
+    pointer-events: none;
+    animation: fade-in 0.3s;
   }
   body {
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
@@ -3026,4 +2743,444 @@ input[type='radio'] {
 }
 .link-accent {
   color: var(--accent);
+}
+
+/* ===== Оформление (шаг 3): отклик на касания, анимации, ровная вёрстка на телефоне ===== */
+
+/* Отступы по краям учитывают вырез и закругления iPhone в горизонтальном положении. */
+@media (max-width: 640px) {
+  .container {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .home {
+    padding-top: 24px;
+    gap: 40px;
+  }
+  .page-title {
+    font-size: 26px;
+  }
+  .section-head h2 {
+    font-size: 21px;
+  }
+}
+
+.site-header {
+  view-transition-name: site-header;
+}
+
+/* Видимая рамка фокуса для клавиатуры у всех кликабельных элементов. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Отклик на нажатие: элемент чуть сжимается, при наведении подсвечивается. */
+.btn,
+.pill,
+.chip-btn,
+.icon-btn,
+.link-btn,
+.seg__item,
+.episode-card,
+.schedule-row,
+.rated-item,
+.search-hint,
+.toast__action {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s var(--ease), background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.25s, filter 0.2s;
+}
+.btn:active:not(:disabled),
+.pill:active,
+.icon-btn:active,
+.seg__item:active,
+.link-btn:active {
+  transform: scale(0.95);
+}
+.episode-card:active,
+.schedule-row:active,
+.rated-item:active,
+.poster-card:active .poster-card__img {
+  transform: scale(0.97);
+}
+.btn {
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+}
+.btn svg {
+  flex-shrink: 0;
+}
+.btn--ghost:hover:not(:disabled),
+.pill:hover:not(.active),
+.icon-btn:hover {
+  border-color: var(--muted);
+}
+/* Кнопка акцента светится и при нажатии расходится кольцом */
+.btn--accent {
+  box-shadow: 0 10px 28px -12px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+.btn--accent:active:not(:disabled) {
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.btn:disabled {
+  box-shadow: none;
+}
+.pill {
+  white-space: nowrap;
+  transition: transform 0.15s var(--ease), background 0.25s, border-color 0.25s, color 0.25s;
+}
+.pill.active {
+  animation: pop 0.35s var(--ease);
+}
+
+/* Переключатель вкладок с подложкой, которая скользит к выбранной (--i — номер, --n — сколько вкладок). */
+.seg {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  isolation: isolate;
+}
+.seg::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--n));
+  border-radius: 10px;
+  background: var(--surface-2);
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px var(--line);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform 0.35s var(--ease);
+}
+.seg--wide {
+  display: grid;
+}
+.seg__item {
+  min-width: 0;
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seg__item:hover,
+.seg__item--on {
+  color: var(--text);
+}
+
+/* Общие анимации появления */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+@keyframes nav-bounce {
+  30% {
+    transform: translateY(-5px) scale(1.12);
+  }
+  60% {
+    transform: translateY(1px) scale(0.96);
+  }
+}
+
+/* Карточки появляются лесенкой. */
+.grid > *,
+.row-scroll > *,
+.schedule > *,
+.rated-list > * {
+  animation: rise 0.5s var(--ease) both;
+}
+.grid > :nth-child(2),
+.row-scroll > :nth-child(2),
+.schedule > :nth-child(2) { animation-delay: 40ms; }
+.grid > :nth-child(3),
+.row-scroll > :nth-child(3),
+.schedule > :nth-child(3) { animation-delay: 80ms; }
+.grid > :nth-child(4),
+.row-scroll > :nth-child(4),
+.schedule > :nth-child(4) { animation-delay: 120ms; }
+.grid > :nth-child(5),
+.row-scroll > :nth-child(5),
+.schedule > :nth-child(5) { animation-delay: 160ms; }
+.grid > :nth-child(6),
+.row-scroll > :nth-child(6),
+.schedule > :nth-child(6) { animation-delay: 200ms; }
+.grid > :nth-child(n + 7),
+.row-scroll > :nth-child(n + 7),
+.schedule > :nth-child(n + 7) { animation-delay: 240ms; }
+
+/* Разделы ниже первого экрана проявляются, когда до них докрутили (где браузер это умеет). */
+@supports (animation-timeline: view()) {
+  .home > section:not(:first-child),
+  .title-page > section:not(.title-head) {
+    animation: rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 25%;
+  }
+}
+
+/* Постер проявляется, когда загрузился; до этого виден цвет постера. */
+.poster-img--fade {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.poster-img--fade.is-loaded {
+  opacity: 1;
+}
+
+.poster-card {
+  min-width: 0;
+}
+.poster-card__img {
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+/* Название в две строки: карточки в сетке одной высоты. */
+.poster-card__title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.poster-card__meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Чипы в шапке раздела на телефоне листаются вбок, а не занимают пять строк. */
+@media (max-width: 640px) {
+  .section-head {
+    min-width: 0;
+  }
+  .section-head .chips,
+  .chip-filter {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 2px 16px;
+    max-width: calc(100% + 32px);
+  }
+  .section-head .chips::-webkit-scrollbar,
+  .chip-filter::-webkit-scrollbar {
+    display: none;
+  }
+  .section-head > :has(+ .chips) {
+    flex-basis: 100%;
+  }
+  .grid--posters {
+    gap: 20px 12px;
+  }
+  .grid--episodes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+/* Фильтры каталога: сортировка и статус чипами, остальное списками. */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  align-items: end;
+}
+.filter {
+  min-width: 0;
+}
+.filter select {
+  width: 100%;
+  text-overflow: ellipsis;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.filter--set select {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+@media (max-width: 640px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filter {
+    flex: none;
+  }
+}
+
+/* Главная: на телефоне сначала обложка, под ней текст; кнопки во всю ширину. */
+.hero__art {
+  isolation: isolate;
+}
+@media (max-width: 640px) {
+  .hero {
+    gap: 20px;
+  }
+  .hero__art {
+    order: -1;
+    min-height: 0;
+    height: 300px;
+    padding: 16px;
+    border-radius: 24px;
+  }
+  .hero__art-poster {
+    height: 100%;
+  }
+  .hero__title {
+    font-size: 30px;
+  }
+  .hero__text {
+    gap: 14px;
+  }
+  .hero__desc {
+    font-size: 15px;
+    -webkit-line-clamp: 3;
+  }
+  .hero .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hero .actions .btn {
+    padding: 0 12px;
+  }
+  .hero--loading {
+    min-height: 520px;
+  }
+}
+
+/* Страница тайтла на телефоне: постер меньше и по центру, кнопки ровной сеткой. */
+@media (max-width: 640px) {
+  .title-page {
+    gap: 36px;
+  }
+  .title-head {
+    gap: 20px;
+  }
+  .title-head__poster {
+    flex: 0 0 auto;
+    width: 140px;
+    border-radius: 16px;
+  }
+  .title-head__info {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  .title-head .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .title-head .actions > * {
+    min-width: 0;
+    padding: 0 12px;
+  }
+  .title-body > .stack:first-child,
+  .title-aside {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+}
+.title-body > .stack:first-child,
+.title-aside {
+  min-width: 0;
+}
+.episode-card {
+  min-width: 0;
+}
+@media (hover: hover) {
+  .episode-card:hover .episode-card__img,
+  .rec-card:hover .poster-card__img {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 30px -16px rgba(0, 0, 0, 0.8);
+  }
+}
+.episode-card__img {
+  transition: transform 0.3s var(--ease), box-shadow 0.3s;
+}
+
+/* Плавно раскрывающиеся подсказки, окна и уведомления. */
+.search-hints {
+  transform-origin: top;
+  animation: menu-in 0.2s var(--ease);
+}
+.lightbox {
+  animation: fade-in 0.25s both;
+}
+.lightbox__body {
+  animation: rise 0.35s var(--ease) both;
+}
+/* Уведомление само уходит вниз перед исчезновением (живёт 4 секунды, см. toast.ts). */
+.toast {
+  animation: toast-in 0.35s var(--ease), toast-out 0.3s ease-in 3.7s forwards;
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+
+/* Карточки профиля и расписания: ровные отступы и мягкий подъём при наведении. */
+.schedule-row__info {
+  flex: 1;
+}
+@media (max-width: 640px) {
+  .schedule {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .schedule-day,
+  .auth-card {
+    padding: 16px;
+  }
+  .stat-tile {
+    padding: 16px;
+  }
+  .stat-tile__value {
+    font-size: 26px;
+  }
+}
+
+/* Без анимаций: выключаем и прокручиваемые проявления, и подпрыгивания. */
+@media (prefers-reduced-motion: reduce) {
+  .home > section:not(:first-child),
+  .title-page > section:not(.title-head) {
+    animation: none;
+  }
+}
+:root[data-calm='1'] .home > section:not(:first-child),
+:root[data-calm='1'] .title-page > section:not(.title-head) {
+  animation: none;
 }

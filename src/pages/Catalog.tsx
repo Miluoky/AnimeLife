@@ -62,6 +62,29 @@ function Filter({ label, name, value, any, options, onChange }: FilterProps) {
   )
 }
 
+/** Короткие фильтры — чипами: выбор виден сразу и меняется одним касанием. */
+function ChipFilter({ label, name, value, any, options, onChange }: FilterProps) {
+  const all = any ? [{ id: '', title: any }, ...options] : options
+  return (
+    <div className="chip-filter" role="group" aria-label={label}>
+      {all.map((o) => {
+        const on = String(o.id) === value
+        return (
+          <button
+            key={o.id}
+            type="button"
+            className={`pill${on ? ' active' : ''}`}
+            aria-pressed={on}
+            onClick={() => onChange(name, String(o.id))}
+          >
+            {o.title}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Каталог с фильтрами. Все фильтры живут в адресе, поэтому подборкой можно поделиться ссылкой. */
 export default function Catalog() {
   usePageMeta('Каталог аниме')
@@ -104,15 +127,17 @@ export default function Catalog() {
           )}
         </div>
 
+        <ChipFilter
+          label="Сортировка"
+          name="order"
+          value={value('order') || 'popularity'}
+          any=""
+          options={orders}
+          onChange={(name, v) => change(name, v === 'popularity' ? '' : v)}
+        />
+        <ChipFilter label="Статус" name="status" value={value('status')} any="Все" options={statuses} onChange={change} />
+
         <div className="filters" role="group" aria-label="Фильтры каталога">
-          <Filter
-            label="Сортировка"
-            name="order"
-            value={value('order')}
-            any=""
-            options={orders}
-            onChange={change}
-          />
           <Filter
             label="Жанр"
             name="genre"
@@ -122,7 +147,6 @@ export default function Catalog() {
             onChange={change}
           />
           <Filter label="Тип" name="kind" value={value('kind')} any="Любой" options={kinds} onChange={change} />
-          <Filter label="Статус" name="status" value={value('status')} any="Любой" options={statuses} onChange={change} />
           <Filter label="Год" name="year" value={value('year')} any="Любой" options={years} onChange={change} />
           <Filter label="Оценка" name="score" value={value('score')} any="Любая" options={scores} onChange={change} />
           {filtersSet && (

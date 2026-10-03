@@ -4,21 +4,24 @@
  * Поддерживает три источника:
  *   1. Kodik    — iframe-балансер, основной для СНГ.
  *   2. Alloha   — iframe-балансер, резервный.
- *   3. AniLibria — кастомный HLS-плеер через Hls.js, без рекламы.
+ *   3. AniLibria — HLS-поток через Hls.js со своими кнопками (PlayerControls).
  *
  * Провайдер переключается табами над видео. При смене текущий поток
  * останавливается, контейнер динамически монтирует нужный плеер.
  * Если ни один источник не может показать серию, вместо пустого экрана — трейлер с Shikimori.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
 import {
   findRelease,
   episodeStream,
   qualities,
+  type AniLibriaEpisode,
   type AniLibriaRelease,
   type AniLibriaQuality,
 } from '../api/anilibria'
+import PlayerControls from './PlayerControls'
+import './player.css'
 import {
   kodikEmbedUrl,
   allohaEmbedUrl,
@@ -46,8 +49,10 @@ export interface VideoPlayerProps {
   episode: number
   /** Общее количество серий. */
   totalEpisodes: number
-  /** Переход к другой серии (выбор в панели AniLibria). */
+  /** Переход к другой серии (кнопка «Следующая серия» под конец видео). */
   onEpisodeChange?: (episode: number) => void
+  /** Серии найденного релиза AniLibria: странице нужны их названия для списка серий. */
+  onEpisodes?: (episodes: AniLibriaEpisode[]) => void
   /** Embed-ссылка на трейлер: показывается, когда серию взять негде. */
   trailerUrl?: string
 }
@@ -64,8 +69,8 @@ function buildTabs(): ProviderTab[] {
   return [
     { id: 'kodik', label: 'Kodik', available: isBalancerAvailable('kodik') },
     { id: 'alloha', label: 'Alloha', available: isBalancerAvailable('alloha') },
-    // AniLibria всегда доступна — бесплатный публичный API.
-    { id: 'anilibria', label: 'AniLibria (Без рекламы)', available: true },
+    // AniLibria всегда доступна — бесплатный публичный API (в новых потоках бывает реклама).
+    { id: 'anilibria', label: 'AniLibria', available: true },
   ]
 }
 
@@ -94,7 +99,7 @@ function saveProvider(id: Provider) {
 /* ──────────────── Компонент ──────────────── */
 
 export default function VideoPlayer(props: VideoPlayerProps) {
-  const { title, originalTitle, englishTitle, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, trailerUrl } = props
+  const { title, originalTitle, englishTitle, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl } = props
 
   const tabs = buildTabs()
   // Выбранный ранее провайдер, иначе первый доступный; если источников нет вовсе — сразу трейлер.
@@ -116,6 +121,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // Ошибка воспроизведения текущего потока (сбрасывается при смене потока).
   const [streamError, setStreamError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
+  // Позиция, с которой продолжить после смены качества (поток меняется, а серия та же).
+  const resumeAt = useRef(0)
   const hlsRef = useRef<import('hls.js').default | null>(null)
 
   // Сброс загрузки при смене провайдера.
@@ -123,6 +131,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     setLoading(true)
     setError(null)
   }, [provider])
+
+  const onEpisodesRef = useRef(onEpisodes)
+  onEpisodesRef.current = onEpisodes
 
   /* ─── Поиск релиза AniLibria по id Shikimori ─── */
   useEffect(() => {
@@ -140,7 +151,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         const release = await findRelease(shikimoriId, [title, originalTitle, englishTitle])
         if (cancelled) return
         setAlRelease(release)
-        if (!release) setError(NO_SOURCES)
+        if (release) onEpisodesRef.current?.(release.episodes)
+        else setError(NO_SOURCES)
       } catch {
         if (!cancelled) {
           setAlRelease(null)
@@ -175,7 +187,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       hlsRef.current = null
     }
 
-    const onLoaded = () => setLoading(false)
+    const onLoaded = () => {
+      setLoading(false)
+      if (resumeAt.current) video.currentTime = resumeAt.current
+    }
     const onError = () => setStreamError(PLAY_ERROR)
     // HLS.js нужен только для браузеров без нативной поддержки HLS (Chrome, Firefox).
     // Safari поддерживает HLS нативно.
@@ -195,7 +210,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         hlsRef.current = instance
         instance.loadSource(src)
         instance.attachMedia(video)
-        instance.on(Hls.Events.MANIFEST_PARSED, () => setLoading(false))
+        instance.on(Hls.Events.MANIFEST_PARSED, onLoaded)
         instance.on(Hls.Events.ERROR, (_, data) => {
           if (data.fatal) setStreamError(PLAY_ERROR)
         })
@@ -206,6 +221,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
     return () => {
       cancelled = true
+      resumeAt.current = video.currentTime
       video.removeEventListener('loadedmetadata', onLoaded)
       video.removeEventListener('error', onError)
       if (hlsRef.current) {
@@ -266,7 +282,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   function renderAniLibria() {
     if (!src) return null
     // Видео остаётся в DOM и при ошибке потока: эффект HLS привязан к нему.
-    return <video ref={videoRef} className="player-video" controls playsInline autoPlay hidden={!!streamError} />
+    return <video ref={videoRef} className="player-video" playsInline autoPlay hidden={!!streamError} />
   }
 
   /* ─── Почему текущий источник не может показать серию (null — может) ─── */
@@ -296,19 +312,27 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     </button>
   )
   const alAvailable = alEp ? qualities.filter((q) => alEp[`hls_${q}` as const]) : []
+  const hasNext = !!onEpisodeChange && episode < totalEpisodes && !!alRelease?.episodes.some((e) => e.ordinal === episode + 1)
+  const visibleTabs = tabs.filter((t) => t.available)
+  const tabIndex = visibleTabs.findIndex((t) => t.id === provider)
 
   /* ─── Рендер ─── */
 
   return (
     <div className="video-player">
-      {/* Табы переключения провайдера */}
-      <div className="vp-tabs" role="tablist" aria-label="Источник видео">
-        {tabs.filter((t) => t.available).map((tab) => (
+      {/* Табы переключения провайдера: подложка выбранного таба скользит между источниками (--i, --n) */}
+      <div
+        className="vp-tabs seg"
+        role="tablist"
+        aria-label="Источник видео"
+        style={{ '--i': Math.max(0, tabIndex), '--n': visibleTabs.length } as CSSProperties}
+      >
+        {visibleTabs.map((tab) => (
           <button
             key={tab.id}
             role="tab"
             type="button"
-            className={`vp-tab${tab.id === provider ? ' vp-tab--active' : ''}`}
+            className={`seg__item${tab.id === provider ? ' seg__item--on' : ''}`}
             aria-selected={tab.id === provider}
             onClick={() => setProvider(tab.id)}
           >
@@ -318,12 +342,23 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       </div>
 
       {/* Контейнер плеера 16:9 */}
-      <div className="player-frame">
+      <div className="player-frame" ref={frameRef}>
         {loading && !unavailable && <Spinner />}
 
         {provider === 'kodik' && renderKodik()}
         {provider === 'alloha' && renderAlloha()}
         {provider === 'anilibria' && renderAniLibria()}
+        {provider === 'anilibria' && alStream && !unavailable && (
+          <PlayerControls
+            video={videoRef}
+            frame={frameRef}
+            loading={loading}
+            qualities={alAvailable}
+            quality={alStream.quality}
+            onQuality={setAlQuality}
+            onNext={hasNext ? () => onEpisodeChange?.(episode + 1) : undefined}
+          />
+        )}
 
         {unavailable && (trailerUrl ? (
           <>
@@ -353,47 +388,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         </div>
       )}
 
-      {/* Панель управления AniLibria: серия + качество */}
-      {alRelease && alStream && !unavailable && (
-        <div className="al-controls">
-          {/* Селектор серии: переключает страницу, чтобы заголовок и прогресс совпадали с видео */}
-          {onEpisodeChange && (
-            <div className="al-control-group">
-              <label className="al-label" htmlFor="al-episode">Серия</label>
-              <select
-                id="al-episode"
-                className="al-select"
-                value={episode}
-                onChange={(e) => onEpisodeChange(Number(e.target.value))}
-              >
-                {/* Только серии, которые есть на сайте: страница дальше последней вышедшей не откроется */}
-                {alRelease.episodes.filter((ep) => ep.ordinal <= totalEpisodes).map((ep) => (
-                  <option key={ep.ordinal} value={ep.ordinal}>
-                    {ep.ordinal}{ep.name ? ` — ${ep.name}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Селектор качества */}
-          {alAvailable.length > 1 && (
-            <div className="al-control-group">
-              <label className="al-label" htmlFor="al-quality">Качество</label>
-              <select
-                id="al-quality"
-                className="al-select"
-                value={alStream.quality}
-                onChange={(e) => setAlQuality(e.target.value as AniLibriaQuality)}
-              >
-                {alAvailable.map((q) => (
-                  <option key={q} value={q}>{q}p</option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

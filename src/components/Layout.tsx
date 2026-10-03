@@ -7,6 +7,7 @@ import Toasts from './Toasts'
 import PageErrorBoundary from './PageErrorBoundary'
 import { useAuth } from '../data/auth'
 import { applyAppearance } from '../data/theme'
+import { useViewTransitions } from './morph'
 
 // Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
 const InstallBanner = lazy(() => import('./InstallBanner'))
@@ -23,14 +24,33 @@ export default function Layout() {
   const location = useLocation()
   const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  // Меню закрывается с анимацией: пока она идёт, оно ещё на экране.
+  const [menuClosing, setMenuClosing] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const header = useRef<HTMLElement>(null)
+
+  useViewTransitions()
+
+  const toggleMenu = (open: boolean) => {
+    if (open === menuOpen) return
+    setMenuOpen(open)
+    setMenuClosing(!open)
+  }
 
   // При переходе на другую страницу: закрыть мобильное меню и вернуться наверх.
   useEffect(() => {
     setMenuOpen(false)
     window.scrollTo(0, 0)
   }, [location.pathname])
+
+  // Пока меню открыто, страница под ним не прокручивается; Esc закрывает меню.
+  useEffect(() => {
+    document.documentElement.classList.toggle('scroll-lock', menuOpen)
+    if (!menuOpen) return
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && toggleMenu(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   // Достижения и открытый профиль не нужны для первого экрана: подключаем, когда браузер свободен.
   const publicProfile = !!(user?.prefs as { publicProfile?: boolean } | undefined)?.publicProfile
@@ -60,7 +80,7 @@ export default function Layout() {
       e.preventDefault()
       const desktop = header.current?.querySelector<HTMLInputElement>('.search:not(.search--mobile) input')
       if (desktop && desktop.offsetParent) return desktop.focus()
-      setMenuOpen(true)
+      toggleMenu(true)
       setTimeout(() => header.current?.querySelector<HTMLInputElement>('.search--mobile input')?.focus(), 50)
     }
     window.addEventListener('keydown', onKey)
@@ -104,24 +124,36 @@ export default function Layout() {
             aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
             aria-expanded={menuOpen}
             aria-controls="mobile-menu"
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => toggleMenu(!menuOpen)}
           >
-            {menuOpen ? <CloseIcon /> : <MenuIcon />}
+            <span className="menu-btn__icon" key={String(menuOpen)}>
+              {menuOpen ? <CloseIcon /> : <MenuIcon />}
+            </span>
           </button>
         </div>
-        {menuOpen && (
-          <div id="mobile-menu" className="mobile-menu container">
-            <SearchBox className="search search--mobile" onDone={() => setMenuOpen(false)} />
+        {(menuOpen || menuClosing) && (
+          <div
+            id="mobile-menu"
+            className={`mobile-menu container${menuOpen ? '' : ' mobile-menu--closing'}`}
+            onAnimationEnd={(e) => e.target === e.currentTarget && !menuOpen && setMenuClosing(false)}
+          >
+            <SearchBox className="search search--mobile" onDone={() => toggleMenu(false)} />
             <nav className="mobile-menu__nav" aria-label="Основное меню">
               {navLinks}
             </nav>
           </div>
         )}
       </header>
+      {(menuOpen || menuClosing) && (
+        <div className={`menu-backdrop${menuOpen ? '' : ' menu-backdrop--closing'}`} onClick={() => toggleMenu(false)} />
+      )}
 
       <div className="page" key={location.pathname}>
         <PageErrorBoundary>
-          <Outlet />
+          {/* Пока код страницы едет по сети, шапка и меню остаются на месте. */}
+          <Suspense fallback={<main className="container page-fallback" aria-busy="true" />}>
+            <Outlet />
+          </Suspense>
         </PageErrorBoundary>
       </div>
 
