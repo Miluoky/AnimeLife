@@ -3,17 +3,35 @@
  *
  * Сайт — одностраничное приложение: без этого кода Telegram, VK и поисковики видят у любой ссылки
  * одинаковый заголовок и пустую страницу. Здесь в index.html подставляются канонический адрес на animelife.top,
- * а для тайтла, комнаты и профиля — свои заголовок, описание и картинка (Open Graph), для тайтла ещё разметка
- * schema.org и простой текст страницы для поисковиков без JavaScript. Несуществующие страницы получают код 404,
- * временные и личные — noindex. Старые адреса (www, workers.dev) постоянно перенаправляются на animelife.top.
- * Плюс /sitemap.xml с популярными тайтлами и /robots.txt со ссылкой на него.
+ * свои заголовок, описание и картинка (Open Graph) для каждой страницы, разметка schema.org и простой текст
+ * страницы для поисковиков без JavaScript: у тайтла — описание, серии, связанное и похожее, у разделов и
+ * посадочных страниц (жанры, годы, сезоны, типы) — список тайтлов со ссылками и страницами ?page=N.
+ * Несуществующие страницы получают код 404, временные и личные — noindex. Старые адреса (www, workers.dev)
+ * постоянно перенаправляются на animelife.top. Плюс карта сайта (/sitemap.xml — индекс из трёх частей) и /robots.txt.
+ * Шаблоны заголовков и посадочные страницы общие с приложением: src/data/seo.ts и src/data/landings.ts.
  * Если внешний сервис не ответил, отдаётся обычный index.html: сайт работает как раньше.
  */
+import { CATALOG, landingFor, landingPaths } from '../src/data/landings.ts'
+import {
+  GENRES,
+  KINDS,
+  MAX_PAGES,
+  PAGE_SIZE,
+  SITE,
+  cut,
+  episodesLabel,
+  genrePath,
+  kindPath,
+  pageParam,
+  titlePageDescription,
+  titlePageTitle,
+  watchPageDescription,
+  watchPageTitle,
+} from '../src/data/seo.ts'
 
 const SHIKIMORI = 'https://shikimori.io'
 const APPWRITE = 'https://fra.cloud.appwrite.io/v1'
 const APPWRITE_PROJECT = '6abf65850016889f9b1b'
-const SITE = 'Anime Life'
 const DAY = 24 * 3600
 // Основной адрес сайта: на него указывают canonical, og:url, sitemap и robots.txt с любого зеркала.
 const ORIGIN = 'https://animelife.top'
@@ -22,23 +40,19 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|together|my-list|moderation|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36})\/?$/
+  /^\/(?:|catalog|ongoing|schedule|together|my-list|moderation|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|account|auth\/|my-list|moderation)/
+// Списки со страницами ?page=N: у каждой страницы свой canonical.
+const PAGED = /^\/(?:catalog$|genre\/|type\/|year\/)/
 
-const popular = (page) => `${SHIKIMORI}/api/animes?order=popularity&limit=50&page=${page}&censored=true`
-const ONGOING = `${SHIKIMORI}/api/animes?status=ongoing&order=popularity&limit=50&censored=true`
+/** Список тайтлов Shikimori по фильтрам каталога, самые популярные сначала. */
+const animes = (params) =>
+  `${SHIKIMORI}/api/animes?${new URLSearchParams({ order: 'popularity', censored: 'true', ...params })}`
+const popular = (page) => animes({ limit: 50, page })
+const ONGOING = animes({ status: 'ongoing', limit: 50 })
 
-// Разделы со списком ссылок на тайтлы для поисковиков без JavaScript. Списки те же, что в sitemap (кэш на сутки).
-const SECTIONS = {
-  '/': { h1: `${SITE} — смотреть аниме онлайн`, list: popular(1), more: 'Популярное аниме' },
-  '/catalog': { title: 'Каталог аниме', list: popular(1), more: 'Популярное аниме' },
-  '/ongoing': { title: 'Онгоинги', list: ONGOING, more: 'Выходят сейчас' },
-  '/schedule': { title: 'Расписание серий' },
-  '/together': { title: 'Смотреть вместе' },
-}
-
-const KINDS = { tv: 'ТВ-сериал', movie: 'Фильм', ova: 'OVA', ona: 'ONA', special: 'Спешл', tv_special: 'ТВ-спешл' }
+const KIND_NAMES = { tv: 'ТВ-сериал', movie: 'Фильм', ova: 'OVA', ona: 'ONA', special: 'Спешл', tv_special: 'ТВ-спешл' }
 
 async function json(url, init, ttl = 3600) {
   const res = await fetch(url, {
@@ -53,13 +67,7 @@ async function json(url, init, ttl = 3600) {
   return res.json()
 }
 
-const clean = (text, max = 200) => {
-  const t = String(text ?? '')
-    .replace(/\[[^\]]*\]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t
-}
+const notFound = () => Object.assign(new Error('not found'), { status: 404 })
 
 const absolute = (path) => (!path || path.includes('missing_') ? undefined : path.startsWith('http') ? path : SHIKIMORI + path)
 
@@ -70,73 +78,322 @@ const appwriteRow = (table, id) =>
     headers: { 'X-Appwrite-Project': APPWRITE_PROJECT },
   }, 60)
 
-// Ссылки на разделы: по ним поисковик без JavaScript находит остальной сайт.
-const NAV =
-  '<nav><a href="/">Главная</a> · <a href="/catalog">Каталог</a> · <a href="/ongoing">Онгоинги</a> · <a href="/schedule">Расписание</a></nav>'
+const link = (path, text) => `<a href="${path}">${escapeHtml(text)}</a>`
+const links = (list) => list.map(([text, path]) => link(path, text)).join(' · ')
 
-/** Что показать в превью ссылки и в тексте страницы для данного адреса. */
-async function metaFor(path) {
-  const section = SECTIONS[path]
-  if (section) {
-    const items = section.list ? await json(section.list, undefined, DAY).catch(() => []) : []
-    const links = items.map((a) => `<li><a href="/anime/${a.id}">${escapeHtml(a.russian || a.name)}</a></li>`).join('')
-    return {
-      title: section.title && `${section.title} — ${SITE}`,
-      body:
-        `<h1>${escapeHtml(section.h1 ?? section.title)}</h1>${NAV}` +
-        (links ? `<h2>${section.more}</h2><ul>${links}</ul>` : ''),
-      // Название сайта в выдаче Google.
-      jsonLd: path === '/' ? { '@context': 'https://schema.org', '@type': 'WebSite', name: SITE, url: `${ORIGIN}/` } : null,
-    }
+// Ссылки на разделы и посадочные страницы: по ним поисковик без JavaScript находит остальной сайт.
+function siteNav() {
+  const year = new Date().getFullYear()
+  return (
+    `<nav>${links([['Главная', '/'], ['Каталог', '/catalog'], ['Онгоинги', '/ongoing'], ['Расписание', '/schedule'], ['Смотреть вместе', '/together']])}</nav>` +
+    `<nav>Жанры: ${links(GENRES.slice(0, 12).map((g) => [g.name, `/genre/${g.slug}`]))}</nav>` +
+    `<nav>${links([
+      ...Object.entries(KINDS).map(([id, h1]) => [h1, `/type/${id}`]),
+      [`Аниме ${year} года`, `/year/${year}`],
+      [`Аниме ${year - 1} года`, `/year/${year - 1}`],
+    ])}</nav>`
+  )
+}
+
+/** Хлебные крошки: строка ссылок в тексте и BreadcrumbList для schema.org. Последний пункт — сама страница. */
+function breadcrumbs(trail) {
+  const all = [['Главная', '/'], ...trail]
+  return {
+    html: `<nav aria-label="Хлебные крошки">${all
+      .map(([name, path], i) => (i < all.length - 1 ? link(path, name) : escapeHtml(name)))
+      .join(' › ')}</nav>`,
+    ld: {
+      '@type': 'BreadcrumbList',
+      itemListElement: all.map(([name, path], i) => ({ '@type': 'ListItem', position: i + 1, name, item: ORIGIN + path })),
+    },
   }
-  let m = path.match(/^\/(?:anime|watch)\/(\d{1,10})(?:\/(\d+))?$/)
-  if (m) {
-    const a = await json(`${SHIKIMORI}/api/animes/${m[1]}`)
-    const title = a.russian || a.name
-    const episode = path.startsWith('/watch/') && m[2] ? `, серия ${m[2]}` : ''
-    const year = a.aired_on ? a.aired_on.slice(0, 4) : ''
-    const movie = a.kind === 'movie'
-    const description =
-      clean(a.description, 180) || `${title}${year ? ` (${year})` : ''}: смотреть онлайн, расписание серий и отзывы.`
-    const image = absolute(a.image?.original)
-    const genres = (a.genres ?? []).map((g) => g.russian || g.name)
-    const facts = [KINDS[a.kind], year, !movie && a.episodes ? `${a.episodes} эп.` : ''].filter(Boolean).join(' · ')
-    return {
-      title: `${title}${episode} — смотреть онлайн на ${SITE}`,
+}
+
+const graph = (...nodes) => ({ '@context': 'https://schema.org', '@graph': nodes.filter(Boolean) })
+
+/** Сколько серий уже можно смотреть: у онгоинга — вышедшие, у анонса — ни одной. */
+const available = (a) =>
+  a.status === 'anons' ? 0 : a.status === 'ongoing' ? a.episodes_aired || 0 : a.episodes || a.episodes_aired || 1
+
+/** Строка списка: ссылка на тайтл, тип, год и число серий. */
+function item(a) {
+  const facts = [KIND_NAMES[a.kind], a.aired_on?.slice(0, 4), a.kind !== 'movie' && a.episodes ? `${a.episodes} эп.` : '']
+    .filter(Boolean)
+    .join(', ')
+  return `<li>${link(`/anime/${a.id}`, a.russian || a.name)}${facts ? ` — ${escapeHtml(facts)}` : ''}</li>`
+}
+
+/** Ссылки «Назад» и «Дальше» и номера соседних страниц, все обычными <a href>. */
+function pager(path, page, hasNext) {
+  const href = (n) => (n > 1 ? `${path}?page=${n}` : path)
+  const parts = []
+  if (page > 1) parts.push(`<a href="${href(page - 1)}" rel="prev">← Предыдущая</a>`)
+  for (let n = Math.max(1, page - 2); n <= page + (hasNext ? 2 : 0) && n <= MAX_PAGES; n++) {
+    parts.push(n === page ? `<span>Страница ${n}</span>` : `<a href="${href(n)}">${n}</a>`)
+  }
+  if (hasNext) parts.push(`<a href="${href(page + 1)}" rel="next">Следующая →</a>`)
+  return parts.length > 1 ? `<nav aria-label="Страницы">${parts.join(' ')}</nav>` : ''
+}
+
+/**
+ * Страница-список: каталог, онгоинги или посадочная (жанр, год, сезон, тип). Пустая страница — 404,
+ * чтобы /year/1950 или ?page=999 не попали в поиск пустыми.
+ */
+async function listing(l, page) {
+  const limit = l.paged ? PAGE_SIZE : 50
+  const items = await json(animes({ ...l.query, limit, page }), undefined, l.query.status ? 3600 : DAY)
+  if (!items.length) throw notFound()
+  const hasNext = l.paged && items.length === limit && page < MAX_PAGES
+  const suffix = page > 1 ? `, страница ${page}` : ''
+  const crumbs = breadcrumbs([...l.crumbs, [l.h1, l.path]])
+  const offset = (page - 1) * limit
+  return {
+    title: `${l.title}${suffix} | ${SITE}`,
+    description: page > 1 ? cut(`Страница ${page}. ${l.description}`) : l.description,
+    body:
+      crumbs.html +
+      `<h1>${escapeHtml(l.h1 + suffix)}</h1>` +
+      (page === 1 ? `<p>${escapeHtml(l.intro)}</p>` : '') +
+      `<ol start="${offset + 1}">${items.map(item).join('')}</ol>` +
+      (l.paged ? pager(l.path, page, hasNext) : '') +
+      (l.related.length ? `<h2>Смотрите также</h2><p>${links(l.related)}</p>` : '') +
+      siteNav(),
+    jsonLd: graph(crumbs.ld, {
+      '@type': 'ItemList',
+      name: l.h1 + suffix,
+      itemListOrder: 'https://schema.org/ItemListOrderDescending',
+      itemListElement: items.map((a, i) => ({
+        '@type': 'ListItem',
+        position: offset + i + 1,
+        url: `${ORIGIN}/anime/${a.id}`,
+        name: a.russian || a.name,
+      })),
+    }),
+  }
+}
+
+async function home() {
+  const year = new Date().getFullYear()
+  const items = await json(popular(1), undefined, DAY).catch(() => [])
+  return {
+    title: `Смотреть аниме онлайн бесплатно с русской озвучкой | ${SITE}`,
+    description: `Аниме онлайн бесплатно с русской озвучкой: онгоинги ${year}, каталог по жанрам и годам, расписание новых серий и «Мой список» с синхронизацией.`,
+    body:
+      `<h1>Смотреть аниме онлайн</h1>` +
+      `<p>${SITE} — сайт для просмотра аниме онлайн: онгоинги и новые серии, каталог по жанрам, годам и сезонам, расписание выхода серий, «Мой список» и совместный просмотр с друзьями.</p>` +
+      (items.length ? `<h2>Популярное аниме</h2><ol>${items.map(item).join('')}</ol>` : '') +
+      `<h2>Жанры</h2><p>${links(GENRES.map((g) => [g.name, `/genre/${g.slug}`]))}</p>` +
+      `<h2>По годам</h2><p>${links(Array.from({ length: 8 }, (_, i) => [`Аниме ${year + 1 - i} года`, `/year/${year + 1 - i}`]))}</p>` +
+      siteNav(),
+    // Название сайта в выдаче Google и поиск по сайту: адрес /catalog?q= открывает каталог с этим запросом.
+    jsonLd: graph(
+      {
+        '@type': 'WebSite',
+        '@id': `${ORIGIN}/#website`,
+        name: SITE,
+        url: `${ORIGIN}/`,
+        inLanguage: 'ru',
+        publisher: { '@id': `${ORIGIN}/#organization` },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: { '@type': 'EntryPoint', urlTemplate: `${ORIGIN}/catalog?q={search_term_string}` },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      { '@type': 'Organization', '@id': `${ORIGIN}/#organization`, name: SITE, url: `${ORIGIN}/`, logo: `${ORIGIN}/icon-512.png` },
+    ),
+  }
+}
+
+const dayFormat = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', weekday: 'long', day: 'numeric', month: 'long' })
+const timeFormat = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
+
+/** Расписание: ближайшие серии онгоингов на неделю по московскому времени, из того же календаря Shikimori. */
+async function schedule() {
+  const list = await json(`${SHIKIMORI}/api/calendar?censored=true`).catch(() => [])
+  const now = Date.now()
+  const days = new Map()
+  for (const i of list) {
+    const at = Date.parse(i.next_episode_at)
+    if (!i.anime || !(at >= now && at < now + 7 * DAY * 1000)) continue
+    const day = dayFormat.format(at).replace(/^./, (c) => c.toUpperCase())
+    if (!days.has(day)) days.set(day, [])
+    days.get(day).push(
+      `<li>${timeFormat.format(at)} — ${link(`/anime/${i.anime.id}`, i.anime.russian || i.anime.name)}, ${i.next_episode} серия</li>`,
+    )
+  }
+  const crumbs = breadcrumbs([['Расписание серий', '/schedule']])
+  return {
+    title: `Расписание выхода серий аниме на неделю | ${SITE}`,
+    description: 'Когда выйдет новая серия: расписание онгоингов на ближайшую неделю с днём и временем выхода каждой серии. Напоминания и экспорт в календарь.',
+    body:
+      crumbs.html +
+      '<h1>Расписание выхода серий</h1><p>Новые серии онгоингов на ближайшую неделю. Время московское, в приложении — ваше местное.</p>' +
+      [...days].map(([day, rows]) => `<h2>${escapeHtml(day)}</h2><ul>${rows.join('')}</ul>`).join('') +
+      siteNav(),
+    jsonLd: graph(crumbs.ld),
+  }
+}
+
+/** Связанное в порядке просмотра: предыстория, продолжение, побочные истории. Общие персонажи из других франшиз — в конце. */
+const RELATIONS = ['Prequel', 'Sequel', 'Parent Story', 'Full Story', 'Side Story', 'Alternative Version', 'Alternative Setting', 'Spin-off', 'Summary', 'Other', 'Character']
+const relationRank = (r) => (RELATIONS.includes(r) ? RELATIONS.indexOf(r) : RELATIONS.length)
+
+/** Для шаблонов из src/data/seo.ts — те же поля, что приложение берёт из Anime. */
+const titleInfo = (a) => ({
+  title: a.russian || a.name,
+  original: a.russian ? a.name : undefined,
+  year: a.aired_on ? a.aired_on.slice(0, 4) : undefined,
+  kind: KIND_NAMES[a.kind],
+  movie: a.kind === 'movie',
+  upcoming: a.status === 'anons',
+  episodes: a.episodes || undefined,
+  studio: a.studios?.[0]?.name,
+  genres: (a.genres ?? []).map((g) => g.russian || g.name),
+  description: a.description,
+})
+
+/** Ссылки на серии: все, если их до сотни, у длинных сериалов — первые 10 и последние 90. */
+function episodeLinks(id, total) {
+  const numbers = total <= 100 ? Array.from({ length: total }, (_, i) => i + 1) : [...Array.from({ length: 10 }, (_, i) => i + 1), ...Array.from({ length: 90 }, (_, i) => total - 89 + i)]
+  return numbers.map((n, i) => (i && n - numbers[i - 1] > 1 ? '… ' : '') + `<a href="/watch/${id}/${n}">${n} серия</a>`).join(' ')
+}
+
+async function titlePage(id) {
+  // Связанное и похожее меняются редко: кэш на сутки, и запросы идут параллельно с основным.
+  const [a, related, similar] = await Promise.all([
+    json(`${SHIKIMORI}/api/animes/${id}`),
+    json(`${SHIKIMORI}/api/animes/${id}/related`, undefined, DAY).catch(() => []),
+    json(`${SHIKIMORI}/api/animes/${id}/similar`, undefined, DAY).catch(() => []),
+  ])
+  const info = titleInfo(a)
+  const movie = info.movie
+  const description = titlePageDescription(info)
+  const image = absolute(a.image?.original)
+  const count = available(a)
+  const parent = kindPath(a.kind)
+  const crumbs = breadcrumbs([parent ? [KINDS[a.kind], parent] : ['Каталог', '/catalog'], [info.title, `/anime/${a.id}`]])
+  const facts = [
+    KIND_NAMES[a.kind] && (parent ? link(parent, KIND_NAMES[a.kind]) : escapeHtml(KIND_NAMES[a.kind])),
+    info.year && link(`/year/${info.year}`, `${info.year} год`),
+    !movie && a.episodes ? escapeHtml(episodesLabel(a.episodes)) : '',
+    a.status === 'ongoing' && a.episodes_aired ? `вышло ${a.episodes_aired}` : '',
+    info.studio && `студия ${escapeHtml(info.studio)}`,
+  ].filter(Boolean)
+  const genres = info.genres.map((g) => {
+    const path = genrePath(g)
+    return path ? link(path, g) : escapeHtml(g)
+  })
+  const rel = related
+    .filter((r) => r.anime)
+    .sort((x, y) => relationRank(x.relation) - relationRank(y.relation))
+    .slice(0, 20)
+  const alternate = [a.name, ...(a.english ?? []), ...(a.japanese ?? [])].filter((n) => n && n !== info.title)
+  return {
+    title: titlePageTitle(info),
+    description,
+    image,
+    type: movie ? 'video.movie' : 'video.tv_show',
+    // Текст страницы до запуска приложения: React заменит его при старте (createRoot в src/main.tsx).
+    body:
+      crumbs.html +
+      `<h1>${escapeHtml(info.title)}</h1>` +
+      (alternate.length ? `<p>${escapeHtml([...new Set(alternate)].join(' / '))}</p>` : '') +
+      (facts.length ? `<p>${facts.join(' · ')}</p>` : '') +
+      (genres.length ? `<p>Жанры: ${genres.join(', ')}</p>` : '') +
+      (a.description ? `<p>${escapeHtml(cut(a.description, 1500))}</p>` : '') +
+      (count ? `<p>${link(`/watch/${a.id}/1`, movie ? 'Смотреть фильм онлайн' : 'Смотреть 1 серию онлайн')}</p>` : '') +
+      (count > 1 ? `<h2>Серии</h2><p>${episodeLinks(a.id, count)}</p>` : '') +
+      (rel.length
+        ? `<h2>Связанное</h2><ul>${rel.map((r) => `<li>${escapeHtml(r.relation_russian || r.relation)}: ${link(`/anime/${r.anime.id}`, r.anime.russian || r.anime.name)}</li>`).join('')}</ul>`
+        : '') +
+      (similar.length ? `<h2>Похожее аниме</h2><ul>${similar.slice(0, 12).map(item).join('')}</ul>` : '') +
+      siteNav(),
+    jsonLd: graph(crumbs.ld, {
+      '@type': movie ? 'Movie' : 'TVSeries',
+      name: info.title,
+      alternateName: alternate.length ? [...new Set(alternate)] : undefined,
       description,
       image,
-      type: movie ? 'video.movie' : 'video.tv_show',
-      // Текст страницы до запуска приложения: React заменит его при старте (createRoot в src/main.tsx).
-      body:
-        `<h1>${escapeHtml(title + episode)}</h1>` +
-        (a.name && a.name !== title ? `<p>${escapeHtml(a.name)}</p>` : '') +
-        (facts ? `<p>${escapeHtml(facts)}</p>` : '') +
-        (genres.length ? `<p>Жанры: ${escapeHtml(genres.join(', '))}</p>` : '') +
-        (a.description ? `<p>${escapeHtml(clean(a.description, 1500))}</p>` : '') +
-        (episode ? `<p><a href="/anime/${a.id}">О тайтле «${escapeHtml(title)}»</a></p>` : '') +
-        (a.episodes_aired || a.episodes || movie ? `<p><a href="/watch/${a.id}/1">Смотреть онлайн</a></p>` : '') +
-        NAV,
-      jsonLd: {
-        '@context': 'https://schema.org',
-        '@type': movie ? 'Movie' : 'TVSeries',
-        name: title,
-        alternateName: a.name,
-        description,
-        image,
-        url: `${ORIGIN}/anime/${a.id}`,
-        // У фильма нет серий и даты начала: у Movie это datePublished.
-        numberOfEpisodes: (!movie && a.episodes) || undefined,
-        [movie ? 'datePublished' : 'startDate']: a.aired_on || undefined,
-        genre: genres,
-        // aggregateRating не ставим: у Shikimori есть оценка, но нет числа голосов, а выдумывать его нельзя.
+      url: `${ORIGIN}/anime/${a.id}`,
+      // У фильма нет серий и даты начала: у Movie это datePublished.
+      numberOfEpisodes: (!movie && a.episodes) || undefined,
+      [movie ? 'datePublished' : 'startDate']: a.aired_on || undefined,
+      endDate: (!movie && a.status === 'released' && a.released_on) || undefined,
+      genre: info.genres,
+      productionCompany: info.studio ? { '@type': 'Organization', name: info.studio } : undefined,
+      // aggregateRating не ставим: оценки здесь от Shikimori, а Google запрещает размечать рейтинги с других сайтов.
+    }),
+  }
+}
+
+async function watchPage(id, episode) {
+  const a = await json(`${SHIKIMORI}/api/animes/${id}`)
+  const count = available(a)
+  // Серии, которой ещё нет, в поиске быть не должно: приложение всё равно покажет последнюю вышедшую.
+  if (a.status !== 'anons' && episode > Math.max(count, 1)) throw notFound()
+  const info = titleInfo(a)
+  const movie = info.movie
+  const titleUrl = `/anime/${a.id}`
+  const name = movie ? info.title : `${info.title}: ${episode} серия`
+  const crumbs = breadcrumbs(movie ? [[info.title, titleUrl], ['Смотреть онлайн', `/watch/${a.id}/1`]] : [[info.title, titleUrl], [`${episode} серия`, `/watch/${a.id}/${episode}`]])
+  const near = []
+  if (episode > 1) near.push([`← ${episode - 1} серия`, `/watch/${a.id}/${episode - 1}`])
+  if (episode < count) near.push([`${episode + 1} серия →`, `/watch/${a.id}/${episode + 1}`])
+  const genres = info.genres.map((g) => [g, genrePath(g)]).filter(([, p]) => p)
+  return {
+    title: watchPageTitle(info, episode),
+    description: watchPageDescription(info, episode, count),
+    image: absolute(a.image?.original),
+    type: movie ? 'video.movie' : 'video.episode',
+    // У анонса вместо серии трейлер: такую страницу не индексируем.
+    noindex: a.status === 'anons',
+    body:
+      crumbs.html +
+      `<h1>${escapeHtml(name)}</h1>` +
+      `<p>${escapeHtml(watchPageDescription(info, episode, count))}</p>` +
+      (near.length ? `<p>${links(near)}</p>` : '') +
+      `<p>${link(titleUrl, movie ? `О фильме «${info.title}»` : `Все серии «${info.title}»`)}</p>` +
+      (genres.length ? `<p>Жанры: ${links(genres)}</p>` : '') +
+      siteNav(),
+    jsonLd: graph(
+      crumbs.ld,
+      !movie && {
+        '@type': 'TVEpisode',
+        name,
+        episodeNumber: episode,
+        url: `${ORIGIN}/watch/${a.id}/${episode}`,
+        partOfSeries: { '@type': 'TVSeries', name: info.title, url: ORIGIN + titleUrl },
       },
+    ),
+  }
+}
+
+/** Что показать в превью ссылки и в тексте страницы для данного адреса. */
+async function metaFor(path, params) {
+  const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
+  if (path === '/') return home()
+  if (path === '/catalog') return listing(CATALOG, page)
+  if (path === '/schedule') return schedule()
+  if (path === '/together') {
+    return {
+      title: `Смотреть аниме вместе с друзьями онлайн | ${SITE}`,
+      description: 'Комнаты совместного просмотра: видео идёт у всех одновременно, рядом чат, реакции и голос. Создайте комнату и позовите друзей по ссылке.',
+      body: '<h1>Смотреть аниме вместе</h1><p>Создайте комнату, позовите друзей по ссылке или коду и смотрите одну серию одновременно: пауза и перемотка у всех сразу, рядом чат и голосовая связь.</p>' + siteNav(),
     }
   }
+  const landing = landingFor(path)
+  if (landing) return listing(landing, page)
+  if (/^\/(?:genre|type|year)\//.test(path)) throw notFound()
+  let m = path.match(/^\/anime\/(\d{1,10})$/)
+  if (m) return titlePage(m[1])
+  m = path.match(/^\/watch\/(\d{1,10})\/(\d{1,5})$/)
+  if (m) return watchPage(m[1], Math.max(1, Number(m[2])))
   m = path.match(/^\/together\/([A-Za-z0-9]{6})$/)
   if (m) {
     const r = await appwriteRow('rooms', m[1].toUpperCase())
     return {
-      title: `Смотрим вместе: ${r.title || r.animeTitle} — ${SITE}`,
+      title: `Смотрим вместе: ${r.title || r.animeTitle} | ${SITE}`,
       description: `${r.hostName} зовёт посмотреть «${r.animeTitle}», серия ${r.episode}. Видео идёт у всех одновременно, рядом чат и голос.`,
       image: r.poster || undefined,
     }
@@ -148,7 +405,7 @@ async function metaFor(path) {
     const s = JSON.parse(p.summary || '{}')
     const done = s.counts?.completed ?? 0
     return {
-      title: `${p.name}: профиль на ${SITE}`,
+      title: `${p.name}: профиль | ${SITE}`,
       description: p.about || `Просмотрено ${done}, серий ${s.facts?.episodes ?? 0}. Что смотрит сейчас, любимое и достижения.`,
       image: s.favorites?.[0]?.posterSmall,
       type: 'profile',
@@ -169,6 +426,16 @@ class SetAttr {
 }
 const content = (value) => new SetAttr('content', value)
 
+/**
+ * Канонический адрес: путь без слэша на конце и без параметров, кроме ?page=N у списков.
+ * В каталоге номер страницы остаётся, только если других фильтров нет. То же считает useCanonical в src/data/pageMeta.ts.
+ */
+function canonicalFor(path, params) {
+  const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
+  const onlyPage = path !== '/catalog' || [...params.keys()].every((k) => k === 'page')
+  return ORIGIN + path + (page > 1 && onlyPage ? `?page=${page}` : '')
+}
+
 async function page(env, url, status = 200) {
   // Без слэша на конце, кроме «/»: так адрес совпадает с canonical и sitemap.
   const path = url.pathname.replace(/(.)\/+$/, '$1')
@@ -177,27 +444,27 @@ async function page(env, url, status = 200) {
   let meta = null
   if (status === 200) {
     try {
-      meta = await metaFor(path)
+      meta = await metaFor(path, url.searchParams)
     } catch (e) {
       // Тайтла, комнаты или профиля нет — 404. Сервис не ответил — обычная страница, приложение само покажет ошибку.
       if (e.status === 404) status = 404
     }
   }
-  const noindex = status !== 200 || PRIVATE.test(path)
-  const canonical = ORIGIN + path
+  // Результаты поиска по сайту в выдаче не нужны: у каждого запроса своя страница без своего содержания.
+  const search = path === '/catalog' && url.searchParams.has('q')
+  const noindex = status !== 200 || PRIVATE.test(path) || meta?.noindex || search
+  const canonical = canonicalFor(path, url.searchParams)
   // Коды подтверждения для Google Search Console и Яндекс Вебмастера (переменные Worker, см. README).
   const verification = [
     ['google-site-verification', env.GOOGLE_SITE_VERIFICATION],
     ['yandex-verification', env.YANDEX_VERIFICATION],
   ]
-  const extra = [
-    noindex ? '<meta name="robots" content="noindex" />' : '',
-    ...verification.map(([name, value]) => (value ? `<meta name="${name}" content="${escapeHtml(value)}" />` : '')),
-  ]
+  const extra = verification.map(([name, value]) => (value ? `<meta name="${name}" content="${escapeHtml(value)}" />` : ''))
   let rewriter = new HTMLRewriter()
     // Страница вне поиска не называет себя канонической.
     .on('link[rel="canonical"]', new SetAttr('href', noindex ? undefined : canonical))
     .on('meta[property="og:url"]', content(canonical))
+  if (noindex) rewriter = rewriter.on('meta[name="robots"]', content('noindex, follow'))
   if (meta?.title) {
     rewriter = rewriter
       .on('title', { element: (el) => el.setInnerContent(meta.title) })
@@ -233,49 +500,86 @@ async function page(env, url, status = 200) {
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-async function sitemap(ctx) {
-  // Готовая карта хранится в кэше Cloudflare сутки, но только полная: неполную отдаём без сохранения.
-  const key = new Request(`${ORIGIN}/sitemap.xml`)
-  const hit = await caches.default.match(key)
+const XML = 'application/xml; charset=utf-8'
+const today = () => new Date().toISOString().slice(0, 10)
+const urlset = (urls) =>
+  '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+  urls.map(([path, lastmod]) => `  <url><loc>${ORIGIN}${path}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}</url>`).join('\n') +
+  '\n</urlset>\n'
+const xmlResponse = (xml, ttl) =>
+  new Response(xml, { headers: { 'Content-Type': XML, 'Cache-Control': `public, max-age=${Math.min(ttl, 3600)}, s-maxage=${ttl}` } })
+
+// Части карты сайта: разделы и посадочные, тайтлы, серии онгоингов.
+const SITEMAPS = ['/sitemap-pages.xml', '/sitemap-titles.xml', '/sitemap-episodes.xml']
+
+/** /sitemap.xml — индекс: поисковик сам заберёт части. Сюда указывает robots.txt. */
+function sitemapIndex() {
+  const day = today()
+  const xml =
+    '<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    SITEMAPS.map((p) => `  <sitemap><loc>${ORIGIN}${p}</loc><lastmod>${day}</lastmod></sitemap>`).join('\n') +
+    '\n</sitemapindex>\n'
+  return xmlResponse(xml, 3600)
+}
+
+/** Разделы и посадочные страницы: без запросов к Shikimori. Дата изменения — у того, что обновляется каждый день. */
+function sitemapPages() {
+  const day = today()
+  const year = new Date().getFullYear()
+  const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
+  const paths = ['/', '/catalog', '/schedule', '/together', ...landingPaths()]
+  return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
+}
+
+/**
+ * Тайтлы и серии онгоингов. Обе части собираются из одних запросов и кэшируются в Cloudflare на сутки,
+ * но только полными: неполные отдаём без сохранения.
+ */
+async function sitemapTitles(ctx, which) {
+  const keys = { titles: new Request(`${ORIGIN}/sitemap-titles.xml`), episodes: new Request(`${ORIGIN}/sitemap-episodes.xml`) }
+  const hit = await caches.default.match(keys[which])
   if (hit) return hit
-  const pages = ['/', '/catalog', '/ongoing', '/schedule', '/together']
   // Популярные тайтлы: 10 страниц по 50, и все онгоинги. По одному запросу с повтором: Shikimori пускает
   // не больше 5 запросов в секунду, а параллельные получали отказ, и карта каждый раз выходила разной длины.
-  const ongoing = new Map()
+  const all = new Map()
   let complete = true
   for (const list of [...Array.from({ length: 10 }, (_, i) => popular(i + 1)), ONGOING]) {
     const items = await json(list, undefined, DAY)
       .catch(() => pause(1000).then(() => json(list, undefined, DAY)))
       .catch(() => null)
     if (!items) complete = false
-    for (const a of items ?? []) ongoing.set(a.id, ongoing.get(a.id) || a.status === 'ongoing')
+    for (const a of items ?? []) all.set(a.id, a)
   }
   // Порядок постоянный (по id), у онгоингов дата изменения — сегодня: у них выходят новые серии.
-  const today = new Date().toISOString().slice(0, 10)
-  const ids = [...ongoing.keys()].sort((a, b) => a - b)
-  const urls = [
-    ...pages.map((p) => `  <url><loc>${ORIGIN}${p}</loc></url>`),
-    ...ids.map((id) => {
-      const lastmod = ongoing.get(id) ? `<lastmod>${today}</lastmod>` : ''
-      return `  <url><loc>${ORIGIN}/anime/${id}</loc>${lastmod}</url>`
-    }),
-  ]
-  const xml =
-    '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    urls.join('\n') +
-    '\n</urlset>\n'
-  const res = new Response(xml, {
-    headers: {
-      'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': complete ? `public, max-age=3600, s-maxage=${DAY}` : 'public, max-age=300',
-    },
-  })
-  if (complete) ctx.waitUntil(caches.default.put(key, res.clone()))
-  return res
+  const day = today()
+  const list = [...all.values()].sort((a, b) => a.id - b.id)
+  const titles = urlset(list.map((a) => [`/anime/${a.id}`, a.status === 'ongoing' ? day : '']))
+  // Серии онгоингов: последние 50 вышедших. Свежая серия получает сегодняшнюю дату.
+  const episodes = urlset(
+    list
+      .filter((a) => a.status === 'ongoing' && a.episodes_aired > 0)
+      .flatMap((a) =>
+        Array.from({ length: Math.min(50, a.episodes_aired) }, (_, i) => {
+          const n = a.episodes_aired - i
+          return [`/watch/${a.id}/${n}`, i === 0 ? day : '']
+        }).reverse(),
+      ),
+  )
+  const responses = { titles: xmlResponse(titles, DAY), episodes: xmlResponse(episodes, DAY) }
+  if (complete) {
+    for (const k of Object.keys(keys)) ctx.waitUntil(caches.default.put(keys[k], responses[k].clone()))
+  } else {
+    for (const r of Object.values(responses)) r.headers.set('Cache-Control', 'public, max-age=300')
+  }
+  return responses[which]
 }
 
 function robots() {
-  const body = `User-agent: *\nAllow: /\nDisallow: /account\nDisallow: /auth/\nDisallow: /moderation\n\nSitemap: ${ORIGIN}/sitemap.xml\n`
+  const body =
+    'User-agent: *\nAllow: /\nDisallow: /account\nDisallow: /auth/\nDisallow: /moderation\n' +
+    // Яндекс склеивает адреса с метками рекламы и рассылок с основным адресом страницы.
+    'Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&yclid&gclid&fbclid\n\n' +
+    `Sitemap: ${ORIGIN}/sitemap.xml\n`
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } })
 }
 
@@ -285,10 +589,14 @@ export default {
     // robots.txt отдаём на любом адресе: и на зеркале он указывает на карту сайта основного домена.
     if (url.pathname === '/robots.txt') return robots()
     if (MIRRORS.has(url.hostname)) return Response.redirect(ORIGIN + url.pathname + url.search, 301)
-    if (url.pathname === '/sitemap.xml') return sitemap(ctx)
+    if (url.pathname === '/sitemap.xml') return sitemapIndex()
+    if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
+    if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')
+    if (url.pathname === '/sitemap-episodes.xml') return sitemapTitles(ctx, 'episodes')
     if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request)
     if (ROUTES.test(url.pathname)) return page(env, url)
-    // Файлы сборки отдаём как есть. Вместо отсутствующего файла сервер ассетов присылает index.html: это 404.
+    // Файлы сборки (и ключ IndexNow из public/) отдаём как есть. Вместо отсутствующего файла сервер ассетов
+    // присылает index.html: это 404.
     const res = await env.ASSETS.fetch(request)
     return (res.headers.get('Content-Type') ?? '').includes('text/html') ? page(env, url, 404) : res
   },
