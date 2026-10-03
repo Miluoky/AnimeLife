@@ -5,7 +5,8 @@
  */
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type PointerEvent, type RefObject } from 'react'
 import { FullscreenIcon, PauseIcon, PlayIcon, SkipIcon, VolumeIcon } from './Icons'
-import type { AniLibriaQuality } from '../api/anilibria'
+import type { AniLibriaQuality, SkipSpan } from '../api/anilibria'
+import { createLocalStore } from '../data/localStore'
 
 interface Props {
   video: RefObject<HTMLVideoElement>
@@ -20,7 +21,13 @@ interface Props {
   onNext?: () => void
   /** подпись кнопки следующей серии в углу, например «3 серия» */
   nextLabel?: string
+  /** размеченные опенинг и эндинг: кнопка «Пропустить», метки на полосе и автопропуск */
+  skips?: SkipSpan[]
 }
+
+/** Пропускать опенинг и эндинг самим: настройка зрителя, живёт в браузере. */
+const autoSkipStore = createLocalStore('anime.autoskip.v1', false)
+const SKIP_NAMES = { opening: 'опенинг', ending: 'эндинг' }
 
 type FsDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void }
 type FsEl = HTMLElement & { webkitRequestFullscreen?: () => void }
@@ -49,7 +56,7 @@ function bufferedEnd(v: HTMLVideoElement) {
   return 0
 }
 
-export default function PlayerControls({ video, frame, loading, qualities, quality, onQuality, onNext, nextLabel }: Props) {
+export default function PlayerControls({ video, frame, loading, qualities, quality, onQuality, onNext, nextLabel, skips }: Props) {
   // Состояние берём прямо из <video>, а события лишь просят перерисовать кнопки.
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [active, setActive] = useState(true)
@@ -62,6 +69,10 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
   const [ripple, setRipple] = useState<{ key: number; side: 'back' | 'fwd' } | null>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout>>()
   const lastTap = useRef(0)
+  const autoSkip = autoSkipStore.use()
+  // Отрезки, которые уже пропустили сами: если зритель вернётся назад, второй раз не прыгаем.
+  const autoSkipped = useRef(new Set<string>())
+  const [skipNote, setSkipNote] = useState<{ key: number; span: SkipSpan } | null>(null)
   const bar = useRef<HTMLDivElement>(null)
 
   const v = video.current
@@ -82,6 +93,8 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
     events.forEach((e) => el.addEventListener(e, refresh))
     const wait = () => setWaiting(true)
     const go = () => setWaiting(false)
+    const fresh = () => autoSkipped.current.clear()
+    el.addEventListener('loadstart', fresh)
     el.addEventListener('waiting', wait)
     el.addEventListener('playing', go)
     el.addEventListener('canplay', go)
@@ -90,6 +103,7 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
     refresh()
     return () => {
       events.forEach((e) => el.removeEventListener(e, refresh))
+      el.removeEventListener('loadstart', fresh)
       el.removeEventListener('waiting', wait)
       el.removeEventListener('playing', go)
       el.removeEventListener('canplay', go)
@@ -155,9 +169,33 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
     el.playbackRate = r
   }
 
-  // Горячие клавиши на компьютере: пробел/K, стрелки, F, M.
-  const keys = useRef({ togglePlay, seekBy, toggleFullscreen, toggleMute })
-  keys.current = { togglePlay, seekBy, toggleFullscreen, toggleMute }
+  // Отрезок, который сейчас идёт; за секунду до конца кнопку уже не показываем.
+  const spanNow = skips?.find((s) => time >= s.start && time < (duration ? Math.min(s.stop, duration) : s.stop) - 1)
+  const skipTo = (span: SkipSpan) => {
+    const el = video.current
+    if (!el) return
+    el.currentTime = Math.min(span.stop, el.duration || span.stop)
+    poke()
+  }
+  const skipNow = () => spanNow && skipTo(spanNow)
+
+  useEffect(() => {
+    if (!autoSkip || !spanNow || paused) return
+    const id = `${spanNow.kind}:${spanNow.start}`
+    if (autoSkipped.current.has(id)) return
+    autoSkipped.current.add(id)
+    skipTo(spanNow)
+    setSkipNote({ key: Date.now(), span: spanNow })
+  })
+  useEffect(() => {
+    if (!skipNote) return
+    const t = setTimeout(() => setSkipNote(null), 5000)
+    return () => clearTimeout(t)
+  }, [skipNote])
+
+  // Горячие клавиши на компьютере: пробел/K, стрелки, F, M, S — пропустить опенинг или эндинг.
+  const keys = useRef({ togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow })
+  keys.current = { togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -172,6 +210,7 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       else if (k === 'arrowright' && !onControl) run.seekBy(5)
       else if (k === 'f' || k === 'а') run.toggleFullscreen()
       else if (k === 'm' || k === 'ь') run.toggleMute()
+      else if (k === 's' || k === 'ы') run.skipNow()
       else return
       e.preventDefault()
     }
@@ -256,6 +295,28 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
         )
       )}
 
+      {spanNow && !(spanNow.kind === 'ending' && nearEnd) && (
+        <button type="button" className="btn btn--small vp-skip" onClick={skipNow}>
+          Пропустить {SKIP_NAMES[spanNow.kind]}
+          <SkipIcon />
+        </button>
+      )}
+      {skipNote && !spanNow && (
+        <div key={skipNote.key} className="vp-skip-note" role="status">
+          {skipNote.span.kind === 'opening' ? 'Опенинг пропущен' : 'Эндинг пропущен'}
+          <button
+            type="button"
+            onClick={() => {
+              const el = video.current
+              if (el) el.currentTime = skipNote.span.start
+              setSkipNote(null)
+            }}
+          >
+            Вернуть
+          </button>
+        </div>
+      )}
+
       {/* Следующая серия всегда под рукой в углу, а под конец серии — большая кнопка. */}
       {onNext && !nearEnd && (
         <button type="button" className="vp-next-top" onClick={onNext} aria-label={`Следующая: ${nextLabel ?? 'серия'}`}>
@@ -296,6 +357,15 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
           }}
         >
           <span className="vp-seek__track" />
+          {duration > 0 &&
+            skips?.map((span) => (
+              <span
+                key={span.kind}
+                className="vp-seek__mark"
+                title={span.kind === 'opening' ? 'Опенинг' : 'Эндинг'}
+                style={{ '--from': span.start / duration, '--to': Math.min(span.stop, duration) / duration } as CSSProperties}
+              />
+            ))}
           <span className="vp-seek__thumb" />
           {preview !== null && duration > 0 && (
             <span className="vp-seek__tip" style={{ '--at': preview } as CSSProperties}>
@@ -366,6 +436,19 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
                     </button>
                   ))}
                 </div>
+                {!!skips?.length && (
+                  <>
+                    <div className="vp-menu__title">Опенинг и эндинг</div>
+                    <div className="vp-menu__opts">
+                      <button type="button" aria-pressed={!autoSkip} onClick={() => autoSkipStore.set(false)}>
+                        Кнопкой
+                      </button>
+                      <button type="button" aria-pressed={autoSkip} onClick={() => autoSkipStore.set(true)}>
+                        Пропускать сами
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

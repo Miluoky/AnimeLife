@@ -16,7 +16,10 @@ import { useMyList } from '../data/myList'
 import Reviews from '../components/Reviews'
 import Shelf from '../components/Shelf'
 import { PlayIcon } from '../components/Icons'
+import NextEpisode from '../components/NextEpisode'
+import FollowButton from '../components/FollowButton'
 import NotFound from './NotFound'
+import './title.css'
 
 const MAX_SHOTS = 8
 
@@ -69,6 +72,7 @@ export default function TitlePage() {
   })
   const [shotOpen, setShotOpen] = useState<number>()
   const [videoOpen, setVideoOpen] = useState<number>()
+  const [videoKind, setVideoKind] = useState('')
   const loaded = result.value?.data
   const info = loaded && animeInfo(loaded)
   usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info))
@@ -105,7 +109,10 @@ export default function TitlePage() {
   const similar = extras.value?.similar ?? []
   const watchLinks = extras.value?.watchLinks ?? []
   const characters = extras.value?.characters ?? []
-  const videos = extras.value?.videos ?? []
+  const allVideos = extras.value?.videos ?? []
+  // Виды видео для фильтра (трейлеры, опенинги, эндинги…), как на AniLife; при одном виде фильтр не нужен.
+  const videoKinds = [...new Set(allVideos.map((v) => v.kind))]
+  const videos = videoKind ? allVideos.filter((v) => v.kind === videoKind) : allVideos
   const scores = extras.value?.scores
   const gallery = shots.slice(0, MAX_SHOTS)
 
@@ -166,6 +173,7 @@ export default function TitlePage() {
                 )
               })}
             </div>
+            {anime.nextEpisodeAt && <NextEpisode at={anime.nextEpisodeAt} episode={(anime.episodesAired ?? 0) + 1} />}
             <div className="actions">
               <Link to={`/watch/${anime.id}/${progress?.episode ?? 1}`} className="btn btn--accent">
                 <PlayIcon />
@@ -173,6 +181,7 @@ export default function TitlePage() {
               </Link>
               <ListButton anime={anime} />
               <WatchTogetherButton anime={anime} />
+              {(anime.ongoing || anime.upcoming) && <FollowButton animeId={anime.id} title={anime.title} />}
               <ShareButton title={anime.title} path={`/anime/${anime.id}`} />
             </div>
             {facts.length > 0 && (
@@ -280,25 +289,42 @@ export default function TitlePage() {
         {characters.length > 0 && (
           <Shelf title="Персонажи" variant="compact">
               {characters.map((c) => (
-                <a
-                  key={c.id}
-                  href={c.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="row-scroll__item character-card"
-                >
+                <Link key={c.id} to={`/character/${c.id}`} className="row-scroll__item character-card">
                   <span className="character-card__img">
                     <img src={c.image} alt="" loading="lazy" />
                   </span>
                   <span className="character-card__name">{c.name}</span>
                   <span className="muted character-card__role">{c.main ? 'Главный герой' : 'Второстепенный'}</span>
-                </a>
+                </Link>
               ))}
           </Shelf>
         )}
 
         {videos.length > 0 && (
-          <Shelf title="Видео" variant="wide">
+          <Shelf
+            title="Видео"
+            variant="wide"
+            extra={
+              videoKinds.length > 1 && (
+                <div className="chips video-kinds" role="group" aria-label="Какие видео показать">
+                  {['', ...videoKinds].map((k) => (
+                    <button
+                      key={k || 'all'}
+                      type="button"
+                      className={`pill${videoKind === k ? ' active' : ''}`}
+                      aria-pressed={videoKind === k}
+                      onClick={() => {
+                        setVideoKind(k)
+                        setVideoOpen(undefined)
+                      }}
+                    >
+                      {k ? `${k} · ${allVideos.filter((v) => v.kind === k).length}` : `Все · ${allVideos.length}`}
+                    </button>
+                  ))}
+                </div>
+              )
+            }
+          >
               {videos.map((v, i) => (
                 <button key={v.youtubeId} type="button" className="row-scroll__item video-card" onClick={() => setVideoOpen(i)}>
                   <span className="video-card__img">

@@ -65,7 +65,8 @@ test('импорт из Shikimori по нику', async ({ page }) => {
   await expect(page.getByRole('status').filter({ hasText: 'Импортировано 3: новых 3' })).toBeVisible()
   await expect(page.getByRole('tab', { name: /Смотрю/ })).toContainText('1')
   await expect(page.getByText('4 / 26 эп.')).toBeVisible()
-  await expect(page.getByRole('tab', { name: /Буду смотреть/ })).toContainText('1')
+  // «Отложено» у Shikimori так и остаётся отложенным.
+  await expect(page.getByRole('tab', { name: /Отложено/ })).toContainText('1')
 })
 
 test('импорт из файла MyAnimeList и выгрузка обратно', async ({ page }) => {

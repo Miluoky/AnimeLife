@@ -10,11 +10,13 @@ interface Props {
   more?: { to: string; label?: string }
   /** модификатор ряда: compact (персонажи), wide (видео) */
   variant?: 'compact' | 'wide'
+  /** что-то между заголовком и рядом, например фильтр */
+  extra?: ReactNode
   children: ReactNode
 }
 
 /** Полка с горизонтальной прокруткой: заголовок с подписью и стрелки для мыши по краям ряда. */
-export default function Shelf({ title, subtitle, icon, more, variant, children }: Props) {
+export default function Shelf({ title, subtitle, icon, more, variant, extra, children }: Props) {
   const row = useRef<HTMLDivElement>(null)
   const [edges, setEdges] = useState({ start: true, end: true })
 
@@ -56,6 +58,7 @@ export default function Shelf({ title, subtitle, icon, more, variant, children }
           </Link>
         )}
       </div>
+      {extra}
       <div className="shelf__body">
         <div ref={row} className={`row-scroll${variant ? ` row-scroll--${variant}` : ''}`}>
           {children}

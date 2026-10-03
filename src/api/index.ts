@@ -5,6 +5,7 @@ import {
   fetchCharacters,
   fetchTitleDetails,
   fetchAllGenres,
+  fetchStudios,
   fetchCatalog,
   fetchGenres,
   fetchRelated,
@@ -92,6 +93,11 @@ export async function loadAllGenres(): Promise<Loaded<Genre[]>> {
   } catch {
     return { data: demoGenres, demo: true }
   }
+}
+
+/** Студии для фильтра; без ответа Shikimori фильтр просто пустой. */
+export async function loadStudios(): Promise<Genre[]> {
+  return fetchStudios().catch(() => [])
 }
 
 export async function loadSchedule(): Promise<Loaded<ScheduleItem[]>> {

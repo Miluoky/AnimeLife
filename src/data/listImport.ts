@@ -12,7 +12,7 @@ const shikiStatus: Record<string, ListStatus> = {
   watching: 'watching',
   rewatching: 'watching',
   planned: 'planned',
-  on_hold: 'planned',
+  on_hold: 'on_hold',
   completed: 'completed',
   dropped: 'dropped',
 }
@@ -22,8 +22,8 @@ const malStatus: Record<string, ListStatus> = {
   '1': 'watching',
   completed: 'completed',
   '2': 'completed',
-  'on-hold': 'planned',
-  '3': 'planned',
+  'on-hold': 'on_hold',
+  '3': 'on_hold',
   dropped: 'dropped',
   '4': 'dropped',
   'plan to watch': 'planned',
@@ -101,6 +101,7 @@ const toMal: Record<ListStatus, string> = {
   watching: 'Watching',
   completed: 'Completed',
   planned: 'Plan to Watch',
+  on_hold: 'On-Hold',
   dropped: 'Dropped',
 }
 

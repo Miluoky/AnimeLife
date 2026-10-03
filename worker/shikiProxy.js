@@ -30,11 +30,13 @@ const UA = 'AnimeLife/1.0 (+https://animelife.top)'
 const ID = '\\d{1,10}'
 /** [путь, свежесть в секундах, разрешённые параметры]. Прочие параметры отбрасываются, чтобы не дробить кэш. */
 const PATHS = [
-  [/^\/api\/animes$/, (q) => (q.has('search') ? HOUR : 30 * MIN), ['page', 'limit', 'order', 'status', 'kind', 'season', 'score', 'genre', 'search', 'censored', 'ids']],
+  [/^\/api\/animes$/, (q) => (q.has('search') ? HOUR : 30 * MIN), ['page', 'limit', 'order', 'status', 'kind', 'season', 'score', 'genre', 'studio', 'rating', 'exclude_ids', 'search', 'censored', 'ids']],
   [new RegExp(`^/api/animes/${ID}$`), () => 6 * HOUR, []],
   [new RegExp(`^/api/animes/${ID}/(?:related|similar|screenshots|external_links|roles)$`), () => 12 * HOUR, []],
   [/^\/api\/calendar$/, () => 15 * MIN, ['censored']],
   [/^\/api\/genres$/, () => 7 * DAY, []],
+  [/^\/api\/studios$/, () => 7 * DAY, []],
+  [new RegExp(`^/api/characters/${ID}$`), () => DAY, []],
 ]
 // GraphQL пропускаем только в виде, который шлёт withPosters: постеры пачки тайтлов (до 50).
 const GRAPHQL = /^\{ animes\(ids: "\d{1,10}(?:,\d{1,10}){0,49}", limit: \d{1,2}\) \{ id poster \{ originalUrl mainUrl main2xUrl \} \} \}$/

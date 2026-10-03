@@ -1,0 +1,123 @@
+/* Страница персонажа. */
+.character {
+  display: grid;
+  gap: 32px;
+  padding-top: 32px;
+  padding-bottom: 48px;
+}
+
+.character__head {
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+}
+
+.character__photo {
+  flex-shrink: 0;
+  width: 180px;
+  aspect-ratio: 225 / 350;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.character__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.character__names {
+  gap: 6px;
+}
+
+.character__about h3 {
+  margin: 12px 0 4px;
+  font-size: 17px;
+}
+
+.character__text {
+  display: grid;
+  gap: 10px;
+  max-width: 820px;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.character__text p {
+  margin: 0;
+}
+
+.character__text--folded {
+  max-height: 260px;
+  overflow: hidden;
+  mask-image: linear-gradient(#000 60%, transparent);
+}
+
+.character__spoiler {
+  padding: 10px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.character__spoiler summary {
+  color: var(--accent-soft);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.character__spoiler p {
+  margin-top: 8px;
+}
+
+.character__voices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.character__voice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.character__voice:hover {
+  border-color: var(--accent);
+}
+
+.character__voice-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.character__voice-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 640px) {
+  .character__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .character__photo {
+    width: 140px;
+  }
+}

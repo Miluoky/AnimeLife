@@ -47,7 +47,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|together|my-list|moderation|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|together|my-list|moderation|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|account|auth\/|my-list|moderation)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -459,6 +459,39 @@ function legalPage(path, l) {
   }
 }
 
+/** Персонаж: имя, описание без спойлеров и аниме, где он появляется. Данные те же, что берёт приложение. */
+async function characterPage(id) {
+  const c = await json(`${SHIKIMORI}/api/characters/${id}`, undefined, DAY)
+  const name = c.russian || c.name
+  // Спойлеры в превью и тексте страницы не показываем.
+  const text = cut((c.description ?? '').replace(/\[spoiler(?:=[^\]]*)?\][\s\S]*?\[\/spoiler\]/gi, ''), 1500)
+  const animes = (c.animes ?? []).slice(0, 30)
+  const crumbs = breadcrumbs([[name, `/character/${c.id}`]])
+  const image = absolute(c.image?.original)
+  const description = text ? cut(text, 200) : `${name}: персонаж аниме. Кто озвучивает и в каких аниме появляется.`
+  return {
+    title: `${name}${c.russian && c.name ? ` (${c.name})` : ''}: персонаж аниме | ${SITE}`,
+    description,
+    image,
+    type: 'profile',
+    body:
+      crumbs.html +
+      `<h1>${escapeHtml(name)}</h1>` +
+      (c.name && c.russian ? `<p>${escapeHtml(c.name)}</p>` : '') +
+      (text ? `<p>${escapeHtml(text)}</p>` : '') +
+      (animes.length ? `<h2>Аниме с персонажем</h2><ul>${animes.map((a) => `<li>${link(`/anime/${a.id}`, a.russian || a.name)}</li>`).join('')}</ul>` : '') +
+      siteNav(),
+    jsonLd: graph(crumbs.ld, {
+      '@type': 'Person',
+      name,
+      alternateName: c.name && c.russian ? c.name : undefined,
+      description,
+      image,
+      url: `${ORIGIN}/character/${c.id}`,
+    }),
+  }
+}
+
 /** Что показать в превью ссылки и в тексте страницы для данного адреса. */
 async function metaFor(path, params) {
   const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
@@ -480,6 +513,8 @@ async function metaFor(path, params) {
   if (m) return titlePage(m[1])
   m = path.match(/^\/watch\/(\d{1,10})\/(\d{1,5})$/)
   if (m) return watchPage(m[1], Math.max(1, Number(m[2])))
+  m = path.match(/^\/character\/(\d{1,10})$/)
+  if (m) return characterPage(m[1])
   m = path.match(/^\/together\/([A-Za-z0-9]{6})$/)
   if (m) {
     const r = await appwriteRow('rooms', m[1].toUpperCase())

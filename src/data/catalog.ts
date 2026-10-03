@@ -24,6 +24,8 @@ export interface Anime {
   trailerUrl?: string
   /** возрастной рейтинг Shikimori (g, pg, pg_13, r, r_plus, rx), подпись — ageLabel в seo.ts */
   rating?: string
+  /** онгоинг: когда выйдет следующая серия (ISO) */
+  nextEpisodeAt?: string
 }
 
 /** Поля, которых хватает для карточки в сетке. */

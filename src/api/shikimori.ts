@@ -13,14 +13,14 @@ const API_URL =
     ? `${location.origin}/api/shiki`
     : SHIKIMORI_URL
 
-interface ShikiImage {
+export interface ShikiImage {
   original: string
   preview: string
   main?: string
   main2x?: string
 }
 
-interface ShikiAnimeShort {
+export interface ShikiAnimeShort {
   id: number
   name: string
   russian: string
@@ -59,6 +59,8 @@ interface ShikiAnimeFull extends ShikiAnimeShort {
   rates_statuses_stats?: { name: string; value: number }[]
   /** возрастной рейтинг: g, pg, pg_13, r, r_plus, rx */
   rating?: string | null
+  /** когда выйдет следующая серия онгоинга (ISO), по расписанию Shikimori */
+  next_episode_at?: string | null
 }
 
 export interface Genre {
@@ -66,7 +68,7 @@ export interface Genre {
   title: string
 }
 
-export type CatalogOrder = 'popularity' | 'ranked' | 'aired_on'
+export type CatalogOrder = 'popularity' | 'ranked' | 'aired_on' | 'name'
 
 export interface CatalogQuery {
   page?: number
@@ -79,7 +81,14 @@ export interface CatalogQuery {
   season?: string
   /** минимальная оценка */
   score?: number
-  genre?: number
+  /** жанр или несколько через запятую (тайтл должен подходить под все) */
+  genre?: number | string
+  /** студия или несколько через запятую */
+  studio?: string
+  /** возрастной рейтинг: g, pg, pg_13, r, r_plus */
+  rating?: string
+  /** не показывать эти тайтлы, например уже добавленные в «Мой список» */
+  excludeIds?: string[]
   search?: string
 }
 
@@ -134,7 +143,7 @@ async function request<T>(url: URL, init: RequestInit = {}, attempt = 0): Promis
   return res.json() as Promise<T>
 }
 
-function get<T>(path: string, params: Record<string, string | number | undefined> = {}, base = API_URL): Promise<T> {
+export function get<T>(path: string, params: Record<string, string | number | undefined> = {}, base = API_URL): Promise<T> {
   const url = new URL(`${base}/api${path}`)
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') url.searchParams.set(key, String(value))
@@ -171,7 +180,7 @@ interface GraphqlPosters {
  * GraphQL знает настоящий адрес и лёгкие webp-версии для сеток, поэтому берём постеры оттуда
  * одним запросом на всю пачку. Если GraphQL не ответил, остаются постеры из REST.
  */
-async function withPosters<T extends ShikiAnimeShort>(list: T[], { onlyMissing = false } = {}): Promise<T[]> {
+export async function withPosters<T extends ShikiAnimeShort>(list: T[], { onlyMissing = false } = {}): Promise<T[]> {
   // Для одного тайтла (страница, подборка недели) полный постер из REST годится: GraphQL ждём,
   // только если REST отдал заглушку. Для сеток же нужны лёгкие webp, их есть смысл подождать.
   const need = (a: ShikiAnimeShort) => !posterCache.has(a.id) && (!onlyMissing || isMissing(a.image?.original))
@@ -227,13 +236,13 @@ const seasons = ['Зима', 'Зима', 'Весна', 'Весна', 'Весна
 
 const fills = ['#1e2638', '#2b2340', '#1e3140', '#24332a', '#3a2430', '#3a3122', '#26283f']
 
-function absolute(path: string) {
+export function absolute(path: string) {
   if (isMissing(path)) return undefined
   return path.startsWith('http') ? path : new URL(path, SHIKIMORI_URL).toString()
 }
 
 // В описаниях Shikimori есть разметка вида [character=123]Имя[/character], оставляем только текст.
-function cleanDescription(text: string | null) {
+export function cleanDescription(text: string | null) {
   if (!text) return ''
   return text
     .replace(/\[\/?[a-z_]+(?:=[^\]]*)?\]/gi, '')
@@ -241,7 +250,7 @@ function cleanDescription(text: string | null) {
     .trim()
 }
 
-function fromShort(a: ShikiAnimeShort): Anime {
+export function fromShort(a: ShikiAnimeShort): Anime {
   const aired = a.aired_on ? new Date(a.aired_on) : undefined
   return {
     id: String(a.id),
@@ -275,6 +284,7 @@ function fromFull(a: ShikiAnimeFull): Anime {
     description: cleanDescription(a.description),
     trailerUrl: trailer ? trailer.player_url.replace(/^(https?:)?\/\//, 'https://') : undefined,
     rating: a.rating || undefined,
+    nextEpisodeAt: (a.status === 'ongoing' && a.next_episode_at) || undefined,
   }
 }
 
@@ -288,6 +298,9 @@ export async function fetchCatalog(q: CatalogQuery = {}): Promise<Anime[]> {
     season: q.season,
     score: q.score,
     genre: q.genre,
+    studio: q.studio,
+    rating: q.rating,
+    exclude_ids: q.excludeIds?.length ? q.excludeIds.join(',') : undefined,
     search: q.search,
     censored: 'true',
   })
@@ -318,6 +331,15 @@ export async function fetchAllGenres(): Promise<Genre[]> {
     .filter((g) => g.entry_type === 'Anime')
     .map((g) => ({ id: g.id, title: g.russian || g.name }))
     .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+}
+
+/** Студии для фильтра каталога: только настоящие (у Shikimori их около 120, остальные — подразделения и лейблы). */
+export async function fetchStudios(): Promise<Genre[]> {
+  const all = await get<{ id: number; name: string; real?: boolean }[]>('/studios')
+  return all
+    .filter((s) => s.real)
+    .map((s) => ({ id: s.id, title: s.name }))
+    .sort((a, b) => a.title.localeCompare(b.title, 'en'))
 }
 
 export interface ScheduleItem {
@@ -494,6 +516,8 @@ export interface ScoreStats {
 export interface TitleVideo {
   title: string
   youtubeId: string
+  /** вид видео для фильтра: «Трейлер», «Опенинг», «Эндинг», «Клип»… */
+  kind: string
 }
 
 const videoKinds: Record<string, string> = {
@@ -527,7 +551,7 @@ export async function fetchTitleDetails(id: string): Promise<{ scores?: ScoreSta
     .map(({ v, id }) => {
       const kind = videoKinds[v.kind] ?? 'Видео'
       const name = v.name?.trim()
-      return { youtubeId: id, title: name && name !== kind ? `${kind}: ${name}` : kind }
+      return { youtubeId: id, kind, title: name && name !== kind ? `${kind}: ${name}` : kind }
     })
     .filter((v, i, all) => all.findIndex((o) => o.youtubeId === v.youtubeId) === i)
   return {

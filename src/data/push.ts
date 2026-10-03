@@ -1,10 +1,11 @@
 import { useSyncExternalStore } from 'react'
 import { VAPID_PUBLIC_KEY } from '../api/config'
 import { CommunityError, callCommunity } from './community'
+import { createLocalStore } from './localStore'
 import { listStore } from './myList'
 
 /**
- * Пуш-уведомления о новых сериях тайтлов из «Смотрю». Браузер выдаёт подписку, мы отправляем её
+ * Пуш-уведомления о новых сериях тайтлов из «Смотрю» и тех, на которые нажали колокольчик. Браузер выдаёт подписку, мы отправляем её
  * в функцию вместе со списком тайтлов, а функция по расписанию проверяет календарь Shikimori.
  * Когда меняется «Смотрю», список тайтлов в подписке обновляется сам.
  */
@@ -41,11 +42,43 @@ export function usePushState(): PushState {
   )
 }
 
-const watchingIds = () =>
+/** Тайтлы, на которые нажали колокольчик, и тайтлы из «Смотрю», о которых колокольчиком попросили молчать. */
+const followStore = createLocalStore<string[]>('anime.follow.v1', [])
+const muteStore = createLocalStore<string[]>('anime.mute.v1', [])
+
+const watching = () =>
   listStore
     .get()
     .filter((e) => e.status === 'watching')
     .map((e) => e.anime.id)
+
+/** О каких тайтлах сообщать: «Смотрю» и колокольчики, кроме выключенных. */
+const watchingIds = () => {
+  const muted = new Set(muteStore.get())
+  return [...new Set([...watching(), ...followStore.get()])].filter((id) => !muted.has(id))
+}
+
+/** Включён ли колокольчик у тайтла. Перерисовывается при смене «Моего списка» и колокольчиков. */
+export function useFollowing(animeId: string): boolean {
+  listStore.use()
+  followStore.use()
+  muteStore.use()
+  return watchingIds().includes(animeId)
+}
+
+/** Колокольчик на странице тайтла: включает уведомления о его сериях или выключает их. */
+export async function setFollowing(animeId: string, on: boolean) {
+  const without = (list: string[]) => list.filter((id) => id !== animeId)
+  if (on) {
+    followStore.set([...without(followStore.get()), animeId])
+    muteStore.set(without(muteStore.get()))
+    // Уведомления ещё не включены: колокольчик заодно спрашивает разрешение браузера.
+    if (state !== 'on') await enablePush()
+  } else {
+    followStore.set(without(followStore.get()))
+    if (watching().includes(animeId)) muteStore.set([...without(muteStore.get()), animeId])
+  }
+}
 
 function keyBytes(base64: string) {
   const b64 = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/')
@@ -80,7 +113,7 @@ export async function initPush() {
 
   let timer: ReturnType<typeof setTimeout> | undefined
   let last = watchingIds().join(',')
-  listStore.subscribe(() => {
+  const resync = () => {
     const ids = watchingIds().join(',')
     if (ids === last || state !== 'on') return
     last = ids
@@ -89,7 +122,10 @@ export async function initPush() {
       const current = await currentSubscription().catch(() => null)
       if (current) await send(current).catch(() => undefined)
     }, 2000)
-  })
+  }
+  listStore.subscribe(resync)
+  followStore.subscribe(resync)
+  muteStore.subscribe(resync)
 }
 
 export async function enablePush() {

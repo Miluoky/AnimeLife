@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { loadAllGenres, useAsync, type CatalogOrder, type CatalogQuery } from '../api'
+import { loadAllGenres, loadStudios, useAsync, type CatalogOrder, type CatalogQuery } from '../api'
 import CatalogGrid from '../components/CatalogGrid'
+import MultiPick from '../components/MultiPick'
+import { useMyList } from '../data/myList'
 import Pager from '../components/Pager'
 import { usePageMeta } from '../data/pageMeta'
 import { swapLayout } from '../data/keyboard'
 import { CATALOG } from '../data/landings'
 import { PAGE_SIZE, pageParam } from '../data/seo'
+import './catalog.css'
 
 const orders: { id: CatalogOrder; title: string }[] = [
   { id: 'popularity', title: 'Популярные' },
   { id: 'ranked', title: 'С высоким рейтингом' },
   { id: 'aired_on', title: 'Новые' },
+  { id: 'name', title: 'По алфавиту' },
 ]
 
 const statuses = [
@@ -35,6 +39,25 @@ const years = [
   { id: '1990_1999', title: '1990-е' },
   { id: '1917_1989', title: 'До 1990' },
 ]
+
+// Сезон уточняет год: «Лето 2024» — это season=summer_2024 у Shikimori.
+const parts = [
+  { id: 'winter', title: 'Зима' },
+  { id: 'spring', title: 'Весна' },
+  { id: 'summer', title: 'Лето' },
+  { id: 'fall', title: 'Осень' },
+]
+
+const ages = [
+  { id: 'g', title: '0+' },
+  { id: 'pg', title: '6+' },
+  { id: 'pg_13', title: '12+' },
+  { id: 'r', title: '16+' },
+  { id: 'r_plus', title: '18+' },
+]
+
+// Столько тайтлов из своего списка прячем, не больше: иначе адрес запроса станет слишком длинным.
+const EXCLUDE_LIMIT = 300
 
 const scores = [
   { id: '8', title: 'от 8' },
@@ -94,6 +117,8 @@ function ChipFilter({ label, name, value, any, options, onChange }: FilterProps)
 export default function Catalog() {
   const [params, setParams] = useSearchParams()
   const genres = useAsync(loadAllGenres, [])
+  const studios = useAsync(loadStudios, [])
+  const myList = useMyList()
 
   const search = (params.get('q') ?? '').trim()
   // «yfhenj» вместо «наруто»: предложим тот же текст в другой раскладке, если ничего не нашлось.
@@ -118,17 +143,31 @@ export default function Catalog() {
     window.scrollTo({ top: 0 })
   }
 
+  const list = (name: string) => value(name).split(',').filter((v) => /^\d+$/.test(v))
+  const year = value('year')
+  // Сезон имеет смысл только для одного года, а не для десятилетия.
+  const part = /^\d{4}$/.test(year) ? value('part') : ''
+  const hideMine = value('hide') === 'mine'
   const query: CatalogQuery = {
     search: search || undefined,
     order: (value('order') as CatalogOrder) || 'popularity',
     status: (value('status') as CatalogQuery['status']) || undefined,
     kind: value('kind') || undefined,
-    season: value('year') || undefined,
+    season: (part ? `${part}_${year}` : year) || undefined,
     score: Number(value('score')) || undefined,
-    genre: Number(value('genre')) || undefined,
+    genre: list('genre').join(',') || undefined,
+    // У Shikimori несколько студий значат «все сразу», поэтому выбирается одна.
+    studio: list('studio')[0],
+    rating: value('age') || undefined,
+    excludeIds: hideMine
+      ? myList
+          .map((e) => e.anime.id)
+          .filter((id) => /^\d+$/.test(id))
+          .slice(0, EXCLUDE_LIMIT)
+      : undefined,
   }
 
-  const filtersSet = ['order', 'status', 'kind', 'year', 'score', 'genre'].some((n) => params.has(n))
+  const filtersSet = ['order', 'status', 'kind', 'year', 'part', 'score', 'genre', 'studio', 'age', 'hide'].some((n) => params.has(n))
 
   return (
     <main className="container home">
@@ -153,17 +192,31 @@ export default function Catalog() {
         <ChipFilter label="Статус" name="status" value={value('status')} any="Все" options={statuses} onChange={change} />
 
         <div className="filters" role="group" aria-label="Фильтры каталога">
-          <Filter
-            label="Жанр"
-            name="genre"
-            value={value('genre')}
-            any="Любой"
+          <MultiPick
+            label="Жанры"
+            any="Любые"
             options={genres.value?.data ?? []}
-            onChange={change}
+            value={list('genre')}
+            onChange={(ids) => change('genre', ids.join(','))}
+            searchable
           />
           <Filter label="Тип" name="kind" value={value('kind')} any="Любой" options={kinds} onChange={change} />
-          <Filter label="Год" name="year" value={value('year')} any="Любой" options={years} onChange={change} />
+          <Filter label="Год" name="year" value={year} any="Любой" options={years} onChange={change} />
+          {/^\d{4}$/.test(year) && (
+            <Filter label="Сезон" name="part" value={part} any="Весь год" options={parts} onChange={change} />
+          )}
           <Filter label="Оценка" name="score" value={value('score')} any="Любая" options={scores} onChange={change} />
+          <Filter label="Возраст" name="age" value={value('age')} any="Любой" options={ages} onChange={change} />
+          <Filter label="Студия" name="studio" value={list('studio')[0] ?? ''} any="Любая" options={studios.value ?? []} onChange={change} />
+          {myList.length > 0 && (
+            <label className={`filter filter--check${hideMine ? ' filter--set' : ''}`}>
+              <span className="filter__label">Мой список</span>
+              <span className="filter__check">
+                <input type="checkbox" checked={hideMine} onChange={(e) => change('hide', e.target.checked ? 'mine' : '')} />
+                Скрыть добавленные
+              </span>
+            </label>
+          )}
           {filtersSet && (
             <button
               type="button"

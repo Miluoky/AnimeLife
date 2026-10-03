@@ -9,10 +9,18 @@ const MIRROR_BASE = 'https://aniliberty.top/api/v1'
 
 /* ──────────────── Типы ──────────────── */
 
+/** Отрезок серии в секундах: опенинг или эндинг. AniLibria размечает их для большинства релизов. */
+export interface AniLibriaSpan {
+  start: number | null
+  stop: number | null
+}
+
 /** Одна серия релиза: ссылки на HLS-плейлисты абсолютные. */
 export interface AniLibriaEpisode {
   ordinal: number
   name: string | null
+  opening?: AniLibriaSpan | null
+  ending?: AniLibriaSpan | null
   hls_480: string | null
   hls_720: string | null
   hls_1080: string | null
@@ -85,6 +93,22 @@ async function searchRelease(shikimoriId: string, queries: (string | undefined)[
 }
 
 /* ──────────────── Хелперы ──────────────── */
+
+/** Что можно пропустить в серии: только размеченные отрезки от 5 секунд. */
+export interface SkipSpan {
+  kind: 'opening' | 'ending'
+  start: number
+  stop: number
+}
+
+export function episodeSkips(ep: AniLibriaEpisode): SkipSpan[] {
+  const spans: SkipSpan[] = []
+  for (const kind of ['opening', 'ending'] as const) {
+    const { start, stop } = ep[kind] ?? {}
+    if (typeof start === 'number' && typeof stop === 'number' && stop - start >= 5) spans.push({ kind, start, stop })
+  }
+  return spans
+}
 
 /** Поток серии в нужном качестве, а если его нет — в лучшем из доступных. */
 export function episodeStream(ep: AniLibriaEpisode, quality: AniLibriaQuality): { quality: AniLibriaQuality; url: string } | null {

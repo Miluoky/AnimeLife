@@ -507,6 +507,61 @@
   }
 }
 
+/* Пропуск опенинга и эндинга по разметке AniLibria. */
+.vp-skip {
+  position: absolute;
+  z-index: 2;
+  right: 14px;
+  bottom: 76px;
+  gap: 8px;
+  background: rgba(10, 11, 16, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  animation: vp-next-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.vp-skip:hover {
+  background: rgba(10, 11, 16, 0.92);
+  border-color: #fff;
+}
+
+.vp-skip-note {
+  position: absolute;
+  z-index: 2;
+  left: 14px;
+  bottom: 76px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(10, 11, 16, 0.82);
+  color: #fff;
+  font-size: 13px;
+  animation: vp-next-in 0.3s ease-out;
+}
+
+.vp-skip-note button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent-soft);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vp-seek__mark {
+  position: absolute;
+  top: 9px;
+  height: 4px;
+  left: calc(var(--from) * 100%);
+  width: calc((var(--to) - var(--from)) * 100%);
+  background: rgba(255, 200, 87, 0.55);
+  pointer-events: none;
+}
+
 /* Нижняя панель: плавно прячется, когда видео идёт и мышь не двигается */
 .vp-bar {
   position: absolute;
@@ -774,6 +829,12 @@
 
 /* На телефоне видео невысокое: кнопка следующей серии уходит в верхний угол, чтобы не закрывать центр. */
 @media (max-width: 640px) {
+  .vp-skip,
+  .vp-skip-note {
+    bottom: 64px;
+    height: 34px;
+    font-size: 13px;
+  }
   .vp-next {
     top: 10px;
     right: 10px;

@@ -2,12 +2,13 @@ import type { Anime, AnimeCard } from './catalog'
 import { createLocalStore } from './localStore'
 
 // «Мой список» хранится в браузере, пока нет аккаунтов.
-export type ListStatus = 'watching' | 'planned' | 'completed' | 'dropped'
+export type ListStatus = 'watching' | 'planned' | 'completed' | 'on_hold' | 'dropped'
 
 export const listStatuses: { id: ListStatus; title: string }[] = [
   { id: 'watching', title: 'Смотрю' },
   { id: 'planned', title: 'Буду смотреть' },
   { id: 'completed', title: 'Просмотрено' },
+  { id: 'on_hold', title: 'Отложено' },
   { id: 'dropped', title: 'Брошено' },
 ]
 

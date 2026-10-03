@@ -123,3 +123,58 @@ test('плеер: озвучки списком сбоку и поиск сер�
   await page.getByRole('searchbox', { name: 'Найти серию' }).fill('99')
   await expect(page.getByText('Такой серии нет')).toBeVisible()
 })
+
+test('плеер: опенинг по разметке AniLibria — кнопка «Пропустить», метка на полосе и автопропуск', async ({ page }) => {
+  const withOpening = {
+    ...release,
+    episodes: release.episodes.map((e: object, i: number) => (i === 0 ? { ...e, opening: { start: 0, stop: 5 } } : e)),
+  }
+  await mockAniLibria(page, search)
+  await page.route(/anilibria\.top\/api\/v1\/anime\/releases\/8443$/, (route) => route.fulfill({ json: withOpening }))
+  await page.addInitScript(() => {
+    const original = HTMLMediaElement.prototype.canPlayType
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      return type === 'application/vnd.apple.mpegurl' ? 'maybe' : original.call(this, type)
+    }
+  })
+  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
+  await page.route(/cache\.libria\.fun\/.*\.m3u8/, (route) => route.fulfill({ contentType: 'video/webm', body: clip }))
+  await page.goto('/watch/1/1')
+
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+  await expect(page.locator('.vp-seek__mark')).toHaveCount(1)
+
+  // Подменённый ролик нельзя перематывать (сервер заготовки не отдаёт куски), поэтому время серии
+  // в тесте живёт в переменной: плеер читает и меняет его как обычно.
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.pause()
+    let t = 0
+    Object.defineProperty(v, 'currentTime', {
+      configurable: true,
+      get: () => t,
+      set: (x: number) => {
+        t = x
+        v.dispatchEvent(new Event('timeupdate'))
+      },
+    })
+    v.dispatchEvent(new Event('timeupdate'))
+  })
+
+  // Кнопка переносит в конец опенинга (опенинг — первые 5 секунд).
+  await page.getByRole('button', { name: 'Пропустить опенинг' }).click()
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBe(5)
+  await expect(page.getByRole('button', { name: 'Пропустить опенинг' })).toBeHidden()
+
+  // Автопропуск: включаем в меню, с начала серии видео само перепрыгивает опенинг, «Вернуть» откатывает.
+  await page.getByRole('button', { name: 'Качество и скорость' }).click()
+  await page.getByRole('button', { name: 'Пропускать сами' }).click()
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.muted = true
+    v.currentTime = 0
+    return v.play()
+  })
+  await expect(page.getByRole('status').filter({ hasText: 'Опенинг пропущен' })).toBeVisible()
+  await page.getByRole('button', { name: 'Вернуть' }).click()
+  await expect(page.getByRole('button', { name: 'Пропустить опенинг' })).toBeVisible()
+})

@@ -15,6 +15,7 @@ import { useState, useEffect, useRef, useCallback, type CSSProperties } from 're
 import {
   findRelease,
   episodeStream,
+  episodeSkips,
   qualities,
   type AniLibriaEpisode,
   type AniLibriaRelease,
@@ -376,6 +377,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             onQuality={setAlQuality}
             onNext={hasNext ? () => onEpisodeChange?.(episode + 1) : undefined}
             nextLabel={`${episode + 1} серия`}
+            skips={alEp ? episodeSkips(alEp) : undefined}
           />
         )}
 
