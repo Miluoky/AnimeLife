@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { loadAllGenres, useAsync, type CatalogOrder, type CatalogQuery } from '../api'
 import CatalogGrid from '../components/CatalogGrid'
 import Pager from '../components/Pager'
 import { usePageMeta } from '../data/pageMeta'
+import { swapLayout } from '../data/keyboard'
 import { CATALOG } from '../data/landings'
 import { PAGE_SIZE, pageParam } from '../data/seo'
 
@@ -95,6 +96,8 @@ export default function Catalog() {
   const genres = useAsync(loadAllGenres, [])
 
   const search = (params.get('q') ?? '').trim()
+  // «yfhenj» вместо «наруто»: предложим тот же текст в другой раскладке, если ничего не нашлось.
+  const other = search ? swapLayout(search) : undefined
   const value = (name: string) => params.get(name) ?? ''
   // Страница списка из адреса (?page=3): с неё начинается сетка, ниже ссылки на соседние страницы.
   const page = pageParam(params.get('page'))
@@ -173,6 +176,15 @@ export default function Catalog() {
         </div>
 
         <CatalogGrid key={JSON.stringify(query) + page} query={query} start={page} onFirst={(n) => setFirst([page, n])} />
+        {other && first?.[0] === page && first[1] === 0 && (
+          <p className="muted">
+            Возможно, вы искали{' '}
+            <Link className="link-accent" to={`/catalog?q=${encodeURIComponent(other)}`}>
+              «{other}»
+            </Link>
+            : похоже, текст набран не в той раскладке.
+          </p>
+        )}
         {first?.[0] === page && (
           <Pager
             page={page}

@@ -1,9 +1,9 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { loadCatalog } from '../api'
-import type { Anime } from '../data/catalog'
-import { Poster } from './PosterCard'
 import { SearchIcon } from './Icons'
+
+// Подсказки — отдельный файл: он грузится при первом фокусе на поле, а не с каждой страницей.
+const SearchHints = lazy(() => import('./SearchHints'))
 
 interface Props {
   className: string
@@ -16,31 +16,12 @@ export default function SearchBox({ className, onDone }: Props) {
   const navigate = useNavigate()
   const id = useId()
   const [query, setQuery] = useState('')
-  const [hints, setHints] = useState<Anime[]>([])
   const [open, setOpen] = useState(false)
-  const [active, setActive] = useState(-1)
+  // Однажды открытые подсказки остаются загруженными.
+  const [wanted, setWanted] = useState(false)
+  const [aria, setAria] = useState<{ expanded: boolean; active?: string }>({ expanded: false })
+  const keys = useRef<((e: KeyboardEvent<HTMLInputElement>) => boolean) | null>(null)
   const box = useRef<HTMLFormElement>(null)
-
-  // Ждём паузу в наборе, чтобы не дёргать API на каждую букву (лимит Shikimori 5 запросов в секунду).
-  useEffect(() => {
-    const text = query.trim()
-    if (text.length < 2) {
-      setHints([])
-      return
-    }
-    let cancelled = false
-    const timer = setTimeout(async () => {
-      const result = await loadCatalog({ search: text, limit: 6 })
-      if (!cancelled) {
-        setHints(result.data.slice(0, 6))
-        setActive(-1)
-      }
-    }, 300)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [query])
 
   // Клик мимо поиска закрывает подсказки.
   useEffect(() => {
@@ -52,41 +33,38 @@ export default function SearchBox({ className, onDone }: Props) {
     return () => document.removeEventListener('pointerdown', close)
   }, [open])
 
+  const onState = useCallback((expanded: boolean, active?: string) => setAria({ expanded, active }), [])
+
   function go(path: string) {
     setOpen(false)
+    // Иначе поле остаётся в фокусе, и следующий клик по нему не откроет подсказки.
+    box.current?.querySelector('input')?.blur()
     setQuery('')
-    setHints([])
-    setActive(-1)
     navigate(path)
     onDone?.()
   }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (active >= 0 && hints[active]) return go(`/anime/${hints[active].id}`)
     const text = query.trim()
     go(text ? `/catalog?q=${encodeURIComponent(text)}` : '/catalog')
   }
 
-  function onKeyDown(e: KeyboardEvent) {
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Escape') {
       setOpen(false)
       return
     }
-    if (!hints.length || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
-    e.preventDefault()
-    setOpen(true)
-    const step = e.key === 'ArrowDown' ? 1 : -1
-    // -1 значит «ничего не выбрано»: Enter тогда ищет по тексту.
-    setActive((i) => {
-      const next = i + step
-      if (next >= hints.length) return -1
-      if (next < -1) return hints.length - 1
-      return next
-    })
+    if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) setOpen(true)
+    if (open) keys.current?.(e)
   }
 
-  const showHints = open && query.trim().length >= 2 && hints.length > 0
+  function show() {
+    setOpen(true)
+    setWanted(true)
+  }
+
+  const expanded = open && aria.expanded
   const listId = `${id}-hints`
 
   return (
@@ -101,51 +79,24 @@ export default function SearchBox({ className, onDone }: Props) {
         placeholder="Найти аниме"
         autoComplete="off"
         role="combobox"
-        aria-expanded={showHints}
+        aria-expanded={expanded}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-activedescendant={showHints && active >= 0 ? `${listId}-${active}` : undefined}
+        aria-activedescendant={expanded ? aria.active : undefined}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value)
-          setActive(-1)
-          setOpen(true)
+          show()
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={show}
+        onClick={show}
         onKeyDown={onKeyDown}
       />
       {!query && <kbd className="search__kbd" aria-hidden="true">Ctrl K</kbd>}
-      {showHints && (
-        <ul id={listId} className="search-hints" role="listbox" aria-label="Подсказки">
-          {hints.map((a, i) => (
-            <li
-              key={a.id}
-              id={`${listId}-${i}`}
-              role="option"
-              aria-selected={i === active}
-              className={`search-hint${i === active ? ' active' : ''}`}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => go(`/anime/${a.id}`)}
-            >
-              <span className="search-hint__poster" style={{ background: a.posterFill }}>
-                <Poster anime={a} />
-              </span>
-              <span className="search-hint__info">
-                <span className="search-hint__title">{a.title}</span>
-                <span className="muted">{[a.year, a.kind].filter(Boolean).join(' · ')}</span>
-              </span>
-            </li>
-          ))}
-          <li
-            role="option"
-            aria-selected={false}
-            className="search-hint search-hint--all"
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => go(`/catalog?q=${encodeURIComponent(query.trim())}`)}
-          >
-            Все результаты
-          </li>
-        </ul>
+      {wanted && open && (
+        <Suspense fallback={null}>
+          <SearchHints query={query} listId={listId} keys={keys} onGo={go} onState={onState} />
+        </Suspense>
       )}
     </form>
   )
