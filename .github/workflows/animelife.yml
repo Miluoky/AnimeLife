@@ -47,3 +47,10 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Выложить Worker с сайтом
         run: npx --yes wrangler@4 deploy -c wrangler.animelife.jsonc
+      # IndexNow: сразу сообщить Яндексу и Bing об обновлённых разделах, посадочных страницах и онгоингах
+      # (scripts/indexnow.mjs). Это ускоряет обход, но не обязательно: ошибка здесь публикацию не ломает.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Сообщить поисковикам (IndexNow)
+        continue-on-error: true
+        timeout-minutes: 3
+        run: node scripts/indexnow.mjs
