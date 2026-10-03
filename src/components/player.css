@@ -44,6 +44,13 @@
   font-size: clamp(24px, 4vw, 30px);
 }
 
+.watch-head__title {
+  display: block;
+  margin-bottom: 4px;
+  font: 400 16px var(--font-body);
+  letter-spacing: normal;
+}
+
 .watch-head__name {
   margin: 0;
   color: var(--text-soft);

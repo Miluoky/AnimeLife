@@ -37,7 +37,7 @@ function groupByDay(items: ScheduleItem[]) {
 }
 
 export default function Schedule() {
-  usePageMeta('Расписание серий')
+  usePageMeta('Расписание выхода серий аниме на неделю', 'Когда выйдет новая серия: расписание онгоингов на ближайшую неделю с днём и временем выхода каждой серии.')
   const result = useAsync(loadSchedule, [])
   const days = result.value ? groupByDay(result.value.data) : []
 
@@ -45,7 +45,7 @@ export default function Schedule() {
     <main className="container home">
       <section className="stack">
         <div className="section-head">
-          <h1 className="page-title">Расписание</h1>
+          <h1 className="page-title">Расписание выхода серий</h1>
           <span className="muted">Новые серии онгоингов на неделю, время ваше местное</span>
         </div>
 

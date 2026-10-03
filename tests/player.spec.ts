@@ -100,6 +100,6 @@ test('плеер: свои кнопки поверх видео — пауза �
   // Номер серии в полосе ведёт на её страницу.
   await page.getByRole('navigation', { name: 'Серии' }).getByRole('link', { name: /^Серия 3/ }).click()
   await expect(page).toHaveURL(/\/watch\/1\/3$/)
-  await expect(page.getByRole('heading', { name: 'Серия 3' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Ковбой Бибоп Серия 3' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Серии' }).locator('[aria-current="page"]')).toHaveText('3')
 })

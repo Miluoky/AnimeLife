@@ -9,11 +9,15 @@ interface Props {
   /** Фильтры без страницы. При смене фильтров родитель пересоздаёт сетку через key. */
   query: Omit<CatalogQuery, 'page' | 'limit'>
   empty?: string
+  /** с какой страницы начать (адрес вида ?page=3) */
+  start?: number
+  /** сколько тайтлов пришло на первой загруженной странице: по нему рисуются ссылки на страницы */
+  onFirst?: (count: number) => void
 }
 
 /** Сетка постеров с подгрузкой следующих страниц при прокрутке к концу списка. */
-export default function CatalogGrid({ query, empty = 'Ничего не нашлось. Попробуйте другой запрос или фильтры.' }: Props) {
-  const [page, setPage] = useState(1)
+export default function CatalogGrid({ query, empty = 'Ничего не нашлось. Попробуйте другой запрос или фильтры.', start = 1, onFirst }: Props) {
+  const [page, setPage] = useState(start)
   const [items, setItems] = useState<Anime[]>([])
   const [hasMore, setHasMore] = useState(false)
   const sentinel = useRef<HTMLDivElement>(null)
@@ -23,8 +27,9 @@ export default function CatalogGrid({ query, empty = 'Ничего не нашл
   useEffect(() => {
     if (!batch.value) return
     const { data, demo } = batch.value
-    setItems((prev) => (page === 1 ? data : [...prev, ...data.filter((a) => !prev.some((p) => p.id === a.id))]))
+    setItems((prev) => (page === start ? data : [...prev, ...data.filter((a) => !prev.some((p) => p.id === a.id))]))
     setHasMore(!demo && data.length === PAGE_SIZE)
+    if (page === start) onFirst?.(demo ? 0 : data.length)
   }, [batch.value, page])
 
   // Когда низ списка подходит к экрану, грузим следующую страницу. Кнопка ниже остаётся запасным путём.
@@ -43,7 +48,7 @@ export default function CatalogGrid({ query, empty = 'Ничего не нашл
   }, [hasMore, loading])
 
   const demo = batch.value?.demo
-  const firstLoad = loading && page === 1
+  const firstLoad = loading && page === start
 
   return (
     <>

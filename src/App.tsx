@@ -2,13 +2,13 @@ import { Suspense, lazy, useEffect } from 'react'
 import { Route, Routes, useParams } from 'react-router-dom'
 import Layout from './components/Layout'
 import Home from './pages/Home'
-import CatalogSection from './components/CatalogSection'
 import { pageChunks, prefetchNavigation } from './api/prefetch'
 
 // Главная входит в основную сборку, остальные страницы грузятся отдельными частями при первом открытии.
 const TitlePage = lazy(pageChunks.title)
 const Player = lazy(pageChunks.player)
 const Catalog = lazy(pageChunks.catalog)
+const Landing = lazy(pageChunks.landing)
 const Schedule = lazy(pageChunks.schedule)
 const MyList = lazy(pageChunks.myList)
 const Account = lazy(pageChunks.account)
@@ -44,14 +44,12 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="anime/:id" element={<TitlePageRoute />} />
           <Route path="watch/:id/:episode" element={<Player />} />
-          <Route
-            path="ongoing"
-            element={
-              <main className="container home">
-                <CatalogSection title="Онгоинги" status="ongoing" moreLink="/catalog?status=ongoing" />
-              </main>
-            }
-          />
+          {/* Посадочные страницы для поиска: онгоинги, жанры, типы, годы и сезоны (src/data/seo.ts). */}
+          <Route path="ongoing" element={<Landing />} />
+          <Route path="genre/:slug" element={<Landing />} />
+          <Route path="type/:kind" element={<Landing />} />
+          <Route path="year/:year" element={<Landing />} />
+          <Route path="year/:year/:season" element={<Landing />} />
           <Route path="together" element={<TogetherHome />} />
           <Route path="u/:id" element={<PublicProfile />} />
           <Route path="together/:code" element={<TogetherRoute />} />

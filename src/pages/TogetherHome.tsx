@@ -11,7 +11,7 @@ import { usePageMeta } from '../data/pageMeta'
 
 /** Вкладка «Вместе»: войти по коду и открытые комнаты, где смотрят прямо сейчас. */
 export default function TogetherHome() {
-  usePageMeta('Смотреть вместе')
+  usePageMeta('Смотреть аниме вместе с друзьями онлайн')
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [rooms, setRooms] = useState<Room[] | null>(null)

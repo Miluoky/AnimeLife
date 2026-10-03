@@ -16,9 +16,12 @@ export function Poster({
   anime,
   className,
   priority,
+  alt = '',
 }: {
   anime: PosterAnime
   className?: string
+  /** в карточке название уже написано рядом, поэтому по умолчанию картинка без подписи */
+  alt?: string
   /** первый постер на экране грузим сразу и с высоким приоритетом, остальные лениво */
   priority?: boolean
 }) {
@@ -30,7 +33,7 @@ export function Poster({
       onLoad={fadeIn}
       src={src}
       srcSet={anime.posterSmall && anime.posterSmall2x ? `${anime.posterSmall} 1x, ${anime.posterSmall2x} 2x` : undefined}
-      alt=""
+      alt={alt}
       width={225}
       height={338}
       loading={priority ? 'eager' : 'lazy'}

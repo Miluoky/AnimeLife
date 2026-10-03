@@ -71,10 +71,10 @@ test('баннер «Сейчас в эфире» переключает тай�
 
 test('у страницы тайтла свой заголовок вкладки и кнопка «Поделиться»', async ({ page }) => {
   await page.goto('/anime/1')
-  await expect(page).toHaveTitle('Ковбой Бибоп — Anime Life')
+  await expect(page).toHaveTitle('Ковбой Бибоп — смотреть аниме онлайн бесплатно все серии | Anime Life')
   await expect(page.getByRole('button', { name: 'Поделиться' })).toBeVisible()
   await page.goto('/catalog')
-  await expect(page).toHaveTitle('Каталог аниме — Anime Life')
+  await expect(page).toHaveTitle('Каталог аниме — поиск по жанрам, годам и рейтингу | Anime Life')
 })
 
 test.describe('вёрстка на телефоне', () => {

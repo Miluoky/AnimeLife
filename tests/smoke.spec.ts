@@ -10,7 +10,9 @@ test('главная: подборка недели, онгоинги, карт�
   page.on('pageerror', (e) => errors.push(e.message))
 
   await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
+  // Заголовок страницы — о сайте, тайтл из баннера — подзаголовок.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Смотреть аниме онлайн')
+  await expect(page.locator('.hero__title')).toContainText('Ковбой Бибоп')
   await expect(page.getByRole('link', { name: /Ван-Пис/ }).first()).toBeVisible()
 
   // Карточки берут webp из GraphQL, а не полноразмерный jpg.

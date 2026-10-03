@@ -9,6 +9,7 @@ import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import VideoPlayer from '../components/VideoPlayer'
 import { markFlag } from '../data/flags'
 import { usePageMeta } from '../data/pageMeta'
+import { animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, SkipIcon } from '../components/Icons'
 
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
@@ -37,7 +38,10 @@ export default function Player() {
     if (hour < 5) markFlag('nightOwl')
   }, [anime, current, total])
 
-  usePageMeta(anime ? `${anime.title}, серия ${current}` : undefined)
+  usePageMeta(
+    anime && watchPageTitle(animeInfo(anime), current),
+    anime && watchPageDescription(animeInfo(anime), current, total),
+  )
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   if (!anime) return <NotFound title="Тайтл не найден" />
@@ -64,10 +68,13 @@ export default function Player() {
 
       <div className="watch-head">
         <div className="watch-head__info">
-          <Link to={`/anime/${anime.id}`} className="muted">
-            {anime.title}
-          </Link>
-          <h1>Серия {current}</h1>
+          {/* Название тайтла входит в заголовок: «Ван-Пис, серия 5» ищут именно так. */}
+          <h1>
+            <Link to={`/anime/${anime.id}`} className="muted watch-head__title">
+              {anime.title}
+            </Link>{' '}
+            Серия {current}
+          </h1>
           {name && <p className="watch-head__name">{name}</p>}
         </div>
         <div className="watch-actions">

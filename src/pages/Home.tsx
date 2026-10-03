@@ -47,7 +47,7 @@ function Hero() {
           <span className="live-dot" aria-hidden="true" />
           Сейчас в эфире
         </div>
-        <h1 className="hero__title">{anime.title}</h1>
+        <h2 className="hero__title">{anime.title}</h2>
         <div className="meta-line">
           {meta.map((m, i) => (
             <span key={i}>
@@ -153,6 +153,8 @@ export default function Home() {
 
   return (
     <main className="container home">
+      {/* Заголовок страницы — о сайте, а не о тайтле в баннере: баннер меняется каждые 8 секунд. */}
+      <h1 className="home-title">Смотреть аниме онлайн</h1>
       <Hero />
       <ContinueWatching />
       <Suspense fallback={null}>

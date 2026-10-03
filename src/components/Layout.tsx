@@ -12,6 +12,8 @@ import { useCanonical } from '../data/pageMeta'
 
 // Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
 const InstallBanner = lazy(() => import('./InstallBanner'))
+// Ссылки на жанры и годы в подвале тоже не нужны для первого экрана.
+const FooterLinks = lazy(() => import('./FooterLinks'))
 
 export function Logo() {
   return (
@@ -173,6 +175,9 @@ export default function Layout() {
             <a href="#">Правообладателям</a>
             <a href="#">Контакты</a>
           </div>
+          <Suspense fallback={null}>
+            <FooterLinks />
+          </Suspense>
         </div>
       </footer>
     </>

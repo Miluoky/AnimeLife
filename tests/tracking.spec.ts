@@ -42,7 +42,7 @@ test('«+1 серия»: последняя серия переносит тай
 test('плеер отмечает предыдущие серии просмотренными', async ({ page }) => {
   await seedList(page, [{ anime: card('1', 'Ковбой Бибоп', 26), status: 'planned', addedAt: 1, updatedAt: 1 }])
   await page.goto('/watch/1/5')
-  await expect(page.getByRole('heading', { name: 'Серия 5' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: /Серия 5$/ })).toBeVisible()
   await page.goto('/my-list')
   await page.getByRole('tab', { name: /Смотрю/ }).click()
   await expect(page.getByText('4 / 26 эп.')).toBeVisible()

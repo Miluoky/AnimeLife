@@ -1,7 +1,11 @@
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { loadAllGenres, useAsync, type CatalogOrder, type CatalogQuery } from '../api'
 import CatalogGrid from '../components/CatalogGrid'
+import Pager from '../components/Pager'
 import { usePageMeta } from '../data/pageMeta'
+import { CATALOG } from '../data/landings'
+import { PAGE_SIZE, pageParam } from '../data/seo'
 
 const orders: { id: CatalogOrder; title: string }[] = [
   { id: 'popularity', title: 'Популярные' },
@@ -87,15 +91,23 @@ function ChipFilter({ label, name, value, any, options, onChange }: FilterProps)
 
 /** Каталог с фильтрами. Все фильтры живут в адресе, поэтому подборкой можно поделиться ссылкой. */
 export default function Catalog() {
-  usePageMeta('Каталог аниме')
   const [params, setParams] = useSearchParams()
   const genres = useAsync(loadAllGenres, [])
 
   const search = (params.get('q') ?? '').trim()
   const value = (name: string) => params.get(name) ?? ''
+  // Страница списка из адреса (?page=3): с неё начинается сетка, ниже ссылки на соседние страницы.
+  const page = pageParam(params.get('page'))
+  const [first, setFirst] = useState<[number, number]>()
+  usePageMeta(
+    search ? `Поиск: «${search}»` : `${CATALOG.title}${page > 1 ? `, страница ${page}` : ''}`,
+    CATALOG.description,
+  )
+  useEffect(() => window.scrollTo(0, 0), [page])
 
   function change(name: string, next: string) {
     const updated = new URLSearchParams(params)
+    updated.delete('page')
     if (next) updated.set(name, next)
     else updated.delete(name)
     setParams(updated, { replace: true })
@@ -119,7 +131,7 @@ export default function Catalog() {
     <main className="container home">
       <section className="stack">
         <div className="section-head">
-          <h1 className="page-title">{search ? `Поиск: «${search}»` : 'Каталог'}</h1>
+          <h1 className="page-title">{search ? `Поиск: «${search}»` : CATALOG.h1}</h1>
           {search && (
             <button type="button" className="pill" onClick={() => change('q', '')}>
               Сбросить поиск
@@ -160,7 +172,20 @@ export default function Catalog() {
           )}
         </div>
 
-        <CatalogGrid key={JSON.stringify(query)} query={query} />
+        <CatalogGrid key={JSON.stringify(query) + page} query={query} start={page} onFirst={(n) => setFirst([page, n])} />
+        {first?.[0] === page && (
+          <Pager
+            page={page}
+            hasNext={first[1] === PAGE_SIZE}
+            href={(n) => {
+              const next = new URLSearchParams(params)
+              if (n > 1) next.set('page', String(n))
+              else next.delete('page')
+              const qs = next.toString()
+              return qs ? `/catalog?${qs}` : '/catalog'
+            }}
+          />
+        )}
       </section>
     </main>
   )

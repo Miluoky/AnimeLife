@@ -11,6 +11,7 @@ import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import EpisodeProgress from '../components/EpisodeProgress'
 import ShareButton from '../components/ShareButton'
 import { usePageMeta } from '../data/pageMeta'
+import { animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { useMyList } from '../data/myList'
 import Reviews from '../components/Reviews'
 import { PlayIcon } from '../components/Icons'
@@ -67,7 +68,8 @@ export default function TitlePage() {
   })
   const [shotOpen, setShotOpen] = useState<number>()
   const [videoOpen, setVideoOpen] = useState<number>()
-  usePageMeta(result.value?.data?.title, result.value?.data?.description)
+  const loaded = result.value?.data
+  usePageMeta(loaded && titlePageTitle(animeInfo(loaded)), loaded && titlePageDescription(animeInfo(loaded)))
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   const anime = result.value?.data
@@ -116,7 +118,7 @@ export default function TitlePage() {
       <main className="container title-page">
         <section className="title-head" style={{ '--glow': anime.posterFill } as CSSProperties}>
           <div className="title-head__poster" style={{ background: anime.posterFill, viewTransitionName: 'poster' }}>
-            <Poster anime={anime} />
+            <Poster anime={anime} alt={`Постер аниме «${anime.title}»`} />
           </div>
           <div className="title-head__info">
             {anime.originalTitle && <div className="muted">{anime.originalTitle}</div>}
@@ -124,12 +126,24 @@ export default function TitlePage() {
             <div className="chips">
               <span className="chip chip--accent">{anime.ongoing ? 'Онгоинг' : anime.upcoming ? 'Анонс' : 'Вышел'}</span>
               {anime.score ? <span className="chip">★ {anime.score.toFixed(1)}</span> : null}
-              {anime.year && <span className="chip">{anime.year}</span>}
-              {anime.genres.map((g) => (
-                <span key={g} className="chip">
-                  {g}
-                </span>
-              ))}
+              {anime.year && (
+                <Link to={`/year/${anime.year}`} className="chip">
+                  {anime.year}
+                </Link>
+              )}
+              {/* Жанр со своей посадочной страницей — ссылка на неё, остальные просто подписи. */}
+              {anime.genres.map((g) => {
+                const to = genrePath(g)
+                return to ? (
+                  <Link key={g} to={to} className="chip">
+                    {g}
+                  </Link>
+                ) : (
+                  <span key={g} className="chip">
+                    {g}
+                  </span>
+                )
+              })}
             </div>
             <div className="actions">
               <Link to={`/watch/${anime.id}/${progress?.episode ?? 1}`} className="btn btn--accent">

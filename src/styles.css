@@ -320,6 +320,35 @@ h3 {
   color: var(--muted);
 }
 
+.footer-links {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 13px;
+}
+
+/* Посадочные страницы: хлебные крошки, вводный текст, ссылки на страницы списка */
+.home-title {
+  font-size: clamp(20px, 3vw, 26px);
+  font-weight: 500;
+  margin-bottom: -32px;
+}
+
+.crumbs {
+  font-size: 14px;
+}
+
+.landing-intro {
+  margin: 0;
+  max-width: 72ch;
+}
+
+.pager > * {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* Player */
 .player-frame {
   aspect-ratio: 16 / 9;
@@ -2062,7 +2091,7 @@ h3 {
 }
 
 /* Разделы ниже экрана браузер не отрисовывает, пока до них не докрутили. */
-.home > section:not(:first-child),
+.home > section:not(:first-of-type),
 .title-page > section:not(.title-head) {
   content-visibility: auto;
   contain-intrinsic-size: auto 480px;
@@ -2943,7 +2972,7 @@ input[type='radio'] {
 
 /* Разделы ниже первого экрана проявляются, когда до них докрутили (где браузер это умеет). */
 @supports (animation-timeline: view()) {
-  .home > section:not(:first-child),
+  .home > section:not(:first-of-type),
   .title-page > section:not(.title-head) {
     animation: rise linear both;
     animation-timeline: view();
@@ -3175,12 +3204,12 @@ input[type='radio'] {
 
 /* Без анимаций: выключаем и прокручиваемые проявления, и подпрыгивания. */
 @media (prefers-reduced-motion: reduce) {
-  .home > section:not(:first-child),
+  .home > section:not(:first-of-type),
   .title-page > section:not(.title-head) {
     animation: none;
   }
 }
-:root[data-calm='1'] .home > section:not(:first-child),
+:root[data-calm='1'] .home > section:not(:first-of-type),
 :root[data-calm='1'] .title-page > section:not(.title-head) {
   animation: none;
 }
