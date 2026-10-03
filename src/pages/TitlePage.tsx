@@ -69,7 +69,8 @@ export default function TitlePage() {
   const [shotOpen, setShotOpen] = useState<number>()
   const [videoOpen, setVideoOpen] = useState<number>()
   const loaded = result.value?.data
-  usePageMeta(loaded && titlePageTitle(animeInfo(loaded)), loaded && titlePageDescription(animeInfo(loaded)))
+  const info = loaded && animeInfo(loaded)
+  usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info))
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   const anime = result.value?.data

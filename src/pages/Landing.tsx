@@ -18,13 +18,14 @@ export default function Landing() {
   const path = pathname.replace(/\/+$/, '')
   const landing = landingFor(path)
   const page = landing?.paged ? pageParam(params.get('page')) : 1
-  // Сколько пришло на первой странице: [страница, число тайтлов]. Полная — значит, есть следующая.
-  const [first, setFirst] = useState<[number, number]>()
+  // Сколько пришло на первой странице: [адрес со страницей, число тайтлов]. Полная — значит, есть следующая.
+  const at = `${path}?${page}`
+  const [first, setFirst] = useState<[string, number]>()
   const suffix = page > 1 ? `, страница ${page}` : ''
   usePageMeta(landing && `${landing.title}${suffix}`, landing?.description)
 
-  // Переход по ссылке на другую страницу списка начинается сверху.
-  useEffect(() => window.scrollTo(0, 0), [page])
+  // Переход на другую посадочную или другую страницу списка начинается сверху.
+  useEffect(() => window.scrollTo(0, 0), [path, page])
 
   if (!landing) return <NotFound />
 
@@ -47,8 +48,8 @@ export default function Landing() {
         {page === 1 && <p className="soft landing-intro">{landing.intro}</p>}
         {landing.paged && (
           <>
-            <CatalogGrid key={`${path}?${page}`} query={landing.query} start={page} onFirst={(n) => setFirst([page, n])} />
-            {first?.[0] === page && (
+            <CatalogGrid key={at} query={landing.query} start={page} onFirst={(n) => setFirst([at, n])} />
+            {first?.[0] === at && (
               <Pager page={page} hasNext={first[1] === PAGE_SIZE} href={(n) => (n > 1 ? `${path}?page=${n}` : path)} />
             )}
           </>

@@ -11,7 +11,11 @@ const dry = process.argv.includes('--dry-run')
 
 const file = readdirSync(new URL('../public', import.meta.url)).find((f) => /^[0-9a-f]{32}\.txt$/.test(f))
 if (!file) throw new Error('Нет файла ключа public/<32 hex>.txt')
-const key = readFileSync(new URL(`../public/${file}`, import.meta.url), 'utf8').trim()
+// По протоколу имя файла и его содержимое — один и тот же ключ: проверяем, чтобы не отправить чужой.
+const key = file.slice(0, -'.txt'.length)
+if (readFileSync(new URL(`../public/${file}`, import.meta.url), 'utf8').trim() !== key) {
+  throw new Error(`В public/${file} записан не тот ключ, что в имени файла`)
+}
 
 async function get(url) {
   const res = await fetch(url, {

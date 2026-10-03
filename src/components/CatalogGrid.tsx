@@ -21,6 +21,9 @@ export default function CatalogGrid({ query, empty = 'Ничего не нашл
   const [items, setItems] = useState<Anime[]>([])
   const [hasMore, setHasMore] = useState(false)
   const sentinel = useRef<HTMLDivElement>(null)
+  // Колбэк родителя меняется на каждом рендере: держим свежий в ref, чтобы не перезапускать эффект.
+  const onFirstRef = useRef(onFirst)
+  onFirstRef.current = onFirst
 
   const batch = useAsync(() => loadCatalog({ ...query, page, limit: PAGE_SIZE }), [page])
 
@@ -29,8 +32,8 @@ export default function CatalogGrid({ query, empty = 'Ничего не нашл
     const { data, demo } = batch.value
     setItems((prev) => (page === start ? data : [...prev, ...data.filter((a) => !prev.some((p) => p.id === a.id))]))
     setHasMore(!demo && data.length === PAGE_SIZE)
-    if (page === start) onFirst?.(demo ? 0 : data.length)
-  }, [batch.value, page])
+    if (page === start) onFirstRef.current?.(demo ? 0 : data.length)
+  }, [batch.value, page, start])
 
   // Когда низ списка подходит к экрану, грузим следующую страницу. Кнопка ниже остаётся запасным путём.
   const loading = batch.loading
