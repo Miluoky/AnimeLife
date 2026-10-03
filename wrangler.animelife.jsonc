@@ -6,6 +6,8 @@
   "compatibility_date": "2026-09-01",
   "main": "worker/index.js",
   "keep_vars": true,
+  // Коды подтверждения сайта в поисковиках (не секретные, видны в <head> каждой страницы).
+  "vars": { "YANDEX_VERIFICATION": "55f906a71e246741" },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
