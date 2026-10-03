@@ -77,6 +77,19 @@ test('у страницы тайтла свой заголовок вкладк�
   await expect(page).toHaveTitle('Каталог аниме — поиск по жанрам, годам и рейтингу | Anime Life')
 })
 
+test('шапка уезжает при прокрутке вниз и возвращается при прокрутке вверх', async ({ page }) => {
+  await page.goto('/catalog')
+  await expect(page.locator('.poster-card').first()).toBeVisible()
+  const header = page.locator('.site-header')
+  await page.evaluate(() => document.documentElement.style.setProperty('min-height', '4000px'))
+  await page.evaluate(() => window.scrollTo(0, 600))
+  await expect(header).toHaveClass(/site-header--hidden/)
+  await expect.poll(() => header.evaluate((h) => h.getBoundingClientRect().bottom)).toBeLessThanOrEqual(1)
+  await page.evaluate(() => window.scrollTo(0, 500))
+  await expect(header).not.toHaveClass(/site-header--hidden/)
+  await expect.poll(() => header.evaluate((h) => h.getBoundingClientRect().top)).toBe(0)
+})
+
 test.describe('вёрстка на телефоне', () => {
   // Узкие iPhone, обычный и большой: ни одна страница не шире экрана (иначе её можно сдвинуть пальцем вбок).
   for (const width of [360, 390, 430]) {

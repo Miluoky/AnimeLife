@@ -1,0 +1,23 @@
+/* Таймкод в комментарии: кнопка, которая переводит плеер на этот момент. */
+.comment__time {
+  padding: 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-soft);
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.comment__time:hover {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.comments__tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}

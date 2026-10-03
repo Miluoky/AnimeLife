@@ -100,8 +100,15 @@ test('плеер: свои кнопки поверх видео — пауза �
 
   // Меню качества и скорости: скорость применяется к видео.
   await page.getByRole('button', { name: 'Качество и скорость' }).click()
+  await expect(page.getByRole('button', { name: '0.25×' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '3×' })).toBeVisible()
   await page.getByRole('button', { name: '1.5×' }).click()
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.playbackRate)).toBe(1.5)
+  // Shift + > — на шаг быстрее, с подсказкой поверх видео.
+  await page.keyboard.press('Escape')
+  await page.locator('body').press('Shift+Period')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.playbackRate)).toBe(1.75)
+  await expect(page.getByRole('status').filter({ hasText: 'Скорость 1.75×' })).toBeVisible()
 
   // Номер серии в полосе ведёт на её страницу.
   await page.getByRole('navigation', { name: 'Серии' }).getByRole('link', { name: /^Серия 3/ }).click()
@@ -177,4 +184,49 @@ test('плеер: опенинг по разметке AniLibria — кнопк�
   await expect(page.getByRole('status').filter({ hasText: 'Опенинг пропущен' })).toBeVisible()
   await page.getByRole('button', { name: 'Вернуть' }).click()
   await expect(page.getByRole('button', { name: 'Пропустить опенинг' })).toBeVisible()
+})
+
+test('обсуждение: таймкод в комментарии переводит плеер, «Вставить время» пишет текущий момент', async ({ page }) => {
+  await mockAniLibria(page, search)
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'u1', name: 'Аня', email: 'a@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/comments\/rows\?.*/, (route) =>
+    route.fulfill({
+      json: {
+        total: 1,
+        rows: [{ $id: 'c1', animeId: '1', episode: 1, userId: 'u2', name: 'Боря', text: 'На 1:05 лучший момент', spoiler: false, at: Date.now() }],
+      },
+    }),
+  )
+  await page.addInitScript(() => {
+    const original = HTMLMediaElement.prototype.canPlayType
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      return type === 'application/vnd.apple.mpegurl' ? 'maybe' : original.call(this, type)
+    }
+  })
+  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
+  await page.route(/cache\.libria\.fun\/.*\.m3u8/, (route) => route.fulfill({ contentType: 'video/webm', body: clip }))
+  await page.goto('/watch/1/1')
+
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+  // Ролик-заглушка не перематывается: время серии живёт в переменной, длительность — 24 минуты.
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.pause()
+    v.play = () => Promise.resolve()
+    let t = 0
+    Object.defineProperty(v, 'duration', { configurable: true, get: () => 1440 })
+    Object.defineProperty(v, 'currentTime', { configurable: true, get: () => t, set: (x: number) => (t = x) })
+  })
+
+  const block = page.getByRole('region', { name: 'Обсуждение серии 1' })
+  await block.getByRole('button', { name: 'Перейти к 1:05' }).click()
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBe(65)
+
+  await video.evaluate((v: HTMLVideoElement) => (v.currentTime = 754))
+  const field = block.getByRole('textbox', { name: 'Комментарий к серии' })
+  await field.fill('Смотрите')
+  await block.getByRole('button', { name: 'Вставить время' }).click()
+  await expect(field).toHaveValue('Смотрите 12:34 ')
 })

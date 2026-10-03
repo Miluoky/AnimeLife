@@ -2082,7 +2082,10 @@ h3 {
   top: 0;
   z-index: 40;
   background: var(--bg);
-  transition: background 0.3s, backdrop-filter 0.3s;
+  transition: background 0.3s, backdrop-filter 0.3s, transform 0.3s var(--ease);
+}
+.site-header--hidden:not(:focus-within) {
+  transform: translateY(-100%);
 }
 .site-header--scrolled {
   background: color-mix(in srgb, var(--bg) 78%, transparent);

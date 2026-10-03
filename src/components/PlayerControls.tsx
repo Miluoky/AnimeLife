@@ -33,7 +33,8 @@ type FsDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscree
 type FsEl = HTMLElement & { webkitRequestFullscreen?: () => void }
 type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
 
-const SPEEDS = [0.75, 1, 1.25, 1.5, 2]
+// Как на AniLife: от четверти скорости до тройной.
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 3]
 const SEEK_STEP = 10
 const HIDE_AFTER = 2600
 // Кнопка «Следующая серия» появляется за полторы минуты до конца — на титрах.
@@ -162,11 +163,25 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
     else void video.current?.requestPictureInPicture().catch(() => undefined)
   }
 
+  const [rateNote, setRateNote] = useState<{ key: number; rate: number } | null>(null)
   const setRate = (r: number) => {
     const el = video.current
     if (!el) return
     el.defaultPlaybackRate = r
     el.playbackRate = r
+  }
+  useEffect(() => {
+    if (!rateNote) return
+    const t = setTimeout(() => setRateNote(null), 1200)
+    return () => clearTimeout(t)
+  }, [rateNote])
+  // Shift + > и Shift + < (как на YouTube): шаг по списку скоростей и короткая подсказка поверх видео.
+  const stepRate = (dir: 1 | -1) => {
+    const now = video.current?.playbackRate ?? 1
+    const i = SPEEDS.findIndex((r) => r >= now - 0.001)
+    const next = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, (i < 0 ? SPEEDS.length - 1 : i) + dir))]
+    setRate(next)
+    setRateNote({ key: Date.now(), rate: next })
   }
 
   // Отрезок, который сейчас идёт; за секунду до конца кнопку уже не показываем.
@@ -194,8 +209,8 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
   }, [skipNote])
 
   // Горячие клавиши на компьютере: пробел/K, стрелки, F, M, S — пропустить опенинг или эндинг.
-  const keys = useRef({ togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow })
-  keys.current = { togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow }
+  const keys = useRef({ togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow, stepRate })
+  keys.current = { togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow, stepRate }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -211,6 +226,9 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       else if (k === 'f' || k === 'а') run.toggleFullscreen()
       else if (k === 'm' || k === 'ь') run.toggleMute()
       else if (k === 's' || k === 'ы') run.skipNow()
+      // По коду клавиши: в русской раскладке на этих местах «Ю» и «Б».
+      else if (e.shiftKey && e.code === 'Period') run.stepRate(1)
+      else if (e.shiftKey && e.code === 'Comma') run.stepRate(-1)
       else return
       e.preventDefault()
     }
@@ -293,6 +311,12 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
             <PlayIcon size={34} />
           </button>
         )
+      )}
+
+      {rateNote && (
+        <div key={rateNote.key} className="vp-rate-note" role="status">
+          {rateNote.rate === 1 ? 'Обычная скорость' : `Скорость ${rateNote.rate}×`}
+        </div>
       )}
 
       {spanNow && !(spanNow.kind === 'ending' && nearEnd) && (

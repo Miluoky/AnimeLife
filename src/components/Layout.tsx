@@ -32,6 +32,7 @@ export default function Layout() {
   // Меню закрывается с анимацией: пока она идёт, оно ещё на экране.
   const [menuClosing, setMenuClosing] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [hidden, setHidden] = useState(false)
   const header = useRef<HTMLElement>(null)
 
   useViewTransitions()
@@ -69,9 +70,17 @@ export default function Layout() {
   }, [publicProfile])
 
   // Оформление из настроек (тема, акцент) и шапка, которая становится полупрозрачной при прокрутке.
+  // Как на AniLife, при прокрутке вниз шапка уезжает и возвращается, стоит прокрутить чуть вверх.
   useEffect(() => {
     applyAppearance()
-    const onScroll = () => setScrolled(window.scrollY > 8)
+    let last = window.scrollY
+    const onScroll = () => {
+      const y = window.scrollY
+      setScrolled(y > 8)
+      if (Math.abs(y - last) < 8) return
+      setHidden(y > last && y > 240)
+      last = y
+    }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
@@ -108,7 +117,7 @@ export default function Layout() {
 
   return (
     <>
-      <header ref={header} className={`site-header${scrolled ? ' site-header--scrolled' : ''}`}>
+      <header ref={header} className={`site-header${scrolled ? ' site-header--scrolled' : ''}${hidden && !menuOpen ? ' site-header--hidden' : ''}`}>
         <div className="container site-header__inner">
           <Logo />
           <nav className="site-nav" aria-label="Основное меню">

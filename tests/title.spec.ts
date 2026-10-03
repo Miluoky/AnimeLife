@@ -47,3 +47,26 @@ test('вышедший тайтл: без таймера и без фильтр�
   await expect(page.getByRole('button', { name: 'Сообщить о новой серии' })).toHaveCount(0)
   await expect(page.getByRole('group', { name: 'Какие видео показать' })).toHaveCount(0)
 })
+
+test('карточки серий: кадры и названия из AniLibria', async ({ page }) => {
+  const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
+  const release = fixture('anilibria-release')
+  release.episodes[0].preview = {
+    src: '/storage/1.jpg',
+    optimized: { preview: '/storage/1-720.webp', thumbnail: '/storage/1-200.webp' },
+  }
+  await page.route(/anilibria\.top\/api\/v1\/app\/search\/releases/, (route) => route.fulfill({ json: fixture('anilibria-search') }))
+  await page.route(/anilibria\.top\/api\/v1\/anime\/releases\/8443$/, (route) => route.fulfill({ json: release }))
+  await page.route(/anilibria\.top\/storage\/.*/, (route) => route.fulfill({ status: 404, body: '' }))
+  await page.goto('/anime/1')
+
+  const first = page.locator('.episode-card').first()
+  await expect(first).toContainText('Блюз малых планет')
+  await expect(first).toHaveAttribute('title', 'Серия 1: Блюз малых планет')
+  const frame = first.locator('.episode-card__shot--frame')
+  await expect(frame).toHaveAttribute('src', 'https://anilibria.top/storage/1-720.webp')
+  await expect(frame).toHaveAttribute('srcset', /1-200\.webp 200w/)
+  // У второй серии кадра нет — остаётся скриншот Shikimori, но название серии есть.
+  await expect(page.locator('.episode-card').nth(1).locator('.episode-card__shot--frame')).toHaveCount(0)
+  await expect(page.locator('.episode-card').nth(1)).toContainText('Потерявшийся Пёс')
+})

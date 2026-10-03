@@ -84,3 +84,16 @@
   color: var(--accent-soft);
   border-color: var(--accent);
 }
+
+/* Карточка серии с настоящим кадром из AniLibria и названием серии. */
+.episode-card__shot--frame {
+  opacity: 0.85;
+}
+
+.episode-card__name {
+  margin-top: -6px;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

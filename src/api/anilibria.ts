@@ -21,6 +21,10 @@ export interface AniLibriaEpisode {
   name: string | null
   opening?: AniLibriaSpan | null
   ending?: AniLibriaSpan | null
+  /** кадр из серии: пути от корня сайта AniLibria */
+  preview?: { src?: string | null; optimized?: { preview?: string | null; thumbnail?: string | null } | null } | null
+  /** длительность в секундах */
+  duration?: number | null
   hls_480: string | null
   hls_720: string | null
   hls_1080: string | null
@@ -108,6 +112,19 @@ export function episodeSkips(ep: AniLibriaEpisode): SkipSpan[] {
     if (typeof start === 'number' && typeof stop === 'number' && stop - start >= 5) spans.push({ kind, start, stop })
   }
   return spans
+}
+
+// Картинки AniLibria лежат на том же сайте, что и API.
+const SITE = new URL(API_BASE).origin
+
+/** Кадр из серии для карточки: маленький (200 px) и крупный (720 px) варианты для srcset. */
+export function episodeFrame(ep: AniLibriaEpisode): { src: string; srcSet?: string } | null {
+  const small = ep.preview?.optimized?.thumbnail
+  const big = ep.preview?.optimized?.preview ?? ep.preview?.src
+  if (!small && !big) return null
+  const abs = (path: string) => new URL(path, SITE).toString()
+  if (small && big) return { src: abs(big), srcSet: `${abs(small)} 200w, ${abs(big)} 720w` }
+  return { src: abs((small ?? big)!) }
 }
 
 /** Поток серии в нужном качестве, а если его нет — в лучшем из доступных. */

@@ -3,6 +3,7 @@ import { type CSSProperties, type FormEvent, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { loadAnime, loadTitleExtras, useAsync } from '../api'
+import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeCount } from '../data/catalog'
 import { useHistory } from '../data/history'
 import PosterCard, { Poster } from '../components/PosterCard'
@@ -75,6 +76,14 @@ export default function TitlePage() {
   const [videoKind, setVideoKind] = useState('')
   const loaded = result.value?.data
   const info = loaded && animeInfo(loaded)
+  // Кадры и названия серий из AniLibria, как в карточках серий AniLife. Плеер потом возьмёт тот же релиз из кэша.
+  const release = useAsync(
+    () =>
+      loaded && loaded.id === id && !loaded.upcoming
+        ? findRelease(loaded.id, [loaded.title, loaded.originalTitle, loaded.englishTitle]).catch(() => null)
+        : Promise.resolve(null),
+    [id, loaded?.id],
+  )
   usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info))
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
@@ -120,6 +129,8 @@ export default function TitlePage() {
     const a = i * PAGE_SIZE + 1
     return `${a}–${Math.min(total, a + PAGE_SIZE - 1)}`
   }
+
+  const alEpisodes = release.value && String(release.value.shikimori?.id) === anime.id ? release.value.episodes : []
 
   function episodeLabel(n: number) {
     if (progress && n < progress.episode) return 'Просмотрено'
@@ -238,11 +249,25 @@ export default function TitlePage() {
             <div className="grid grid--episodes">
               {episodes.map((n) => {
                 const watched = progress ? n < progress.episode : false
+                const ep = alEpisodes.find((e) => e.ordinal === n)
+                const frame = ep && episodeFrame(ep)
                 return (
-                  <Link key={n} to={`/watch/${anime.id}/${n}`} className="episode-card">
+                  <Link key={n} to={`/watch/${anime.id}/${n}`} className="episode-card" title={ep?.name ? `Серия ${n}: ${ep.name}` : undefined}>
                     <div className="episode-card__img" style={{ background: anime.posterFill }}>
-                      {shots.length > 0 && (
-                        <img className="poster-img episode-card__shot" src={shots[(n - 1) % shots.length]} alt="" loading="lazy" />
+                      {frame ? (
+                        <img
+                          className="poster-img episode-card__shot episode-card__shot--frame"
+                          src={frame.src}
+                          srcSet={frame.srcSet}
+                          sizes="(max-width: 640px) 50vw, 260px"
+                          alt=""
+                          loading="lazy"
+                          onError={(e) => (e.currentTarget.hidden = true)}
+                        />
+                      ) : (
+                        shots.length > 0 && (
+                          <img className="poster-img episode-card__shot" src={shots[(n - 1) % shots.length]} alt="" loading="lazy" />
+                        )
                       )}
                       <span className="episode-card__num">{n}</span>
                       {watched && (
@@ -255,6 +280,7 @@ export default function TitlePage() {
                       <span>Серия {n}</span>
                       <span className="muted">{episodeLabel(n)}</span>
                     </div>
+                    {ep?.name && <div className="episode-card__name muted">{ep.name}</div>}
                   </Link>
                 )
               })}
