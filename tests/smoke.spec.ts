@@ -28,6 +28,9 @@ test('страница тайтла открывается по клику и п
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
   await expect(page.getByRole('heading', { name: /Отзывы/ })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Серии/ })).toBeVisible()
+  // Описание и факты сразу в шапке, как на образце: не надо листать до конца правой колонки.
+  await expect(page.getByRole('heading', { name: 'О чём' })).toBeVisible()
+  await expect(page.locator('.fact-pill').first()).toBeVisible()
 })
 
 test('каталог: поиск и фильтры', async ({ page }) => {

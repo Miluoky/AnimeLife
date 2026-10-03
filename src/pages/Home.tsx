@@ -8,6 +8,9 @@ import { PlayIcon } from '../components/Icons'
 
 // Рекомендации ниже первого экрана: отдельная часть, грузится следом.
 const Recommendations = lazy(() => import('../components/Recommendations'))
+// Полки «сезон», «скоро», «лучшее» тоже ниже баннера: своей частью, чтобы не утяжелять первый экран.
+const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.SeasonShelf })))
+const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 
 const HERO_COUNT = 5
 const HERO_INTERVAL = 8000
@@ -158,7 +161,9 @@ export default function Home() {
       <Hero />
       <ContinueWatching />
       <Suspense fallback={null}>
+        <SeasonShelf />
         <Recommendations />
+        <MoreShelves />
       </Suspense>
       <CatalogSection title="Популярное" moreLink="/catalog" />
     </main>
