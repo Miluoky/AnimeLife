@@ -95,6 +95,22 @@ Service worker подключается только в собранной ве�
 Развернуть функцию: упаковать `package.json` и `src/` в tar.gz и загрузить в `/functions/community/deployments`
 с `entrypoint=src/main.js` и `commands=npm install --omit=dev` (как для `social-login`).
 
+## Правообладателям, контакты, документы
+
+`/rightholders`, `/contacts`, `/privacy`, `/terms` — одна страница `src/pages/Legal.tsx`, тексты в `src/data/legal.ts`
+(их же Worker отдаёт поисковикам без JavaScript, страницы есть в `/sitemap-pages.xml`). Ссылки на них и строка
+«Anime Life не хранит видео…» — в подвале (`FooterLinks`, константы в `src/data/seo.ts`).
+
+Формы жалобы и обратной связи отправляют действие `takedown-create` функции `community` (вход не нужен, капча
+Turnstile, если включена). Обращения лежат в таблице `takedowns` (права на таблицу пустые, пишет и читает только
+функция), модераторы видят их на `/moderation?tab=takedowns` (`takedown-list`, `takedown-status`). Ограничения:
+3 обращения в час с одного IP (в базе только хеш, соль — необязательная переменная функции `IP_HASH_SALT`),
+5 в сутки на один email, 30 в час на всех. Создать таблицу: `APPWRITE_API_KEY=... node functions/community/setup-takedowns.mjs`
+(повторный запуск пропускает то, что уже есть).
+
+Возрастная маркировка: рейтинг Shikimori (`g`, `pg`, `pg_13`, `r`, `r_plus`, `rx`) превращается в 0+, 6+, 12+, 16+, 18+
+(`ageLabel` в `src/data/seo.ts`) и показывается на странице тайтла, в плеере и в разметке `contentRating`.
+
 ## Мой список: прогресс, импорт, синхронизация
 
 Список вошедшего пользователя лежит в таблице `lists` (строка = ID пользователя, право на чтение и правку только

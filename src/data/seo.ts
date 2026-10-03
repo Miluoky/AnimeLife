@@ -16,6 +16,21 @@ export const MAX_PAGES = 20
 const MAX_TITLE = 70
 const MAX_DESCRIPTION = 160
 
+/* Подвал: ссылки на служебные страницы (тексты в legal.ts) и строка о видео, каталоге и возрасте. */
+export const DISCLAIMER =
+  'Anime Life не хранит видео: плееры встроены со сторонних сервисов. Каталог — по данным Shikimori. Возрастные ограничения указаны на страницах тайтлов.'
+
+export const LEGAL_LINKS: [string, string][] = [
+  ['Правообладателям', '/rightholders'],
+  ['Контакты', '/contacts'],
+  ['Конфиденциальность', '/privacy'],
+  ['Соглашение', '/terms'],
+]
+
+/** Возрастная маркировка по рейтингу Shikimori (MPAA-подобные коды): g → 0+, pg_13 → 12+, r → 16+ и т. д. */
+const AGES: Record<string, string> = { g: '0+', pg: '6+', pg_13: '12+', r: '16+', r_plus: '18+', rx: '18+' }
+export const ageLabel = (rating?: string | null) => (rating ? AGES[rating] : undefined)
+
 /** Обрезает текст по границе слова и ставит многоточие. Разметку Shikimori ([character=1]…) и переносы убирает. */
 export function cut(text: string | null | undefined, max = MAX_DESCRIPTION) {
   const t = String(text ?? '')

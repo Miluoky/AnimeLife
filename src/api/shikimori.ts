@@ -48,6 +48,8 @@ interface ShikiAnimeFull extends ShikiAnimeShort {
   videos: ShikiVideo[]
   rates_scores_stats?: { name: number; value: number }[]
   rates_statuses_stats?: { name: string; value: number }[]
+  /** возрастной рейтинг: g, pg, pg_13, r, r_plus, rx */
+  rating?: string | null
 }
 
 export interface Genre {
@@ -234,6 +236,7 @@ function fromFull(a: ShikiAnimeFull): Anime {
     genres: a.genres.map((g) => g.russian || g.name),
     description: cleanDescription(a.description),
     trailerUrl: trailer ? trailer.player_url.replace(/^(https?:)?\/\//, 'https://') : undefined,
+    rating: a.rating || undefined,
   }
 }
 

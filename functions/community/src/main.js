@@ -1,5 +1,5 @@
 import webpush from 'web-push'
-import { DB, UserError, hash, query } from './util.js'
+import { DB, UserError, checkCaptcha, hash, query } from './util.js'
 import {
   cleanRooms,
   roomClose,
@@ -11,6 +11,7 @@ import {
   roomSignal,
 } from './rooms.js'
 import { commentDelete, commentSave, listInit, profileHide, profileSave } from './profile.js'
+import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -25,14 +26,16 @@ import { commentDelete, commentSave, listInit, profileHide, profileSave } from '
  *   push-subscribe {subscription, animeIds, site}  подписка браузера на тайтлы из «Смотрю»;
  *   push-unsubscribe {endpoint};
  *   room-* совместный просмотр, см. rooms.js;
- *   list-init, profile-*, comment-*  список, открытый профиль и обсуждение серий, см. profile.js.
+ *   list-init, profile-*, comment-*  список, открытый профиль и обсуждение серий, см. profile.js;
+ *   takedown-*  жалобы правообладателей и обратная связь (без входа), для админов — список и статус, см. takedowns.js.
  * По расписанию (каждые 15 минут) функция смотрит календарь Shikimori и шлёт пуш подписчикам,
  * у которых вышла новая серия.
  *
- * Данные лежат в базе anime (TablesDB): reviews, votes, push, sent. Читать отзывы может кто угодно,
+ * Данные лежат в базе anime (TablesDB): reviews, votes, push, sent, takedowns. Читать отзывы может кто угодно,
  * а пишет в таблицы только эта функция, поэтому имя автора и его ID подделать нельзя.
  * Переменные: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (секрет), VAPID_SUBJECT,
- * TURNSTILE_SECRET (секрет, необязательно: с ним отзывы и жалобы проверяются капчей Cloudflare).
+ * TURNSTILE_SECRET (секрет, необязательно: с ним отзывы, жалобы и обращения проверяются капчей Cloudflare),
+ * IP_HASH_SALT (секрет, необязательно: соль для хеша IP в обращениях).
  */
 
 const SHIKIMORI = 'https://shikimori.io'
@@ -87,20 +90,6 @@ async function currentUser(api, req) {
 function checkAnimeId(id) {
   if (!/^\d{1,10}$/.test(String(id ?? ''))) throw new UserError('Неизвестный тайтл.')
   return String(id)
-}
-
-/** Проверка Cloudflare Turnstile: включается, когда задан TURNSTILE_SECRET. */
-async function checkCaptcha(req, token) {
-  const secret = process.env.TURNSTILE_SECRET
-  if (!secret) return
-  if (!token) throw new UserError('Подтвердите, что вы не робот.')
-  const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ secret, response: String(token) }),
-  })
-  const json = await res.json().catch(() => ({}))
-  if (!json.success) throw new UserError('Проверка на робота не прошла. Попробуйте ещё раз.')
 }
 
 const reviewRowId = (animeId, userId) => 'r' + hash(`${animeId}:${userId}`)
@@ -471,6 +460,12 @@ export default async ({ req, res, log, error }) => {
         return res.json({ serverNow: Date.now() })
       case 'push-unsubscribe':
         return res.json(await pushUnsubscribe(api, body))
+      case 'takedown-create':
+        return res.json(await takedownCreate(api, req, body))
+      case 'takedown-list':
+        return res.json(await takedownList(api, req, body))
+      case 'takedown-status':
+        return res.json(await takedownStatus(api, req, body))
       default:
         return res.json({ error: 'Неизвестное действие.' }, 400)
     }

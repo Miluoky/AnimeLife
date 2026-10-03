@@ -9,7 +9,7 @@ import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import VideoPlayer from '../components/VideoPlayer'
 import { markFlag } from '../data/flags'
 import { usePageMeta } from '../data/pageMeta'
-import { animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
+import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, SkipIcon } from '../components/Icons'
 
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
@@ -77,6 +77,11 @@ export default function Player() {
             </Link>{' '}
             Серия {current}
           </h1>
+          {ageLabel(anime.rating) && (
+            <span className="chip chip--age watch-head__age" title="Возрастное ограничение">
+              {ageLabel(anime.rating)}
+            </span>
+          )}
           {name && <p className="watch-head__name">{name}</p>}
         </div>
         <div className="watch-actions">

@@ -16,6 +16,7 @@ export const pageChunks = {
   together: () => import('../pages/Together'),
   togetherHome: () => import('../pages/TogetherHome'),
   publicProfile: () => import('../pages/PublicProfile'),
+  legal: () => import('../pages/Legal'),
 }
 
 const prefetched = new Set<string>()

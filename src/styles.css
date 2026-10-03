@@ -194,6 +194,12 @@ h3 {
   font-weight: 700;
 }
 
+/* Возрастная маркировка (0+ … 18+) */
+.chip--age {
+  border: 1px solid var(--line);
+  background: transparent;
+}
+
 .pill {
   height: 40px;
   padding: 0 16px;
@@ -318,6 +324,18 @@ h3 {
 
 .site-footer__inner a {
   color: var(--muted);
+}
+
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.footer-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13px;
 }
 
 .footer-links {

@@ -51,6 +51,12 @@
   letter-spacing: normal;
 }
 
+.watch-head__age {
+  align-self: flex-start;
+  height: 26px;
+  padding: 0 10px;
+}
+
 .watch-head__name {
   margin: 0;
   color: var(--text-soft);

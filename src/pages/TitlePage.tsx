@@ -11,7 +11,7 @@ import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import EpisodeProgress from '../components/EpisodeProgress'
 import ShareButton from '../components/ShareButton'
 import { usePageMeta } from '../data/pageMeta'
-import { animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
+import { ageLabel, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { useMyList } from '../data/myList'
 import Reviews from '../components/Reviews'
 import { PlayIcon } from '../components/Icons'
@@ -127,6 +127,11 @@ export default function TitlePage() {
             <div className="chips">
               <span className="chip chip--accent">{anime.ongoing ? 'Онгоинг' : anime.upcoming ? 'Анонс' : 'Вышел'}</span>
               {anime.score ? <span className="chip">★ {anime.score.toFixed(1)}</span> : null}
+              {ageLabel(anime.rating) && (
+                <span className="chip chip--age" title="Возрастное ограничение">
+                  {ageLabel(anime.rating)}
+                </span>
+              )}
               {anime.year && (
                 <Link to={`/year/${anime.year}`} className="chip">
                   {anime.year}

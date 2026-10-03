@@ -1,0 +1,86 @@
+/* Служебные страницы: правообладателям, контакты, политика, соглашение. Грузятся вместе со страницей. */
+.legal {
+  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 24px;
+}
+
+.legal__section h2 {
+  font-size: clamp(18px, 2.4vw, 22px);
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.legal__section p,
+.legal__section ul {
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+  color: var(--text-soft);
+  line-height: 1.65;
+  max-width: 72ch;
+}
+
+.legal__section ul {
+  padding-left: 22px;
+}
+
+.legal__section li + li {
+  margin-top: 6px;
+}
+
+.legal__section a,
+.legal-form__note a {
+  color: var(--accent-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal__more {
+  margin-top: 12px;
+}
+
+/* Форма обращения */
+.legal-form {
+  max-width: 640px;
+  gap: 16px;
+}
+
+.legal-form .field textarea.legal-form__short {
+  min-height: 72px;
+}
+
+.legal-form__check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+.legal-form__check input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  flex: none;
+}
+
+.legal-form__note {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Поле-ловушка для ботов: убрано с экрана, но остаётся в форме. */
+.legal-form__trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.notice--ok {
+  border-color: var(--accent);
+  color: var(--text);
+}

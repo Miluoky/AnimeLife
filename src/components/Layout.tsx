@@ -12,7 +12,7 @@ import { useCanonical } from '../data/pageMeta'
 
 // Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
 const InstallBanner = lazy(() => import('./InstallBanner'))
-// Ссылки на жанры и годы в подвале тоже не нужны для первого экрана.
+// Ссылки на документы, жанры и годы в подвале тоже не нужны для первого экрана.
 const FooterLinks = lazy(() => import('./FooterLinks'))
 
 export function Logo() {
@@ -170,11 +170,6 @@ export default function Layout() {
       <footer className="site-footer">
         <div className="container site-footer__inner">
           <Logo />
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            <a href="#">О проекте</a>
-            <a href="#">Правообладателям</a>
-            <a href="#">Контакты</a>
-          </div>
           <Suspense fallback={null}>
             <FooterLinks />
           </Suspense>

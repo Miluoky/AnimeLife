@@ -1,24 +1,32 @@
-import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { useAuth } from '../data/auth'
 import { loadModeration, moderateReview, type Review } from '../data/community'
 
+// Обращения правообладателей и из «Контактов» — отдельная часть, грузится при открытии вкладки.
+const ModerationTakedowns = lazy(() => import('../components/ModerationTakedowns'))
+
 const dateFormat = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 
-/** Отзывы с жалобами и скрытые: модератор оставляет, скрывает или удаляет их. Права проверяет функция. */
+/**
+ * Модерация: отзывы с жалобами и скрытые (оставить, скрыть, удалить) и обращения с форм сайта (?tab=takedowns).
+ * Права проверяет функция.
+ */
 export default function Moderation() {
   const { user, checking } = useAuth()
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'takedowns' ? 'takedowns' : 'reviews'
   const [reviews, setReviews] = useState<Review[]>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string>()
   const isAdmin = !!user?.labels?.includes('admin')
 
   useEffect(() => {
-    if (!isAdmin) return
+    if (!isAdmin || tab !== 'reviews' || reviews) return
     loadModeration()
       .then(setReviews)
       .catch((e) => setError(e instanceof Error ? e.message : 'Не получилось загрузить отзывы.'))
-  }, [isAdmin])
+  }, [isAdmin, tab, reviews])
 
   async function act(review: Review, decision: 'hide' | 'show' | 'delete') {
     setBusy(review.$id)
@@ -38,14 +46,44 @@ export default function Moderation() {
 
   if (checking) return <main className="container empty-page" aria-busy="true" />
 
+  const tabs = (
+    <div className="chips" role="tablist" aria-label="Разделы модерации">
+      {(
+        [
+          ['reviews', 'Отзывы'],
+          ['takedowns', 'Обращения'],
+        ] as const
+      ).map(([id, name]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={tab === id}
+          className={`pill${tab === id ? ' active' : ''}`}
+          onClick={() => setParams(id === 'reviews' ? {} : { tab: id }, { replace: true })}
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  )
+
   return (
     <main className="container home">
       <section className="stack">
-        <h1 className="page-title">Модерация отзывов</h1>
+        <h1 className="page-title">Модерация</h1>
         {!isAdmin ? (
           <p className="muted">Эта страница только для модераторов.</p>
+        ) : tab === 'takedowns' ? (
+          <>
+            {tabs}
+            <Suspense fallback={<div className="skeleton skeleton--line" aria-busy="true" />}>
+              <ModerationTakedowns />
+            </Suspense>
+          </>
         ) : (
           <>
+            {tabs}
             <p className="muted">
               Здесь отзывы с жалобами. После трёх жалоб отзыв скрывается сам, пока вы его не проверите. «Оставить»
               показывает отзыв снова, и новые жалобы его больше не скроют.

@@ -22,6 +22,8 @@ export interface Anime {
   posterSmall2x?: string
   posterFill: string
   trailerUrl?: string
+  /** возрастной рейтинг Shikimori (g, pg, pg_13, r, r_plus, rx), подпись — ageLabel в seo.ts */
+  rating?: string
 }
 
 /** Поля, которых хватает для карточки в сетке. */

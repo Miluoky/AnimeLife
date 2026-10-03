@@ -19,6 +19,7 @@ const NotFound = lazy(pageChunks.notFound)
 const Together = lazy(pageChunks.together)
 const TogetherHome = lazy(pageChunks.togetherHome)
 const PublicProfile = lazy(pageChunks.publicProfile)
+const Legal = lazy(pageChunks.legal)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -61,6 +62,11 @@ export default function App() {
           <Route path="auth/vk" element={<AuthCallback />} />
           <Route path="my-list" element={<MyList />} />
           <Route path="moderation" element={<Moderation />} />
+          {/* Служебные страницы: тексты в src/data/legal.ts, у двух первых форма обращения. */}
+          <Route path="rightholders" element={<Legal />} />
+          <Route path="contacts" element={<Legal />} />
+          <Route path="privacy" element={<Legal />} />
+          <Route path="terms" element={<Legal />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

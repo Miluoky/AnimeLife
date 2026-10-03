@@ -5,19 +5,24 @@
  * одинаковый заголовок и пустую страницу. Здесь в index.html подставляются канонический адрес на animelife.top,
  * свои заголовок, описание и картинка (Open Graph) для каждой страницы, разметка schema.org и простой текст
  * страницы для поисковиков без JavaScript: у тайтла — описание, серии, связанное и похожее, у разделов и
- * посадочных страниц (жанры, годы, сезоны, типы) — список тайтлов со ссылками и страницами ?page=N.
+ * посадочных страниц (жанры, годы, сезоны, типы) — список тайтлов со ссылками и страницами ?page=N,
+ * у служебных страниц (правообладателям, контакты, политика, соглашение) — их текст из src/data/legal.ts.
  * Несуществующие страницы получают код 404, временные и личные — noindex. Старые адреса (www, workers.dev)
  * постоянно перенаправляются на animelife.top. Плюс карта сайта (/sitemap.xml — индекс из трёх частей) и /robots.txt.
  * Шаблоны заголовков и посадочные страницы общие с приложением: src/data/seo.ts и src/data/landings.ts.
  * Если внешний сервис не ответил, отдаётся обычный index.html: сайт работает как раньше.
  */
 import { CATALOG, landingFor, landingPaths } from '../src/data/landings.ts'
+import { LEGAL, textParts } from '../src/data/legal.ts'
 import {
+  DISCLAIMER,
   GENRES,
   KINDS,
+  LEGAL_LINKS,
   MAX_PAGES,
   PAGE_SIZE,
   SITE,
+  ageLabel,
   cut,
   episodesLabel,
   genrePath,
@@ -40,7 +45,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|together|my-list|moderation|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|together|my-list|moderation|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|account|auth\/|my-list|moderation)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -91,7 +96,8 @@ function siteNav() {
       ...Object.entries(KINDS).map(([id, h1]) => [h1, `/type/${id}`]),
       [`Аниме ${year} года`, `/year/${year}`],
       [`Аниме ${year - 1} года`, `/year/${year - 1}`],
-    ])}</nav>`
+    ])}</nav>` +
+    `<nav>${links(LEGAL_LINKS)}</nav><p>${escapeHtml(DISCLAIMER)}</p>`
   )
 }
 
@@ -271,6 +277,7 @@ async function titlePage(id) {
   const description = titlePageDescription(info)
   const image = absolute(a.image?.original)
   const count = available(a)
+  const age = ageLabel(a.rating)
   const parent = kindPath(a.kind)
   const crumbs = breadcrumbs([parent ? [KINDS[a.kind], parent] : ['Каталог', '/catalog'], [info.title, `/anime/${a.id}`]])
   const facts = [
@@ -279,6 +286,7 @@ async function titlePage(id) {
     !movie && a.episodes ? escapeHtml(episodesLabel(a.episodes)) : '',
     a.status === 'ongoing' && a.episodes_aired ? `вышло ${a.episodes_aired}` : '',
     info.studio && `студия ${escapeHtml(info.studio)}`,
+    age && `возрастное ограничение ${age}`,
   ].filter(Boolean)
   const genres = info.genres.map((g) => {
     const path = genrePath(g)
@@ -322,6 +330,8 @@ async function titlePage(id) {
       endDate: (!movie && a.status === 'released' && a.released_on) || undefined,
       genre: info.genres,
       productionCompany: info.studio ? { '@type': 'Organization', name: info.studio } : undefined,
+      // Возрастная маркировка по рейтингу Shikimori: 0+, 6+, 12+, 16+, 18+.
+      contentRating: age,
       // aggregateRating не ставим: оценки здесь от Shikimori, а Google запрещает размечать рейтинги с других сайтов.
     }),
   }
@@ -369,12 +379,39 @@ async function watchPage(id, episode) {
   }
 }
 
+/** Абзац служебной страницы: разметка [текст](/адрес) становится ссылкой. */
+const legalText = (text) => textParts(text).map((p) => (typeof p === 'string' ? escapeHtml(p) : link(p[1], p[0]))).join('')
+
+/** Правообладателям, контакты, политика, соглашение: тот же текст, что в приложении (src/data/legal.ts). */
+function legalPage(path, l) {
+  const crumbs = breadcrumbs([[l.h1, path]])
+  return {
+    title: `${l.title} | ${SITE}`,
+    description: l.description,
+    body:
+      crumbs.html +
+      `<h1>${escapeHtml(l.h1)}</h1>` +
+      l.sections
+        .map(
+          (s) =>
+            (s.h2 ? `<h2>${escapeHtml(s.h2)}</h2>` : '') +
+            (s.p ?? []).map((p) => `<p>${legalText(p)}</p>`).join('') +
+            (s.list ? `<ul>${s.list.map((li) => `<li>${legalText(li)}</li>`).join('')}</ul>` : ''),
+        )
+        .join('') +
+      (l.form ? '<p>Форма обращения открывается в браузере с включённым JavaScript.</p>' : '') +
+      siteNav(),
+    jsonLd: graph(crumbs.ld),
+  }
+}
+
 /** Что показать в превью ссылки и в тексте страницы для данного адреса. */
 async function metaFor(path, params) {
   const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
   if (path === '/') return home()
   if (path === '/catalog') return listing(CATALOG, page)
   if (path === '/schedule') return schedule()
+  if (LEGAL[path]) return legalPage(path, LEGAL[path])
   if (path === '/together') {
     return {
       title: `Смотреть аниме вместе с друзьями онлайн | ${SITE}`,
@@ -527,7 +564,7 @@ function sitemapPages() {
   const day = today()
   const year = new Date().getFullYear()
   const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
-  const paths = ['/', '/catalog', '/schedule', '/together', ...landingPaths()]
+  const paths = ['/', '/catalog', '/schedule', '/together', ...landingPaths(), ...LEGAL_LINKS.map(([, p]) => p)]
   return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
 }
 
