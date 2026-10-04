@@ -50,6 +50,13 @@ interface EpisodeItem {
   position: number
   url: string
   iframe: boolean
+  is_filler?: boolean
+}
+
+/** Серии одной озвучки: адреса встраиваемого плеера и номера филлеров (серий не по сюжету манги). */
+export interface AnixartEpisodes {
+  urls: Map<number, string>
+  fillers: Set<number>
 }
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
@@ -93,10 +100,10 @@ async function search(q: AnimeVostQuery): Promise<AnixartRelease | null> {
   return null
 }
 
-const episodes = new Map<string, Promise<Map<number, string>>>()
+const episodes = new Map<string, Promise<AnixartEpisodes>>()
 
-/** Ссылки на плеер серий одной озвучки: номер → адрес iframe. Пустая карта — встроить нечего. */
-export function anixartEpisodes(release: number, type: number): Promise<Map<number, string>> {
+/** Серии одной озвучки: номер → адрес iframe (пустая карта — встроить нечего) и филлеры. */
+export function anixartEpisodes(release: number, type: number): Promise<AnixartEpisodes> {
   const key = `${release}:${type}`
   let found = episodes.get(key)
   if (!found) {
@@ -107,15 +114,19 @@ export function anixartEpisodes(release: number, type: number): Promise<Map<numb
   return found
 }
 
-async function loadEpisodes(release: number, type: number): Promise<Map<number, string>> {
+async function loadEpisodes(release: number, type: number): Promise<AnixartEpisodes> {
   const { sources = [] } = await call<{ sources?: SourceItem[] }>(`/episode/${release}/${type}`)
   // Kodik встраивается везде; источники с пометкой «не работает» пропускаем.
   const ordered = sources.filter((s) => !/не работает/i.test(s.name)).sort((a, b) => Number(b.name === 'Kodik') - Number(a.name === 'Kodik'))
+  const fillers = new Set<number>()
   for (const source of ordered) {
     const list = await call<{ episodes?: EpisodeItem[] }>(`/episode/${release}/${type}/${source.id}`)
-    const map = new Map<number, string>()
-    for (const e of list.episodes ?? []) if (e.iframe && /^https:\/\//.test(e.url)) map.set(e.position, e.url)
-    if (map.size) return map
+    const urls = new Map<number, string>()
+    for (const e of list.episodes ?? []) {
+      if (e.is_filler) fillers.add(e.position)
+      if (e.iframe && /^https:\/\//.test(e.url)) urls.set(e.position, e.url)
+    }
+    if (urls.size) return { urls, fillers }
   }
-  return new Map()
+  return { urls: new Map(), fillers }
 }

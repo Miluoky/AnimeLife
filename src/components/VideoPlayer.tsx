@@ -236,7 +236,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     setError(null)
     setAxEpisodes(null)
     anixartEpisodes(axRelease, axType)
-      .then((map) => {
+      .then(({ urls: map }) => {
         if (cancelled) return
         setAxEpisodes(map)
         if (!map.size) setError('У этой озвучки нет плеера, который можно встроить')

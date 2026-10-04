@@ -11,7 +11,7 @@ import { isBalancerAvailable } from '../api/balancers'
 import { fetchKodikTranslations } from '../api/kodik'
 import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
-import { findAnixart, type AnixartRelease } from '../api/anixart'
+import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
 import { markFlag } from '../data/flags'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
@@ -49,6 +49,12 @@ export default function Player() {
   const voices = useMemo(
     () => buildVoices(kodik.value ?? [], Object.keys(names).length || free.value?.aniLibria, free.value?.animeVost ?? 0, free.value?.anixart ?? null),
     [kodik.value, names, free.value],
+  )
+  // Филлеры размечены в Anixart: берём их из самой популярной озвучки, у всех студий номера одни.
+  const axRelease = free.value?.anixart
+  const fillers = useAsync(
+    () => (axRelease?.voices.length ? anixartEpisodes(axRelease.id, axRelease.voices[0].type).then((e) => e.fillers).catch(() => undefined) : Promise.resolve(undefined)),
+    [axRelease?.id],
   )
   const [voiceKey, setVoiceKey] = useState(savedVoice)
   const voice = voices.find((v) => v.key === voiceKey) ?? voices[0]
@@ -119,6 +125,7 @@ export default function Player() {
           seen={seen}
           names={voice?.provider === 'anilibria' ? names : {}}
           provider="AniLibria"
+          fillers={fillers.value}
         />
       </div>
 
@@ -178,6 +185,7 @@ function EpisodePicker({
   seen,
   names,
   provider,
+  fillers,
 }: {
   animeId: string
   total: number
@@ -186,6 +194,8 @@ function EpisodePicker({
   /** Серии, которые нашлись у источника (номер → название). Пусто — источник ещё не ответил. */
   names: Record<number, string>
   provider: string
+  /** серии не по сюжету манги: их можно пропустить */
+  fillers?: Set<number>
 }) {
   const [range, setRange] = useState(Math.floor((current - 1) / RANGE))
   const [query, setQuery] = useState('')
@@ -258,15 +268,21 @@ function EpisodePicker({
           <Link
             key={n}
             to={`/watch/${animeId}/${n}`}
-            className={`ep-chip${n <= seen && n !== current ? ' ep-chip--seen' : ''}${missing(n) ? ' ep-chip--missing' : ''}`}
+            className={`ep-chip${n <= seen && n !== current ? ' ep-chip--seen' : ''}${missing(n) ? ' ep-chip--missing' : ''}${fillers?.has(n) ? ' ep-chip--filler' : ''}`}
             aria-current={n === current ? 'page' : undefined}
-            aria-label={`Серия ${n}${names[n] ? `: ${names[n]}` : ''}${n <= seen ? ', просмотрена' : ''}${missing(n) ? `, нет в озвучке ${provider}` : ''}`}
-            title={names[n] || undefined}
+            aria-label={`Серия ${n}${names[n] ? `: ${names[n]}` : ''}${fillers?.has(n) ? ', филлер' : ''}${n <= seen ? ', просмотрена' : ''}${missing(n) ? `, нет в озвучке ${provider}` : ''}`}
+            title={[names[n], fillers?.has(n) && 'Филлер: не по сюжету манги'].filter(Boolean).join(' · ') || undefined}
           >
             {n}
           </Link>
         ))}
       </nav>
+      {!!fillers?.size && (
+        <p className="ep-legend muted">
+          <span className="ep-legend__mark" aria-hidden="true" /> Филлеры: {fillers.size} из {total}, не по сюжету манги, их можно пропустить.
+          {fillers.has(current) && <strong className="ep-legend__now"> Эта серия филлер.</strong>}
+        </p>
+      )}
       {names[current] && (
         <p className="ep-name">
           {current}. {names[current]}

@@ -428,14 +428,17 @@ test('плеер: озвучки студий из Anixart, серия игра�
       },
     }),
   )
-  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) =>
+  await page.route(/api\.anixart\.tv\/episode\/31\/\d+$/, (route) =>
     route.fulfill({ json: { code: 0, sources: [{ id: 5, name: 'Sovet (не работает)', episodes_count: 26 }, { id: 30, name: 'Kodik', episodes_count: 26 }] } }),
   )
-  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
-    route.fulfill({ json: { code: 0, episodes: [1, 2].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true })) } }),
+  await page.route(/api\.anixart\.tv\/episode\/31\/\d+\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [1, 2].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true, is_filler: n === 2 })) } }),
   )
   await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
   await page.goto('/watch/1/2')
+  // Филлеры размечены в Anixart: вторая серия отмечена в списке, под ним подсказка.
+  await expect(page.getByRole('link', { name: /^Серия 2, филлер/ })).toHaveClass(/ep-chip--filler/)
+  await expect(page.getByText(/Филлеры: 1 из 26/)).toContainText('Эта серия филлер.')
   // AniLibria без релиза: её студия приходит из Anixart, субтитры подписаны без префикса.
   await expect(page.getByRole('button', { name: /^AniLibria/ })).toContainText('26 эп.')
   await expect(page.getByRole('button', { name: /^CR/ })).toContainText('Субтитры')

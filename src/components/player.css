@@ -188,6 +188,34 @@
   opacity: 0.4;
 }
 
+/* филлер: пунктирная рамка, сюжетные серии остаются сплошными */
+.ep-chip--filler {
+  border-style: dashed;
+  border-color: var(--muted);
+  background: transparent;
+}
+
+.ep-legend {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.ep-legend__mark {
+  display: inline-block;
+  width: 14px;
+  height: 12px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  border: 1px dashed var(--muted);
+  border-radius: 4px;
+}
+
+.ep-legend__now {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .ep-voiced {
   margin: 0 0 8px;
   font-size: 0.85rem;
