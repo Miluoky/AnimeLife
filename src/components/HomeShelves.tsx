@@ -88,6 +88,7 @@ export function MoreShelves() {
         subtitle="Самые высокие оценки зрителей"
         icon={<TrophyIcon />}
         query={{ order: 'ranked' }}
+        more="/top"
       />
       {THEMES.map((t) => (
         <CatalogShelf

@@ -48,7 +48,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|together|my-list|moderation|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|together|my-list|moderation|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|account|auth\/|my-list|moderation)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -523,6 +523,13 @@ async function metaFor(path, params) {
       body: '<h1>Смотреть аниме вместе</h1><p>Создайте комнату, позовите друзей по ссылке или коду и смотрите одну серию одновременно: пауза и перемотка у всех сразу, рядом чат и голосовая связь.</p>' + siteNav(),
     }
   }
+  if (path === '/top') {
+    return {
+      title: `Топ-100 аниме: лучшие, популярные и онгоинги | ${SITE}`,
+      description: 'Рейтинг аниме по оценкам зрителей: лучшие за всё время, самые популярные, лучшие онгоинги и тайтлы этого сезона.',
+      body: '<h1>Топ-100 аниме</h1><p>Лучшие аниме по оценкам зрителей Shikimori, самые популярные тайтлы, лучшие онгоинги и рейтинг этого сезона.</p>' + siteNav(),
+    }
+  }
   if (path === '/random') {
     return {
       title: `Что посмотреть: случайное аниме по настроению | ${SITE}`,
@@ -741,7 +748,7 @@ function sitemapPages() {
   const day = today()
   const year = new Date().getFullYear()
   const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
-  const paths = ['/', '/catalog', '/schedule', '/random', '/together', ...landingPaths(), ...LEGAL_LINKS.map(([, p]) => p)]
+  const paths = ['/', '/catalog', '/schedule', '/top', '/random', '/together', ...landingPaths(), ...LEGAL_LINKS.map(([, p]) => p)]
   return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
 }
 

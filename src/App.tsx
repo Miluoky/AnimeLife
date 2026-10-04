@@ -22,6 +22,7 @@ const PublicProfile = lazy(pageChunks.publicProfile)
 const Legal = lazy(pageChunks.legal)
 const CharacterPage = lazy(pageChunks.character)
 const Random = lazy(pageChunks.random)
+const Top = lazy(pageChunks.top)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="catalog" element={<Catalog />} />
           <Route path="schedule" element={<Schedule />} />
           <Route path="random" element={<Random />} />
+          <Route path="top" element={<Top />} />
           <Route path="account" element={<Account />} />
           <Route path="account/recovery" element={<PasswordRecovery />} />
           <Route path="auth/callback" element={<AuthCallback />} />

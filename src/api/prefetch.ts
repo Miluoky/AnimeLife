@@ -19,6 +19,7 @@ export const pageChunks = {
   legal: () => import('../pages/Legal'),
   character: () => import('../pages/CharacterPage'),
   random: () => import('../pages/Random'),
+  top: () => import('../pages/Top'),
 }
 
 const prefetched = new Set<string>()
