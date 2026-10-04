@@ -422,7 +422,7 @@ test('плеер: озвучки студий из Anixart, серия игра�
         code: 0,
         types: [
           { id: 2, name: 'AniLibria', is_sub: false, episodes_count: 26 },
-          { id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 },
+          { id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26, icon: 'https://s3.anixmirai.com/voiceovers/studio-band.jpg' },
           { id: 46, name: 'Субтитры | CR', is_sub: true, episodes_count: 20 },
         ],
       },
@@ -439,6 +439,8 @@ test('плеер: озвучки студий из Anixart, серия игра�
   // AniLibria без релиза: её студия приходит из Anixart, субтитры подписаны без префикса.
   await expect(page.getByRole('button', { name: /^AniLibria/ })).toContainText('26 эп.')
   await expect(page.getByRole('button', { name: /^CR/ })).toContainText('Субтитры')
+  // У студии есть логотип: он вместо буквы.
+  await expect(page.getByRole('button', { name: /^Studio Band/ }).locator('img')).toHaveAttribute('src', /studio-band\.jpg$/)
   await page.getByRole('button', { name: /^Studio Band/ }).click()
   await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://kodikplayer.com/seria/2/hash/720p')
   await expect(page.getByText(/вот трейлер/)).toHaveCount(0)

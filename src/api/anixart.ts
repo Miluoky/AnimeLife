@@ -16,6 +16,8 @@ export interface AnixartVoice {
   title: string
   kind: 'voice' | 'subtitles'
   episodes: number
+  /** логотип студии 150×150, есть не у всех */
+  icon?: string
 }
 
 export interface AnixartRelease {
@@ -35,6 +37,7 @@ interface TypeItem {
   name: string
   is_sub: boolean
   episodes_count: number
+  icon?: string | null
 }
 
 interface SourceItem {
@@ -84,7 +87,7 @@ async function search(q: AnimeVostQuery): Promise<AnixartRelease | null> {
     // Порядок Anixart — по популярности озвучки: его и сохраняем.
     const voices = types
       .filter((t) => t.episodes_count > 0)
-      .map((t) => ({ type: t.id, title: t.name.replace(/^Субтитры \| /, ''), kind: t.is_sub ? 'subtitles' : 'voice', episodes: t.episodes_count }) as AnixartVoice)
+      .map((t) => ({ type: t.id, title: t.name.replace(/^Субтитры \| /, ''), kind: t.is_sub ? 'subtitles' : 'voice', episodes: t.episodes_count, icon: t.icon?.startsWith('https://') ? t.icon : undefined }) as AnixartVoice)
     return { id: hit.id, voices }
   }
   return null

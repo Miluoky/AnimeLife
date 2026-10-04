@@ -287,6 +287,7 @@ interface Voice {
   episodes?: number
   kodikLink?: string
   anixart?: { release: number; type: number; title: string }
+  icon?: string
 }
 
 const VOICE_KEY = 'player-voice'
@@ -336,11 +337,26 @@ function buildVoices(
       title: v.title,
       kind: v.kind,
       episodes: v.episodes,
+      icon: v.icon,
       anixart: { release: anixart!.id, type: v.type, title: v.title },
     })
   }
   if (aniLibriaEpisodes === undefined && others && !list.some((v) => v.title === 'AniLibria')) list.push(aniLibria)
   return list
+}
+
+/** Логотип студии, а если его нет или он не загрузился — первая буква названия. */
+function VoiceMark({ title, icon }: { title: string; icon?: string }) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <span className="voice__mark" aria-hidden="true">
+      {icon && !broken ? (
+        <img src={icon} alt="" width={36} height={36} loading="lazy" decoding="async" onError={() => setBroken(true)} />
+      ) : (
+        title.slice(0, 1).toUpperCase()
+      )}
+    </span>
+  )
 }
 
 type VoiceSort = 'episodes' | 'title'
@@ -387,9 +403,7 @@ function VoicePicker({ voices, current, onChoose }: { voices: Voice[]; current?:
         {shown.map((v) => (
           <li key={v.key}>
             <button type="button" className="voice" aria-pressed={v.key === current} onClick={() => onChoose(v.key)}>
-              <span className="voice__mark" aria-hidden="true">
-                {v.title.slice(0, 1).toUpperCase()}
-              </span>
+              <VoiceMark title={v.title} icon={v.icon} />
               <span className="voice__text">
                 <span className="voice__title">{v.title}</span>
                 <span className="voice__kind">{v.kind === 'subtitles' ? 'Субтитры' : 'Озвучка'}</span>

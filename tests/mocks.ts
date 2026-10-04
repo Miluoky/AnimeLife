@@ -38,6 +38,10 @@ export async function mockServices(page: Page) {
   await page.route(/anilibria\.top\/api\/.*/, (route) => route.fulfill({ json: [] }))
   // AnimeVost по умолчанию тоже ничего не находит.
   await page.route(/api\.animevost\.org\/.*/, (route) => route.fulfill({ json: { state: { status: 'ok' } } }))
+  // Логотипы студий Anixart: прозрачный пиксель вместо картинки.
+  await page.route(/s3\.anixmirai\.com\/.*/, (route) =>
+    route.fulfill({ contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAIBAAA=', 'base64') }),
+  )
   await page.route(/api\.anixart\.tv\/.*/, (route) => route.fulfill({ json: { code: 0, content: [], types: [], sources: [], episodes: [] } }))
   await page.route(/youtube\.com\/embed\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Трейлер</title>' }))
 }
