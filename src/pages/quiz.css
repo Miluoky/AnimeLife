@@ -111,6 +111,7 @@
   gap: 12px;
 }
 .quiz-result p {
+  flex: 1 1 260px;
   margin: 0;
 }
 @keyframes quiz-in {

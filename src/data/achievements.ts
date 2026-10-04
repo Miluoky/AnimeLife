@@ -51,6 +51,7 @@ const rules: Rule[] = [
   { id: 'owl', icon: '🦉', title: 'Сова', hint: 'Смотреть серию между полуночью и пятью утра', done: (_, g) => !!g.nightOwl },
   { id: 'reviewer', icon: '✍️', title: 'Рецензент', hint: 'Написать отзыв', done: (_, g) => !!g.wroteReview },
   { id: 'talker', icon: '💬', title: 'Собеседник', hint: 'Обсудить серию', done: (_, g) => !!g.commented },
+  { id: 'eye', icon: '🖼️', title: 'Глаз-алмаз', hint: 'Угадать 5 аниме по кадру подряд', done: (_, g) => !!g.quizStreak },
   { id: 'mover', icon: '📦', title: 'Переезд', hint: 'Импортировать список с другого сайта', done: (_, g) => !!g.imported },
 ]
 

@@ -46,3 +46,23 @@ test('угадай по кадру: верный ответ растит сер�
   await page.reload()
   await expect(score).toContainText('Рекорд1')
 })
+
+test('угадай по кадру: пять подряд дают достижение, кадры не кончаются, оборванной серией можно похвастаться', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('anime.achievements.seen.v1', '[]'))
+  await page.goto('/quiz')
+  const options = page.getByRole('group', { name: 'Варианты ответа' }).getByRole('button')
+  // Девять раундов при восьми тайтлах в заготовке: когда кадры кончаются, круг начинается заново.
+  for (let i = 0; i < 9; i++) {
+    await expect(options.first()).toBeEnabled()
+    await options.filter({ hasText: await answerOf(page) }).click()
+    await page.getByRole('button', { name: 'Дальше' }).click()
+    if (i === 4) await expect(page.getByRole('status').filter({ hasText: 'Достижение: «Глаз-алмаз»' })).toBeVisible()
+  }
+
+  await expect(options.first()).toBeEnabled()
+  await options.filter({ hasNotText: await answerOf(page) }).first().click()
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined)
+  await page.evaluate(() => Object.defineProperty(navigator, 'share', { value: undefined }))
+  await page.getByRole('button', { name: 'Похвастаться: 9 подряд' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'скопирован' })).toBeVisible()
+})

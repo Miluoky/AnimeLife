@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { fetchScreenshots, fromShort, get, type ShikiAnimeShort } from '../api/shikimori'
 import type { Anime } from '../data/catalog'
 import { usePageMeta } from '../data/pageMeta'
+import { markFlag } from '../data/flags'
+import { toast } from '../data/toast'
 import './quiz.css'
 
 interface Round {
@@ -12,6 +14,21 @@ interface Round {
 }
 
 const BEST_KEY = 'anime.quiz.best'
+// Столько подряд — достижение «Глаз-алмаз».
+const STREAK_FLAG = 5
+
+/** Похвастаться серией: системное меню на телефоне, на компьютере текст со ссылкой копируется. */
+async function shareStreak(streak: number) {
+  const url = `${location.origin}${import.meta.env.BASE_URL}quiz`
+  const text = `Угадал(а) ${streak} аниме по кадру подряд на Anime Life. Сможешь больше?`
+  if (navigator.share) return navigator.share({ text, url }).catch(() => undefined)
+  try {
+    await navigator.clipboard.writeText(`${text} ${url}`)
+    toast('Текст со ссылкой скопирован')
+  } catch {
+    toast('Не удалось скопировать')
+  }
+}
 // Узнаваемые тайтлы: первые сто по популярности, страница случайная, чтобы игры отличались.
 const POOL_PAGES = 2
 
@@ -45,6 +62,8 @@ async function fetchPool(): Promise<Anime[]> {
 
 /** Готовим раунд: загаданный тайтл, у которого есть кадры, и три других варианта. */
 async function makeRound(pool: Anime[], skip: Set<string>): Promise<Round | undefined> {
+  // Все кадры пула уже были: начинаем круг заново, а не заканчиваем игру.
+  if (pool.every((a) => skip.has(a.id))) skip.clear()
   for (const answer of shuffle(pool.filter((a) => !skip.has(a.id))).slice(0, 4)) {
     const shots = await fetchScreenshots(answer.id).catch(() => [])
     if (!shots.length) {
@@ -68,6 +87,8 @@ export default function Quiz() {
   const [picked, setPicked] = useState<string>()
   const [score, setScore] = useState({ right: 0, total: 0, streak: 0 })
   const [best, setBest] = useState(readBest)
+  // Серия, которую оборвал последний неверный ответ: ею можно похвастаться.
+  const [ended, setEnded] = useState(0)
 
   const prepare = useCallback(() => {
     next.current = makeRound(pool.current, seen.current)
@@ -104,6 +125,8 @@ export default function Quiz() {
     const ok = id === round.answer.id
     const streak = ok ? score.streak + 1 : 0
     setScore({ right: score.right + (ok ? 1 : 0), total: score.total + 1, streak })
+    setEnded(ok ? 0 : score.streak)
+    if (streak >= STREAK_FLAG) markFlag('quizStreak')
     if (streak > best) {
       setBest(streak)
       try {
@@ -164,6 +187,11 @@ export default function Quiz() {
                 <strong>{right ? 'Верно!' : 'Мимо.'}</strong> Это «<Link to={`/anime/${round.answer.id}`}>{round.answer.title}</Link>»
                 {round.answer.year ? `, ${round.answer.year}` : ''}.
               </p>
+              {ended >= 2 && (
+                <button type="button" className="btn btn--ghost" onClick={() => void shareStreak(ended)}>
+                  Похвастаться: {ended} подряд
+                </button>
+              )}
               <button type="button" className="btn btn--accent" onClick={() => void advance()} autoFocus>
                 Дальше
               </button>
