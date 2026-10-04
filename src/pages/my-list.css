@@ -1,0 +1,49 @@
+/* Пустой «Мой список»: подсказка и популярные тайтлы, которые можно сразу добавить. */
+.list-empty {
+  display: grid;
+  gap: 28px;
+  padding: 16px 0 8px;
+}
+.list-empty__intro {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 28px;
+  border-radius: 20px;
+  background:
+    radial-gradient(80% 120% at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    var(--surface);
+  border: 1px solid var(--line);
+}
+.list-empty__intro p {
+  margin: 0;
+  max-width: 560px;
+}
+.list-empty__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.list-empty__title {
+  font-size: 22px;
+  font-weight: 600;
+}
+.list-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+.list-empty__sub {
+  font-size: 18px;
+  font-weight: 500;
+}
+.list-empty__add {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}

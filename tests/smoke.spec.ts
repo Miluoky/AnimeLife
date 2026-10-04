@@ -42,6 +42,11 @@ test('каталог: поиск и фильтры', async ({ page }) => {
 test('мой список и профиль без входа', async ({ page }) => {
   await page.goto('/my-list')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  // Пустой список предлагает популярное: одно нажатие кладёт тайтл в «Буду смотреть» и открывает этот раздел.
+  await expect(page.getByRole('heading', { name: 'Список пока пуст' })).toBeVisible()
+  await page.getByRole('button', { name: 'Буду смотреть' }).first().click()
+  await expect(page.getByRole('tab', { name: /Буду смотреть/ })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('.list-item')).toHaveCount(1)
   await page.goto('/account')
   await expect(page.getByRole('button', { name: /Войти/ }).first()).toBeVisible()
 })

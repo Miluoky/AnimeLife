@@ -187,22 +187,28 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
   useEffect(() => {
     if (!sleepAt) return
     const t = setTimeout(() => {
-      video.current?.pause()
+      const el = video.current
+      el?.pause()
       setSleepAt(null)
       setNote({ key: Date.now(), text: 'Таймер сна: видео на паузе', stay: true })
+      // Подпись держится, пока зритель снова не включит видео. Событие play из очереди, отправленное
+      // ещё до паузы, приходит уже на стоящее видео: его пропускаем.
+      const resumed = () => {
+        if (!el || el.paused) return
+        el.removeEventListener('play', resumed)
+        setNote((n) => (n?.stay ? null : n))
+      }
+      el?.addEventListener('play', resumed)
     }, Math.max(0, sleepAt - Date.now()))
     return () => clearTimeout(t)
   }, [sleepAt, video])
   useEffect(() => {
     if (!note || note.stay) return
-    const t = setTimeout(() => setNote(null), 1200)
+    // Убираем только ту подпись, для которой ставили таймер: если таймеры сработали пачкой
+    // (вкладка спала), более новая подпись «на паузе» должна остаться.
+    const t = setTimeout(() => setNote((n) => (n === note ? null : n)), 1200)
     return () => clearTimeout(t)
   }, [note])
-  // Подпись «на паузе» убираем, когда зритель снова включил видео. Состояние paused обновляется
-  // событием чуть позже самой паузы, поэтому смотрим и на само видео.
-  useEffect(() => {
-    if (note?.stay && !paused && video.current && !video.current.paused) setNote(null)
-  }, [note, paused, video])
   const sleepLeft = sleepAt ? Math.max(1, Math.ceil((sleepAt - Date.now()) / 60_000)) : 0
 
   // Shift + > и Shift + < (как на YouTube): шаг по списку скоростей и короткая подсказка поверх видео.

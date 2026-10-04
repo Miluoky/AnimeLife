@@ -130,7 +130,16 @@ test('плеер: таймер сна ставит видео на паузу ч
   await page.clock.install()
   await page.goto('/watch/1/1')
   const video = page.locator('video.player-video')
-  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+  // Дожидаемся, пока ролик правда играет (по кругу, он короткий): иначе пауза таймера смешается с автозапуском.
+  await expect
+    .poll(() =>
+      video.evaluate((v: HTMLVideoElement) => {
+        v.loop = true
+        if (v.paused) void v.play().catch(() => undefined)
+        return !v.paused && v.currentTime > 0
+      }),
+    )
+    .toBe(true)
 
   await page.getByRole('button', { name: 'Качество и скорость' }).click()
   await page.getByRole('button', { name: '15 мин' }).click()
