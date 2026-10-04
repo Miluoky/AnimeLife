@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
 const BUDGET_KB = {
-  // основная часть: React, роутер, главная страница
-  main: 72,
+  // основная часть: Preact (вместо React), роутер, главная страница; запас ~10 КБ на новые функции
+  main: 46,
   // любая отдельная страница или библиотека
   chunk: 40,
   // SDK Appwrite грузится отдельно и только когда нужен

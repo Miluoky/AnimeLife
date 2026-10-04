@@ -61,8 +61,9 @@ test('после обновления сайта старая часть код�
   await page.route(/\/assets\/Account-.*\.js$/, (route) =>
     route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Anime Life</title>' }),
   )
+  // Считаем запросы самой страницы: перезагрузка может начаться ещё до события load.
   let loads = 0
-  page.on('load', () => loads++)
+  page.on('request', (req) => req.isNavigationRequest() && req.frame() === page.mainFrame() && loads++)
   await page.goto('/account')
   await expect(page.getByRole('button', { name: 'Обновить' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Не получилось открыть страницу' })).toBeVisible()
