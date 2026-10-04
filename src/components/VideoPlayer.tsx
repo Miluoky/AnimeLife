@@ -59,6 +59,8 @@ export interface VideoPlayerProps {
   episode: number
   /** Общее количество серий. */
   totalEpisodes: number
+  /** Серия досмотрена до конца (свой плеер или Kodik). */
+  onEnded?: () => void
   /** Переход к другой серии (кнопка «Следующая серия» под конец видео). */
   onEpisodeChange?: (episode: number) => void
   /** Серии найденного релиза AniLibria: странице нужны их названия для списка серий. */
@@ -357,6 +359,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }
   const resumeRef = useRef(resumeSaved)
   resumeRef.current = resumeSaved
+  const endedRef = useRef(props.onEnded)
+  endedRef.current = props.onEnded
 
   // Своё видео: место в серии запоминаем раз в 5 секунд, досмотренная серия запись стирает.
   useEffect(() => {
@@ -368,7 +372,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       last = video.currentTime
       savePosition(positionKey, episode, video.currentTime, video.duration)
     }
-    const onEnded = () => savePosition(positionKey, episode, video.duration, video.duration)
+    const onEnded = () => {
+      savePosition(positionKey, episode, video.duration, video.duration)
+      endedRef.current?.()
+    }
     video.addEventListener('timeupdate', onTime)
     video.addEventListener('ended', onEnded)
     return () => {
@@ -407,6 +414,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       if (key === 'kodik_player_video_ended') {
         savePosition(positionKey, episode, duration || Infinity, duration)
         setKodikEnded(true)
+        endedRef.current?.()
       }
     }
     window.addEventListener('message', onMessage)

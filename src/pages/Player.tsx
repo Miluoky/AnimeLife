@@ -14,6 +14,7 @@ import { findAnimeVost } from '../api/animevost'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
 import { findYummy, voiceKey, type YummyPlayer, type YummyVoice } from '../api/yummy'
 import { markFlag } from '../data/flags'
+import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
@@ -140,6 +141,12 @@ export default function Player() {
         episode={current}
         totalEpisodes={total}
         onEpisodeChange={(n) => (n === current + 1 ? goNext() : goTo(n))}
+        onEnded={() => {
+          // Досмотрели серию: отмечаем её в списке, а последняя переносит тайтл в «Просмотрено».
+          const entry = getEntry(anime.id)
+          if (!entry || (entry.watched ?? 0) >= current) return
+          if (setWatched(anime.id, current) === 'completed') toast(`«${anime.title}» — в «Просмотрено»`)
+        }}
         onEpisodes={(eps) => setNames(Object.fromEntries(eps.map((e) => [e.ordinal, e.name ?? ''])))}
         trailerUrl={anime.trailerUrl}
         provider={host?.player ? 'embed' : voice?.provider}

@@ -504,8 +504,16 @@ test('плеер: Kodik продолжает с места, запоминает
   await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2'))?.title()).toBe('seek:300')
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('anime.positions.v1')!)['1:2']?.t)).toBe(600)
 
+  // Тайтл в списке: досмотренная до конца серия отмечается сразу, не дожидаясь следующей.
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'anime.mylist.v1',
+      JSON.stringify([{ anime: { id: '1', title: 'Ковбой Бибоп', episodes: 26, posterFill: '#333' }, status: 'planned', watched: 0, addedAt: 1, updatedAt: 1 }]),
+    ),
+  )
   await page.goto('/watch/1/1')
   await expect(page.getByText('2 серия через')).toBeVisible()
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anime.mylist.v1')!)[0])).toMatchObject({ watched: 1, status: 'watching' })
   await page.getByRole('button', { name: 'Смотреть сейчас' }).click()
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
 })
