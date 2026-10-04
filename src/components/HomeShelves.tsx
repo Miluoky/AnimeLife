@@ -2,6 +2,8 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { loadCatalog, loadSchedule, useAsync, type CatalogQuery } from '../api'
 import Shelf from './Shelf'
 import PosterCard from './PosterCard'
+import { useMyList } from '../data/myList'
+import { useHistory } from '../data/history'
 import { CalendarIcon, ClockIcon, PlayIcon, TrophyIcon } from './Icons'
 
 const SHELF_SIZE = 16
@@ -94,11 +96,43 @@ function UpcomingShelf() {
   )
 }
 
+/**
+ * Новые серии тайтлов, которые зритель смотрит: по расписанию Shikimori видно, сколько серий уже вышло,
+ * а по списку и истории — на какой он остановился. Отдельных запросов к тайтлам не нужно.
+ */
+function NewEpisodesShelf() {
+  const schedule = useAsync(loadSchedule, [])
+  const list = useMyList()
+  const history = useHistory()
+  const now = Date.now()
+  const items = list
+    .filter((e) => e.status === 'watching')
+    .flatMap((e) => {
+      const next = schedule.value?.data.find((i) => i.anime.id === e.anime.id)
+      if (!next) return []
+      const aired = next.at.getTime() <= now ? next.episode : next.episode - 1
+      const seen = history.find((h) => h.animeId === e.anime.id)
+      const watched = Math.max(e.watched ?? 0, (seen?.episode ?? 1) - 1)
+      return aired > watched ? [{ anime: { ...e.anime, ...next.anime }, fresh: aired - watched, aired }] : []
+    })
+  if (!items.length) return null
+  return (
+    <Shelf title="Новые серии в вашем списке" subtitle="Вышли, пока вас не было" icon={<PlayIcon size={18} />} more={{ to: '/my-list', label: 'Мой список' }}>
+      {items.map((i) => (
+        <div key={i.anime.id} className="row-scroll__item">
+          <PosterCard anime={i.anime} tag={{ text: i.fresh > 1 ? `Новых серий: ${i.fresh}` : `Вышла ${i.aired} серия`, accent: true }} />
+        </div>
+      ))}
+    </Shelf>
+  )
+}
+
 /** Ближайшие серии и премьеры текущего сезона: сразу под баннером. */
 export function SeasonShelf() {
   const season = currentSeason()
   return (
     <>
+      <NewEpisodesShelf />
       <UpcomingShelf />
       <CatalogShelf
         title={season.label}

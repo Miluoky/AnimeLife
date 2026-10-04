@@ -41,6 +41,17 @@ const HIDE_AFTER = 2600
 const NEXT_BEFORE = 90
 // Таймер сна: через сколько минут поставить видео на паузу.
 const SLEEP_MINUTES = [15, 30, 60, 90]
+const HOTKEYS: [string, string][] = [
+  ['Пробел K', 'Пауза и воспроизведение'],
+  ['← →', 'Назад и вперёд на 5 секунд'],
+  ['0…9', 'К началу, 10 %, 20 % … 90 % серии'],
+  ['F', 'Во весь экран'],
+  ['M', 'Выключить звук'],
+  ['S', 'Пропустить опенинг или эндинг'],
+  ['N', 'Следующая серия'],
+  ['Shift+< Shift+>', 'Медленнее и быстрее'],
+  ['?', 'Эта подсказка'],
+]
 
 export function formatTime(s: number) {
   if (!Number.isFinite(s) || s < 0) s = 0
@@ -244,9 +255,19 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
     return () => clearTimeout(t)
   }, [skipNote])
 
-  // Горячие клавиши на компьютере: пробел/K, стрелки, F, M, S — пропустить опенинг или эндинг.
-  const keys = useRef({ togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow, stepRate })
-  keys.current = { togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow, stepRate }
+  // Горячие клавиши на компьютере: пробел/K, стрелки, F, M, S — пропустить опенинг или эндинг,
+  // N — следующая серия, цифры — к 0–90 % серии, ? — подсказка со всеми клавишами.
+  const [help, setHelp] = useState(false)
+  const seekToPart = (part: number) => {
+    const el = video.current
+    if (!el) return
+    const total = Number.isFinite(el.duration) ? el.duration : el.seekable.length ? el.seekable.end(el.seekable.length - 1) : 0
+    if (!total) return
+    el.currentTime = total * part
+    poke()
+  }
+  const keys = useRef({ togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow, stepRate, seekToPart, onNext, setHelp })
+  keys.current = { togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow, stepRate, seekToPart, onNext, setHelp }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -265,6 +286,10 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       // По коду клавиши: в русской раскладке на этих местах «Ю» и «Б».
       else if (e.shiftKey && e.code === 'Period') run.stepRate(1)
       else if (e.shiftKey && e.code === 'Comma') run.stepRate(-1)
+      else if (e.shiftKey && e.code === 'Slash') run.setHelp((h) => !h)
+      else if (k === 'escape') run.setHelp(false)
+      else if ((k === 'n' || k === 'т') && run.onNext) run.onNext()
+      else if (/^Digit\d$/.test(e.code) && !e.shiftKey) run.seekToPart(Number(e.code.slice(5)) / 10)
       else return
       e.preventDefault()
     }
@@ -358,6 +383,29 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       {note && !rateNote && (
         <div key={note.key} className={`vp-rate-note${note.stay ? ' vp-rate-note--stay' : ''}`} role="status">
           {note.text}
+        </div>
+      )}
+
+      {help && (
+        <div className="vp-help" role="dialog" aria-label="Горячие клавиши" onPointerDown={(e) => e.stopPropagation()}>
+          <div className="vp-help__head">
+            <span>Горячие клавиши</span>
+            <button type="button" className="vp-btn" aria-label="Закрыть" onClick={() => setHelp(false)}>
+              ✕
+            </button>
+          </div>
+          <dl className="vp-help__list">
+            {HOTKEYS.map(([k, what]) => (
+              <div key={k}>
+                <dt>
+                  {k.split(' ').map((x) => (
+                    <kbd key={x}>{x}</kbd>
+                  ))}
+                </dt>
+                <dd>{what}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       )}
 
@@ -519,6 +567,16 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  className="vp-menu__link"
+                  onClick={() => {
+                    setMenu(false)
+                    setHelp(true)
+                  }}
+                >
+                  Горячие клавиши <kbd>?</kbd>
+                </button>
                 {!!skips?.length && (
                   <>
                     <div className="vp-menu__title">Опенинг и эндинг</div>

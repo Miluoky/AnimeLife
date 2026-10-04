@@ -151,6 +151,46 @@ test('плеер: таймер сна ставит видео на паузу ч
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
 })
 
+test('плеер: подсказка с горячими клавишами и переход цифрами к части серии', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'клавиатура только на компьютере')
+  await mockAniLibria(page, search)
+  await page.addInitScript(() => {
+    const original = HTMLMediaElement.prototype.canPlayType
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      return type === 'application/vnd.apple.mpegurl' ? 'maybe' : original.call(this, type)
+    }
+  })
+  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
+  await page.route(/cache\.libria\.fun\/.*\.m3u8/, (route) => route.fulfill({ contentType: 'video/webm', body: clip }))
+  await page.goto('/watch/1/1')
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.duration || 0)).toBeGreaterThan(0)
+
+  await page.locator('body').press('Shift+Slash')
+  const help = page.getByRole('dialog', { name: 'Горячие клавиши' })
+  await expect(help).toBeVisible()
+  await expect(help).toContainText('Следующая серия')
+  await page.locator('body').press('Escape')
+  await expect(help).toBeHidden()
+
+  // Заготовку нельзя перематывать: время и длина серии живут в переменных, как в тесте опенинга.
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.pause()
+    let t = 0
+    Object.defineProperty(v, 'duration', { configurable: true, get: () => 1440 })
+    Object.defineProperty(v, 'currentTime', {
+      configurable: true,
+      get: () => t,
+      set: (x: number) => {
+        t = x
+        v.dispatchEvent(new Event('timeupdate'))
+      },
+    })
+  })
+  await page.locator('body').press('5')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBe(720)
+})
+
 test('плеер: озвучки списком сбоку и поиск серии по номеру или названию', async ({ page }) => {
   await mockAniLibria(page, search)
   await page.goto('/watch/1/1')

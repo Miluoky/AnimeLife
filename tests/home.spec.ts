@@ -25,3 +25,27 @@ test('главная: полка «Ближайшие серии» по расп
   await expect(shelf.locator('.poster-card').first()).toContainText('2 эп.')
   await expect(shelf.getByRole('link', { name: /Расписание/ })).toHaveAttribute('href', '/schedule')
 })
+
+test('главная: «Новые серии в вашем списке» по расписанию и прогрессу', async ({ page }) => {
+  const hours = (h: number) => new Date(Date.now() + h * 3600_000).toISOString()
+  await page.route(/\/api\/(shiki\/)?calendar/, (route) =>
+    route.fulfill({
+      json: [
+        { next_episode: 6, next_episode_at: hours(2), duration: 24, anime: animes[0] },
+        { next_episode: 4, next_episode_at: hours(5), duration: 24, anime: animes[1] },
+      ],
+    }),
+  )
+  const entry = (a: { id: number; russian: string }, watched: number) => ({
+    anime: { id: String(a.id), title: a.russian, kind: 'TV', ongoing: true, posterFill: '#333', genres: [] },
+    status: 'watching',
+    addedAt: 1,
+    watched,
+  })
+  // Первый тайтл: вышло 5 серий, просмотрено 3. Второй: вышло 3, просмотрено 3 — на полку не попадает.
+  await page.addInitScript((list) => localStorage.setItem('anime.mylist.v1', JSON.stringify(list)), [entry(animes[0], 3), entry(animes[1], 3)])
+  await page.goto('/')
+  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Новые серии в вашем списке' }) })
+  await expect(shelf.locator('.poster-card')).toHaveCount(1)
+  await expect(shelf.locator('.poster-card__tag')).toHaveText('Новых серий: 2')
+})

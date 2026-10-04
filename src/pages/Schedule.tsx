@@ -1,7 +1,9 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { loadSchedule, useAsync, type ScheduleItem } from '../api'
 import { Poster } from '../components/PosterCard'
 import { usePageMeta } from '../data/pageMeta'
+import { useMyList } from '../data/myList'
+import './schedule.css'
 
 const dayFormat = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
 const timeFormat = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -39,7 +41,16 @@ function groupByDay(items: ScheduleItem[]) {
 export default function Schedule() {
   usePageMeta('Расписание выхода серий аниме на неделю', 'Когда выйдет новая серия: расписание онгоингов на ближайшую неделю с днём и временем выхода каждой серии.')
   const result = useAsync(loadSchedule, [])
-  const days = result.value ? groupByDay(result.value.data) : []
+  const [params, setParams] = useSearchParams()
+  // Свои тайтлы: всё, что в списке, кроме брошенного и просмотренного.
+  const mine = new Set(useMyList().filter((e) => e.status !== 'dropped' && e.status !== 'completed').map((e) => e.anime.id))
+  const all = result.value ? groupByDay(result.value.data) : []
+  const mineCount = all.reduce((n, d) => n + d.items.filter((i) => mine.has(i.anime.id)).length, 0)
+  const onlyMine = params.get('mine') === '1' && mineCount > 0
+  const days = onlyMine
+    ? all.map((d) => ({ ...d, items: d.items.filter((i) => mine.has(i.anime.id)) })).filter((d) => d.items.length)
+    : all
+  const now = Date.now()
 
   return (
     <main className="container home">
@@ -48,6 +59,22 @@ export default function Schedule() {
           <h1 className="page-title">Расписание выхода серий</h1>
           <span className="muted">Новые серии онгоингов на неделю, время ваше местное</span>
         </div>
+
+        {mineCount > 0 && (
+          <div className="schedule-filter" role="group" aria-label="Какие серии показать">
+            <button type="button" className={`pill${onlyMine ? '' : ' active'}`} aria-pressed={!onlyMine} onClick={() => setParams({}, { replace: true })}>
+              Все онгоинги
+            </button>
+            <button
+              type="button"
+              className={`pill${onlyMine ? ' active' : ''}`}
+              aria-pressed={onlyMine}
+              onClick={() => setParams({ mine: '1' }, { replace: true })}
+            >
+              Из моего списка <span className="pill__count">{mineCount}</span>
+            </button>
+          </div>
+        )}
 
         {result.loading && !result.value ? (
           <div className="schedule" aria-busy="true">
@@ -67,7 +94,10 @@ export default function Schedule() {
                 <ul className="schedule-list">
                   {day.items.map((item) => (
                     <li key={`${item.anime.id}-${item.episode}`}>
-                      <Link to={`/anime/${item.anime.id}`} className="schedule-row">
+                      <Link
+                        to={`/anime/${item.anime.id}`}
+                        className={`schedule-row${mine.has(item.anime.id) ? ' schedule-row--mine' : ''}${item.at.getTime() < now ? ' schedule-row--out' : ''}`}
+                      >
                         <time className="schedule-row__time" dateTime={item.at.toISOString()}>
                           {timeFormat.format(item.at)}
                         </time>
@@ -79,8 +109,10 @@ export default function Schedule() {
                           <span className="muted">
                             Серия {item.episode}
                             {item.anime.episodes ? ` из ${item.anime.episodes}` : ''}
+                            {item.at.getTime() < now ? ' · вышла' : ''}
                           </span>
                         </span>
+                        {mine.has(item.anime.id) && <span className="schedule-row__mine">В списке</span>}
                       </Link>
                     </li>
                   ))}

@@ -1,0 +1,109 @@
+/* Расписание */
+.schedule {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.schedule-day {
+  padding: 20px;
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.schedule-day__title {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0;
+  margin-bottom: 12px;
+}
+
+.schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  margin: 0 -8px;
+  border-radius: 12px;
+}
+
+.schedule-row:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.schedule-row__time {
+  width: 48px;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.schedule-row__poster {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  width: 40px;
+  height: 56px;
+  border-radius: 8px;
+}
+
+.schedule-row__poster .placeholder-label {
+  display: none;
+}
+
+.schedule-row__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.schedule-row__title {
+  font-weight: 700;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Тайтлы из «Моего списка»: акцентная полоска и метка. */
+.schedule-row--mine {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.schedule-row__mine {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+/* Серия сегодня уже вышла: приглушаем и подписываем. */
+.schedule-row--out {
+  opacity: 0.55;
+}
+.schedule-row--out .schedule-row__time {
+  color: var(--muted);
+}
