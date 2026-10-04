@@ -1348,6 +1348,14 @@ h3 {
   }
 }
 
+/* На телефоне в полке видно два постера и край третьего: понятно, что ряд листается вбок. */
+@media (max-width: 640px) {
+  .row-scroll:not(.row-scroll--compact):not(.row-scroll--wide) {
+    grid-auto-columns: 38vw;
+    gap: 12px;
+  }
+}
+
 /* Профиль и статистика */
 .profile-stats h3 {
   font-size: 18px;

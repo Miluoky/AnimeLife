@@ -82,8 +82,13 @@
   }
 }
 @media (max-width: 640px) {
+  /* На телефоне заголовок полки умещается в одну строку рядом со ссылкой «Все». */
   .shelf__titles h2 {
-    font-size: 21px;
+    font-size: 18px;
+    line-height: 1.25;
+  }
+  .shelf__titles p {
+    font-size: 13px;
   }
   .shelf__icon {
     width: 34px;
