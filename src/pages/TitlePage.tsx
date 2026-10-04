@@ -68,7 +68,7 @@ function Voices({ title, names = [] }: { title: string; names?: string[] }) {
 }
 
 /** Озвучки, которые есть прямо в плеере сайта: по клику плеер открывается сразу в выбранной. */
-function SiteVoices({ voices, href }: { voices: AnixartVoice[]; href: string }) {
+function SiteVoices({ voices, href, total }: { voices: AnixartVoice[]; href: string; total: number }) {
   const [all, setAll] = useState(false)
   const shown = all ? voices : voices.slice(0, VOICES_SHOWN * 2)
   // Тот же ключ, что у списка озвучек в плеере (Player.tsx): у своих плееров AniLibria и AnimeVost ключ — имя источника.
@@ -92,6 +92,7 @@ function SiteVoices({ voices, href }: { voices: AnixartVoice[]; href: string }) 
               {v.icon && <img src={v.icon} alt="" width={20} height={20} loading="lazy" decoding="async" />}
               {v.title}
               {v.kind === 'subtitles' && <span className="muted"> · субтитры</span>}
+              {total > 1 && v.episodes < total && <span className="muted"> · {v.episodes} из {total}</span>}
             </Link>
           </li>
         ))}
@@ -423,7 +424,7 @@ export default function TitlePage() {
               </div>
             )}
             {anixart.value?.voices.length ? (
-              <SiteVoices voices={anixart.value.voices} href={`/watch/${anime.id}/${progress?.episode ?? 1}`} />
+              <SiteVoices voices={anixart.value.voices} href={`/watch/${anime.id}/${progress?.episode ?? 1}`} total={total} />
             ) : (
               <Voices title="Озвучка" names={extras.value?.dubbers} />
             )}

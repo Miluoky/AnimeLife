@@ -6,7 +6,7 @@
  * Id Shikimori у Anixart нет, поэтому релиз сверяем по названию и году, как у AnimeVost.
  */
 
-import { norm, type AnimeVostQuery } from './animevost'
+import { bare, norm, type AnimeVostQuery } from './animevost'
 
 const API = 'https://api.anixart.tv'
 
@@ -65,9 +65,6 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return res.json()
 }
 
-/** Год в скобках у Shikimori («Hunter x Hunter (2011)») не часть названия, у Anixart его нет. */
-const bare = (s?: string) => (s ?? '').replace(/\s*\(\d{4}\)\s*$/, '')
-
 /** Тот ли это релиз: совпало русское, оригинальное или английское название, а год (если известен) не противоречит. */
 export function sameRelease(item: SearchItem, q: AnimeVostQuery): boolean {
   const ru = norm(item.title_ru ?? '')
@@ -92,7 +89,7 @@ export function findAnixart(key: string, q: AnimeVostQuery): Promise<AnixartRele
 }
 
 async function search(q: AnimeVostQuery): Promise<AnixartRelease | null> {
-  for (const query of new Set([q.title, q.originalTitle, q.englishTitle].filter(Boolean).map((t) => bare(t))) as Set<string>) {
+  for (const query of new Set([q.title, q.originalTitle, q.englishTitle].filter(Boolean).map((t) => bare(t)))) {
     const res = await call<{ content?: SearchItem[] }>('/search/releases/0', { query, searchBy: 0 })
     const hit = res.content?.find((item) => sameRelease(item, q))
     if (!hit) continue

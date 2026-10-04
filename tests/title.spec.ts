@@ -194,7 +194,7 @@ test('тайтл: озвучки, которые есть в плеере, от�
         code: 0,
         types: [
           { id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26, icon: 'https://s3.anixmirai.com/voiceovers/studio-band.jpg' },
-          { id: 46, name: 'Субтитры | CR', is_sub: true, episodes_count: 26 },
+          { id: 46, name: 'Субтитры | CR', is_sub: true, episodes_count: 20 },
         ],
       },
     }),
@@ -207,7 +207,8 @@ test('тайтл: озвучки, которые есть в плеере, от�
   await page.goto('/anime/1')
   const site = page.locator('.voices', { has: page.getByRole('heading', { name: /Озвучки на сайте/ }) })
   await expect(site.getByRole('heading')).toHaveText('Озвучки на сайте 2')
-  await expect(site.getByRole('link', { name: /CR/ })).toContainText('субтитры')
+  await expect(site.getByRole('link', { name: /CR/ })).toContainText('субтитры · 20 из 26')
+  await expect(site.getByRole('link', { name: /Studio Band/ })).not.toContainText(' из ')
   await site.getByRole('link', { name: /Studio Band/ }).click()
   await expect(page).toHaveURL(/\/watch\/1\/1$/)
   await expect(page.getByRole('button', { name: /^Studio Band/ })).toHaveAttribute('aria-pressed', 'true')

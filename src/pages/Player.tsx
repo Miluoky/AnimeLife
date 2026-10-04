@@ -127,19 +127,7 @@ export default function Player() {
       />
       )}
 
-      <div className="watch-side">
-        {voices.length > 0 && <VoicePicker voices={voices} current={voice?.key} onChoose={chooseVoice} />}
-        <EpisodePicker
-          animeId={anime.id}
-          total={total}
-          current={current}
-          seen={seen}
-          names={voice?.provider === 'anilibria' ? names : {}}
-          provider="AniLibria"
-          fillers={fillers.value}
-        />
-      </div>
-
+      {/* Заголовок и кнопки идут сразу за видео: на телефоне они не уезжают под длинный список озвучек. */}
       <div className="watch-head">
         <div className="watch-head__info">
           {/* Название тайтла входит в заголовок: «Ван-Пис, серия 5» ищут именно так. */}
@@ -173,6 +161,19 @@ export default function Player() {
             <SkipIcon />
           </button>
         </div>
+      </div>
+
+      <div className="watch-side">
+        {voices.length > 0 && <VoicePicker voices={voices} current={voice?.key} onChoose={chooseVoice} />}
+        <EpisodePicker
+          animeId={anime.id}
+          total={total}
+          current={current}
+          seen={seen}
+          names={voice?.provider === 'anilibria' ? names : {}}
+          provider="AniLibria"
+          fillers={fillers.value}
+        />
       </div>
 
       <Suspense fallback={null}>

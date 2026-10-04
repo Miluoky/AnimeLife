@@ -943,6 +943,13 @@
   gap: 16px;
 }
 
+/* Без боковой колонки серии нужнее озвучек: список серий первым. */
+@media (max-width: 1099px) {
+  .watch-side .episodes {
+    order: -1;
+  }
+}
+
 .voices {
   display: flex;
   flex-direction: column;

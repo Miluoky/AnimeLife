@@ -209,7 +209,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     setAvSearching(true)
     setError(null)
     setAvEpisodes(null)
-    findAnimeVost(shikimoriId ?? title, { title, originalTitle, year })
+    findAnimeVost(shikimoriId ?? title, { title, originalTitle, englishTitle, year })
       .then((list) => {
         if (cancelled) return
         setAvEpisodes(list)
@@ -225,7 +225,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     return () => {
       cancelled = true
     }
-  }, [provider, shikimoriId, title, originalTitle, year])
+  }, [provider, shikimoriId, title, originalTitle, englishTitle, year])
 
   /* ─── Серии озвучки Anixart ─── */
   const axRelease = anixart?.release

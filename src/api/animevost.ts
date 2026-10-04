@@ -54,10 +54,14 @@ export interface AnimeVostQuery {
   year?: number
 }
 
-/** Тот ли это релиз: совпало русское или оригинальное название, а год (если известен) не противоречит. */
+/** Год в скобках у Shikimori («Hunter x Hunter (2011)») не часть названия. */
+export const bare = (s?: string) => (s ?? '').replace(/\s*\(\d{4}\)\s*$/, '')
+
+/** Тот ли это релиз: совпало русское, оригинальное или английское название, а год (если известен) не противоречит. */
 export function matches(item: SearchItem, q: AnimeVostQuery): boolean {
   const { russian, original } = splitTitle(item.title)
-  const sameName = norm(russian) === norm(q.title) || (!!q.originalTitle && norm(original) === norm(q.originalTitle))
+  const sameName =
+    norm(russian) === norm(bare(q.title)) || [q.originalTitle, q.englishTitle].some((t) => !!t && norm(original) === norm(bare(t)))
   const year = Number(item.year)
   return sameName && (!q.year || !year || year === q.year)
 }
@@ -76,7 +80,7 @@ export function findAnimeVost(key: string, q: AnimeVostQuery): Promise<AnimeVost
 }
 
 async function search(q: AnimeVostQuery): Promise<AnimeVostEpisode[] | null> {
-  for (const name of new Set([q.title, q.originalTitle].filter(Boolean) as string[])) {
+  for (const name of new Set([q.title, q.originalTitle, q.englishTitle].filter(Boolean).map((t) => bare(t)))) {
     const res = await post<{ data?: SearchItem[] }>('/search', { name })
     const hit = res.data?.find((item) => matches(item, q))
     if (!hit) continue
