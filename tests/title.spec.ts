@@ -213,3 +213,20 @@ test('тайтл: озвучки, которые есть в плеере, от�
   await expect(page.getByRole('button', { name: /^Studio Band/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://kodikplayer.com/seria/1/hash/720p')
 })
+
+test('тайтл: Anixart находит релиз по английскому названию и без года в скобках', async ({ page }) => {
+  const renamed = { ...anime, russian: 'Ковбой Бибоп (1998)', name: 'Kaubōi Bibappu', english: ['Cowboy Bebop'] }
+  await page.route(/\/api\/(shiki\/)?animes\/1(\?|$)/, (route) => route.fulfill({ json: renamed }))
+  const queries: string[] = []
+  await page.route(/api\.anixart\.tv\/search/, (route) => {
+    queries.push(JSON.parse(route.request().postData() ?? '{}').query)
+    return route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } })
+  })
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.goto('/anime/1')
+  await expect(page.getByRole('heading', { name: /Озвучки на сайте/ })).toHaveText('Озвучки на сайте 1')
+  // Год в скобках в запрос не попадает.
+  expect(queries[0]).toBe('Ковбой Бибоп')
+})

@@ -42,7 +42,7 @@ export default function Player() {
   // Где есть серии из бесплатных источников. Ответы запоминаются, плеер потом берёт их же без новых запросов.
   const free = useAsync(async () => {
     if (!anime) return undefined
-    const q = { title: anime.title, originalTitle: anime.originalTitle, year: anime.year }
+    const q = { title: anime.title, originalTitle: anime.originalTitle, englishTitle: anime.englishTitle, year: anime.year }
     const [al, av, ax] = await Promise.all([
       findRelease(anime.id, [anime.title, anime.originalTitle, anime.englishTitle]).catch(() => undefined),
       findAnimeVost(anime.id, q).catch(() => null),

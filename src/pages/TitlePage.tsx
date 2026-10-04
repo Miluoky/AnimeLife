@@ -167,7 +167,7 @@ export default function TitlePage() {
   const anixart = useAsync(
     () =>
       loaded && loaded.id === id && !loaded.upcoming
-        ? findAnixart(loaded.id, { title: loaded.title, originalTitle: loaded.originalTitle, year: loaded.year }).catch(() => null)
+        ? findAnixart(loaded.id, { title: loaded.title, originalTitle: loaded.originalTitle, englishTitle: loaded.englishTitle, year: loaded.year }).catch(() => null)
         : Promise.resolve(null),
     [id, loaded?.id],
   )

@@ -65,9 +65,15 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return res.json()
 }
 
-/** Тот ли это релиз: совпало русское или оригинальное название, а год (если известен) не противоречит. */
+/** Год в скобках у Shikimori («Hunter x Hunter (2011)») не часть названия, у Anixart его нет. */
+const bare = (s?: string) => (s ?? '').replace(/\s*\(\d{4}\)\s*$/, '')
+
+/** Тот ли это релиз: совпало русское, оригинальное или английское название, а год (если известен) не противоречит. */
 export function sameRelease(item: SearchItem, q: AnimeVostQuery): boolean {
-  const sameName = norm(item.title_ru ?? '') === norm(q.title) || (!!q.originalTitle && norm(item.title_original ?? '') === norm(q.originalTitle))
+  const ru = norm(item.title_ru ?? '')
+  const original = norm(item.title_original ?? '')
+  const sameName =
+    ru === norm(bare(q.title)) || [q.originalTitle, q.englishTitle].some((t) => !!t && original === norm(bare(t)))
   const year = Number(item.year)
   return sameName && (!q.year || !year || year === q.year)
 }
@@ -86,7 +92,7 @@ export function findAnixart(key: string, q: AnimeVostQuery): Promise<AnixartRele
 }
 
 async function search(q: AnimeVostQuery): Promise<AnixartRelease | null> {
-  for (const query of new Set([q.title, q.originalTitle].filter(Boolean) as string[])) {
+  for (const query of new Set([q.title, q.originalTitle, q.englishTitle].filter(Boolean).map((t) => bare(t))) as Set<string>) {
     const res = await call<{ content?: SearchItem[] }>('/search/releases/0', { query, searchBy: 0 })
     const hit = res.content?.find((item) => sameRelease(item, q))
     if (!hit) continue

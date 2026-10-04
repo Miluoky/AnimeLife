@@ -49,6 +49,8 @@ export function splitTitle(title: string): { russian: string; original: string }
 export interface AnimeVostQuery {
   title: string
   originalTitle?: string
+  /** английское название: в Anixart оригинальным иногда записано оно («Code Geass: Lelouch of the Rebellion») */
+  englishTitle?: string
   year?: number
 }
 
