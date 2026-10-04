@@ -1,6 +1,8 @@
 import './together.css'
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { loadAnime, useAsync } from '../api'
+import { episodeCount } from '../data/catalog'
 import { useAuth } from '../data/auth'
 import { CommunityError } from '../data/community'
 import {
@@ -17,7 +19,9 @@ import {
   syncClock,
   type Room,
   type RoomMessage,
+  youtubeId,
 } from '../data/rooms'
+import { pickCode, roomStream, roomVideo, roomVoices, samePick, type PlayerPick, type RoomVoice } from '../data/roomPlayer'
 import { toast } from '../data/toast'
 import { markFlag } from '../data/flags'
 import { usePageMeta } from '../data/pageMeta'
@@ -33,6 +37,8 @@ import { MEMBER_TTL, PRESENCE_EVERY, loadMembers, presence, subscribeMembers, ty
 /** Расхождение больше этого (секунд) исправляем перемоткой, меньше — подстройкой скорости. */
 const HARD_DRIFT = 1.5
 const SOFT_DRIFT = 0.3
+/** Kodik сообщает время раз в секунду и перематывает дольше: держим комнату вместе с допуском пошире. */
+const COARSE_DRIFT = 4
 
 const errorText = (e: unknown) => (e instanceof CommunityError ? e.message : 'Не получилось. Попробуйте ещё раз.')
 
@@ -46,6 +52,7 @@ export default function Together() {
   const { code = '' } = useParams()
   const roomId = code.toUpperCase()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const [room, setRoom] = useState<Room | null | undefined>(undefined)
   const [messages, setMessages] = useState<RoomMessage[]>([])
@@ -78,9 +85,9 @@ export default function Together() {
     }
     const drift = v.time() - target
     if (v.paused()) {
-      v.seek(target)
+      if (Math.abs(drift) > (v.coarse() ? COARSE_DRIFT : 0.5)) v.seek(target)
       v.play()
-    } else if (Math.abs(drift) > HARD_DRIFT) {
+    } else if (Math.abs(drift) > (v.coarse() ? COARSE_DRIFT : HARD_DRIFT)) {
       v.seek(target)
     }
     // Отстаём или спешим чуть-чуть: ускоряем или замедляем на несколько процентов, без рывка.
@@ -189,6 +196,33 @@ export default function Together() {
 
   const currentTime = () => video.current?.time() ?? (room ? roomPosition(room) : 0)
 
+  // Тайтл комнаты: по нему ищем серии и озвучки в плеерах сайта.
+  const animeId = room?.animeId
+  const anime = useAsync(() => (animeId ? loadAnime(animeId).then((r) => r.data) : Promise.resolve(undefined)), [animeId]).value
+  const query = anime && { id: anime.id, title: anime.title, originalTitle: anime.originalTitle, englishTitle: anime.englishTitle, year: anime.year }
+  const voices = useAsync(() => (query ? roomVoices(query) : Promise.resolve(undefined)), [anime?.id])
+  const playing = room ? roomVideo(room) : undefined
+  const pick = playing?.type === 'player' ? playing.pick : null
+  const stream = useAsync(
+    () => (query && pick && room ? roomStream(query, pick, room.episode).catch(() => null) : Promise.resolve(null)),
+    [anime?.id, pick?.kind, pick?.voice, room?.episode],
+  )
+  const total = anime ? episodeCount(anime) : undefined
+  // Сменилось видео: новый плеер ещё не готов принимать команды.
+  const videoKey = pick ? `${pick.kind}${pick.voice}:${room?.episode}:${stream.value?.url ?? ''}` : `${room?.source}:${room?.videoId}`
+  useEffect(() => setReady(false), [videoKey])
+
+  // Новая комната со страницы серии: сразу включаем первую озвучку вместо трейлера.
+  const fresh = !!(location.state as { fresh?: boolean } | null)?.fresh
+  const autoPicked = useRef(false)
+  useEffect(() => {
+    const first = voices.value?.[0]
+    if (!fresh || autoPicked.current || !isHost || !room || !first || playing?.type === 'player' || room.position > 0) return
+    autoPicked.current = true
+    void send({ source: 'trailer', videoId: pickCode(first), playing: false, position: 0 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fresh, voices.value, isHost, room?.$id])
+
   usePageMeta(room ? `Смотрим вместе: ${room.title || room.animeTitle}` : room === null ? 'Комната закрыта' : undefined)
 
   if (room === undefined) return <main className="container page-fallback" aria-busy="true" />
@@ -204,22 +238,52 @@ export default function Together() {
       </main>
     )
 
-  const switchEpisode = (episode: number) => void send({ episode, playing: false, position: 0 })
-  const switchSource = (source: Room['source']) => void send({ source, playing: false, position: 0 })
+  const switchEpisode = (episode: number, play = false) => void send({ episode, playing: play, position: 0 })
+  const switchSource = (source: Room['source']) =>
+    void send({ source, videoId: source === 'trailer' ? (youtubeId(anime?.trailerUrl) ?? '') : room.videoId, playing: false, position: 0 })
+  const switchPlayer = (p: PlayerPick) => void send({ source: 'trailer', videoId: pickCode(p), playing: false, position: 0 })
+  const voice = pick ? voices.value?.find((v) => samePick(v, pick)) : undefined
+  const sync =
+    playing?.type === 'player'
+      ? stream.value
+        ? { source: stream.value.type, src: stream.value.url }
+        : null
+      : playing?.type === 'file'
+        ? { source: 'file' as const }
+        : { source: 'trailer' as const, videoId: room.videoId }
+  // Серия кончилась: ведущий сам включает следующую, остальные подтянутся.
+  const onEnded = () => {
+    if (!isHost || roomRef.current?.episode !== room.episode) return
+    if (total && room.episode >= total) return
+    switchEpisode(room.episode + 1, true)
+  }
 
   return (
     <main className="container together">
       <div className="stack together__stage">
         <div className="player-frame together__frame">
-          <SyncVideo
-            ref={video}
-            source={room.source}
-            videoId={room.videoId}
-            file={file}
-            title={room.animeTitle}
-            onReady={() => setReady(true)}
-            onUserChange={onUserChange}
-          />
+          {sync ? (
+            <SyncVideo
+              key={`${sync.source}:${sync.src ?? sync.videoId ?? ''}`}
+              ref={video}
+              source={sync.source}
+              videoId={sync.videoId}
+              src={sync.src}
+              file={file}
+              title={room.animeTitle}
+              onReady={() => setReady(true)}
+              onUserChange={onUserChange}
+              onEnded={onEnded}
+            />
+          ) : (
+            <div className="player-empty" aria-busy={stream.loading}>
+              <span className="art-label">
+                {stream.loading
+                  ? 'Ищем серию…'
+                  : `Серии ${room.episode} нет в озвучке ${voice?.title ?? 'ведущего'}. ${isHost ? 'Выберите другую ниже.' : 'Ведущий может выбрать другую.'}`}
+              </span>
+            </div>
+          )}
           {room.source === 'file' && !file && (
             <label className="together__gate">
               <strong>Выберите файл серии {room.episode}</strong>
@@ -279,7 +343,11 @@ export default function Together() {
             <span className="muted together__meta">
               <PeopleIcon size={16} /> Ведущий: {room.hostName}
               {room.controlAll ? ' · управляют все' : ''}
-              {room.source === 'trailer' ? ' · трейлер' : ' · свой файл'}
+              {playing?.type === 'player'
+                ? ` · ${voice ? voice.title : 'плеер сайта'}`
+                : playing?.type === 'trailer'
+                  ? ' · трейлер'
+                  : ' · свой файл'}
             </span>
           </div>
           <div className="actions">
@@ -290,9 +358,25 @@ export default function Together() {
                     Серия {room.episode - 1}
                   </button>
                 )}
-                <button type="button" className="btn btn--ghost" onClick={() => switchEpisode(room.episode + 1)}>
-                  Серия {room.episode + 1}
-                </button>
+                {total && total > 2 && (
+                  <select
+                    className="together__select"
+                    value={room.episode}
+                    onChange={(e) => switchEpisode(Number(e.target.value))}
+                    aria-label="Выбрать серию"
+                  >
+                    {Array.from({ length: Math.max(total, room.episode) }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        Серия {i + 1}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {(!total || room.episode < total) && (
+                  <button type="button" className="btn btn--ghost" onClick={() => switchEpisode(room.episode + 1)}>
+                    Серия {room.episode + 1}
+                  </button>
+                )}
               </>
             )}
             <button type="button" className="btn btn--accent" onClick={() => setShowInvite((v) => !v)}>
@@ -318,18 +402,19 @@ export default function Together() {
         {isHost && (
           <div className="together__host chips">
             <span className="muted">Видео:</span>
+            <VoicePicker voices={voices.value} loading={voices.loading} current={pick} onChoose={switchPlayer} />
             <button
               type="button"
-              className={`chip-btn${room.source === 'trailer' ? ' chip-btn--on' : ''}`}
-              aria-pressed={room.source === 'trailer'}
+              className={`chip-btn${playing?.type === 'trailer' ? ' chip-btn--on' : ''}`}
+              aria-pressed={playing?.type === 'trailer'}
               onClick={() => switchSource('trailer')}
             >
               Трейлер
             </button>
             <button
               type="button"
-              className={`chip-btn${room.source === 'file' ? ' chip-btn--on' : ''}`}
-              aria-pressed={room.source === 'file'}
+              className={`chip-btn${playing?.type === 'file' ? ' chip-btn--on' : ''}`}
+              aria-pressed={playing?.type === 'file'}
               onClick={() => switchSource('file')}
             >
               Свой файл
@@ -391,6 +476,50 @@ export default function Together() {
         onSeek={canControl ? (t) => void send({ playing: room.playing, position: t }) : undefined}
       />
     </main>
+  )
+}
+
+/** Плеер и озвучка для всей комнаты: AniLibria, AnimeVost, студии из Anixart и Kodik. */
+function VoicePicker({
+  voices,
+  loading,
+  current,
+  onChoose,
+}: {
+  voices?: RoomVoice[]
+  loading: boolean
+  current: PlayerPick | null
+  onChoose: (p: PlayerPick) => void
+}) {
+  if (loading && !voices) return <span className="muted">ищем озвучки…</span>
+  if (!voices?.length) return <span className="muted">серий в плеерах сайта нет</span>
+  const groups = [...new Set(voices.map((v) => v.group))]
+  const value = current ? pickCode(current) : ''
+  return (
+    <select
+      className={`together__select together__voices${current ? ' together__select--on' : ''}`}
+      value={value}
+      onChange={(e) => {
+        const v = voices.find((x) => pickCode(x) === e.target.value)
+        if (v) onChoose(v)
+      }}
+      aria-label="Плеер и озвучка"
+    >
+      {!current && <option value="">Плеер и озвучка ({voices.length})</option>}
+      {groups.map((g) => (
+        <optgroup key={g} label={g}>
+          {voices
+            .filter((v) => v.group === g)
+            .map((v) => (
+              <option key={pickCode(v)} value={pickCode(v)}>
+                {v.title}
+                {v.subtitles ? ' (субтитры)' : ''}
+                {v.episodes ? ` · ${v.episodes} сер.` : ''}
+              </option>
+            ))}
+        </optgroup>
+      ))}
+    </select>
   )
 }
 

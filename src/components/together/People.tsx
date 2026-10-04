@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { CommunityError } from '../../data/community'
 import { toast } from '../../data/toast'
-import { VoiceChat, type Member, type PeerState } from '../../data/voice'
+import { VoiceChat, noiseStore, type Member, type NoiseMode, type PeerState } from '../../data/voice'
 import { MicIcon } from '../Icons'
 
 const SPEAKING = 0.04
+
+const NOISE_LABEL: Record<NoiseMode, string> = {
+  strong: 'Шумоподавление: сильное',
+  browser: 'Шумоподавление: обычное',
+  off: 'Без шумоподавления',
+}
 
 /** Кто в комнате и голосовой чат: подключиться, выключить микрофон, видно, кто сейчас говорит. */
 export default function People({
@@ -24,6 +30,7 @@ export default function People({
   const [inVoice, setInVoice] = useState(false)
   const [muted, setMuted] = useState(false)
   const [busy, setBusy] = useState(false)
+  const noise = noiseStore.use()
 
   // Уходим со страницы: комната сама удалит отметку присутствия, поэтому серверу ничего не шлём.
   useEffect(() => () => voice.current?.leave(false), [])
@@ -37,7 +44,7 @@ export default function People({
       setMyLevel(level)
     })
     try {
-      await v.join(members)
+      await v.join(members, noise)
       voice.current = v
       setInVoice(true)
       setMuted(false)
@@ -61,6 +68,15 @@ export default function People({
   const toggleMute = () => {
     voice.current?.setMuted(!muted)
     setMuted(!muted)
+  }
+
+  const chooseNoise = async (mode: NoiseMode) => {
+    noiseStore.set(mode)
+    const applied = await voice.current?.setNoise(mode)
+    if (applied && applied !== mode) {
+      noiseStore.set(applied)
+      toast('Сильное шумоподавление не запустилось в этом браузере, включили обычное')
+    }
   }
 
   const sorted = [...members].sort((a, b) => Number(b.voice) - Number(a.voice) || a.name.localeCompare(b.name))
@@ -110,6 +126,19 @@ export default function People({
             >
               <MicIcon size={16} off={muted} />
             </button>
+            <select
+              className="people__noise"
+              value={noise}
+              onChange={(e) => void chooseNoise(e.target.value as NoiseMode)}
+              aria-label="Шумоподавление микрофона"
+              title="Сильное — нейросеть RNNoise прямо в браузере: убирает клавиатуру, вентилятор и улицу"
+            >
+              {(Object.keys(NOISE_LABEL) as NoiseMode[]).map((m) => (
+                <option key={m} value={m}>
+                  {NOISE_LABEL[m]}
+                </option>
+              ))}
+            </select>
             <button type="button" className="btn btn--ghost btn--small" onClick={leave}>
               Выйти из голоса
             </button>

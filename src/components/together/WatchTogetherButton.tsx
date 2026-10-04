@@ -38,7 +38,7 @@ export default function WatchTogetherButton({
         videoId,
       })
       markFlag('hostedRoom')
-      navigate(`/together/${room.$id}`)
+      navigate(`/together/${room.$id}`, { state: { fresh: true } })
     } catch (e) {
       toast(e instanceof Error && e.name === 'CommunityError' ? e.message : 'Не удалось создать комнату')
     } finally {
