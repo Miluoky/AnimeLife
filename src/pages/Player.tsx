@@ -11,6 +11,7 @@ import { isBalancerAvailable } from '../api/balancers'
 import { fetchKodikTranslations } from '../api/kodik'
 import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
+import { findAnixart, type AnixartRelease } from '../api/anixart'
 import { markFlag } from '../data/flags'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
@@ -37,14 +38,16 @@ export default function Player() {
   // Где есть серии из бесплатных источников. Ответы запоминаются, плеер потом берёт их же без новых запросов.
   const free = useAsync(async () => {
     if (!anime) return undefined
-    const [al, av] = await Promise.all([
+    const q = { title: anime.title, originalTitle: anime.originalTitle, year: anime.year }
+    const [al, av, ax] = await Promise.all([
       findRelease(anime.id, [anime.title, anime.originalTitle, anime.englishTitle]).catch(() => undefined),
-      findAnimeVost(anime.id, { title: anime.title, originalTitle: anime.originalTitle, year: anime.year }).catch(() => null),
+      findAnimeVost(anime.id, q).catch(() => null),
+      findAnixart(anime.id, q).catch(() => null),
     ])
-    return { aniLibria: al === null ? 0 : al?.episodes.length, animeVost: av?.length ?? 0 }
+    return { aniLibria: al === null ? 0 : al?.episodes.length, animeVost: av?.length ?? 0, anixart: ax }
   }, [anime?.id])
   const voices = useMemo(
-    () => buildVoices(kodik.value ?? [], Object.keys(names).length || free.value?.aniLibria, free.value?.animeVost ?? 0),
+    () => buildVoices(kodik.value ?? [], Object.keys(names).length || free.value?.aniLibria, free.value?.animeVost ?? 0, free.value?.anixart ?? null),
     [kodik.value, names, free.value],
   )
   const [voiceKey, setVoiceKey] = useState(savedVoice)
@@ -99,6 +102,7 @@ export default function Player() {
         provider={voice?.provider}
         available={[...new Set(voices.map((v) => v.provider))]}
         kodikLink={voice?.kodikLink}
+        anixart={voice?.anixart}
         onProviderChange={(p) => {
           const next = voices.find((v) => v.provider === p)
           if (next) chooseVoice(next.key)
@@ -282,6 +286,7 @@ interface Voice {
   /** сколько серий в этой озвучке; неизвестно, пока источник не ответил */
   episodes?: number
   kodikLink?: string
+  anixart?: { release: number; type: number; title: string }
 }
 
 const VOICE_KEY = 'player-voice'
@@ -303,18 +308,38 @@ function saveVoice(key: string) {
 }
 
 /**
- * Все озвучки тайтла из подключённых источников: Kodik (если есть токен), Alloha, AniLibria, AnimeVost.
- * AniLibria без релиза (0 серий) убираем, если есть AnimeVost: тогда он и включается первым.
+ * Все озвучки тайтла из подключённых источников: Kodik (если есть токен), Alloha, AniLibria, AnimeVost, Anixart.
+ * AniLibria без релиза (0 серий) убираем, если есть другой бесплатный источник: тогда он и включается первым.
+ * Студии AniLibria и AnimeVost из Anixart не дублируем: свои плееры у них лучше (качество, пропуск опенинга).
  */
-function buildVoices(kodik: Awaited<ReturnType<typeof fetchKodikTranslations>>, aniLibriaEpisodes: number | undefined, animeVostEpisodes: number): Voice[] {
+function buildVoices(
+  kodik: Awaited<ReturnType<typeof fetchKodikTranslations>>,
+  aniLibriaEpisodes: number | undefined,
+  animeVostEpisodes: number,
+  anixart: AnixartRelease | null,
+): Voice[] {
   const list: Voice[] = [...kodik]
     .sort((a, b) => b.episodes - a.episodes)
     .map((t) => ({ key: `kodik:${t.id}`, provider: 'kodik', title: t.title, kind: t.kind, episodes: t.episodes, kodikLink: t.link }))
   if (isBalancerAvailable('alloha')) list.push({ key: 'alloha', provider: 'alloha', title: 'Alloha', kind: 'voice' })
-  if (aniLibriaEpisodes !== 0 || !animeVostEpisodes) {
-    list.push({ key: 'anilibria', provider: 'anilibria', title: 'AniLibria', kind: 'voice', episodes: aniLibriaEpisodes || undefined })
-  }
+  const others = animeVostEpisodes > 0 || !!anixart?.voices.length
+  const aniLibria: Voice = { key: 'anilibria', provider: 'anilibria', title: 'AniLibria', kind: 'voice', episodes: aniLibriaEpisodes || undefined }
+  // AniLibria первой, только если релиз точно нашёлся; не ответила — ставим её в конец, чтобы не включился трейлер.
+  if (aniLibriaEpisodes || !others) list.push(aniLibria)
   if (animeVostEpisodes) list.push({ key: 'animevost', provider: 'animevost', title: 'AnimeVost', kind: 'voice', episodes: animeVostEpisodes })
+  const own = new Set(list.map((v) => v.title.toLowerCase()))
+  for (const v of anixart?.voices ?? []) {
+    if (own.has(v.title.toLowerCase())) continue
+    list.push({
+      key: `anixart:${v.type}`,
+      provider: 'anixart',
+      title: v.title,
+      kind: v.kind,
+      episodes: v.episodes,
+      anixart: { release: anixart!.id, type: v.type, title: v.title },
+    })
+  }
+  if (aniLibriaEpisodes === undefined && others && !list.some((v) => v.title === 'AniLibria')) list.push(aniLibria)
   return list
 }
 

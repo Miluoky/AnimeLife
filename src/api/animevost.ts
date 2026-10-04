@@ -37,7 +37,7 @@ async function post<T>(path: string, form: Record<string, string>): Promise<T> {
 const secure = (url?: string) => url?.replace(/^http:\/\//, 'https://')
 
 /** Буквы и цифры в нижнем регистре: «Sousou no Frieren!» и «sousou no frieren» — одно и то же. */
-const norm = (s?: string) => (s ?? '').toLowerCase().replace(/ё/g, 'е').replace(/[^\p{L}\p{N}]+/gu, '')
+export const norm = (s?: string) => (s ?? '').toLowerCase().replace(/ё/g, 'е').replace(/[^\p{L}\p{N}]+/gu, '')
 
 /** «Рус / Romaji [1-28 из 28]» → оба названия без счётчика серий. */
 export function splitTitle(title: string): { russian: string; original: string } {

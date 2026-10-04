@@ -6,6 +6,7 @@
  *   2. Alloha   — iframe-балансер, резервный.
  *   3. AniLibria — HLS-поток через Hls.js со своими кнопками (PlayerControls).
  *   4. AnimeVost — прямые mp4 в том же своём плеере.
+ *   5. Anixart  — каталог озвучек: серии каждой студии в плеере Kodik (iframe, без токена).
  *
  * Провайдер переключается табами над видео. При смене текущий поток
  * останавливается, контейнер динамически монтирует нужный плеер.
@@ -23,6 +24,7 @@ import {
   type AniLibriaQuality,
 } from '../api/anilibria'
 import { findAnimeVost, type AnimeVostEpisode } from '../api/animevost'
+import { anixartEpisodes } from '../api/anixart'
 import PlayerControls from './PlayerControls'
 import './player.css'
 import {
@@ -34,7 +36,7 @@ import { kodikTranslationUrl } from '../api/kodik'
 
 /* ──────────────── Типы ──────────────── */
 
-export type Provider = 'kodik' | 'alloha' | 'anilibria' | 'animevost'
+export type Provider = 'kodik' | 'alloha' | 'anilibria' | 'animevost' | 'anixart'
 
 export interface VideoPlayerProps {
   /** Название аниме для поиска в AniLibria и Kodik. */
@@ -71,6 +73,8 @@ export interface VideoPlayerProps {
   available?: Provider[]
   /** Выбранная озвучка Kodik: ссылка на её плеер из API. Без неё Kodik ищет тайтл сам. */
   kodikLink?: string
+  /** Выбранная озвучка Anixart: релиз и id студии. */
+  anixart?: { release: number; type: number; title: string }
 }
 
 /* ──────────────── Конфигурация табов ──────────────── */
@@ -89,12 +93,14 @@ function buildTabs(): ProviderTab[] {
     { id: 'anilibria', label: 'AniLibria', available: true },
     // AnimeVost тоже бесплатный и открытый: прямые mp4 без ключа.
     { id: 'animevost', label: 'AnimeVost', available: true },
+    // Anixart включается только озвучкой из списка: без неё не знаем, какую студию показать.
+    { id: 'anixart', label: 'Anixart', available: true },
   ]
 }
 
 const NO_SOURCES = 'Серий этого аниме пока нет в доступных источниках'
 const PLAY_ERROR = 'Не удалось воспроизвести серию'
-const SOURCE_NAME: Record<Provider, string> = { kodik: 'Kodik', alloha: 'Alloha', anilibria: 'AniLibria', animevost: 'AnimeVost' }
+const SOURCE_NAME: Record<Provider, string> = { kodik: 'Kodik', alloha: 'Alloha', anilibria: 'AniLibria', animevost: 'AnimeVost', anixart: 'Anixart' }
 
 // Выбранный источник помним до конца сеанса: при переходе к другой серии плеер создаётся заново.
 const PROVIDER_KEY = 'player-provider'
@@ -118,7 +124,7 @@ function saveProvider(id: Provider) {
 /* ──────────────── Компонент ──────────────── */
 
 export default function VideoPlayer(props: VideoPlayerProps) {
-  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink } = props
+  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink, anixart } = props
   const controlled = props.provider !== undefined
 
   const tabs = buildTabs()
@@ -145,6 +151,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // ─── AnimeVost state ───
   const [avEpisodes, setAvEpisodes] = useState<AnimeVostEpisode[] | null>(null)
   const [avSearching, setAvSearching] = useState(false)
+  // ─── Anixart state: ссылки на серии выбранной озвучки ───
+  const [axEpisodes, setAxEpisodes] = useState<Map<number, string> | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   // Позиция, с которой продолжить после смены качества (поток меняется, а серия та же).
@@ -155,7 +163,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     setLoading(true)
     setError(null)
-  }, [provider, kodikLink])
+  }, [provider, kodikLink, anixart?.type])
 
   const onEpisodesRef = useRef(onEpisodes)
   onEpisodesRef.current = onEpisodes
@@ -218,6 +226,26 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       cancelled = true
     }
   }, [provider, shikimoriId, title, originalTitle, year])
+
+  /* ─── Серии озвучки Anixart ─── */
+  const axRelease = anixart?.release
+  const axType = anixart?.type
+  useEffect(() => {
+    if (provider !== 'anixart' || !axRelease || !axType) return
+    let cancelled = false
+    setError(null)
+    setAxEpisodes(null)
+    anixartEpisodes(axRelease, axType)
+      .then((map) => {
+        if (cancelled) return
+        setAxEpisodes(map)
+        if (!map.size) setError('У этой озвучки нет плеера, который можно встроить')
+      })
+      .catch(() => !cancelled && setError('Не удалось подключиться к Anixart'))
+    return () => {
+      cancelled = true
+    }
+  }, [provider, axRelease, axType])
 
   // Серия и поток AniLibria для текущей страницы: без подмены на другую серию.
   const alEp = alRelease?.episodes.find((e) => e.ordinal === episode)
@@ -347,6 +375,23 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     )
   }
 
+  function renderAnixart() {
+    const src = axEpisodes?.get(episode)
+    if (!src) return null
+    return (
+      <iframe
+        key={src}
+        className="player-iframe"
+        src={src}
+        title={`${anixart?.title ?? 'Anixart'}: ${title}`}
+        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        onLoad={onIframeLoad}
+      />
+    )
+  }
+
   function renderOwn() {
     if (!src) return null
     // Видео остаётся в DOM и при ошибке потока: эффект HLS привязан к нему.
@@ -362,6 +407,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     }
     if (provider === 'alloha' && !allohaEmbedUrl({ kinopoiskId, imdbId, episode })) {
       return 'Alloha: токен не настроен или нет Kinopoisk/IMDb ID'
+    }
+    if (provider === 'anixart') {
+      if (error) return error
+      if (!anixart) return NO_SOURCES
+      if (!axEpisodes) return null
+      return axEpisodes.has(episode) ? null : `Серии ${episode} пока нет в озвучке ${anixart.title}`
     }
     if (provider === 'animevost') {
       if (avSearching) return null
@@ -423,6 +474,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
         {provider === 'kodik' && renderKodik()}
         {provider === 'alloha' && renderAlloha()}
+        {provider === 'anixart' && renderAnixart()}
         {(provider === 'anilibria' || provider === 'animevost') && renderOwn()}
         {stream && !unavailable && (
           <PlayerControls

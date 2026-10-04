@@ -402,3 +402,62 @@ test('плеер: нет в AniLibria, но есть в AnimeVost — включ
   await expect(page.getByRole('button', { name: /^AniLibria/ })).toHaveCount(0)
   await expect(page.getByText(/вот трейлер/)).toHaveCount(0)
 })
+
+test('плеер: озвучки студий из Anixart, серия играет во встроенном плеере', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({
+      json: {
+        code: 0,
+        content: [
+          { id: 30, title_ru: 'Ковбой Бибоп: Фильм', title_original: 'Cowboy Bebop: Tengoku no Tobira', year: '2001' },
+          { id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' },
+        ],
+      },
+    }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({
+      json: {
+        code: 0,
+        types: [
+          { id: 2, name: 'AniLibria', is_sub: false, episodes_count: 26 },
+          { id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 },
+          { id: 46, name: 'Субтитры | CR', is_sub: true, episodes_count: 20 },
+        ],
+      },
+    }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) =>
+    route.fulfill({ json: { code: 0, sources: [{ id: 5, name: 'Sovet (не работает)', episodes_count: 26 }, { id: 30, name: 'Kodik', episodes_count: 26 }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [1, 2].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true })) } }),
+  )
+  await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
+  await page.goto('/watch/1/2')
+  // AniLibria без релиза: её студия приходит из Anixart, субтитры подписаны без префикса.
+  await expect(page.getByRole('button', { name: /^AniLibria/ })).toContainText('26 эп.')
+  await expect(page.getByRole('button', { name: /^CR/ })).toContainText('Субтитры')
+  await page.getByRole('button', { name: /^Studio Band/ }).click()
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://kodikplayer.com/seria/2/hash/720p')
+  await expect(page.getByText(/вот трейлер/)).toHaveCount(0)
+})
+
+test('плеер: AniLibria не ответила — включается другая озвучка, а AniLibria уходит в конец списка', async ({ page }) => {
+  await page.route(/anilibria\.top\/api\/v1\/.*/, (route) => route.fulfill({ status: 500, body: '' }))
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [{ position: 1, url: 'https://kodikplayer.com/seria/1/hash/720p', iframe: true }] } }),
+  )
+  await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
+  await page.goto('/watch/1/1')
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://kodikplayer.com/seria/1/hash/720p')
+  await expect(page.locator('.voices__list .voice__title')).toHaveText(['Studio Band', 'AniLibria'])
+})
