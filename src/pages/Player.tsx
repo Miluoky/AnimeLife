@@ -17,10 +17,12 @@ import { markFlag } from '../data/flags'
 import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
-import { BackIcon, SearchIcon, SkipIcon } from '../components/Icons'
+import { BackIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
 
 // «Пропускать филлеры»: кнопка и автопереход ведут сразу к следующей сюжетной серии.
 const skipFillersStore = createLocalStore('anime.skipfillers.v1', false)
+// Широкий экран на компьютере: видео во всю ширину, озвучки и серии под ним.
+const wideStore = createLocalStore('anime.widescreen.v1', false)
 
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
 const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
@@ -77,6 +79,7 @@ export default function Player() {
     [axRelease?.id],
   )
   const skipFillers = skipFillersStore.use()
+  const wide = wideStore.use()
   const [voiceKey, setVoiceKey] = useState(savedVoice)
   const voice = voices.find((v) => v.key === voiceKey) ?? voices[0]
   const chooseVoice = (key: string) => {
@@ -120,7 +123,7 @@ export default function Player() {
   const name = names[current]
 
   return (
-    <main className="container player-page">
+    <main className={`container player-page${wide ? ' player-page--wide' : ''}`}>
       {/* Мульти-провайдерный плеер; если серию взять негде — трейлер */}
       {/* Пока не знаем озвучки Kodik, плеер не включаем: иначе он начнёт с одной озвучки и тут же сменит её. */}
       {kodik.loading || free.loading || !free.value || waitYummy ? (
@@ -171,6 +174,16 @@ export default function Player() {
           {name && <p className="watch-head__name">{name}</p>}
         </div>
         <div className="watch-actions">
+          <button
+            type="button"
+            className="btn btn--ghost watch-wide"
+            aria-pressed={wide}
+            title={wide ? 'Обычный размер' : 'Широкий экран'}
+            onClick={() => wideStore.set(!wide)}
+          >
+            <WideIcon />
+            <span className="sr-only">Широкий экран</span>
+          </button>
           <WatchTogetherButton anime={anime} episode={current} />
           <button
             type="button"

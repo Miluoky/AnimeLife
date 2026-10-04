@@ -539,7 +539,6 @@ h3 {
 /* Title page */
 .banner {
   height: 320px;
-  border-bottom: 1px solid var(--line);
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -580,6 +579,7 @@ h3 {
 .title-head__title {
   font-size: clamp(28px, 4vw, 44px);
   line-height: 1.08;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
 }
 
 .title-body {
@@ -728,6 +728,14 @@ h3 {
 
 .banner .art-label {
   position: relative;
+}
+
+/* Низ баннера уходит в фон страницы: название тайтла на светлом кадре остаётся читаемым. */
+.banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(13, 14, 19, 0.15) 0%, rgba(13, 14, 19, 0.55) 55%, var(--bg) 100%);
 }
 
 .title-head__poster,

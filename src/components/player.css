@@ -27,6 +27,37 @@
   }
 }
 
+/* Широкий экран: видео на всю ширину страницы (но целиком влезает по высоте), озвучки и серии — двумя колонками ниже. */
+.watch-wide {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .watch-wide {
+    display: inline-flex;
+    padding: 0 14px;
+  }
+  .player-page--wide {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+  .player-page--wide .video-player {
+    width: 100%;
+    max-width: calc((100vh - 150px) * 16 / 9);
+    margin: 0 auto;
+  }
+  .player-page--wide .watch-side {
+    grid-column: 1;
+    grid-row: auto;
+    position: static;
+    max-height: none;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+}
+
 .watch-head {
   display: flex;
   flex-wrap: wrap;

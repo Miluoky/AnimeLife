@@ -510,6 +510,26 @@ test('плеер: Kodik продолжает с места, запоминает
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
 })
 
+test('плеер: широкий экран на компьютере — видео во всю ширину, выбор запоминается', async ({ page }, info) => {
+  await page.goto('/watch/1/1')
+  const button = page.getByRole('button', { name: 'Широкий экран' })
+  if (info.project.name === 'phone') {
+    // На телефоне видео и так во всю ширину: кнопки нет.
+    await expect(button).toBeHidden()
+    return
+  }
+  // Заглушка плеера сменяется самим плеером, поэтому ширину читаем с повтором: boundingBox сам не ждёт.
+  const width = async () => (await page.locator('.video-player').boundingBox())?.width ?? 0
+  await expect.poll(width).toBeGreaterThan(0)
+  const before = await width()
+  await button.click()
+  await expect(button).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('main')).toHaveClass(/player-page--wide/)
+  await expect.poll(width).toBeGreaterThan(before)
+  await page.reload()
+  await expect(page.locator('main')).toHaveClass(/player-page--wide/)
+})
+
 /** Ответы YummyAnime для «Ковбоя Бибопа»: [озвучка, плеер, серии]. */
 async function mockYummy(page: Page, videos: [string, string, number[]][]) {
   await page.route(/api\.yani\.tv\/search/, (route) =>

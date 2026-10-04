@@ -103,6 +103,16 @@ export function FullscreenIcon({ size = 20 }: IconProps) {
   )
 }
 
+/** Широкий экран: плеер во всю ширину страницы. */
+export function WideIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <path d="M6 10l-2 2 2 2M18 10l2 2-2 2" />
+    </svg>
+  )
+}
+
 export function FilterIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
