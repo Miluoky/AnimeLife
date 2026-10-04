@@ -117,6 +117,31 @@ test('плеер: свои кнопки поверх видео — пауза �
   await expect(page.getByRole('navigation', { name: 'Серии' }).locator('[aria-current="page"]')).toHaveText('3')
 })
 
+test('плеер: таймер сна ставит видео на паузу через выбранное время', async ({ page }) => {
+  await mockAniLibria(page, search)
+  await page.addInitScript(() => {
+    const original = HTMLMediaElement.prototype.canPlayType
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      return type === 'application/vnd.apple.mpegurl' ? 'maybe' : original.call(this, type)
+    }
+  })
+  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
+  await page.route(/cache\.libria\.fun\/.*\.m3u8/, (route) => route.fulfill({ contentType: 'video/webm', body: clip }))
+  await page.clock.install()
+  await page.goto('/watch/1/1')
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+
+  await page.getByRole('button', { name: 'Качество и скорость' }).click()
+  await page.getByRole('button', { name: '15 мин' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Таймер сна: 15 мин' })).toBeVisible()
+  await expect(page.locator('.vp-menu__title').filter({ hasText: 'Таймер сна' })).toContainText('15 мин')
+
+  await page.clock.fastForward('15:01')
+  await expect(page.getByRole('status').filter({ hasText: 'Таймер сна: видео на паузе' })).toBeVisible()
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+})
+
 test('плеер: озвучки списком сбоку и поиск серии по номеру или названию', async ({ page }) => {
   await mockAniLibria(page, search)
   await page.goto('/watch/1/1')

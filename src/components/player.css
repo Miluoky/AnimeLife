@@ -1106,3 +1106,9 @@
     font-size: 13px;
   }
 }
+
+/* Таймер сна сработал: подпись держится, пока зритель не продолжит. */
+.vp-rate-note--stay {
+  animation: none;
+  transform: translate(-50%, 0);
+}

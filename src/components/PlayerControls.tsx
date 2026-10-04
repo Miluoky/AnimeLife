@@ -39,6 +39,8 @@ const SEEK_STEP = 10
 const HIDE_AFTER = 2600
 // Кнопка «Следующая серия» появляется за полторы минуты до конца — на титрах.
 const NEXT_BEFORE = 90
+// Таймер сна: через сколько минут поставить видео на паузу.
+const SLEEP_MINUTES = [15, 30, 60, 90]
 
 export function formatTime(s: number) {
   if (!Number.isFinite(s) || s < 0) s = 0
@@ -175,6 +177,34 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
     const t = setTimeout(() => setRateNote(null), 1200)
     return () => clearTimeout(t)
   }, [rateNote])
+  // Таймер сна считает обычное время, а не время видео: на паузе он тоже идёт, как у телевизора.
+  const [sleepAt, setSleepAt] = useState<number | null>(null)
+  const [note, setNote] = useState<{ key: number; text: string; stay?: boolean } | null>(null)
+  const setSleep = (min: number | null) => {
+    setSleepAt(min ? Date.now() + min * 60_000 : null)
+    setNote({ key: Date.now(), text: min ? `Таймер сна: ${min} мин` : 'Таймер сна выключен' })
+  }
+  useEffect(() => {
+    if (!sleepAt) return
+    const t = setTimeout(() => {
+      video.current?.pause()
+      setSleepAt(null)
+      setNote({ key: Date.now(), text: 'Таймер сна: видео на паузе', stay: true })
+    }, Math.max(0, sleepAt - Date.now()))
+    return () => clearTimeout(t)
+  }, [sleepAt, video])
+  useEffect(() => {
+    if (!note || note.stay) return
+    const t = setTimeout(() => setNote(null), 1200)
+    return () => clearTimeout(t)
+  }, [note])
+  // Подпись «на паузе» убираем, когда зритель снова включил видео. Состояние paused обновляется
+  // событием чуть позже самой паузы, поэтому смотрим и на само видео.
+  useEffect(() => {
+    if (note?.stay && !paused && video.current && !video.current.paused) setNote(null)
+  }, [note, paused, video])
+  const sleepLeft = sleepAt ? Math.max(1, Math.ceil((sleepAt - Date.now()) / 60_000)) : 0
+
   // Shift + > и Shift + < (как на YouTube): шаг по списку скоростей и короткая подсказка поверх видео.
   const stepRate = (dir: 1 | -1) => {
     const now = video.current?.playbackRate ?? 1
@@ -319,6 +349,12 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
         </div>
       )}
 
+      {note && !rateNote && (
+        <div key={note.key} className={`vp-rate-note${note.stay ? ' vp-rate-note--stay' : ''}`} role="status">
+          {note.text}
+        </div>
+      )}
+
       {spanNow && !(spanNow.kind === 'ending' && nearEnd) && (
         <button type="button" className="btn btn--small vp-skip" onClick={skipNow}>
           Пропустить {SKIP_NAMES[spanNow.kind]}
@@ -436,10 +472,16 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
               onClick={() => setMenu(!menu)}
             >
               <GearIcon />
-              <span className="vp-badge">{quality}p</span>
+              <span className="vp-badge">{sleepAt ? `☾ ${sleepLeft}′` : `${quality}p`}</span>
             </button>
             {menu && (
-              <div className="vp-menu" role="group" aria-label="Качество и скорость">
+              <div
+                className="vp-menu"
+                role="group"
+                aria-label="Качество и скорость"
+                // На телефоне плеер невысокий: меню не выше рамки, остальное прокручивается внутри.
+                style={{ maxHeight: frame.current ? Math.max(160, frame.current.clientHeight - 76) : undefined }}
+              >
                 {qualities.length > 1 && (
                   <>
                     <div className="vp-menu__title">Качество</div>
@@ -457,6 +499,17 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
                   {SPEEDS.map((r) => (
                     <button key={r} type="button" aria-pressed={(v?.playbackRate ?? 1) === r} onClick={() => setRate(r)}>
                       {r === 1 ? 'Обычная' : `${r}×`}
+                    </button>
+                  ))}
+                </div>
+                <div className="vp-menu__title">Таймер сна{sleepAt ? ` · ${sleepLeft} мин` : ''}</div>
+                <div className="vp-menu__opts">
+                  <button type="button" aria-pressed={!sleepAt} onClick={() => setSleep(null)}>
+                    Выкл
+                  </button>
+                  {SLEEP_MINUTES.map((m) => (
+                    <button key={m} type="button" onClick={() => setSleep(m)}>
+                      {m} мин
                     </button>
                   ))}
                 </div>
