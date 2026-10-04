@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { listStatuses, setListStatus, useMyList, type ListStatus } from '../data/myList'
 import { useAuth } from '../data/auth'
-import PosterCard from '../components/PosterCard'
+import PosterCard, { Poster } from '../components/PosterCard'
 import EpisodeProgress from '../components/EpisodeProgress'
 import ListTools from '../components/ListTools'
 import CalendarExport from '../components/CalendarExport'
@@ -11,6 +11,46 @@ import { loadCatalog, useAsync } from '../api'
 import { PlusIcon, CheckIcon, SparkIcon } from '../components/Icons'
 import Shelf from '../components/Shelf'
 import './my-list.css'
+
+/** «Выбрать за меня»: случайный тайтл из «Буду смотреть», когда список длинный и глаза разбегаются. */
+function PickForMe({ entries }: { entries: ReturnType<typeof useMyList> }) {
+  const [pick, setPick] = useState<string>()
+  const current = entries.find((e) => e.anime.id === pick)
+  const roll = () => {
+    const pool = entries.filter((e) => e.anime.id !== pick)
+    setPick(pool[Math.floor(Math.random() * pool.length)].anime.id)
+  }
+  if (!current) {
+    return (
+      <button type="button" className="btn btn--ghost pick-for-me__start" onClick={roll}>
+        🎲 Не знаю, что выбрать: выбрать за меня
+      </button>
+    )
+  }
+  const { anime } = current
+  return (
+    <div className="pick-for-me" role="status" aria-live="polite">
+      <Link to={`/anime/${anime.id}`} className="pick-for-me__poster" style={{ background: anime.posterFill }}>
+        <Poster anime={anime} alt={`Постер: ${anime.title}`} />
+      </Link>
+      <div className="pick-for-me__text">
+        <span className="muted">Сегодня смотрим</span>
+        <Link to={`/anime/${anime.id}`} className="pick-for-me__title">
+          {anime.title}
+        </Link>
+        <span className="muted">{[anime.year, anime.kind, anime.episodes && `${anime.episodes} эп.`].filter(Boolean).join(' · ')}</span>
+        <div className="pick-for-me__actions">
+          <Link to={`/watch/${anime.id}/1`} className="btn btn--accent">
+            Смотреть
+          </Link>
+          <button type="button" className="btn btn--ghost" onClick={roll}>
+            🎲 Другой
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function MyList() {
   usePageMeta('Мой список')
@@ -45,6 +85,8 @@ export default function MyList() {
             })}
           </div>
         </div>
+
+        {tab === 'planned' && items.length > 1 && <PickForMe entries={items} />}
 
         {items.length ? (
           <div className="grid grid--posters">

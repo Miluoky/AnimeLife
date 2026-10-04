@@ -86,3 +86,21 @@ test('импорт из файла MyAnimeList и выгрузка обратн�
   expect(text).toContain('<series_animedb_id>21</series_animedb_id>')
   expect(text).toContain('<my_status>Plan to Watch</my_status>')
 })
+
+test('«Буду смотреть»: «выбрать за меня» предлагает случайный тайтл и другой по кнопке', async ({ page }) => {
+  await page.addInitScript(() => {
+    const card = (id: string, title: string) => ({ id, title, kind: 'ТВ-сериал', posterFill: '#222' })
+    localStorage.setItem(
+      'anime.mylist.v1',
+      JSON.stringify(['Альфа', 'Бета', 'Гамма'].map((t, i) => ({ anime: card(String(i + 1), t), status: 'planned', addedAt: i }))),
+    )
+  })
+  await page.goto('/my-list')
+  await page.getByRole('button', { name: /выбрать за меня/ }).click()
+  const title = page.locator('.pick-for-me__title')
+  await expect(title).toHaveText(/Альфа|Бета|Гамма/)
+  const first = await title.textContent()
+  await page.getByRole('button', { name: /Другой/ }).click()
+  await expect(title).not.toHaveText(first!)
+  await expect(page.locator('.pick-for-me').getByRole('link', { name: 'Смотреть' })).toHaveAttribute('href', /\/watch\/\d\/1$/)
+})
