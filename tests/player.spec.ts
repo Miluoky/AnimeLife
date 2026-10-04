@@ -467,6 +467,49 @@ test('плеер: AniLibria не ответила — включается др�
   await expect(page.locator('.voices__list .voice__title')).toHaveText(['Studio Band', 'AniLibria'])
 })
 
+test('плеер: Kodik продолжает с места, запоминает время, а после конца серии включает отсчёт до следующей', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [1, 2, 3].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true })) } }),
+  )
+  // Поддельный Kodik: шлёт события, как настоящий. Вторая серия начинает играть и после перемотки сообщает время,
+  // первая сразу заканчивается.
+  await page.route(/kodikplayer\.com\/seria\/(\d)\//, (route) => {
+    const ep = route.request().url().match(/seria\/(\d)/)![1]
+    const script =
+      ep === '1'
+        ? `parent.postMessage({ key: 'kodik_player_video_ended' }, '*')`
+        : `parent.postMessage({ key: 'kodik_player_duration_update', value: 1400 }, '*')
+           parent.postMessage({ key: 'kodik_player_play' }, '*')
+           addEventListener('message', (e) => {
+             if (e.data?.key !== 'kodik_player_api') return
+             document.title = 'seek:' + e.data.value.seconds
+             parent.postMessage({ key: 'kodik_player_time_update', value: 600 }, '*')
+           })`
+    return route.fulfill({ contentType: 'text/html', body: `<!doctype html><title>Kodik</title><script>${script}</script>` })
+  })
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('anime.positions.v1')) localStorage.setItem('anime.positions.v1', JSON.stringify({ '1:2': { t: 300, d: 1400, at: 1 } }))
+  })
+  await page.goto('/watch/1/2')
+  await page.getByRole('button', { name: /^Studio Band/ }).click()
+  await expect(page.getByText('Продолжили с 5:00')).toBeVisible()
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2'))?.title()).toBe('seek:300')
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('anime.positions.v1')!)['1:2']?.t)).toBe(600)
+
+  await page.goto('/watch/1/1')
+  await expect(page.getByText('2 серия через')).toBeVisible()
+  await page.getByRole('button', { name: 'Смотреть сейчас' }).click()
+  await expect(page).toHaveURL(/\/watch\/1\/2$/)
+})
+
 /** Ответы YummyAnime для «Ковбоя Бибопа»: [озвучка, плеер, серии]. */
 async function mockYummy(page: Page, videos: [string, string, number[]][]) {
   await page.route(/api\.yani\.tv\/search/, (route) =>

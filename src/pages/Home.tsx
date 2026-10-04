@@ -3,6 +3,8 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { fetchScreenshots } from '../api/shikimori'
 import { removeProgress, useHistory } from '../data/history'
+import { getPosition } from '../data/positions'
+import { formatTime } from '../components/together/time'
 import { toast } from '../data/toast'
 import CatalogSection from '../components/CatalogSection'
 import { Poster } from '../components/PosterCard'
@@ -141,39 +143,44 @@ function ContinueWatching() {
         <h2>Продолжить просмотр</h2>
       </div>
       <div className="grid grid--wide">
-        {history.slice(0, 4).map((h) => (
-          <div key={h.animeId} className="continue-item">
-            <Link to={`/watch/${h.animeId}/${h.episode}`} className="continue-card">
-              <div className="continue-card__img" style={{ background: h.posterFill }}>
-                <Poster anime={h} className="poster-img--cover" />
-                <span className="continue-card__play">
-                  <PlayIcon size={20} />
-                </span>
-                <div className="progress-track">
-                  <div className="progress-bar" style={{ width: `${(h.episode / h.totalEpisodes) * 100}%` }} />
+        {history.slice(0, 4).map((h) => {
+          // Где остановились внутри серии — если плеер это запомнил.
+          const at = getPosition(h.animeId, h.episode)
+          return (
+            <div key={h.animeId} className="continue-item">
+              <Link to={`/watch/${h.animeId}/${h.episode}`} className="continue-card">
+                <div className="continue-card__img" style={{ background: h.posterFill }}>
+                  <Poster anime={h} className="poster-img--cover" />
+                  <span className="continue-card__play">
+                    <PlayIcon size={20} />
+                  </span>
+                  <div className="progress-track">
+                    <div className="progress-bar" style={{ width: `${(h.episode / h.totalEpisodes) * 100}%` }} />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="poster-card__title">{h.title}</div>
-                <div className="poster-card__meta">
-                  Серия {h.episode} из {h.totalEpisodes}
+                <div>
+                  <div className="poster-card__title">{h.title}</div>
+                  <div className="poster-card__meta">
+                    Серия {h.episode} из {h.totalEpisodes}
+                    {at !== null && ` · с ${formatTime(at)}`}
+                  </div>
                 </div>
-              </div>
-            </Link>
-            <button
-              type="button"
-              className="continue-item__remove"
-              aria-label={`Убрать «${h.title}» из продолжения`}
-              title="Убрать из списка"
-              onClick={() => {
-                const undo = removeProgress(h.animeId)
-                if (undo) toast('Убрано из «Продолжить просмотр»', { label: 'Вернуть', onClick: undo })
-              }}
-            >
-              ×
-            </button>
-          </div>
-        ))}
+              </Link>
+              <button
+                type="button"
+                className="continue-item__remove"
+                aria-label={`Убрать «${h.title}» из продолжения`}
+                title="Убрать из списка"
+                onClick={() => {
+                  const undo = removeProgress(h.animeId)
+                  if (undo) toast('Убрано из «Продолжить просмотр»', { label: 'Вернуть', onClick: undo })
+                }}
+              >
+                ×
+              </button>
+            </div>
+          )
+        })}
       </div>
     </section>
   )

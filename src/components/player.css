@@ -1395,3 +1395,27 @@
   font-size: 13px;
   color: var(--muted);
 }
+
+/* «Продолжили с 12:34» — плеер вернулся к месту, где зритель остановился. */
+.vp-resume {
+  position: absolute;
+  z-index: 3;
+  left: 14px;
+  bottom: 76px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 12px;
+  background: rgba(10, 11, 16, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 14px;
+  font-weight: 600;
+  animation: vp-resume-in 0.25s ease-out;
+}
+@keyframes vp-resume-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

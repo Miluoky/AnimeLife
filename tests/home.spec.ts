@@ -72,10 +72,14 @@ test('главная: тайтл можно убрать из «Продолжи
   await page.addInitScript(() => {
     const entry = (id: string, title: string) => ({ animeId: id, title, posterFill: '#333', episode: 3, totalEpisodes: 12, updatedAt: 1 })
     localStorage.setItem('anime.history.v1', JSON.stringify([entry('1', 'Первый'), entry('2', 'Второй')]))
+    localStorage.setItem('anime.positions.v1', JSON.stringify({ '2:3': { t: 754, d: 1420, at: 1 } }))
   })
   await page.goto('/')
   const cards = page.locator('.continue-item')
   await expect(cards).toHaveCount(2)
+  // Плеер запомнил место внутри серии: оно видно на карточке.
+  await expect(cards.nth(1)).toContainText('Серия 3 из 12 · с 12:34')
+  await expect(cards.nth(0)).not.toContainText(' · с ')
   await page.getByRole('button', { name: 'Убрать «Первый» из продолжения' }).click()
   await expect(cards).toHaveCount(1)
   await expect(cards).toContainText('Второй')

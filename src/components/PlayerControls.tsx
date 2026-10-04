@@ -29,7 +29,7 @@ interface Props {
 const autoSkipStore = createLocalStore('anime.autoskip.v1', false)
 const SKIP_NAMES = { opening: 'опенинг', ending: 'эндинг' }
 /** Включать следующую серию самим, когда эта закончилась: тоже настройка зрителя. */
-const autoNextStore = createLocalStore('anime.autonext.v1', true)
+export const autoNextStore = createLocalStore('anime.autonext.v1', true)
 const AUTO_NEXT_SECONDS = 8
 
 type FsDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void }
@@ -264,25 +264,12 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
 
   // Серия закончилась: отсчёт до следующей, как на стримингах. «Отмена» — до конца этой серии.
   const autoNext = autoNextStore.use()
-  const [countdown, setCountdown] = useState<number | null>(null)
+  const [counting, setCounting] = useState(false)
   const ended = !!v?.ended
   const hasNext = !!onNext
-  // Обработчик приходит новой функцией на каждой отрисовке родителя: держим его в ref, чтобы отсчёт не сбрасывался.
-  const nextRef = useRef(onNext)
-  nextRef.current = onNext
   useEffect(() => {
-    setCountdown(ended && hasNext && autoNext ? AUTO_NEXT_SECONDS : null)
+    setCounting(ended && hasNext && autoNext)
   }, [ended, hasNext, autoNext])
-  useEffect(() => {
-    if (countdown === null) return
-    if (countdown <= 0) {
-      setCountdown(null)
-      nextRef.current?.()
-      return
-    }
-    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000)
-    return () => clearTimeout(t)
-  }, [countdown])
   const seekToPart = (part: number) => {
     const el = video.current
     if (!el) return
@@ -392,7 +379,7 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       {notReady || (waiting && !paused) ? (
         <span className="vp-loader" role="status" aria-label="Загрузка…" />
       ) : (
-        paused && countdown === null && (
+        paused && !counting && (
           <button type="button" className="vp-big-play" aria-label="Смотреть" onClick={togglePlay}>
             <PlayIcon size={34} />
           </button>
@@ -464,22 +451,8 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
         </button>
       )}
 
-      {countdown !== null ? (
-        <div className="vp-autonext" role="status" style={{ '--vp-autonext': `${AUTO_NEXT_SECONDS}s` } as CSSProperties}>
-          <span className="vp-autonext__text">
-            {nextLabel ? `${nextLabel[0].toUpperCase()}${nextLabel.slice(1)}` : 'Следующая серия'} через {countdown}
-          </span>
-          <div className="vp-autonext__actions">
-            <button type="button" className="btn btn--small btn--ghost" onClick={() => setCountdown(null)}>
-              Отмена
-            </button>
-            <button type="button" className="btn btn--accent btn--small" onClick={onNext}>
-              Смотреть сейчас
-              <SkipIcon />
-            </button>
-          </div>
-          <span className="vp-autonext__bar" aria-hidden="true" />
-        </div>
+      {counting && onNext ? (
+        <AutoNext label={nextLabel} onNext={onNext} onCancel={() => setCounting(false)} />
       ) : (
         nearEnd && (
           <button type="button" className="btn btn--accent btn--small vp-next" onClick={onNext}>
@@ -696,5 +669,41 @@ function PipIcon() {
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <rect x="12" y="11" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
     </svg>
+  )
+}
+
+/**
+ * Отсчёт до следующей серии, как на стримингах: через 8 секунд вызывает onNext. «Отмена» убирает отсчёт.
+ * Общий для своего плеера и встроенного Kodik.
+ */
+export function AutoNext({ label, onNext, onCancel }: { label?: string; onNext: () => void; onCancel: () => void }) {
+  const [left, setLeft] = useState(AUTO_NEXT_SECONDS)
+  // Обработчик приходит новой функцией на каждой отрисовке родителя: держим его в ref, чтобы отсчёт не сбрасывался.
+  const nextRef = useRef(onNext)
+  nextRef.current = onNext
+  useEffect(() => {
+    if (left <= 0) {
+      nextRef.current()
+      return
+    }
+    const t = setTimeout(() => setLeft((n) => n - 1), 1000)
+    return () => clearTimeout(t)
+  }, [left])
+  return (
+    <div className="vp-autonext" role="status" style={{ '--vp-autonext': `${AUTO_NEXT_SECONDS}s` } as CSSProperties}>
+      <span className="vp-autonext__text">
+        {label ? `${label[0].toUpperCase()}${label.slice(1)}` : 'Следующая серия'} через {left}
+      </span>
+      <div className="vp-autonext__actions">
+        <button type="button" className="btn btn--small btn--ghost" onClick={onCancel}>
+          Отмена
+        </button>
+        <button type="button" className="btn btn--accent btn--small" onClick={onNext}>
+          Смотреть сейчас
+          <SkipIcon />
+        </button>
+      </div>
+      <span className="vp-autonext__bar" aria-hidden="true" />
+    </div>
   )
 }

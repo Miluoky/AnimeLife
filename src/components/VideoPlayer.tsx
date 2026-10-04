@@ -26,7 +26,8 @@ import {
 } from '../api/anilibria'
 import { findAnimeVost, type AnimeVostEpisode } from '../api/animevost'
 import { anixartEpisodes } from '../api/anixart'
-import PlayerControls from './PlayerControls'
+import PlayerControls, { AutoNext, autoNextStore, formatTime } from './PlayerControls'
+import { getPosition, savePosition } from '../data/positions'
 import './player.css'
 import {
   kodikEmbedUrl,
@@ -285,6 +286,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     const onLoaded = () => {
       setLoading(false)
       if (resumeAt.current) video.currentTime = resumeAt.current
+      else resumeRef.current((t) => (video.currentTime = t))
     }
     const onError = () => setStreamError(PLAY_ERROR)
     // Прямой mp4 (AnimeVost) браузер играет сам.
@@ -336,6 +338,80 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       }
     }
   }, [src])
+
+  /* ─── Продолжить с места: своё видео и Kodik ─── */
+  // Плашка «Продолжили с 12:34» с кнопкой «С начала»; seek перематывает тот плеер, что сейчас играет.
+  const [resumed, setResumed] = useState<{ at: number; seek: (t: number) => void } | null>(null)
+  useEffect(() => setResumed(null), [shikimoriId, episode, provider])
+  useEffect(() => {
+    if (!resumed) return
+    const t = setTimeout(() => setResumed(null), 7000)
+    return () => clearTimeout(t)
+  }, [resumed])
+  const positionKey = shikimoriId ?? title
+  const resumeSaved = (seek: (t: number) => void) => {
+    const at = getPosition(positionKey, episode)
+    if (at === null) return
+    seek(at)
+    setResumed({ at, seek })
+  }
+  const resumeRef = useRef(resumeSaved)
+  resumeRef.current = resumeSaved
+
+  // Своё видео: место в серии запоминаем раз в 5 секунд, досмотренная серия запись стирает.
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !src) return
+    let last = 0
+    const onTime = () => {
+      if (Math.abs(video.currentTime - last) < 5) return
+      last = video.currentTime
+      savePosition(positionKey, episode, video.currentTime, video.duration)
+    }
+    const onEnded = () => savePosition(positionKey, episode, video.duration, video.duration)
+    video.addEventListener('timeupdate', onTime)
+    video.addEventListener('ended', onEnded)
+    return () => {
+      video.removeEventListener('timeupdate', onTime)
+      video.removeEventListener('ended', onEnded)
+    }
+  }, [src, positionKey, episode])
+
+  // Kodik (свой, из Anixart или YummyAnime) сообщает о себе через postMessage: время, длительность и конец серии.
+  // По этим событиям запоминаем место, продолжаем с него и включаем отсчёт до следующей серии.
+  const [kodikEnded, setKodikEnded] = useState(false)
+  const autoNext = autoNextStore.use()
+  useEffect(() => setKodikEnded(false), [shikimoriId, episode, provider, embed?.url])
+  useEffect(() => {
+    if (provider !== 'kodik' && provider !== 'anixart' && provider !== 'embed') return
+    let duration = 0
+    let last = 0
+    let started = false
+    const onMessage = (e: MessageEvent) => {
+      const frame = frameRef.current?.querySelector('iframe')
+      if (!frame || e.source !== frame.contentWindow) return
+      const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
+      if (typeof key !== 'string' || !key.startsWith('kodik_player_')) return
+      const seconds = typeof value === 'number' ? value : Number((value as { time?: unknown } | null)?.time)
+      if (key === 'kodik_player_duration_update' && Number.isFinite(seconds)) duration = seconds
+      if (key === 'kodik_player_time_update' && Number.isFinite(seconds) && Math.abs(seconds - last) >= 5) {
+        last = seconds
+        savePosition(positionKey, episode, seconds, duration)
+      }
+      if ((key === 'kodik_player_video_started' || key === 'kodik_player_play') && !started) {
+        started = true
+        const source = e.source as Window
+        const origin = e.origin
+        resumeRef.current((t) => source.postMessage({ key: 'kodik_player_api', value: { method: 'seek', seconds: t } }, origin))
+      }
+      if (key === 'kodik_player_video_ended') {
+        savePosition(positionKey, episode, duration || Infinity, duration)
+        setKodikEnded(true)
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [provider, positionKey, episode, kodikLink, anixart?.type, embed?.url])
 
   /* ─── Хелпер: iframe загрузился ─── */
   const onIframeLoad = useCallback(() => setLoading(false), [])
@@ -514,6 +590,25 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             nextLabel={`${episode + 1} серия`}
             skips={provider === 'anilibria' && alEp ? episodeSkips(alEp) : undefined}
           />
+        )}
+
+        {resumed && !unavailable && (
+          <div className="vp-resume" role="status">
+            <span>Продолжили с {formatTime(resumed.at)}</span>
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => {
+                resumed.seek(0)
+                setResumed(null)
+              }}
+            >
+              С начала
+            </button>
+          </div>
+        )}
+        {kodikEnded && autoNext && !!onEpisodeChange && episode < totalEpisodes && !unavailable && (
+          <AutoNext label={`${episode + 1} серия`} onNext={() => onEpisodeChange(episode + 1)} onCancel={() => setKodikEnded(false)} />
         )}
 
         {unavailable && (trailerUrl ? (
