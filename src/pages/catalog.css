@@ -134,3 +134,20 @@
     max-width: none;
   }
 }
+
+/* Кнопка «Фильтры» нужна только на телефоне: там подборщики раскрываются по нажатию. */
+.filters-toggle {
+  display: none;
+  justify-self: start;
+  align-self: flex-start;
+}
+@media (max-width: 720px) {
+  .filters-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .filters:not(.filters--open) {
+    display: none;
+  }
+}

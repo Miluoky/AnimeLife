@@ -1190,3 +1190,49 @@
     display: none;
   }
 }
+
+/* Отсчёт до следующей серии, когда эта закончилась. */
+.vp-autonext {
+  position: absolute;
+  z-index: 3;
+  right: 14px;
+  bottom: 76px;
+  display: grid;
+  gap: 10px;
+  min-width: 240px;
+  padding: 14px 16px 16px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(10, 11, 16, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.8);
+  animation: vp-next-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.vp-autonext__text {
+  font-weight: 700;
+  font-size: 15px;
+}
+.vp-autonext__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.vp-autonext__bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  animation: vp-autonext var(--vp-autonext, 8s) linear forwards;
+}
+@keyframes vp-autonext {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}

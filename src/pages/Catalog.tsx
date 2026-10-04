@@ -9,6 +9,7 @@ import { usePageMeta } from '../data/pageMeta'
 import { swapLayout } from '../data/keyboard'
 import { CATALOG } from '../data/landings'
 import { PAGE_SIZE, pageParam } from '../data/seo'
+import { FilterIcon } from '../components/Icons'
 import './catalog.css'
 
 const orders: { id: CatalogOrder; title: string }[] = [
@@ -167,6 +168,9 @@ export default function Catalog() {
       : undefined,
   }
 
+  // На телефоне подборщики занимают весь первый экран: прячем их за кнопкой «Фильтры» со счётчиком.
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const setCount = ['kind', 'year', 'score', 'studio', 'age', 'hide'].filter((n) => params.has(n)).length + list('genre').length
   const filtersSet = ['order', 'status', 'kind', 'year', 'part', 'score', 'genre', 'studio', 'age', 'hide'].some((n) => params.has(n))
 
   return (
@@ -195,7 +199,17 @@ export default function Catalog() {
         />
         <ChipFilter label="Статус" name="status" value={value('status')} any="Все" options={statuses} onChange={change} />
 
-        <div className="filters" role="group" aria-label="Фильтры каталога">
+        <button
+          type="button"
+          className={`pill filters-toggle${filtersOpen ? ' active' : ''}`}
+          aria-expanded={filtersOpen}
+          aria-controls="catalog-filters"
+          onClick={() => setFiltersOpen(!filtersOpen)}
+        >
+          <FilterIcon size={16} />
+          Фильтры{setCount > 0 && <span className="pill__count">{setCount}</span>}
+        </button>
+        <div id="catalog-filters" className={`filters${filtersOpen ? ' filters--open' : ''}`} role="group" aria-label="Фильтры каталога">
           <MultiPick
             label="Жанры"
             any="Любые"

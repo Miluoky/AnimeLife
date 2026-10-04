@@ -24,10 +24,18 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
+/** На телефоне фильтры спрятаны за кнопкой «Фильтры». */
+async function openFilters(page: import('@playwright/test').Page) {
+  const toggle = page.locator('.filters-toggle')
+  await toggle.waitFor({ state: 'attached' })
+  if (await toggle.isVisible()) await toggle.click()
+}
+
 test('каталог: несколько жанров, сезон, возраст, студия и сортировка по алфавиту', async ({ page }) => {
   const last = lastCatalogRequest(page)
   await page.goto('/catalog')
 
+  await openFilters(page)
   await page.getByRole('button', { name: /Жанры/ }).click()
   await page.getByRole('searchbox', { name: 'Найти: жанры' }).fill('экш')
   await page.getByRole('checkbox', { name: 'Экшен' }).check()
@@ -63,6 +71,7 @@ test('каталог: «Скрыть добавленные» убирает т�
   })
   const last = lastCatalogRequest(page)
   await page.goto('/catalog')
+  await openFilters(page)
   await page.getByLabel('Скрыть добавленные').check()
   await expect(page).toHaveURL(/hide=mine/)
   await expect.poll(() => last()?.get('exclude_ids')).toBe('21')

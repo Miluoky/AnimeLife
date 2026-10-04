@@ -191,6 +191,46 @@ test('плеер: подсказка с горячими клавишами и �
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBe(720)
 })
 
+test('плеер: в конце серии отсчёт до следующей, «Отмена» и автопереход', async ({ page }) => {
+  await mockAniLibria(page, search)
+  await page.addInitScript(() => {
+    const original = HTMLMediaElement.prototype.canPlayType
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      return type === 'application/vnd.apple.mpegurl' ? 'maybe' : original.call(this, type)
+    }
+  })
+  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
+  await page.route(/cache\.libria\.fun\/.*\.m3u8/, (route) => route.fulfill({ contentType: 'video/webm', body: clip }))
+  await page.clock.install()
+  await page.goto('/watch/1/1')
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+
+  // Серия «закончилась»: так ролик не надо досматривать.
+  const finish = () =>
+    video.evaluate((v: HTMLVideoElement) => {
+      v.pause()
+      Object.defineProperty(v, 'ended', { configurable: true, get: () => true })
+      v.dispatchEvent(new Event('ended'))
+    })
+  await finish()
+  const card = page.getByRole('status').filter({ hasText: /2 серия через \d/ })
+  await expect(card).toBeVisible()
+  await card.getByRole('button', { name: 'Отмена' }).click()
+  await expect(card).toBeHidden()
+  await expect(page).toHaveURL(/\/watch\/1\/1$/)
+
+  // Снова с начала и до конца: теперь ждём отсчёт до конца.
+  await video.evaluate((v: HTMLVideoElement) => {
+    Object.defineProperty(v, 'ended', { configurable: true, get: () => false })
+    v.dispatchEvent(new Event('play'))
+  })
+  await finish()
+  await expect(page.getByRole('status').filter({ hasText: '2 серия через 8' })).toBeVisible()
+  for (let i = 0; i < 9; i++) await page.clock.runFor(1000)
+  await expect(page).toHaveURL(/\/watch\/1\/2$/)
+})
+
 test('плеер: озвучки списком сбоку и поиск серии по номеру или названию', async ({ page }) => {
   await mockAniLibria(page, search)
   await page.goto('/watch/1/1')

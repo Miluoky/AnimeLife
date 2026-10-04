@@ -28,6 +28,9 @@ interface Props {
 /** Пропускать опенинг и эндинг самим: настройка зрителя, живёт в браузере. */
 const autoSkipStore = createLocalStore('anime.autoskip.v1', false)
 const SKIP_NAMES = { opening: 'опенинг', ending: 'эндинг' }
+/** Включать следующую серию самим, когда эта закончилась: тоже настройка зрителя. */
+const autoNextStore = createLocalStore('anime.autonext.v1', true)
+const AUTO_NEXT_SECONDS = 8
 
 type FsDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void }
 type FsEl = HTMLElement & { webkitRequestFullscreen?: () => void }
@@ -258,6 +261,28 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
   // Горячие клавиши на компьютере: пробел/K, стрелки, F, M, S — пропустить опенинг или эндинг,
   // N — следующая серия, цифры — к 0–90 % серии, ? — подсказка со всеми клавишами.
   const [help, setHelp] = useState(false)
+
+  // Серия закончилась: отсчёт до следующей, как на стримингах. «Отмена» — до конца этой серии.
+  const autoNext = autoNextStore.use()
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const ended = !!v?.ended
+  const hasNext = !!onNext
+  // Обработчик приходит новой функцией на каждой отрисовке родителя: держим его в ref, чтобы отсчёт не сбрасывался.
+  const nextRef = useRef(onNext)
+  nextRef.current = onNext
+  useEffect(() => {
+    setCountdown(ended && hasNext && autoNext ? AUTO_NEXT_SECONDS : null)
+  }, [ended, hasNext, autoNext])
+  useEffect(() => {
+    if (countdown === null) return
+    if (countdown <= 0) {
+      setCountdown(null)
+      nextRef.current?.()
+      return
+    }
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000)
+    return () => clearTimeout(t)
+  }, [countdown])
   const seekToPart = (part: number) => {
     const el = video.current
     if (!el) return
@@ -367,7 +392,7 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       {notReady || (waiting && !paused) ? (
         <span className="vp-loader" role="status" aria-label="Загрузка…" />
       ) : (
-        paused && (
+        paused && countdown === null && (
           <button type="button" className="vp-big-play" aria-label="Смотреть" onClick={togglePlay}>
             <PlayIcon size={34} />
           </button>
@@ -439,11 +464,29 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
         </button>
       )}
 
-      {nearEnd && (
-        <button type="button" className="btn btn--accent btn--small vp-next" onClick={onNext}>
-          Следующая серия
-          <SkipIcon />
-        </button>
+      {countdown !== null ? (
+        <div className="vp-autonext" role="status" style={{ '--vp-autonext': `${AUTO_NEXT_SECONDS}s` } as CSSProperties}>
+          <span className="vp-autonext__text">
+            {nextLabel ? `${nextLabel[0].toUpperCase()}${nextLabel.slice(1)}` : 'Следующая серия'} через {countdown}
+          </span>
+          <div className="vp-autonext__actions">
+            <button type="button" className="btn btn--small btn--ghost" onClick={() => setCountdown(null)}>
+              Отмена
+            </button>
+            <button type="button" className="btn btn--accent btn--small" onClick={onNext}>
+              Смотреть сейчас
+              <SkipIcon />
+            </button>
+          </div>
+          <span className="vp-autonext__bar" aria-hidden="true" />
+        </div>
+      ) : (
+        nearEnd && (
+          <button type="button" className="btn btn--accent btn--small vp-next" onClick={onNext}>
+            Следующая серия
+            <SkipIcon />
+          </button>
+        )
       )}
 
       <div className="vp-bar">
@@ -567,6 +610,19 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
                     </button>
                   ))}
                 </div>
+                {onNext && (
+                  <>
+                    <div className="vp-menu__title">Следующая серия</div>
+                    <div className="vp-menu__opts">
+                      <button type="button" aria-pressed={autoNext} onClick={() => autoNextStore.set(true)}>
+                        Включать сама
+                      </button>
+                      <button type="button" aria-pressed={!autoNext} onClick={() => autoNextStore.set(false)}>
+                        Кнопкой
+                      </button>
+                    </div>
+                  </>
+                )}
                 <button
                   type="button"
                   className="vp-menu__link"
