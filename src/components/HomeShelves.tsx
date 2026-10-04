@@ -160,6 +160,7 @@ export function MoreShelves() {
         more="/top"
       />
       <GenreTiles />
+      <Discover />
       {THEMES.map((t) => (
         <CatalogShelf
           key={t.slug}
@@ -200,6 +201,31 @@ function GenreTiles() {
           </Link>
         ))}
       </div>
+    </section>
+  )
+}
+
+const DISCOVER = [
+  { to: '/random', emoji: '🎲', title: 'Что посмотреть?', text: 'Выберите настроение, и мы подберём тайтл' },
+  { to: '/quiz', emoji: '🖼️', title: 'Угадай по кадру', text: 'Мини-игра: сколько узнаете подряд?' },
+  { to: '/collections', emoji: '📚', title: 'Подборки', text: 'Готовые списки на вечер' },
+]
+
+/** Куда ещё заглянуть: случайный выбор, мини-игра и подборки — крупные карточки вместо ссылок в подвале. */
+function Discover() {
+  return (
+    <section className="discover" aria-label="Ещё на сайте">
+      {DISCOVER.map((d) => (
+        <Link key={d.to} to={d.to} className="discover__card">
+          <span className="discover__emoji" aria-hidden="true">
+            {d.emoji}
+          </span>
+          <span className="discover__text">
+            <strong>{d.title}</strong>
+            <span className="muted">{d.text}</span>
+          </span>
+        </Link>
+      ))}
     </section>
   )
 }

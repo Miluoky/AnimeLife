@@ -45,3 +45,65 @@
     transition: none;
   }
 }
+
+/* «Ещё на сайте»: случайный выбор, мини-игра и подборки. */
+.discover {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.discover__card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(100% 140% at 0% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    var(--surface);
+  color: var(--text);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.discover__card:hover,
+.discover__card:focus-visible {
+  color: var(--text);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.discover__emoji {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.discover__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.discover__text .muted {
+  font-size: 13px;
+}
+@media (max-width: 560px) {
+  .discover {
+    gap: 8px;
+  }
+  .discover__card {
+    padding: 12px 14px;
+  }
+  .discover__emoji {
+    width: 38px;
+    height: 38px;
+    font-size: 19px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discover__card {
+    transition: none;
+  }
+}

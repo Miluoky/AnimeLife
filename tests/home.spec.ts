@@ -58,3 +58,12 @@ test('главная: плитки жанров ведут на страницы
   await tiles.filter({ hasText: 'Меха' }).click()
   await expect(page).toHaveURL(/\/genre\/mecha$/)
 })
+
+test('главная: карточки «Ещё на сайте» ведут в мини-игру, подбор и подборки', async ({ page }) => {
+  await page.goto('/')
+  const cards = page.getByRole('region', { name: 'Ещё на сайте' }).getByRole('link')
+  await expect(cards).toHaveCount(3)
+  await cards.filter({ hasText: 'Угадай по кадру' }).click()
+  await expect(page).toHaveURL(/\/quiz$/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Угадай аниме по кадру')
+})
