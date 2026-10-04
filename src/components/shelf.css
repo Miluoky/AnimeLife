@@ -27,6 +27,7 @@
   font-size: 14px;
 }
 .shelf__more {
+  white-space: nowrap;
   font-size: 15px;
   font-weight: 600;
   color: var(--muted);

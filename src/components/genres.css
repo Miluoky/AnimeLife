@@ -1,0 +1,47 @@
+/* Плитки жанров на главной: цветной градиент по кругу оттенков, название крупным шрифтом. */
+.genre-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+.genre-tile {
+  position: relative;
+  overflow: hidden;
+  min-height: 88px;
+  padding: 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: flex-end;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.25;
+  color: var(--text);
+  border: 1px solid hsl(var(--h) 70% 60% / 0.25);
+  background:
+    radial-gradient(120% 140% at 100% 0%, hsl(var(--h) 85% 58% / 0.55), transparent 60%),
+    linear-gradient(135deg, hsl(var(--h) 45% 22% / 0.9), var(--surface));
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.genre-tile:hover,
+.genre-tile:focus-visible {
+  color: var(--text);
+  transform: translateY(-3px);
+  border-color: hsl(var(--h) 80% 65% / 0.6);
+}
+@media (max-width: 720px) {
+  .genre-tiles {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .genre-tile {
+    min-height: 60px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .genre-tile {
+    transition: none;
+  }
+}

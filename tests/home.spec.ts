@@ -49,3 +49,12 @@ test('главная: «Новые серии в вашем списке» по 
   await expect(shelf.locator('.poster-card')).toHaveCount(1)
   await expect(shelf.locator('.poster-card__tag')).toHaveText('Новых серий: 2')
 })
+
+test('главная: плитки жанров ведут на страницы жанров', async ({ page }) => {
+  await page.goto('/')
+  const tiles = page.locator('.genre-tile')
+  await expect(tiles).toHaveCount(12)
+  await expect(tiles.filter({ hasText: 'Романтика' })).toHaveAttribute('href', '/genre/romance')
+  await tiles.filter({ hasText: 'Меха' }).click()
+  await expect(page).toHaveURL(/\/genre\/mecha$/)
+})

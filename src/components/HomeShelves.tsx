@@ -1,10 +1,13 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { loadCatalog, loadSchedule, useAsync, type CatalogQuery } from '../api'
 import Shelf from './Shelf'
 import PosterCard from './PosterCard'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
 import { CalendarIcon, ClockIcon, PlayIcon, TrophyIcon } from './Icons'
+import { GENRES } from '../data/seo'
+import './genres.css'
 
 const SHELF_SIZE = 16
 const SEASONS = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'fall', 'fall', 'fall', 'winter']
@@ -156,6 +159,7 @@ export function MoreShelves() {
         query={{ order: 'ranked' }}
         more="/top"
       />
+      <GenreTiles />
       {THEMES.map((t) => (
         <CatalogShelf
           key={t.slug}
@@ -167,6 +171,36 @@ export function MoreShelves() {
         />
       ))}
     </>
+  )
+}
+
+const TILE_GENRES = ['action', 'romance', 'comedy', 'fantasy', 'drama', 'sci-fi', 'mystery', 'slice-of-life', 'horror', 'sports', 'psychological', 'mecha']
+
+/** Плитки жанров на главной: у каждого свой цвет, ведут на посадочные /genre/:slug. */
+function GenreTiles() {
+  const tiles = TILE_GENRES.map((slug) => GENRES.find((g) => g.slug === slug)).filter((g) => g !== undefined)
+  return (
+    <section className="stack shelf">
+      <div className="shelf__head">
+        <span className="shelf__icon" aria-hidden="true">
+          <ThemeIcon d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
+        </span>
+        <div className="shelf__titles">
+          <h2>Жанры</h2>
+          <p className="muted">Под любое настроение</p>
+        </div>
+        <Link to="/catalog" className="shelf__more">
+          Все жанры
+        </Link>
+      </div>
+      <div className="genre-tiles">
+        {tiles.map((g, i) => (
+          <Link key={g.slug} to={`/genre/${g.slug}`} className="genre-tile" style={{ '--h': (i * 360) / tiles.length + 340 } as CSSProperties}>
+            {g.slug === 'psychological' ? 'Психология' : g.name}
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }
 
