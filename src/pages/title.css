@@ -200,3 +200,98 @@
 .order-card__tag--done {
   color: var(--accent-soft);
 }
+
+/* Страница тайтла: мягкое свечение в цвете постера за шапкой. */
+.title-head {
+  position: relative;
+}
+.title-head::before {
+  content: '';
+  position: absolute;
+  /* вправо не выходим: иначе на телефоне страница шире экрана */
+  inset: -80px 0 auto -40px;
+  height: 360px;
+  background: radial-gradient(60% 80% at 20% 0%, color-mix(in srgb, var(--glow, var(--surface)) 55%, transparent), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(20px);
+}
+
+/* Факты о тайтле плашками «подпись: значение» прямо в шапке. */
+.fact-pills {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fact-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+.fact-pill dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.fact-pill dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* «О чём»: описание под названием, свёрнутое до четырёх строк. */
+.about-card {
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.about-card__title {
+  font-size: 18px;
+  font-weight: 500;
+}
+.about-card__text {
+  margin: 0;
+}
+.about-card__toggle {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+}
+.about-card__toggle:hover {
+  color: var(--accent-soft);
+}
+
+/* Переход к серии по номеру. */
+.episode-jump {
+  display: flex;
+  gap: 8px;
+}
+.episode-jump input {
+  width: 150px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+.episode-jump input:focus {
+  outline: none;
+  border-color: var(--accent);
+}

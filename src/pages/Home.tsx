@@ -1,6 +1,7 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { type CSSProperties, Suspense, lazy, useEffect, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
+import { fetchScreenshots } from '../api/shikimori'
 import { useHistory } from '../data/history'
 import CatalogSection from '../components/CatalogSection'
 import { Poster } from '../components/PosterCard'
@@ -24,6 +25,21 @@ function Hero() {
   const current = items[index] ?? items[0]
   const details = useAsync(async () => (current ? (await loadAnime(current.id)).data : undefined), [current?.id])
   const anime = details.value ?? current
+  // Кадр из аниме на фон. Кадр следующего тайтла запрашиваем заранее, чтобы смена была без пустого фона.
+  const shots = useAsync(async () => (current ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined), [current?.id])
+  const next = items[(index + 1) % items.length]
+  useEffect(() => {
+    if (!next || items.length < 2) return
+    const t = setTimeout(() => {
+      void fetchScreenshots(next.id)
+        .then((list) => {
+          if (list[0]) new Image().src = list[0]
+        })
+        .catch(() => undefined)
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [next?.id, items.length])
+  const shot = shots.value && !shots.loading ? shots.value : undefined
 
   useEffect(() => {
     if (items.length < 2 || paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -39,12 +55,17 @@ function Hero() {
 
   return (
     <section
-      className="hero"
+      className={`hero${paused ? ' hero--paused' : ''}`}
+      style={{ '--glow': anime.posterFill, '--hero-ms': `${HERO_INTERVAL}ms` } as CSSProperties}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
+      <div className="hero__backdrop" aria-hidden="true">
+        {anime.posterUrl && <img key={`bg-${anime.id}`} className="hero__blur" src={anime.posterSmall2x ?? anime.posterUrl} alt="" />}
+        {shot && <img key={shot} className="hero__shot" src={shot} alt="" onLoad={(e) => e.currentTarget.classList.add('is-on')} />}
+      </div>
       <div className="hero__text" key={anime.id}>
         <div className="eyebrow">
           <span className="live-dot" aria-hidden="true" />
@@ -76,40 +97,35 @@ function Hero() {
             Подробнее
           </Link>
         </div>
-        {items.length > 1 && (
-          <div className="hero__dots" role="tablist" aria-label="Онгоинги в эфире">
-            {items.map((a, i) => (
-              <button
-                key={a.id}
-                type="button"
-                role="tab"
-                aria-selected={i === index}
-                aria-label={a.title}
-                className={`hero__dot${i === index ? ' hero__dot--on' : ''}`}
-                onClick={() => setIndex(i)}
-              />
-            ))}
-          </div>
-        )}
       </div>
-      <div className="hero__art" style={{ background: anime.posterFill }}>
-        {anime.posterUrl ? (
-          <>
-            {/* Фон и постер берут один и тот же webp 2x (около 450 px): один запрос вместо оригинала на пару мегабайт. */}
-            <img key={`bg-${anime.id}`} className="hero__art-bg" src={anime.posterSmall2x ?? anime.posterUrl} alt="" />
-            <img
-              key={anime.id}
-              className="hero__art-poster"
-              src={anime.posterSmall2x ?? anime.posterUrl}
-              alt={`Постер: ${anime.title}`}
-              // @ts-expect-error fetchpriority ещё нет в типах React 18
-              fetchpriority="high"
-            />
-          </>
-        ) : (
-          <span className="art-label">[Ключевой арт тайтла, 16:9]</span>
-        )}
-      </div>
+      {/* Пока кадра нет (или у новинки его нет вовсе), справа стоит постер. */}
+      {!shot && anime.posterUrl && (
+        <img
+          key={`poster-${anime.id}`}
+          className="hero__art-poster"
+          src={anime.posterSmall2x ?? anime.posterUrl}
+          alt={`Постер: ${anime.title}`}
+          // @ts-expect-error fetchpriority ещё нет в типах React 18
+          fetchpriority="high"
+        />
+      )}
+      {items.length > 1 && (
+        <div className="hero__thumbs" role="tablist" aria-label="Онгоинги в эфире">
+          {items.map((a, i) => (
+            <button
+              key={a.id}
+              type="button"
+              role="tab"
+              aria-selected={i === index}
+              aria-label={a.title}
+              className={`hero__thumb${i === index ? ' hero__thumb--on' : ''}`}
+              onClick={() => setIndex(i)}
+            >
+              {a.posterSmall && <img src={a.posterSmall} alt="" />}
+            </button>
+          ))}
+        </div>
+      )}
     </section>
   )
 }

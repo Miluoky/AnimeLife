@@ -1,0 +1,92 @@
+/* Полки с прокруткой вбок: иконка в плашке, заголовок с подписью и стрелки по краям. */
+.shelf__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.shelf__icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+.shelf__titles {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.shelf__titles h2 {
+  font-weight: 500;
+  font-size: 26px;
+}
+.shelf__titles p {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+.shelf__more {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.shelf__body {
+  position: relative;
+}
+.shelf__arrow {
+  position: absolute;
+  top: 0;
+  bottom: 8px;
+  z-index: 3;
+  width: 56px;
+  border: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.shelf__arrow svg {
+  width: 40px;
+  height: 40px;
+  padding: 10px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+.shelf__arrow:hover svg {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.shelf__arrow--prev {
+  left: -8px;
+  background: linear-gradient(90deg, var(--bg) 20%, transparent);
+}
+.shelf__arrow--next {
+  right: -8px;
+  background: linear-gradient(270deg, var(--bg) 20%, transparent);
+}
+.shelf__body:hover .shelf__arrow,
+.shelf__arrow:focus-visible {
+  opacity: 1;
+}
+
+/* На телефоне ряд листают пальцем, стрелки только мешают. */
+@media (hover: none), (max-width: 640px) {
+  .shelf__arrow {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .shelf__titles h2 {
+    font-size: 21px;
+  }
+  .shelf__icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+}

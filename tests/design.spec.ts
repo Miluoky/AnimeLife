@@ -60,7 +60,7 @@ test('добавление в список показывает уведомле
   await expect(page.getByLabel('Статус в моём списке')).toHaveValue('')
 })
 
-test('баннер «Сейчас в эфире» переключает тайтлы точками', async ({ page }) => {
+test('баннер «Сейчас в эфире» переключает тайтлы постерами', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('Сейчас в эфире')).toBeVisible()
   const dots = page.getByRole('tab')

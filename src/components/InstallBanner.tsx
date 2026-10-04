@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CloseIcon } from './Icons'
+import './install.css'
 
 /** Событие Chrome/Android, которое позволяет показать системное окно «Установить приложение». */
 interface InstallPromptEvent extends Event {

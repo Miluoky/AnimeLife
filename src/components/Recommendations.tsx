@@ -1,6 +1,7 @@
 import { loadRecommendations, useAsync, type RecommendationSeed } from '../api'
 import { useMyList, type ListEntry } from '../data/myList'
 import PosterCard from './PosterCard'
+import './recs.css'
 
 const MAX_SEEDS = 5
 
