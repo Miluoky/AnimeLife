@@ -478,6 +478,37 @@ h3 {
   color: var(--muted);
 }
 
+.continue-item {
+  position: relative;
+}
+/* Крестик в углу кадра: на компьютере появляется при наведении, на телефоне виден всегда. */
+.continue-item__remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
+  color: #fff;
+  background: rgb(0 0 0 / 0.55);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.continue-item:hover .continue-item__remove,
+.continue-item__remove:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .continue-item__remove {
+    opacity: 1;
+  }
+}
 .continue-card {
   display: flex;
   flex-direction: column;

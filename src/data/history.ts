@@ -26,6 +26,18 @@ export function getProgress(animeId: string): HistoryEntry | undefined {
   return store.get().find((h) => h.animeId === animeId)
 }
 
+/** Убрать тайтл из «Продолжить просмотр»; возвращает запись, чтобы можно было отменить. */
+export function removeProgress(animeId: string) {
+  const list = store.get()
+  const index = list.findIndex((h) => h.animeId === animeId)
+  if (index < 0) return
+  store.set(list.filter((h) => h.animeId !== animeId))
+  return () => {
+    const now = store.get().filter((h) => h.animeId !== animeId)
+    store.set([...now.slice(0, index), list[index], ...now.slice(index)].slice(0, LIMIT))
+  }
+}
+
 export function saveProgress(anime: Anime, episode: number, totalEpisodes: number) {
   const entry: HistoryEntry = {
     animeId: anime.id,

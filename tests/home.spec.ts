@@ -67,3 +67,19 @@ test('главная: карточки «Ещё на сайте» ведут в 
   await expect(page).toHaveURL(/\/quiz$/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Угадай аниме по кадру')
 })
+
+test('главная: тайтл можно убрать из «Продолжить просмотр» и вернуть', async ({ page }) => {
+  await page.addInitScript(() => {
+    const entry = (id: string, title: string) => ({ animeId: id, title, posterFill: '#333', episode: 3, totalEpisodes: 12, updatedAt: 1 })
+    localStorage.setItem('anime.history.v1', JSON.stringify([entry('1', 'Первый'), entry('2', 'Второй')]))
+  })
+  await page.goto('/')
+  const cards = page.locator('.continue-item')
+  await expect(cards).toHaveCount(2)
+  await page.getByRole('button', { name: 'Убрать «Первый» из продолжения' }).click()
+  await expect(cards).toHaveCount(1)
+  await expect(cards).toContainText('Второй')
+  await page.getByRole('button', { name: 'Вернуть' }).click()
+  await expect(cards).toHaveCount(2)
+  await expect(cards.first()).toContainText('Первый')
+})
