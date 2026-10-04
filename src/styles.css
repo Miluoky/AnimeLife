@@ -2620,13 +2620,20 @@ input[type='radio'] {
     flex-basis: 100%;
     min-width: 0;
   }
+  /* Две кнопки в ряд, а значки «Поделиться» и колокольчик — маленькие квадраты справа, не на пол-экрана. */
   .title-head .actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
   }
   .title-head .actions > * {
+    flex: 1 1 34%;
     min-width: 0;
     padding: 0 12px;
+  }
+  .title-head .actions > .title-share,
+  .title-head .actions > .follow-btn {
+    flex: 0 0 52px;
+    padding: 0;
   }
   .title-body > .stack:first-child,
   .title-aside {

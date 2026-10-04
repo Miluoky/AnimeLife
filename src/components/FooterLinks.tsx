@@ -20,6 +20,7 @@ export default function FooterLinks() {
         <Link to="/top">Топ-100 аниме</Link>
         <Link to="/collections">Подборки</Link>
         <Link to="/random">Случайное аниме</Link>
+        <Link to="/quiz">Угадай аниме по кадру</Link>
         <Link to="/changelog">Что нового</Link>
         {GENRES.slice(0, 12).map((g) => (
           <Link key={g.slug} to={`/genre/${g.slug}`}>

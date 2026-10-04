@@ -544,6 +544,13 @@ async function metaFor(path, params) {
       body: '<h1>Что нового</h1><p>Лента обновлений Anime Life: что появилось на сайте за последнее время, новые сверху.</p>' + siteNav(),
     }
   }
+  if (path === '/quiz') {
+    return {
+      title: `Угадай аниме по кадру: мини-игра | ${SITE}`,
+      description: 'Мини-игра Anime Life: по кадру из популярного аниме угадайте название из четырёх вариантов. Сколько получится подряд?',
+      body: '<h1>Угадай аниме по кадру</h1><p>Кадр из популярного аниме и четыре варианта названия. Отвечайте, набирайте серию верных ответов и ставьте рекорд.</p>' + siteNav(),
+    }
+  }
   if (path === '/random') {
     return {
       title: `Что посмотреть: случайное аниме по настроению | ${SITE}`,
@@ -762,7 +769,7 @@ function sitemapPages() {
   const day = today()
   const year = new Date().getFullYear()
   const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
-  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/changelog', '/together', ...landingPaths(), ...LEGAL_LINKS.map(([, p]) => p)]
+  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', ...landingPaths(), ...LEGAL_LINKS.map(([, p]) => p)]
   return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
 }
 

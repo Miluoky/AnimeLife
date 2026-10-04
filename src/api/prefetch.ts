@@ -22,6 +22,7 @@ export const pageChunks = {
   top: () => import('../pages/Top'),
   changelog: () => import('../pages/Changelog'),
   collections: () => import('../pages/Collections'),
+  quiz: () => import('../pages/Quiz'),
 }
 
 const prefetched = new Set<string>()

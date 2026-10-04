@@ -25,6 +25,7 @@ const Random = lazy(pageChunks.random)
 const Top = lazy(pageChunks.top)
 const Changelog = lazy(pageChunks.changelog)
 const Collections = lazy(pageChunks.collections)
+const Quiz = lazy(pageChunks.quiz)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="top" element={<Top />} />
           <Route path="changelog" element={<Changelog />} />
           <Route path="collections" element={<Collections />} />
+          <Route path="quiz" element={<Quiz />} />
           <Route path="account" element={<Account />} />
           <Route path="account/recovery" element={<PasswordRecovery />} />
           <Route path="auth/callback" element={<AuthCallback />} />

@@ -244,7 +244,7 @@ export default function TitlePage() {
               <ListButton anime={anime} />
               <WatchTogetherButton anime={anime} />
               {(anime.ongoing || anime.upcoming) && <FollowButton animeId={anime.id} title={anime.title} />}
-              <ShareButton title={anime.title} path={`/anime/${anime.id}`} />
+              <ShareButton title={anime.title} path={`/anime/${anime.id}`} className="btn btn--ghost title-share" />
             </div>
             {facts.length > 0 && (
               <dl className="fact-pills">
