@@ -21,6 +21,7 @@ import NextEpisode from '../components/NextEpisode'
 import FollowButton from '../components/FollowButton'
 import WatchOrder from '../components/WatchOrder'
 import { fetchStaff } from '../api/staff'
+import { findAnixart, type AnixartVoice } from '../api/anixart'
 import NotFound from './NotFound'
 import './title.css'
 
@@ -61,6 +62,46 @@ function Voices({ title, names = [] }: { title: string; names?: string[] }) {
             </button>
           </li>
         )}
+      </ul>
+    </div>
+  )
+}
+
+/** Озвучки, которые есть прямо в плеере сайта: по клику плеер открывается сразу в выбранной. */
+function SiteVoices({ voices, href }: { voices: AnixartVoice[]; href: string }) {
+  const [all, setAll] = useState(false)
+  const shown = all ? voices : voices.slice(0, VOICES_SHOWN * 2)
+  // Тот же ключ, что у списка озвучек в плеере (Player.tsx): у своих плееров AniLibria и AnimeVost ключ — имя источника.
+  const choose = (v: AnixartVoice) => {
+    const own = v.title.toLowerCase()
+    try {
+      sessionStorage.setItem('player-voice', own === 'anilibria' || own === 'animevost' ? own : `anixart:${v.type}`)
+    } catch {
+      // Без хранилища плеер откроется в озвучке по умолчанию.
+    }
+  }
+  return (
+    <div className="stack voices" style={{ gap: 10 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 500 }}>
+        Озвучки на сайте <span className="muted voices__count">{voices.length}</span>
+      </h2>
+      <ul className="voices__list">
+        {shown.map((v) => (
+          <li key={v.type} className="voices__site">
+            <Link to={href} onClick={() => choose(v)} title={`Смотреть в озвучке ${v.title}`}>
+              {v.icon && <img src={v.icon} alt="" width={20} height={20} loading="lazy" decoding="async" />}
+              {v.title}
+              {v.kind === 'subtitles' && <span className="muted"> · субтитры</span>}
+            </Link>
+          </li>
+        ))}
+        {voices.length > shown.length || all ? (
+          <li>
+            <button type="button" className="voices__more" aria-expanded={all} onClick={() => setAll(!all)}>
+              {all ? 'Свернуть' : `Ещё ${voices.length - shown.length}`}
+            </button>
+          </li>
+        ) : null}
       </ul>
     </div>
   )
@@ -119,6 +160,14 @@ export default function TitlePage() {
     () =>
       loaded && loaded.id === id && !loaded.upcoming
         ? findRelease(loaded.id, [loaded.title, loaded.originalTitle, loaded.englishTitle]).catch(() => null)
+        : Promise.resolve(null),
+    [id, loaded?.id],
+  )
+  // Сколько озвучек есть в плеере: тот же поиск, что у плеера, поэтому там он возьмётся из кэша.
+  const anixart = useAsync(
+    () =>
+      loaded && loaded.id === id && !loaded.upcoming
+        ? findAnixart(loaded.id, { title: loaded.title, originalTitle: loaded.originalTitle, year: loaded.year }).catch(() => null)
         : Promise.resolve(null),
     [id, loaded?.id],
   )
@@ -373,7 +422,11 @@ export default function TitlePage() {
                 </dl>
               </div>
             )}
-            <Voices title="Озвучка" names={extras.value?.dubbers} />
+            {anixart.value?.voices.length ? (
+              <SiteVoices voices={anixart.value.voices} href={`/watch/${anime.id}/${progress?.episode ?? 1}`} />
+            ) : (
+              <Voices title="Озвучка" names={extras.value?.dubbers} />
+            )}
             <Voices title="Субтитры" names={extras.value?.subbers} />
             {scores && <Scores stats={scores} />}
             {!result.value?.demo && (

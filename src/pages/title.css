@@ -345,6 +345,28 @@
   border: 1px solid var(--line);
   font-size: 13px;
 }
+.voices__list li.voices__site {
+  padding: 0;
+}
+.voices__site a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px 4px 5px;
+  border-radius: inherit;
+  color: inherit;
+  transition: border-color 0.2s, background 0.2s;
+}
+.voices__site a:not(:has(img)) {
+  padding-left: 11px;
+}
+.voices__site a:hover {
+  background: var(--surface-2);
+}
+.voices__site img {
+  border-radius: 50%;
+  object-fit: cover;
+}
 .voices__list li:has(.voices__more) {
   padding: 0;
   border: 0;

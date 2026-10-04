@@ -183,3 +183,33 @@ test('тайтл: в порядке просмотра у длинной фра�
   await expect(titles).toHaveText(['Провожающая в последний путь Фрирен', '…Фрирен: Магия', '…Фрирен 2'])
   await expect(titles.nth(2)).toHaveAttribute('title', 'Провожающая в последний путь Фрирен 2')
 })
+
+test('тайтл: озвучки, которые есть в плеере, открывают серию сразу в выбранной', async ({ page }) => {
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({
+      json: {
+        code: 0,
+        types: [
+          { id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26, icon: 'https://s3.anixmirai.com/voiceovers/studio-band.jpg' },
+          { id: 46, name: 'Субтитры | CR', is_sub: true, episodes_count: 26 },
+        ],
+      },
+    }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/\d+$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/\d+\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [{ position: 1, url: 'https://kodikplayer.com/seria/1/hash/720p', iframe: true }] } }),
+  )
+  await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
+  await page.goto('/anime/1')
+  const site = page.locator('.voices', { has: page.getByRole('heading', { name: /Озвучки на сайте/ }) })
+  await expect(site.getByRole('heading')).toHaveText('Озвучки на сайте 2')
+  await expect(site.getByRole('link', { name: /CR/ })).toContainText('субтитры')
+  await site.getByRole('link', { name: /Studio Band/ }).click()
+  await expect(page).toHaveURL(/\/watch\/1\/1$/)
+  await expect(page.getByRole('button', { name: /^Studio Band/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://kodikplayer.com/seria/1/hash/720p')
+})
