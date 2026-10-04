@@ -1,6 +1,7 @@
 import { Query } from 'appwrite'
 import { COMMUNITY_DB, client, tablesDB } from '../api/appwrite'
 import { callCommunity } from './community'
+import { createLocalStore } from './localStore'
 
 /**
  * Голосовой чат комнаты: звук идёт напрямую между браузерами (WebRTC, каждый с каждым, до 6 человек).
@@ -87,6 +88,13 @@ function gathered(pc: RTCPeerConnection) {
   })
 }
 
+/**
+ * Шумоподавление микрофона: «сильное» — нейросеть RNNoise в браузере (клавиатура, вентилятор, улица),
+ * «обычное» — встроенное в браузер, «выключено» — звук как есть (музыка, инструменты).
+ */
+export type NoiseMode = 'strong' | 'browser' | 'off'
+export const noiseStore = createLocalStore<NoiseMode>('anime.noise.v1', 'strong')
+
 export interface PeerState {
   userId: string
   connected: boolean
@@ -103,7 +111,11 @@ interface Peer {
 
 export class VoiceChat {
   private peers = new Map<string, Peer>()
+  /** микрофон как есть */
+  private mic: MediaStream | null = null
+  /** что слышат остальные: микрофон после шумоподавления */
   private stream: MediaStream | null = null
+  private stopNoise: (() => void) | null = null
   private ctx: AudioContext | null = null
   private localAnalyser: AnalyserNode | null = null
   private unsubscribe: (() => void) | null = null
@@ -120,12 +132,13 @@ export class VoiceChat {
     return !!this.stream
   }
 
-  async join(members: Member[]) {
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+  async join(members: Member[], noise: NoiseMode = 'strong') {
+    this.mic = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: noise === 'browser', autoGainControl: true },
     })
-    this.ctx = new AudioContext()
-    this.localAnalyser = this.analyse(this.stream)
+    // RNNoise обучен на 48 кГц: так звук не пересчитывается лишний раз.
+    this.ctx = new AudioContext({ sampleRate: 48000 })
+    await this.applyNoise(noise)
     this.unsubscribe = client.subscribe<Signal>(`databases.${COMMUNITY_DB}.tables.signals.rows`, (e) => {
       const s = e.payload
       if (s.to === this.me && s.roomId === this.roomId && e.events.some((ev) => ev.endsWith('.create')))
@@ -144,7 +157,10 @@ export class VoiceChat {
 
   leave(notify = true) {
     for (const id of [...this.peers.keys()]) this.drop(id)
-    this.stream?.getTracks().forEach((t) => t.stop())
+    this.stopNoise?.()
+    this.stopNoise = null
+    this.mic?.getTracks().forEach((t) => t.stop())
+    this.mic = null
     this.stream = null
     this.unsubscribe?.()
     this.unsubscribe = null
@@ -158,8 +174,44 @@ export class VoiceChat {
 
   setMuted(muted: boolean) {
     this.muted = muted
-    this.stream?.getAudioTracks().forEach((t) => (t.enabled = !muted))
+    for (const s of [this.mic, this.stream]) s?.getAudioTracks().forEach((t) => (t.enabled = !muted))
     void presence(this.roomId, { voice: true, muted }).catch(() => undefined)
+  }
+
+  /** Сменить шумоподавление на ходу: собеседникам подменяем дорожку без нового звонка. */
+  async setNoise(mode: NoiseMode) {
+    if (!this.mic) return mode
+    const applied = await this.applyNoise(mode)
+    const track = this.stream?.getAudioTracks()[0] ?? null
+    for (const p of this.peers.values()) {
+      const sender = p.pc.getSenders().find((s) => s.track?.kind === 'audio')
+      await sender?.replaceTrack(track).catch(() => undefined)
+    }
+    return applied
+  }
+
+  /** Собирает звук для отправки. Нейросеть не загрузилась — включаем встроенное шумоподавление браузера. */
+  private async applyNoise(mode: NoiseMode): Promise<NoiseMode> {
+    const mic = this.mic!
+    const track = mic.getAudioTracks()[0]
+    this.stopNoise?.()
+    this.stopNoise = null
+    let applied = mode
+    if (mode === 'strong' && this.ctx) {
+      try {
+        const { denoise } = await import('./noise')
+        const out = await denoise(this.ctx, mic)
+        this.stream = out.stream
+        this.stopNoise = out.stop
+      } catch {
+        applied = 'browser'
+      }
+    }
+    await track?.applyConstraints({ noiseSuppression: applied === 'browser' }).catch(() => undefined)
+    if (applied !== 'strong') this.stream = mic
+    this.stream?.getAudioTracks().forEach((t) => (t.enabled = !this.muted))
+    this.localAnalyser = this.analyse(this.stream!)
+    return applied
   }
 
   /** Список участников обновился: с ушедшими из голоса разрываем соединение. */

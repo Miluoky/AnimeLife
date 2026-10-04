@@ -422,6 +422,27 @@
 .people__actions {
   gap: 8px;
 }
+.people__actions {
+  flex-wrap: wrap;
+}
+.people__noise,
+.together__select {
+  min-height: 34px;
+  max-width: 100%;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.together__voices {
+  max-width: min(320px, 100%);
+}
+.together__select--on {
+  border-color: var(--accent);
+}
 .people__join {
   align-self: flex-start;
 }

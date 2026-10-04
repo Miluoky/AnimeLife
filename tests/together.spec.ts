@@ -1,4 +1,5 @@
 import { expect, test, type Page, type WebSocketRoute } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { mockServices } from './mocks'
 
@@ -179,4 +180,48 @@ test('вкладка «Вместе»: сеансы по расписанию в
   await page.goto('/together')
   await expect(page.getByRole('heading', { name: 'Скоро' })).toBeVisible()
   await expect(page.locator('.room-card--soon')).toContainText('через 3 ч')
+})
+
+test('плеер сайта в комнате: серия AnimeVost синхронизируется, ведущий выбирает озвучку', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  const push = await mockRoom(page, { ...baseRoom, source: 'trailer', videoId: 'pl-av-0' })
+  await page.route(/api\.animevost\.org\/v1\/search/, (route) =>
+    route.fulfill({ json: { state: { status: 'ok' }, data: [{ id: 8, title: 'Ковбой Бибоп / Cowboy Bebop [1-26 из 26]', year: '1998' }] } }),
+  )
+  await page.route(/api\.animevost\.org\/v1\/playlist/, (route) =>
+    route.fulfill({ json: [1, 2].map((n) => ({ name: `${n} серия`, hd: `http://video.animetop.info/720/${n}.mp4` })) }),
+  )
+  const body = readFileSync(clip)
+  // Как настоящий сервер с роликами: отдаёт куски по Range, иначе браузер не даст перемотать.
+  await page.route(/video\.animetop\.info\/.*/, (route) => {
+    const range = /bytes=(\d+)-(\d*)/.exec(route.request().headers().range ?? '')
+    if (!range) return route.fulfill({ contentType: 'video/webm', body })
+    const start = Number(range[1])
+    const end = range[2] ? Number(range[2]) : body.length - 1
+    return route.fulfill({
+      status: 206,
+      contentType: 'video/webm',
+      headers: { 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${body.length}` },
+      body: body.subarray(start, end + 1),
+    })
+  })
+  const stream = page.waitForRequest('https://video.animetop.info/720/1.mp4')
+  await page.goto(`/together/${CODE}`)
+  await stream
+  await expect(page.getByText(/Ведущий: Ведущий · AnimeVost/)).toBeVisible()
+  const picker = page.getByLabel('Плеер и озвучка')
+  await expect(picker).toHaveValue('pl-av-0')
+
+  await page.getByRole('button', { name: /Начать просмотр/ }).click()
+  await push('rooms', { ...baseRoom, source: 'trailer', videoId: 'pl-av-0', playing: true, position: 2, at: Date.now() })
+  await expect.poll(async () => (await video(page))?.paused, { timeout: 5000 }).toBe(false)
+  expect((await video(page))!.t).toBeGreaterThanOrEqual(1.5)
+
+  // Вторая серия по выбору из списка: в комнату уходит номер серии.
+  const control = page.waitForRequest((r) => r.url().includes('/functions/community/executions') && (r.postData() ?? '').includes('room-control'))
+  await page.getByLabel('Выбрать серию').selectOption('2')
+  const sent = JSON.parse(JSON.parse((await control).postData()!).body)
+  expect(sent).toMatchObject({ action: 'room-control', episode: 2, playing: false, position: 0 })
 })
