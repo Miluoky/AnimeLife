@@ -21,7 +21,7 @@ export function currentSeason(now = new Date()) {
  * Полок на главной много, а Shikimori пускает 5 запросов в секунду: полка грузится, только когда
  * до неё почти докрутили. До этого на её месте пустое место той же высоты, чтобы страница не прыгала.
  */
-function CatalogShelf(props: Parameters<typeof LoadedShelf>[0]) {
+export function CatalogShelf(props: Parameters<typeof LoadedShelf>[0]) {
   const box = useRef<HTMLDivElement>(null)
   const [near, setNear] = useState(false)
   useEffect(() => {

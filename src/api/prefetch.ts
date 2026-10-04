@@ -21,6 +21,7 @@ export const pageChunks = {
   random: () => import('../pages/Random'),
   top: () => import('../pages/Top'),
   changelog: () => import('../pages/Changelog'),
+  collections: () => import('../pages/Collections'),
 }
 
 const prefetched = new Set<string>()

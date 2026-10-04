@@ -18,6 +18,7 @@ export default function FooterLinks() {
       </nav>
       <nav className="footer-links" aria-label="Подборки">
         <Link to="/top">Топ-100 аниме</Link>
+        <Link to="/collections">Подборки</Link>
         <Link to="/random">Случайное аниме</Link>
         <Link to="/changelog">Что нового</Link>
         {GENRES.slice(0, 12).map((g) => (

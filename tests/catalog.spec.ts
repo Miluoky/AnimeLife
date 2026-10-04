@@ -76,3 +76,14 @@ test('каталог: «Скрыть добавленные» убирает т�
   await expect(page).toHaveURL(/hide=mine/)
   await expect.poll(() => last()?.get('exclude_ids')).toBe('21')
 })
+
+test('каталог: «Без жанров» исключает жанр, выбранные жанры в нём не предлагаются', async ({ page }) => {
+  const last = lastCatalogRequest(page)
+  await page.goto('/catalog?genre=4')
+  await openFilters(page)
+  await page.getByRole('button', { name: /Без жанров/ }).click()
+  await expect(page.getByRole('group', { name: 'Без жанров' }).getByRole('checkbox', { name: 'Комедия' })).toHaveCount(0)
+  await page.getByRole('group', { name: 'Без жанров' }).getByRole('checkbox', { name: 'Экшен' }).check()
+  await expect(page).toHaveURL(/nogenre=1/)
+  await expect.poll(() => last()?.get('genre')).toBe('4,!1')
+})

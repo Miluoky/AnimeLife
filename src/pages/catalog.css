@@ -151,3 +151,9 @@
     display: none;
   }
 }
+
+.catalog-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

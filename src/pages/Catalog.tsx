@@ -156,7 +156,8 @@ export default function Catalog() {
     kind: value('kind') || undefined,
     season: (part ? `${part}_${year}` : year) || undefined,
     score: Number(value('score')) || undefined,
-    genre: list('genre').join(',') || undefined,
+    // Shikimori исключает жанр, если перед id стоит «!»: «комедия без романтики» — genre=4,!22.
+    genre: [...list('genre'), ...list('nogenre').map((id) => `!${id}`)].join(',') || undefined,
     // У Shikimori несколько студий значат «все сразу», поэтому выбирается одна.
     studio: list('studio')[0],
     rating: value('age') || undefined,
@@ -170,8 +171,8 @@ export default function Catalog() {
 
   // На телефоне подборщики занимают весь первый экран: прячем их за кнопкой «Фильтры» со счётчиком.
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const setCount = ['kind', 'year', 'score', 'studio', 'age', 'hide'].filter((n) => params.has(n)).length + list('genre').length
-  const filtersSet = ['order', 'status', 'kind', 'year', 'part', 'score', 'genre', 'studio', 'age', 'hide'].some((n) => params.has(n))
+  const setCount = ['kind', 'year', 'score', 'studio', 'age', 'hide'].filter((n) => params.has(n)).length + list('genre').length + list('nogenre').length
+  const filtersSet = ['order', 'status', 'kind', 'year', 'part', 'score', 'genre', 'nogenre', 'studio', 'age', 'hide'].some((n) => params.has(n))
 
   return (
     <main className="container home">
@@ -183,9 +184,14 @@ export default function Catalog() {
               Сбросить поиск
             </button>
           ) : (
-            <Link to="/random" className="pill pill--link">
-              🎲 Что посмотреть?
-            </Link>
+            <div className="catalog-links">
+              <Link to="/collections" className="pill pill--link">
+                ✨ Подборки
+              </Link>
+              <Link to="/random" className="pill pill--link">
+                🎲 Что посмотреть?
+              </Link>
+            </div>
           )}
         </div>
 
@@ -216,6 +222,14 @@ export default function Catalog() {
             options={genres.value?.data ?? []}
             value={list('genre')}
             onChange={(ids) => change('genre', ids.join(','))}
+            searchable
+          />
+          <MultiPick
+            label="Без жанров"
+            any="Не исключать"
+            options={(genres.value?.data ?? []).filter((g) => !list('genre').includes(String(g.id)))}
+            value={list('nogenre')}
+            onChange={(ids) => change('nogenre', ids.join(','))}
             searchable
           />
           <Filter label="Тип" name="kind" value={value('kind')} any="Любой" options={kinds} onChange={change} />
