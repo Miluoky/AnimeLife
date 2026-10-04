@@ -6,6 +6,8 @@
  * Список серий большой и приходит без сжатия, поэтому на animelife.top он идёт через свой Worker (worker/yummyProxy.js).
  */
 
+import type { SkipSpan } from './anilibria'
+
 const API = 'https://api.yani.tv'
 const host = globalThis.location?.hostname
 const VIDEOS = host === 'animelife.top' || host === 'www.animelife.top' ? `${location.origin}/api/yummy/videos` : `${API}/anime`
@@ -16,6 +18,14 @@ export interface YummyPlayer {
   name: string
   /** номер серии → адрес iframe */
   urls: Map<number, string>
+  /** номер серии → размеченные опенинг и эндинг */
+  skips: Map<number, YummySkips>
+}
+
+/** Опенинг и эндинг серии и длина видео, для которого они размечены: у другого файла той же серии разметка не подойдёт. */
+export interface YummySkips {
+  spans: SkipSpan[]
+  duration: number
 }
 
 export interface YummyVoice {
@@ -35,6 +45,8 @@ interface VideoItem {
   number: string
   iframe_url: string
   data: { player: string; dubbing: string }
+  skips?: Partial<Record<SkipSpan['kind'], { time: number; length: number } | null>> | null
+  duration?: number
 }
 
 // Kodik и CVH проверены на нашем сайте; остальные — запасные.
@@ -42,6 +54,15 @@ const PLAYER_ORDER = ['Kodik', 'CVH', 'Alloha', 'Aksor', 'Sibnet']
 const rank = (name: string) => {
   const i = PLAYER_ORDER.indexOf(name)
   return i < 0 ? PLAYER_ORDER.length : i
+}
+
+function skipsOf(v: VideoItem): YummySkips | null {
+  const spans: SkipSpan[] = []
+  for (const kind of ['opening', 'ending'] as const) {
+    const s = v.skips?.[kind]
+    if (s && Number.isFinite(s.time) && s.length >= 5) spans.push({ kind, start: s.time, stop: s.time + s.length })
+  }
+  return spans.length && v.duration && v.duration > 0 ? { spans, duration: v.duration } : null
 }
 
 const ALIASES: Record<string, string> = { cr: 'crunchyroll' }
@@ -89,7 +110,7 @@ async function load(shikimoriId: number, titles: (string | undefined)[]): Promis
 
 /** Плоский список «серия × озвучка × плеер» → озвучки с плеерами. Порядок озвучек — по числу серий. */
 export function parseVideos(list: VideoItem[]): YummyVoice[] {
-  const voices = new Map<string, { title: string; kind: YummyVoice['kind']; players: Map<string, Map<number, string>> }>()
+  const voices = new Map<string, { title: string; kind: YummyVoice['kind']; players: Map<string, YummyPlayer> }>()
   for (const v of list) {
     const n = Number(v.number)
     if (!Number.isInteger(n) || n < 1 || !v.iframe_url) continue
@@ -101,13 +122,16 @@ export function parseVideos(list: VideoItem[]): YummyVoice[] {
     let voice = voices.get(key)
     if (!voice) voices.set(key, (voice = { title, kind, players: new Map() }))
     const name = v.data.player.replace(/^Плеер\s*/, '')
-    let urls = voice.players.get(name)
-    if (!urls) voice.players.set(name, (urls = new Map()))
-    if (!urls.has(n)) urls.set(n, url)
+    let player = voice.players.get(name)
+    if (!player) voice.players.set(name, (player = { name, urls: new Map(), skips: new Map() }))
+    if (player.urls.has(n)) continue
+    player.urls.set(n, url)
+    const skips = skipsOf(v)
+    if (skips) player.skips.set(n, skips)
   }
   return [...voices.values()]
     .map(({ title, kind, players }) => {
-      const list = [...players].map(([name, urls]) => ({ name, urls })).sort((a, b) => rank(a.name) - rank(b.name))
+      const list = [...players.values()].sort((a, b) => rank(a.name) - rank(b.name))
       return { title, kind, players: list, episodes: Math.max(...list.map((p) => p.urls.size)) }
     })
     .sort((a, b) => b.episodes - a.episodes)

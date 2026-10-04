@@ -539,18 +539,19 @@ test('плеер: широкий экран на компьютере — вид
 })
 
 /** Ответы YummyAnime для «Ковбоя Бибопа»: [озвучка, плеер, серии]. */
-async function mockYummy(page: Page, videos: [string, string, number[]][]) {
+async function mockYummy(page: Page, videos: [string, string, number[], object?][]) {
   await page.route(/api\.yani\.tv\/search/, (route) =>
     route.fulfill({ json: { response: [{ anime_id: 7, remote_ids: { shikimori_id: 999 } }, { anime_id: 8, remote_ids: { shikimori_id: 1 } }] } }),
   )
   await page.route(/api\.yani\.tv\/anime\/8\/videos/, (route) =>
     route.fulfill({
       json: {
-        response: videos.flatMap(([dubbing, player, numbers]) =>
+        response: videos.flatMap(([dubbing, player, numbers, extra]) =>
           numbers.map((n) => ({
             number: String(n),
             iframe_url: `//${player.toLowerCase()}.example/${encodeURIComponent(dubbing)}/${n}`,
             data: { player: `Плеер ${player}`, dubbing },
+            ...extra,
           })),
         ),
       },
@@ -630,4 +631,44 @@ test('плеер: «Пропускать филлеры» — «Следующа
   await page.goto('/watch/1/1')
   await page.getByRole('button', { name: 'Следующая серия' }).click()
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
+})
+
+/** AnimeVost с одной серией-заглушкой (ролик на 8 секунд) для «Ковбоя Бибопа». */
+async function mockAnimeVost(page: Page) {
+  await page.route(/api\.animevost\.org\/v1\/search/, (route) =>
+    route.fulfill({ json: { state: { status: 'ok' }, data: [{ id: 8, title: 'Ковбой Бибоп / Cowboy Bebop [1-26 из 26]', year: '1998' }] } }),
+  )
+  await page.route(/api\.animevost\.org\/v1\/playlist/, (route) =>
+    route.fulfill({ json: [{ name: '1 серия', hd: 'http://video.animetop.info/720/1.mp4' }] }),
+  )
+  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
+  await page.route(/video\.animetop\.info\/.*/, (route) => route.fulfill({ contentType: 'video/webm', body: clip }))
+}
+
+test('плеер: в AnimeVost опенинг пропускается по разметке YummyAnime для того же файла', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await mockAnimeVost(page)
+  await mockYummy(page, [['Озвучка AnimeVost', 'Kodik', [1], { duration: 8, skips: { opening: { time: 0, length: 5 }, ending: null } }]])
+  await page.goto('/watch/1/1')
+  await expect(page.getByRole('button', { name: /^AnimeVost/ })).toHaveAttribute('aria-pressed', 'true')
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+  await expect(page.locator('.vp-seek__mark')).toHaveCount(1)
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.pause()
+    v.dispatchEvent(new Event('timeupdate'))
+  })
+  await expect(page.getByRole('button', { name: 'Пропустить опенинг' })).toBeVisible()
+})
+
+test('плеер: разметку YummyAnime для файла другой длины не используем', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await mockAnimeVost(page)
+  await mockYummy(page, [['Озвучка AnimeVost', 'Kodik', [1], { duration: 1420, skips: { opening: { time: 0, length: 5 } } }]])
+  await page.goto('/watch/1/1')
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+  await video.evaluate((v: HTMLVideoElement) => v.pause())
+  await expect(page.locator('.vp-seek__mark')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Пропустить опенинг' })).toHaveCount(0)
 })

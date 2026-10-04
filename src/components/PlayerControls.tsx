@@ -23,6 +23,8 @@ interface Props {
   nextLabel?: string
   /** размеченные опенинг и эндинг: кнопка «Пропустить», метки на полосе и автопропуск */
   skips?: SkipSpan[]
+  /** длина видео, под которое размечены отрезки (разметка со стороны); у файла другой длины их не показываем */
+  skipsFor?: number
 }
 
 /** Пропускать опенинг и эндинг самим: настройка зрителя, живёт в браузере. */
@@ -73,7 +75,7 @@ function bufferedEnd(v: HTMLVideoElement) {
   return 0
 }
 
-export default function PlayerControls({ video, frame, loading, qualities, quality, onQuality, onNext, nextLabel, skips }: Props) {
+export default function PlayerControls({ video, frame, loading, qualities, quality, onQuality, onNext, nextLabel, skips: marked, skipsFor }: Props) {
   // Состояние берём прямо из <video>, а события лишь просят перерисовать кнопки.
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [active, setActive] = useState(true)
@@ -95,6 +97,8 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
   const v = video.current
   const duration = v && Number.isFinite(v.duration) ? v.duration : 0
   const time = v?.currentTime ?? 0
+  // Разметку со стороны берём, только если длина видео совпала с точностью до пары секунд: значит, это тот же файл.
+  const skips = !skipsFor ? marked : duration && Math.abs(duration - skipsFor) <= 3 ? marked : undefined
   const paused = v ? v.paused : true
   // Поток ещё не отдал даже длительность: показываем загрузку вместо кнопки.
   const notReady = loading || !v || v.readyState < 1

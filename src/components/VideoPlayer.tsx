@@ -25,6 +25,7 @@ import {
   type AniLibriaQuality,
 } from '../api/anilibria'
 import { findAnimeVost, type AnimeVostEpisode } from '../api/animevost'
+import type { YummySkips } from '../api/yummy'
 import { anixartEpisodes } from '../api/anixart'
 import PlayerControls, { AutoNext, autoNextStore, formatTime } from './PlayerControls'
 import { getPosition, savePosition } from '../data/positions'
@@ -81,6 +82,8 @@ export interface VideoPlayerProps {
   anixart?: { release: number; type: number; title: string }
   /** Готовый плеер со стороны (Kodik, CVH, Alloha… из YummyAnime): адрес серии и подпись. Без url — серии в нём нет. */
   embed?: { url?: string; player: string; voice: string }
+  /** опенинг и эндинг серии в той же озвучке из YummyAnime: пригодятся своему плееру, если у источника своей разметки нет */
+  skips?: YummySkips
 }
 
 /* ──────────────── Конфигурация табов ──────────────── */
@@ -548,6 +551,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   )
   const alAvailable = alEp ? qualities.filter((q) => alEp[`hls_${q}` as const]) : []
   const ownEpisodes = provider === 'animevost' ? avEpisodes : alRelease?.episodes
+  const ownSkips = provider === 'anilibria' && alEp ? episodeSkips(alEp) : []
   const hasNext = !!onEpisodeChange && episode < totalEpisodes && !!ownEpisodes?.some((e) => e.ordinal === episode + 1)
   const visibleTabs = tabs.filter((t) => t.available)
   const tabIndex = visibleTabs.findIndex((t) => t.id === provider)
@@ -596,7 +600,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             onQuality={setAlQuality}
             onNext={hasNext ? () => onEpisodeChange?.(episode + 1) : undefined}
             nextLabel={`${episode + 1} серия`}
-            skips={provider === 'anilibria' && alEp ? episodeSkips(alEp) : undefined}
+            skips={ownSkips.length ? ownSkips : props.skips?.spans}
+            skipsFor={ownSkips.length ? undefined : props.skips?.duration}
           />
         )}
 

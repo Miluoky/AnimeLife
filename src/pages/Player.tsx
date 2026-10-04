@@ -153,6 +153,7 @@ export default function Player() {
         available={[...new Set(voices.map((v) => v.provider))]}
         kodikLink={voice?.kodikLink}
         anixart={voice?.anixart}
+        skips={voice?.yummy?.map((p) => p.skips.get(current)).find(Boolean)}
         embed={host?.player && voice ? { url: host.player.urls.get(current), player: host.player.name, voice: voice.title } : undefined}
         onProviderChange={(p) => {
           const next = voices.find((v) => v.provider === p)
