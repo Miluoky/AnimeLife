@@ -17,6 +17,7 @@ export default function FooterLinks() {
         ))}
       </nav>
       <nav className="footer-links" aria-label="Подборки">
+        <Link to="/random">Случайное аниме</Link>
         {GENRES.slice(0, 12).map((g) => (
           <Link key={g.slug} to={`/genre/${g.slug}`}>
             {g.name}

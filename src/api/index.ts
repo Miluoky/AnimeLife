@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { demoCatalog, demoGenres, getDemoAnime, type Anime } from '../data/catalog'
+import type { Anime } from '../data/catalog'
+
+// Демо-каталог нужен редко (Shikimori не ответил), поэтому лежит в отдельной части.
+const demo = () => import('../data/demo')
 import {
   fetchAnime,
   fetchCharacters,
@@ -45,8 +48,9 @@ export interface Loaded<T> {
   demo: boolean
 }
 
-function demoList(q: CatalogQuery): Anime[] {
+async function demoList(q: CatalogQuery): Promise<Anime[]> {
   if ((q.page ?? 1) > 1) return []
+  const { demoCatalog, demoGenres } = await demo()
   const genre = demoGenres.find((g) => g.id === q.genre)?.title
   const search = q.search?.toLowerCase()
   return demoCatalog.filter(
@@ -65,12 +69,12 @@ export async function loadCatalog(q: CatalogQuery): Promise<Loaded<Anime[]>> {
     return { data: await fetchCatalog(q), demo: false }
   } catch (e) {
     console.warn('Каталог Shikimori недоступен, показываю демо-данные', e)
-    return { data: demoList(q), demo: true }
+    return { data: await demoList(q), demo: true }
   }
 }
 
 export async function loadAnime(id: string): Promise<Loaded<Anime | undefined>> {
-  if (isDemoId(id)) return { data: getDemoAnime(id), demo: true }
+  if (isDemoId(id)) return { data: (await demo()).getDemoAnime(id), demo: true }
   try {
     return { data: await fetchAnime(id), demo: false }
   } catch (e) {
@@ -83,7 +87,7 @@ export async function loadGenres(): Promise<Loaded<Genre[]>> {
   try {
     return { data: await fetchGenres(), demo: false }
   } catch {
-    return { data: demoGenres, demo: true }
+    return { data: (await demo()).demoGenres, demo: true }
   }
 }
 
@@ -91,7 +95,7 @@ export async function loadAllGenres(): Promise<Loaded<Genre[]>> {
   try {
     return { data: await fetchAllGenres(), demo: false }
   } catch {
-    return { data: demoGenres, demo: true }
+    return { data: (await demo()).demoGenres, demo: true }
   }
 }
 
@@ -167,7 +171,9 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]): AsyncState
 export async function loadStatsInfo(ids: string[]): Promise<Map<string, StatsInfo>> {
   const real = ids.filter((id) => !isDemoId(id))
   const out = await fetchStatsInfo(real).catch(() => new Map<string, StatsInfo>())
-  for (const id of ids.filter(isDemoId)) {
+  const demoIds = ids.filter(isDemoId)
+  const { getDemoAnime } = demoIds.length ? await demo() : { getDemoAnime: () => undefined }
+  for (const id of demoIds) {
     const a = getDemoAnime(id)
     if (a)
       out.set(id, {

@@ -21,6 +21,7 @@ const TogetherHome = lazy(pageChunks.togetherHome)
 const PublicProfile = lazy(pageChunks.publicProfile)
 const Legal = lazy(pageChunks.legal)
 const CharacterPage = lazy(pageChunks.character)
+const Random = lazy(pageChunks.random)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="together/:code" element={<TogetherRoute />} />
           <Route path="catalog" element={<Catalog />} />
           <Route path="schedule" element={<Schedule />} />
+          <Route path="random" element={<Random />} />
           <Route path="account" element={<Account />} />
           <Route path="account/recovery" element={<PasswordRecovery />} />
           <Route path="auth/callback" element={<AuthCallback />} />

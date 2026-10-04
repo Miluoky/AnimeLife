@@ -18,6 +18,7 @@ export const pageChunks = {
   publicProfile: () => import('../pages/PublicProfile'),
   legal: () => import('../pages/Legal'),
   character: () => import('../pages/CharacterPage'),
+  random: () => import('../pages/Random'),
 }
 
 const prefetched = new Set<string>()

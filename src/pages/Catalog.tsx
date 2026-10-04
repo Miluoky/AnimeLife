@@ -174,10 +174,14 @@ export default function Catalog() {
       <section className="stack">
         <div className="section-head">
           <h1 className="page-title">{search ? `Поиск: «${search}»` : CATALOG.h1}</h1>
-          {search && (
+          {search ? (
             <button type="button" className="pill" onClick={() => change('q', '')}>
               Сбросить поиск
             </button>
+          ) : (
+            <Link to="/random" className="pill pill--link">
+              🎲 Что посмотреть?
+            </Link>
           )}
         </div>
 
