@@ -160,3 +160,26 @@ test('тайтл: сколько времени займёт весь сериа
   await page.reload()
   await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин · осталось 8 ч 24 мин')
 })
+
+test('тайтл: в порядке просмотра у длинной франшизы видно, чем части отличаются', async ({ page }) => {
+  const node = (id: number, year: number, kind: string, name: string) => ({
+    id, date: year * 1000, name, image_url: `/system/animes/x96/${id}.jpg`, url: `/animes/${id}`, year, kind, weight: 1,
+  })
+  await page.route(/\/api\/(shiki\/)?animes\/1\/franchise/, (route) =>
+    route.fulfill({
+      json: {
+        current_id: 1,
+        links: [],
+        nodes: [
+          node(1, 2023, 'TV Сериал', 'Провожающая в последний путь Фрирен'),
+          node(2, 2023, 'ONA', 'Провожающая в последний путь Фрирен: Магия'),
+          node(3, 2026, 'TV Сериал', 'Провожающая в последний путь Фрирен 2'),
+        ],
+      },
+    }),
+  )
+  await page.goto('/anime/1')
+  const titles = page.locator('.order-card__title')
+  await expect(titles).toHaveText(['Провожающая в последний путь Фрирен', '…Фрирен: Магия', '…Фрирен 2'])
+  await expect(titles.nth(2)).toHaveAttribute('title', 'Провожающая в последний путь Фрирен 2')
+})

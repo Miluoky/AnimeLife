@@ -14,6 +14,19 @@ const statusLabel: Partial<Record<ListStatus, string>> = {
 }
 
 /**
+ * У длинных франшиз все части начинаются с одного названия, и в карточке видно только его, а не то,
+ * чем части отличаются. Общее начало сокращаем до последнего слова: «…Фрирен 2», «…Фрирен: Золотая земля».
+ */
+export function shortTitles(titles: string[]): string[] {
+  const base = [...titles]
+    .sort((a, b) => a.length - b.length)
+    .find((t) => t.split(' ').length >= 3 && titles.filter((o) => o !== t && o.startsWith(t)).length >= 1)
+  if (!base) return titles
+  const tail = base.slice(base.lastIndexOf(' ') + 1)
+  return titles.map((t) => (t !== base && t.startsWith(base) ? `…${tail}${t.slice(base.length)}` : t))
+}
+
+/**
  * «Порядок просмотра»: вся франшиза по дате выхода, с номерами, отметками из «Моего списка» и текущим тайтлом.
  * По умолчанию только сериалы, фильмы и ONA; OVA и спецвыпуски по кнопке.
  */
@@ -40,6 +53,7 @@ export default function WatchOrder({ animeId }: { animeId: string }) {
   const status = new Map(list.map((e) => [e.anime.id, e.status]))
   const done = shown.filter((e) => status.get(e.id) === 'completed').length
   const extra = entries.length - main.length
+  const titles = shortTitles(shown.map((e) => e.title))
 
   return (
     <Shelf
@@ -74,7 +88,9 @@ export default function WatchOrder({ animeId }: { animeId: string }) {
               </span>
             </span>
             <span className="order-card__body">
-              <span className="order-card__title">{e.title}</span>
+              <span className="order-card__title" title={e.title}>
+                {titles[i]}
+              </span>
               <span className="muted order-card__meta">{[e.year, e.kind].filter(Boolean).join(' · ')}</span>
               {current ? (
                 <span className="order-card__tag order-card__tag--here">Вы здесь</span>
