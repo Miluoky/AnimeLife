@@ -5,6 +5,7 @@
  *   1. Kodik    — iframe-балансер, основной для СНГ.
  *   2. Alloha   — iframe-балансер, резервный.
  *   3. AniLibria — HLS-поток через Hls.js со своими кнопками (PlayerControls).
+ *   4. AnimeVost — прямые mp4 в том же своём плеере.
  *
  * Провайдер переключается табами над видео. При смене текущий поток
  * останавливается, контейнер динамически монтирует нужный плеер.
@@ -21,6 +22,7 @@ import {
   type AniLibriaRelease,
   type AniLibriaQuality,
 } from '../api/anilibria'
+import { findAnimeVost, type AnimeVostEpisode } from '../api/animevost'
 import PlayerControls from './PlayerControls'
 import './player.css'
 import {
@@ -32,7 +34,7 @@ import { kodikTranslationUrl } from '../api/kodik'
 
 /* ──────────────── Типы ──────────────── */
 
-export type Provider = 'kodik' | 'alloha' | 'anilibria'
+export type Provider = 'kodik' | 'alloha' | 'anilibria' | 'animevost'
 
 export interface VideoPlayerProps {
   /** Название аниме для поиска в AniLibria и Kodik. */
@@ -41,6 +43,8 @@ export interface VideoPlayerProps {
   originalTitle?: string
   /** Английское название — последний вариант поиска в AniLibria. */
   englishTitle?: string
+  /** Год выхода: AnimeVost сверяем по названию и году. */
+  year?: number
   /** Shikimori ID — основной идентификатор для Kodik. */
   shikimoriId?: string
   /** Kinopoisk ID — для Kodik и Alloha. */
@@ -63,6 +67,8 @@ export interface VideoPlayerProps {
    */
   provider?: Provider
   onProviderChange?: (provider: Provider) => void
+  /** Источники, в которых страница точно знает этот тайтл: на них предлагаем переключиться. */
+  available?: Provider[]
   /** Выбранная озвучка Kodik: ссылка на её плеер из API. Без неё Kodik ищет тайтл сам. */
   kodikLink?: string
 }
@@ -81,11 +87,14 @@ function buildTabs(): ProviderTab[] {
     { id: 'alloha', label: 'Alloha', available: isBalancerAvailable('alloha') },
     // AniLibria всегда доступна — бесплатный публичный API (в новых потоках бывает реклама).
     { id: 'anilibria', label: 'AniLibria', available: true },
+    // AnimeVost тоже бесплатный и открытый: прямые mp4 без ключа.
+    { id: 'animevost', label: 'AnimeVost', available: true },
   ]
 }
 
 const NO_SOURCES = 'Серий этого аниме пока нет в доступных источниках'
-const PLAY_ERROR = 'Не удалось воспроизвести серию из AniLibria'
+const PLAY_ERROR = 'Не удалось воспроизвести серию'
+const SOURCE_NAME: Record<Provider, string> = { kodik: 'Kodik', alloha: 'Alloha', anilibria: 'AniLibria', animevost: 'AnimeVost' }
 
 // Выбранный источник помним до конца сеанса: при переходе к другой серии плеер создаётся заново.
 const PROVIDER_KEY = 'player-provider'
@@ -109,7 +118,7 @@ function saveProvider(id: Provider) {
 /* ──────────────── Компонент ──────────────── */
 
 export default function VideoPlayer(props: VideoPlayerProps) {
-  const { title, originalTitle, englishTitle, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink } = props
+  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink } = props
   const controlled = props.provider !== undefined
 
   const tabs = buildTabs()
@@ -133,6 +142,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [alSearching, setAlSearching] = useState(false)
   // Ошибка воспроизведения текущего потока (сбрасывается при смене потока).
   const [streamError, setStreamError] = useState<string | null>(null)
+  // ─── AnimeVost state ───
+  const [avEpisodes, setAvEpisodes] = useState<AnimeVostEpisode[] | null>(null)
+  const [avSearching, setAvSearching] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   // Позиция, с которой продолжить после смены качества (поток меняется, а серия та же).
@@ -182,10 +194,41 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     return () => { cancelled = true }
   }, [provider, shikimoriId, title, originalTitle, englishTitle])
 
+  /* ─── Поиск релиза AnimeVost по названию и году ─── */
+  useEffect(() => {
+    if (provider !== 'animevost') return
+    let cancelled = false
+    setAvSearching(true)
+    setError(null)
+    setAvEpisodes(null)
+    findAnimeVost(shikimoriId ?? title, { title, originalTitle, year })
+      .then((list) => {
+        if (cancelled) return
+        setAvEpisodes(list)
+        if (!list) setError('Этого аниме нет в AnimeVost')
+      })
+      .catch(() => !cancelled && setError('Не удалось подключиться к AnimeVost'))
+      .finally(() => {
+        if (!cancelled) {
+          setAvSearching(false)
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [provider, shikimoriId, title, originalTitle, year])
+
   // Серия и поток AniLibria для текущей страницы: без подмены на другую серию.
   const alEp = alRelease?.episodes.find((e) => e.ordinal === episode)
   const alStream = provider === 'anilibria' && alEp ? episodeStream(alEp, alQuality) : null
-  const src = alStream?.url
+  // У AnimeVost два качества: 720p (hd) и 480p (std).
+  const avEp = avEpisodes?.find((e) => e.ordinal === episode)
+  const avAvailable: AniLibriaQuality[] = avEp ? [...(avEp.hd ? (['720'] as const) : []), ...(avEp.std ? (['480'] as const) : [])] : []
+  const avQuality = avAvailable.includes(alQuality) ? alQuality : avAvailable[0]
+  const avStream = provider === 'animevost' && avEp && avQuality ? { quality: avQuality, url: (avQuality === '720' ? avEp.hd : avEp.std)! } : null
+  const stream = alStream ?? avStream
+  const src = stream?.url
 
   // Позиция переносится только при смене качества: новая серия всегда начинается с начала.
   // Эффект объявлен раньше потока, поэтому сбрасывает позицию до того, как поток её прочитает.
@@ -211,6 +254,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       if (resumeAt.current) video.currentTime = resumeAt.current
     }
     const onError = () => setStreamError(PLAY_ERROR)
+    // Прямой mp4 (AnimeVost) браузер играет сам.
+    if (/\.mp4(\?|$)/.test(src)) {
+      video.src = src
+      video.addEventListener('loadedmetadata', onLoaded, { once: true })
+      video.addEventListener('error', onError, { once: true })
+    } else
     // HLS.js нужен только для браузеров без нативной поддержки HLS (Chrome, Firefox).
     // Safari поддерживает HLS нативно.
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -298,7 +347,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     )
   }
 
-  function renderAniLibria() {
+  function renderOwn() {
     if (!src) return null
     // Видео остаётся в DOM и при ошибке потока: эффект HLS привязан к нему.
     return <video ref={videoRef} className="player-video" playsInline autoPlay hidden={!!streamError} />
@@ -314,24 +363,32 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     if (provider === 'alloha' && !allohaEmbedUrl({ kinopoiskId, imdbId, episode })) {
       return 'Alloha: токен не настроен или нет Kinopoisk/IMDb ID'
     }
+    if (provider === 'animevost') {
+      if (avSearching) return null
+      if (error) return error
+      if (!avEpisodes) return null
+      if (!avEp) return `Серии ${episode} пока нет в AnimeVost`
+      return streamError && `${streamError} из ${SOURCE_NAME[provider]}`
+    }
     if (provider !== 'anilibria' || alSearching) return null
     if (error) return error
     if (!alRelease) return null
     if (!alEp) return `Серии ${episode} пока нет в AniLibria`
     if (!alStream) return 'Нет доступного потока для этой серии'
-    return streamError
+    return streamError && `${streamError} из ${SOURCE_NAME[provider]}`
   }
 
   const unavailable = unavailableReason()
   // Кнопка смены источника — только когда переключаться есть куда.
-  const other = tabs.find((t) => t.available && t.id !== provider)
+  const other = tabs.find((t) => t.available && t.id !== provider && (!props.available || props.available.includes(t.id)))
   const switchButton = other && (
     <button type="button" className="btn btn--ghost btn--small" onClick={() => setProvider(other.id)}>
       Попробовать другой источник
     </button>
   )
   const alAvailable = alEp ? qualities.filter((q) => alEp[`hls_${q}` as const]) : []
-  const hasNext = !!onEpisodeChange && episode < totalEpisodes && !!alRelease?.episodes.some((e) => e.ordinal === episode + 1)
+  const ownEpisodes = provider === 'animevost' ? avEpisodes : alRelease?.episodes
+  const hasNext = !!onEpisodeChange && episode < totalEpisodes && !!ownEpisodes?.some((e) => e.ordinal === episode + 1)
   const visibleTabs = tabs.filter((t) => t.available)
   const tabIndex = visibleTabs.findIndex((t) => t.id === provider)
 
@@ -366,18 +423,18 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
         {provider === 'kodik' && renderKodik()}
         {provider === 'alloha' && renderAlloha()}
-        {provider === 'anilibria' && renderAniLibria()}
-        {provider === 'anilibria' && alStream && !unavailable && (
+        {(provider === 'anilibria' || provider === 'animevost') && renderOwn()}
+        {stream && !unavailable && (
           <PlayerControls
             video={videoRef}
             frame={frameRef}
             loading={loading}
-            qualities={alAvailable}
-            quality={alStream.quality}
+            qualities={provider === 'animevost' ? avAvailable : alAvailable}
+            quality={stream.quality}
             onQuality={setAlQuality}
             onNext={hasNext ? () => onEpisodeChange?.(episode + 1) : undefined}
             nextLabel={`${episode + 1} серия`}
-            skips={alEp ? episodeSkips(alEp) : undefined}
+            skips={provider === 'anilibria' && alEp ? episodeSkips(alEp) : undefined}
           />
         )}
 

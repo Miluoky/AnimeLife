@@ -369,3 +369,36 @@ test('последняя серия: «Дальше по порядку» вед
   await page.goto('/watch/1/25')
   await expect(page.getByRole('complementary', { name: 'Следующая часть' })).toHaveCount(0)
 })
+
+test('плеер: нет в AniLibria, но есть в AnimeVost — включается AnimeVost в 720p по https', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  const searches: string[] = []
+  await page.route(/api\.animevost\.org\/v1\/search/, (route) => {
+    searches.push(new URLSearchParams(route.request().postData() ?? '').get('name') ?? '')
+    return route.fulfill({
+      json: {
+        state: { status: 'ok' },
+        data: [
+          { id: 7, title: 'Ковбой Бибоп: Фильм / Cowboy Bebop: Tengoku no Tobira [1 из 1]', year: '2001' },
+          { id: 8, title: 'Ковбой Бибоп / Cowboy Bebop [1-26 из 26]', year: '1998' },
+        ],
+      },
+    })
+  })
+  await page.route(/api\.animevost\.org\/v1\/playlist/, (route) => {
+    expect(new URLSearchParams(route.request().postData() ?? '').get('id')).toBe('8')
+    return route.fulfill({
+      json: [2, 1, 3].map((n) => ({ name: `${n} серия`, hd: `http://video.animetop.info/720/${n}.mp4`, std: `http://video.animetop.info/${n}.mp4` })),
+    })
+  })
+  await page.route(/video\.animetop\.info\/.*/, () => {})
+  const stream = page.waitForRequest('https://video.animetop.info/720/2.mp4')
+  await page.goto('/watch/1/2')
+  await stream
+  expect(searches[0]).toBe('Ковбой Бибоп')
+  await expect(page.getByRole('button', { name: /^AnimeVost/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: /^AnimeVost/ })).toContainText('3 эп.')
+  // AniLibria без релиза в списке не показываем.
+  await expect(page.getByRole('button', { name: /^AniLibria/ })).toHaveCount(0)
+  await expect(page.getByText(/вот трейлер/)).toHaveCount(0)
+})

@@ -36,5 +36,7 @@ export async function mockServices(page: Page) {
   await page.route(/challenges\.cloudflare\.com\/.*/, (route) => route.fulfill({ status: 204, body: '' }))
   // AniLibria по умолчанию ничего не находит (плеер показывает трейлер), трейлер YouTube — пустая страница.
   await page.route(/anilibria\.top\/api\/.*/, (route) => route.fulfill({ json: [] }))
+  // AnimeVost по умолчанию тоже ничего не находит.
+  await page.route(/api\.animevost\.org\/.*/, (route) => route.fulfill({ json: { state: { status: 'ok' } } }))
   await page.route(/youtube\.com\/embed\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Трейлер</title>' }))
 }
