@@ -34,3 +34,25 @@ test('расписание: тайтлы из моего списка отмеч
   await page.getByRole('button', { name: 'Все онгоинги' }).click()
   await expect(page.locator('.schedule-row')).toHaveCount(3)
 })
+
+test('расписание: вышедшие сегодня свёрнуты, у ближайшей серии отсчёт, дни недели наверху', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-04T15:00:00') })
+  const at = (h: number, m = 0) => new Date(2026, 9, 4, h, m).toISOString()
+  const calendar = [
+    ...[6, 7, 8, 9].map((h, i) => ({ next_episode: 1, next_episode_at: at(h), duration: 24, anime: animes[i] })),
+    { next_episode: 5, next_episode_at: at(16, 30), duration: 24, anime: animes[4] },
+    { next_episode: 7, next_episode_at: new Date(2026, 9, 5, 10).toISOString(), duration: 24, anime: animes[5] },
+  ]
+  await page.route(/\/api\/(shiki\/)?calendar/, (route) => route.fulfill({ json: calendar }))
+  await page.goto('/schedule')
+
+  const today = page.locator('.schedule-day').first()
+  await expect(today.locator('.schedule-row')).toHaveCount(3)
+  await expect(today.locator('.schedule-row__soon')).toHaveText('через 1 ч 30 мин')
+  await today.getByRole('button', { name: 'Уже вышли сегодня: 4 · показать все' }).click()
+  await expect(today.locator('.schedule-row')).toHaveCount(5)
+
+  const chips = page.getByRole('navigation', { name: 'Дни недели' }).locator('.pill')
+  await expect(chips).toHaveCount(2)
+  await expect(chips.first()).toContainText('Сегодня')
+})

@@ -107,3 +107,51 @@
 .schedule-row--out .schedule-row__time {
   color: var(--muted);
 }
+
+/* Дни недели наверху: быстрый переход к нужному дню, особенно на телефоне. */
+.schedule-days {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+}
+.schedule-days .pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: capitalize;
+}
+.schedule-day {
+  scroll-margin-top: 84px;
+}
+/* Кнопка «Уже вышли сегодня»: ближайшие серии остаются наверху. */
+.schedule-more {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.schedule-more:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.schedule-row__soon {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0d0e13;
+  background: var(--accent);
+}
