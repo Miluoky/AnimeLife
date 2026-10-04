@@ -146,3 +146,17 @@ test('тайтл: озвучки и субтитры, длинный списо�
   const subs = page.locator('.voices', { has: page.getByRole('heading', { name: /Субтитры/ }) })
   await expect(subs.locator('li')).toHaveText(["Dragon'Drop", 'Max Skuratov', 'Сергей Светличный', 'Suzaku', 'Faddeich', 'Netflix'])
 })
+
+test('тайтл: сколько времени займёт весь сериал и сколько осталось', async ({ page }) => {
+  await page.goto('/anime/1')
+  const facts = page.locator('.fact-pills')
+  await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин')
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'anime.history.v1',
+      JSON.stringify([{ animeId: '1', title: 'Ковбой Бибоп', posterFill: '#222', episode: 6, totalEpisodes: 26, updatedAt: Date.now() }]),
+    ),
+  )
+  await page.reload()
+  await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин · осталось 8 ч 24 мин')
+})

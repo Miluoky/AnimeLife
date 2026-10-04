@@ -31,6 +31,13 @@ function votesLabel(n: number) {
   return `${n.toLocaleString('ru')} ${word === 'one' ? 'оценка' : word === 'few' ? 'оценки' : 'оценок'}`
 }
 
+/** «9 ч 50 мин», «45 мин», «2 ч». */
+function hoursLabel(total: number) {
+  const h = Math.floor(total / 60)
+  const m = Math.round(total % 60)
+  return [h && `${h} ч`, m && `${m} мин`].filter(Boolean).join(' ') || '0 мин'
+}
+
 const VOICES_SHOWN = 6
 
 /** Кто озвучил тайтл или перевёл субтитрами: первые несколько, остальные по кнопке. */
@@ -129,6 +136,13 @@ export default function TitlePage() {
   const to = Math.min(total, from + PAGE_SIZE - 1)
   const episodes = Array.from({ length: to - from + 1 }, (_, i) => from + i)
   const minutes = anime.episodeMinutes ? `${anime.episodeMinutes} мин` : ''
+  // Сколько времени займёт весь сериал (или вышедшие серии онгоинга) и сколько осталось от места, где остановились.
+  const outNow = anime.ongoing ? (anime.episodesAired ?? 0) : (anime.episodes ?? 0)
+  const left = Math.max(0, outNow - (progress ? progress.episode - 1 : 0))
+  const totalTime =
+    anime.episodeMinutes && outNow > 1
+      ? `≈ ${hoursLabel(outNow * anime.episodeMinutes)}${progress && left > 0 && left < outNow ? ` · осталось ${hoursLabel(left * anime.episodeMinutes)}` : ''}`
+      : ''
   const facts = (
     [
       ['Тип', anime.kind],
@@ -141,6 +155,7 @@ export default function TitlePage() {
           : (anime.episodes ?? '?'),
       ],
       ['Длительность', minutes],
+      [anime.ongoing ? 'Вышло на' : 'Всего', totalTime],
       [
         'Студия',
         anime.studio && anime.studioId ? <Link to={`/catalog?studio=${anime.studioId}`}>{anime.studio}</Link> : (anime.studio ?? ''),
