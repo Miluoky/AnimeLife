@@ -9,9 +9,17 @@ export default function NotFound({ title = 'Страница не найдена
       <Mascot mood="lost" />
       <h1>{title}</h1>
       <p className="muted">Этот раздел пока в разработке или такой страницы нет.</p>
-      <Link to="/" className="btn btn--accent">
-        На главную
-      </Link>
+      <div className="actions">
+        <Link to="/" className="btn btn--accent">
+          На главную
+        </Link>
+        <Link to="/catalog" className="btn btn--ghost">
+          Каталог
+        </Link>
+        <Link to="/random" className="btn btn--ghost">
+          🎲 Что посмотреть?
+        </Link>
+      </div>
     </main>
   )
 }

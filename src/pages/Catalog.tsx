@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { loadAllGenres, loadStudios, useAsync, type CatalogOrder, type CatalogQuery } from '../api'
+import { loadAllGenres, loadCatalog, loadStudios, useAsync, type CatalogOrder, type CatalogQuery } from '../api'
 import CatalogGrid from '../components/CatalogGrid'
 import MultiPick from '../components/MultiPick'
 import { useMyList } from '../data/myList'
@@ -9,7 +9,9 @@ import { usePageMeta } from '../data/pageMeta'
 import { swapLayout } from '../data/keyboard'
 import { CATALOG } from '../data/landings'
 import { PAGE_SIZE, pageParam } from '../data/seo'
-import { FilterIcon } from '../components/Icons'
+import { FilterIcon, SparkIcon } from '../components/Icons'
+import Shelf from '../components/Shelf'
+import PosterCard from '../components/PosterCard'
 import './catalog.css'
 
 const orders: { id: CatalogOrder; title: string }[] = [
@@ -278,6 +280,7 @@ export default function Catalog() {
             : похоже, текст набран не в той раскладке.
           </p>
         )}
+        {search && page === 1 && first?.[0] === 1 && first[1] === 0 && <NothingFound />}
         {first?.[0] === page && (
           <Pager
             page={page}
@@ -293,5 +296,35 @@ export default function Catalog() {
         )}
       </section>
     </main>
+  )
+}
+
+/** Поиск ничего не дал: не оставляем пустой экран, а предлагаем, куда пойти дальше. */
+function NothingFound() {
+  const popular = useAsync(() => loadCatalog({ order: 'popularity', status: 'ongoing', limit: 12 }), [])
+  const picks = popular.value?.data ?? []
+  return (
+    <>
+      <div className="chips">
+        <Link to="/random" className="pill pill--link">
+          🎲 Подобрать по настроению
+        </Link>
+        <Link to="/collections" className="pill pill--link">
+          📚 Подборки
+        </Link>
+        <Link to="/top" className="pill pill--link">
+          🏆 Топ-100
+        </Link>
+      </div>
+      {picks.length > 0 && (
+        <Shelf title="Популярно сейчас" subtitle="Пока ищете, вот что смотрят другие" icon={<SparkIcon size={18} />}>
+          {picks.map((a) => (
+            <div key={a.id} className="row-scroll__item">
+              <PosterCard anime={a} />
+            </div>
+          ))}
+        </Shelf>
+      )}
+    </>
   )
 }

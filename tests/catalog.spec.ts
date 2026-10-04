@@ -106,3 +106,15 @@ test('каталог: на постерах виден статус из мое�
   await expect(page.locator('.poster-card', { hasText: 'Ван-Пис' }).locator('.poster-card__mine')).toHaveText('Просмотрено')
   await expect(page.locator('.poster-card', { hasText: 'Детектив Конан' }).locator('.poster-card__mine')).toHaveCount(0)
 })
+
+test('пустой поиск: подсказки, куда пойти, и полка популярного', async ({ page }) => {
+  await page.route(/\/api\/(shiki\/api\/)?animes\?/, (route) => {
+    const url = new URL(route.request().url())
+    return url.searchParams.get('search') ? route.fulfill({ json: [] }) : route.fallback()
+  })
+  await page.goto('/catalog?q=qqzzxx')
+  await expect(page.getByText('Ничего не нашлось. Попробуйте другой запрос или фильтры.')).toBeVisible()
+  await expect(page.getByRole('link', { name: '🎲 Подобрать по настроению' })).toHaveAttribute('href', '/random')
+  await expect(page.getByRole('heading', { name: 'Популярно сейчас' })).toBeVisible()
+  await expect(page.locator('.row-scroll__item').first()).toBeVisible()
+})
