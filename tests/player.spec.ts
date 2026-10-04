@@ -467,6 +467,71 @@ test('плеер: AniLibria не ответила — включается др�
   await expect(page.locator('.voices__list .voice__title')).toHaveText(['Studio Band', 'AniLibria'])
 })
 
+/** Ответы YummyAnime для «Ковбоя Бибопа»: [озвучка, плеер, серии]. */
+async function mockYummy(page: Page, videos: [string, string, number[]][]) {
+  await page.route(/api\.yani\.tv\/search/, (route) =>
+    route.fulfill({ json: { response: [{ anime_id: 7, remote_ids: { shikimori_id: 999 } }, { anime_id: 8, remote_ids: { shikimori_id: 1 } }] } }),
+  )
+  await page.route(/api\.yani\.tv\/anime\/8\/videos/, (route) =>
+    route.fulfill({
+      json: {
+        response: videos.flatMap(([dubbing, player, numbers]) =>
+          numbers.map((n) => ({
+            number: String(n),
+            iframe_url: `//${player.toLowerCase()}.example/${encodeURIComponent(dubbing)}/${n}`,
+            data: { player: `Плеер ${player}`, dubbing },
+          })),
+        ),
+      },
+    }),
+  )
+  await page.route(/\.example\//, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Плеер</title>' }))
+}
+
+test('плеер: у студии есть запасные плееры YummyAnime, а новые студии добавляются в список', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [1, 2].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true })) } }),
+  )
+  await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
+  await mockYummy(page, [
+    ['Озвучка StudioBand', 'Kodik', [1, 2]],
+    ['Озвучка StudioBand', 'CVH', [1, 2]],
+    ['Озвучка StudioBand', 'Alloha', [1]],
+    ['Озвучка OnWave', 'CVH', [1, 2, 3]],
+  ])
+  await page.goto('/watch/1/2')
+  await page.getByRole('button', { name: /^Studio Band/ }).click()
+  const hosts = page.getByRole('group', { name: 'Плеер' })
+  // Kodik у студии уже есть из Anixart: второй не показываем.
+  await expect(hosts.getByRole('button')).toHaveText(['Kodik', 'CVH', 'Alloha'])
+  await expect(hosts.getByRole('button', { name: 'Kodik' })).toHaveAttribute('aria-pressed', 'true')
+  await hosts.getByRole('button', { name: 'CVH' }).click()
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://cvh.example/%D0%9E%D0%B7%D0%B2%D1%83%D1%87%D0%BA%D0%B0%20StudioBand/2')
+  // Второй серии в Alloha нет: так и пишем, а плеер можно сменить.
+  await hosts.getByRole('button', { name: 'Alloha' }).click()
+  await expect(page.getByText(/Серии 2 пока нет в плеере Alloha \(Studio Band\)/)).toBeVisible()
+  // Студии, которой нет в других источниках, — в конце списка, со своим плеером.
+  await page.getByRole('button', { name: /^OnWave/ }).click()
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', /^https:\/\/cvh\.example\/.*OnWave\/2$/)
+  await expect(page.getByRole('group', { name: 'Плеер' })).toHaveCount(0)
+})
+
+test('плеер: своих источников нет — серия из YummyAnime вместо трейлера', async ({ page }) => {
+  await mockYummy(page, [['Озвучка AniDUB', 'Kodik', [1, 2]]])
+  await page.goto('/watch/1/1')
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://kodik.example/%D0%9E%D0%B7%D0%B2%D1%83%D1%87%D0%BA%D0%B0%20AniDUB/1')
+  await expect(page.getByText(/вот трейлер/)).toHaveCount(0)
+  await expect(page.locator('.voices__list .voice__title')).toHaveText(['AniDUB'])
+})
+
 test('плеер: «Пропускать филлеры» — «Следующая серия» перескакивает филлеры подряд', async ({ page }) => {
   await mockAniLibria(page, search.slice(0, 1))
   await page.route(/api\.anixart\.tv\/search/, (route) =>

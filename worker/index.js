@@ -9,13 +9,15 @@
  * у служебных страниц (правообладателям, контакты, политика, соглашение) — их текст из src/data/legal.ts.
  * Несуществующие страницы получают код 404, временные и личные — noindex. Старые адреса (www, workers.dev)
  * постоянно перенаправляются на animelife.top. Плюс карта сайта (/sitemap.xml — индекс из трёх частей), /robots.txt
- * и прокси к API Shikimori с кэшем для приложения (/api/shiki/*, worker/shikiProxy.js).
+ * и прокси к API Shikimori с кэшем для приложения (/api/shiki/*, worker/shikiProxy.js),
+ * а также к списку серий YummyAnime (/api/yummy/videos/*, worker/yummyProxy.js).
  * Шаблоны заголовков и посадочные страницы общие с приложением: src/data/seo.ts и src/data/landings.ts.
  * Если внешний сервис не ответил, отдаётся обычный index.html: сайт работает как раньше.
  */
 import { CATALOG, landingFor, landingPaths } from '../src/data/landings.ts'
 import { LEGAL, textParts } from '../src/data/legal.ts'
 import { isShikiProxy, shikiProxy } from './shikiProxy.js'
+import { isYummyProxy, yummyProxy } from './yummyProxy.js'
 import {
   DISCLAIMER,
   GENRES,
@@ -836,6 +838,8 @@ export default {
     if (moved && MOVED_GENRES[moved]) return Response.redirect(`${ORIGIN}/genre/${MOVED_GENRES[moved]}${url.search}`, 301)
     // Данные Shikimori для приложения через кэш Cloudflare (worker/shikiProxy.js).
     if (isShikiProxy(url.pathname)) return shikiProxy(request, ctx)
+    // Серии YummyAnime сжатыми и через кэш (worker/yummyProxy.js).
+    if (isYummyProxy(url.pathname)) return yummyProxy(request, ctx)
     if (url.pathname === '/sitemap.xml') return sitemapIndex()
     if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')

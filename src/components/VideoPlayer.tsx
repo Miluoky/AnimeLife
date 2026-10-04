@@ -1,12 +1,13 @@
 /**
  * VideoPlayer — мульти-провайдерный плеерный блок.
  *
- * Поддерживает три источника:
+ * Источники:
  *   1. Kodik    — iframe-балансер, основной для СНГ.
  *   2. Alloha   — iframe-балансер, резервный.
  *   3. AniLibria — HLS-поток через Hls.js со своими кнопками (PlayerControls).
  *   4. AnimeVost — прямые mp4 в том же своём плеере.
  *   5. Anixart  — каталог озвучек: серии каждой студии в плеере Kodik (iframe, без токена).
+ *   6. Готовый плеер со стороны (embed) — серии из YummyAnime в Kodik, CVH, Alloha, Aksor или Sibnet.
  *
  * Провайдер переключается табами над видео. При смене текущий поток
  * останавливается, контейнер динамически монтирует нужный плеер.
@@ -36,7 +37,7 @@ import { kodikTranslationUrl } from '../api/kodik'
 
 /* ──────────────── Типы ──────────────── */
 
-export type Provider = 'kodik' | 'alloha' | 'anilibria' | 'animevost' | 'anixart'
+export type Provider = 'kodik' | 'alloha' | 'anilibria' | 'animevost' | 'anixart' | 'embed'
 
 export interface VideoPlayerProps {
   /** Название аниме для поиска в AniLibria и Kodik. */
@@ -75,6 +76,8 @@ export interface VideoPlayerProps {
   kodikLink?: string
   /** Выбранная озвучка Anixart: релиз и id студии. */
   anixart?: { release: number; type: number; title: string }
+  /** Готовый плеер со стороны (Kodik, CVH, Alloha… из YummyAnime): адрес серии и подпись. Без url — серии в нём нет. */
+  embed?: { url?: string; player: string; voice: string }
 }
 
 /* ──────────────── Конфигурация табов ──────────────── */
@@ -95,12 +98,14 @@ function buildTabs(): ProviderTab[] {
     { id: 'animevost', label: 'AnimeVost', available: true },
     // Anixart включается только озвучкой из списка: без неё не знаем, какую студию показать.
     { id: 'anixart', label: 'Anixart', available: true },
+    // Сторонний плеер тоже выбирается только со страницы: адрес серии приходит в embed.
+    { id: 'embed', label: 'Плеер', available: true },
   ]
 }
 
 const NO_SOURCES = 'Серий этого аниме пока нет в доступных источниках'
 const PLAY_ERROR = 'Не удалось воспроизвести серию'
-const SOURCE_NAME: Record<Provider, string> = { kodik: 'Kodik', alloha: 'Alloha', anilibria: 'AniLibria', animevost: 'AnimeVost', anixart: 'Anixart' }
+const SOURCE_NAME: Record<Provider, string> = { kodik: 'Kodik', alloha: 'Alloha', anilibria: 'AniLibria', animevost: 'AnimeVost', anixart: 'Anixart', embed: 'плеера' }
 
 // Выбранный источник помним до конца сеанса: при переходе к другой серии плеер создаётся заново.
 const PROVIDER_KEY = 'player-provider'
@@ -124,7 +129,7 @@ function saveProvider(id: Provider) {
 /* ──────────────── Компонент ──────────────── */
 
 export default function VideoPlayer(props: VideoPlayerProps) {
-  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink, anixart } = props
+  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink, anixart, embed } = props
   const controlled = props.provider !== undefined
 
   const tabs = buildTabs()
@@ -163,7 +168,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     setLoading(true)
     setError(null)
-  }, [provider, kodikLink, anixart?.type])
+  }, [provider, kodikLink, anixart?.type, embed?.url])
 
   const onEpisodesRef = useRef(onEpisodes)
   onEpisodesRef.current = onEpisodes
@@ -392,6 +397,22 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     )
   }
 
+  function renderEmbed() {
+    if (!embed?.url) return null
+    return (
+      <iframe
+        key={embed.url}
+        className="player-iframe"
+        src={embed.url}
+        title={`${embed.voice}, плеер ${embed.player}: ${title}`}
+        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        onLoad={onIframeLoad}
+      />
+    )
+  }
+
   function renderOwn() {
     if (!src) return null
     // Видео остаётся в DOM и при ошибке потока: эффект HLS привязан к нему.
@@ -413,6 +434,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       if (!anixart) return NO_SOURCES
       if (!axEpisodes) return null
       return axEpisodes.has(episode) ? null : `Серии ${episode} пока нет в озвучке ${anixart.title}`
+    }
+    if (provider === 'embed') {
+      if (!embed) return NO_SOURCES
+      return embed.url ? null : `Серии ${episode} пока нет в плеере ${embed.player} (${embed.voice})`
     }
     if (provider === 'animevost') {
       if (avSearching) return null
@@ -475,6 +500,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         {provider === 'kodik' && renderKodik()}
         {provider === 'alloha' && renderAlloha()}
         {provider === 'anixart' && renderAnixart()}
+        {provider === 'embed' && renderEmbed()}
         {(provider === 'anilibria' || provider === 'animevost') && renderOwn()}
         {stream && !unavailable && (
           <PlayerControls

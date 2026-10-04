@@ -12,6 +12,7 @@ import { fetchKodikTranslations } from '../api/kodik'
 import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
+import { findYummy, voiceKey, type YummyPlayer, type YummyVoice } from '../api/yummy'
 import { markFlag } from '../data/flags'
 import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
@@ -50,10 +51,25 @@ export default function Player() {
     ])
     return { aniLibria: al === null ? 0 : al?.episodes.length, animeVost: av?.length ?? 0, anixart: ax }
   }, [anime?.id])
-  const voices = useMemo(
-    () => buildVoices(kodik.value ?? [], Object.keys(names).length || free.value?.aniLibria, free.value?.animeVost ?? 0, free.value?.anixart ?? null),
-    [kodik.value, names, free.value],
+  // YummyAnime: те же студии в других плеерах (CVH, Alloha…) и студии, которых нет больше нигде. Плеер его не ждёт.
+  const yummy = useAsync(
+    () => (anime ? findYummy(anime.id, [anime.title, anime.originalTitle, anime.englishTitle]).catch(() => null) : Promise.resolve(null)),
+    [anime?.id],
   )
+  const voices = useMemo(
+    () =>
+      buildVoices(
+        kodik.value ?? [],
+        Object.keys(names).length || free.value?.aniLibria,
+        free.value?.animeVost ?? 0,
+        free.value?.anixart ?? null,
+        yummy.value ?? null,
+      ),
+    [kodik.value, names, free.value, yummy.value],
+  )
+  // Своих источников нет: ждём YummyAnime, иначе сначала включится трейлер, а потом серия.
+  const hasOwn = !!kodik.value?.length || !!free.value?.aniLibria || !!free.value?.animeVost || !!free.value?.anixart?.voices.length
+  const waitYummy = yummy.loading && !hasOwn
   // Филлеры размечены в Anixart: берём их из самой популярной озвучки, у всех студий номера одни.
   const axRelease = free.value?.anixart
   const fillers = useAsync(
@@ -66,6 +82,13 @@ export default function Player() {
   const chooseVoice = (key: string) => {
     saveVoice(key)
     setVoiceKey(key)
+  }
+  const [hostId, setHostId] = useState(savedHost)
+  const hosts = voice ? hostsOf(voice) : []
+  const host = hosts.find((h) => h.id === hostId) ?? hosts[0]
+  const chooseHost = (id: string) => {
+    saveHost(id)
+    setHostId(id)
   }
   const current = Math.min(Math.max(1, Number(episode) || 1), total)
 
@@ -100,7 +123,7 @@ export default function Player() {
     <main className="container player-page">
       {/* Мульти-провайдерный плеер; если серию взять негде — трейлер */}
       {/* Пока не знаем озвучки Kodik, плеер не включаем: иначе он начнёт с одной озвучки и тут же сменит её. */}
-      {kodik.loading || free.loading || !free.value ? (
+      {kodik.loading || free.loading || !free.value || waitYummy ? (
         <div className="video-player">
           <div className="player-frame" aria-busy="true" />
         </div>
@@ -116,10 +139,11 @@ export default function Player() {
         onEpisodeChange={(n) => (n === current + 1 ? goNext() : goTo(n))}
         onEpisodes={(eps) => setNames(Object.fromEntries(eps.map((e) => [e.ordinal, e.name ?? ''])))}
         trailerUrl={anime.trailerUrl}
-        provider={voice?.provider}
+        provider={host?.player ? 'embed' : voice?.provider}
         available={[...new Set(voices.map((v) => v.provider))]}
         kodikLink={voice?.kodikLink}
         anixart={voice?.anixart}
+        embed={host?.player && voice ? { url: host.player.urls.get(current), player: host.player.name, voice: voice.title } : undefined}
         onProviderChange={(p) => {
           const next = voices.find((v) => v.provider === p)
           if (next) chooseVoice(next.key)
@@ -129,6 +153,8 @@ export default function Player() {
 
       {/* Заголовок и кнопки идут сразу за видео: на телефоне они не уезжают под длинный список озвучек. */}
       <div className="watch-head">
+        {/* Выбор плеера — отдельной строкой над заголовком, в той же ячейке сетки. */}
+        {hosts.length > 1 && <HostPicker hosts={hosts} current={host?.id} onChoose={chooseHost} />}
         <div className="watch-head__info">
           {/* Название тайтла входит в заголовок: «Ван-Пис, серия 5» ищут именно так. */}
           <h1>
@@ -323,6 +349,8 @@ interface Voice {
   kodikLink?: string
   anixart?: { release: number; type: number; title: string }
   icon?: string
+  /** та же студия в плеерах YummyAnime */
+  yummy?: YummyPlayer[]
 }
 
 const VOICE_KEY = 'player-voice'
@@ -353,12 +381,13 @@ function buildVoices(
   aniLibriaEpisodes: number | undefined,
   animeVostEpisodes: number,
   anixart: AnixartRelease | null,
+  yummy: YummyVoice[] | null,
 ): Voice[] {
   const list: Voice[] = [...kodik]
     .sort((a, b) => b.episodes - a.episodes)
     .map((t) => ({ key: `kodik:${t.id}`, provider: 'kodik', title: t.title, kind: t.kind, episodes: t.episodes, kodikLink: t.link }))
   if (isBalancerAvailable('alloha')) list.push({ key: 'alloha', provider: 'alloha', title: 'Alloha', kind: 'voice' })
-  const others = animeVostEpisodes > 0 || !!anixart?.voices.length
+  const others = animeVostEpisodes > 0 || !!anixart?.voices.length || !!yummy?.length
   const aniLibria: Voice = { key: 'anilibria', provider: 'anilibria', title: 'AniLibria', kind: 'voice', episodes: aniLibriaEpisodes || undefined }
   // AniLibria первой, только если релиз точно нашёлся; не ответила — ставим её в конец, чтобы не включился трейлер.
   if (aniLibriaEpisodes || !others) list.push(aniLibria)
@@ -376,8 +405,72 @@ function buildVoices(
       anixart: { release: anixart!.id, type: v.type, title: v.title },
     })
   }
+  // Студии YummyAnime: знакомым добавляем плееры, новые ставим в конец.
+  for (const y of yummy ?? []) {
+    const same = list.find((v) => v.kind === y.kind && voiceKey(v.title) === voiceKey(y.title))
+    if (same) same.yummy = y.players
+    else list.push({ key: `yummy:${y.kind}:${voiceKey(y.title)}`, provider: 'embed', title: y.title, kind: y.kind, episodes: y.episodes, yummy: y.players })
+  }
   if (aniLibriaEpisodes === undefined && others && !list.some((v) => v.title === 'AniLibria')) list.push(aniLibria)
   return list
+}
+
+/* ─── Плееры одной студии: свой источник и запасные из YummyAnime ─── */
+
+interface Host {
+  /** '' — свой источник озвучки, иначе название плеера YummyAnime */
+  id: string
+  label: string
+  player?: YummyPlayer
+}
+
+const OWN_LABEL: Partial<Record<Provider, string>> = { anilibria: 'Наш плеер', animevost: 'Наш плеер', anixart: 'Kodik', kodik: 'Kodik', alloha: 'Alloha' }
+
+function hostsOf(voice: Voice): Host[] {
+  const own = voice.provider === 'embed' ? undefined : OWN_LABEL[voice.provider]
+  const list: Host[] = own ? [{ id: '', label: own }] : []
+  for (const p of voice.yummy ?? []) {
+    // Kodik у Anixart уже свой: второй такой же не показываем.
+    if (p.name === own) continue
+    list.push({ id: p.name, label: p.name, player: p })
+  }
+  return list
+}
+
+const HOST_KEY = 'player-host'
+
+function savedHost() {
+  try {
+    return sessionStorage.getItem(HOST_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function saveHost(id: string) {
+  try {
+    sessionStorage.setItem(HOST_KEY, id)
+  } catch {
+    // Без хранилища на следующей серии будет плеер по умолчанию.
+  }
+}
+
+function HostPicker({ hosts, current, onChoose }: { hosts: Host[]; current?: string; onChoose: (id: string) => void }) {
+  return (
+    <div className="hosts" role="group" aria-labelledby="hosts-label">
+      <span className="hosts__label" id="hosts-label">
+        Плеер
+      </span>
+      <div className="hosts__list">
+        {hosts.map((h) => (
+          <button key={h.id} type="button" className={`pill${h.id === current ? ' active' : ''}`} aria-pressed={h.id === current} onClick={() => onChoose(h.id)}>
+            {h.label}
+          </button>
+        ))}
+      </div>
+      <span className="hosts__hint">Не грузится или тормозит? Выберите другой плеер</span>
+    </div>
+  )
 }
 
 /** Логотип студии, а если его нет или он не загрузился — первая буква названия. */

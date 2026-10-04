@@ -43,5 +43,6 @@ export async function mockServices(page: Page) {
     route.fulfill({ contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAIBAAA=', 'base64') }),
   )
   await page.route(/api\.anixart\.tv\/.*/, (route) => route.fulfill({ json: { code: 0, content: [], types: [], sources: [], episodes: [] } }))
+  await page.route(/api\.yani\.tv\/.*/, (route) => route.fulfill({ json: { response: [] } }))
   await page.route(/youtube\.com\/embed\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Трейлер</title>' }))
 }

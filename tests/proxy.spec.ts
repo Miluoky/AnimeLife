@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mockServices, shikimoriFixture } from './mocks'
 import { shikiProxy } from '../worker/shikiProxy.js'
+import { yummyProxy } from '../worker/yummyProxy.js'
 import worker from '../worker/index.js'
 
 // Прокси Shikimori (/api/shiki, worker/shikiProxy.js): приложение на animelife.top ходит через него,
@@ -353,6 +354,40 @@ test.describe('Worker: кэш готовых страниц', () => {
       env.respond((url: string) => (url.includes('/animes/999') ? new Response('', { status: 404 }) : fixture()(url)))
       expect(await s.open('/anime/999')).toMatchObject({ status: 404, cache: 'MISS' })
       expect(await s.open('/anime/999')).toMatchObject({ status: 404, cache: 'HIT', upstream: 0 })
+    } finally {
+      env.restore()
+    }
+  })
+})
+
+test.describe('Worker: прокси серий YummyAnime', () => {
+  test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'без браузера, достаточно одного прогона'))
+
+  const call = async (env: ReturnType<typeof fakeEnv>, path: string) => {
+    const res = await yummyProxy(new Request(`https://animelife.top${path}`), env.ctx)
+    await env.settle()
+    return { res, cache: res.headers.get('X-Cache'), body: await res.text() }
+  }
+
+  test('отдаёт тело как есть и кэширует на час; при сбое — старая копия; чужие адреса — 404', async () => {
+    const env = fakeEnv()
+    try {
+      env.respond(() => new Response('{"response":[{"number":"1"}]}', { headers: { 'Content-Type': 'application/json' } }))
+      const first = await call(env, '/api/yummy/videos/10661')
+      expect(first.cache).toBe('MISS')
+      expect(first.body).toBe('{"response":[{"number":"1"}]}')
+      expect(env.calls[0].url).toBe('https://api.yani.tv/anime/10661/videos')
+      expect((await call(env, '/api/yummy/videos/10661')).cache).toBe('HIT')
+      expect(env.calls).toHaveLength(1)
+      env.clock.now += 2 * 3600_000
+      // Ошибка YummyAnime приходит как JSON без списка: её не сохраняем, отдаём прошлую копию.
+      env.respond(() => new Response('{"error":"Not found."}', { headers: { 'Content-Type': 'application/json' } }))
+      const stale = await call(env, '/api/yummy/videos/10661')
+      expect(stale.cache).toBe('STALE')
+      expect(stale.body).toBe(first.body)
+      expect((await call(env, '/api/yummy/videos/5')).res.status).toBe(502)
+      expect((await call(env, '/api/yummy/videos/../search')).res.status).toBe(404)
+      expect((await call(env, '/api/yummy/videos/abc')).res.status).toBe(404)
     } finally {
       env.restore()
     }
