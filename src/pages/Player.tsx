@@ -13,9 +13,13 @@ import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
 import { markFlag } from '../data/flags'
+import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, SearchIcon, SkipIcon } from '../components/Icons'
+
+// «Пропускать филлеры»: кнопка и автопереход ведут сразу к следующей сюжетной серии.
+const skipFillersStore = createLocalStore('anime.skipfillers.v1', false)
 
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
 const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
@@ -56,6 +60,7 @@ export default function Player() {
     () => (axRelease?.voices.length ? anixartEpisodes(axRelease.id, axRelease.voices[0].type).then((e) => e.fillers).catch(() => undefined) : Promise.resolve(undefined)),
     [axRelease?.id],
   )
+  const skipFillers = skipFillersStore.use()
   const [voiceKey, setVoiceKey] = useState(savedVoice)
   const voice = voices.find((v) => v.key === voiceKey) ?? voices[0]
   const chooseVoice = (key: string) => {
@@ -83,6 +88,12 @@ export default function Player() {
   if (!anime) return <NotFound title="Тайтл не найден" />
 
   const goTo = (n: number) => navigate(`/watch/${anime.id}/${n}`)
+  // Вперёд на одну серию с включённым пропуском — через все филлеры подряд.
+  const goNext = () => {
+    let n = current + 1
+    while (skipFillers && fillers.value?.has(n) && n < total) n++
+    goTo(n)
+  }
   const name = names[current]
 
   return (
@@ -102,7 +113,7 @@ export default function Player() {
         shikimoriId={anime.id}
         episode={current}
         totalEpisodes={total}
-        onEpisodeChange={goTo}
+        onEpisodeChange={(n) => (n === current + 1 ? goNext() : goTo(n))}
         onEpisodes={(eps) => setNames(Object.fromEntries(eps.map((e) => [e.ordinal, e.name ?? ''])))}
         trailerUrl={anime.trailerUrl}
         provider={voice?.provider}
@@ -157,7 +168,7 @@ export default function Player() {
             <BackIcon size={18} />
             <span className="watch-prev__text">Предыдущая</span>
           </button>
-          <button type="button" className="btn btn--accent" disabled={current >= total} onClick={() => goTo(current + 1)}>
+          <button type="button" className="btn btn--accent" disabled={current >= total} onClick={goNext}>
             Следующая серия
             <SkipIcon />
           </button>
@@ -198,6 +209,7 @@ function EpisodePicker({
   fillers?: Set<number>
 }) {
   const [range, setRange] = useState(Math.floor((current - 1) / RANGE))
+  const skip = skipFillersStore.use()
   const [query, setQuery] = useState('')
   const strip = useRef<HTMLDivElement>(null)
   const ranges = Math.ceil(total / RANGE)
@@ -282,6 +294,12 @@ function EpisodePicker({
           <span className="ep-legend__mark" aria-hidden="true" /> Филлеры: {fillers.size} из {total}, не по сюжету манги, их можно пропустить.
           {fillers.has(current) && <strong className="ep-legend__now"> Эта серия филлер.</strong>}
         </p>
+      )}
+      {!!fillers?.size && (
+        <label className="ep-skip">
+          <input type="checkbox" checked={skip} onChange={(e) => skipFillersStore.set(e.target.checked)} />
+          Пропускать филлеры: «Следующая серия» ведёт к сюжетной
+        </label>
       )}
       {names[current] && (
         <p className="ep-name">

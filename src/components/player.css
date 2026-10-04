@@ -211,6 +211,22 @@
   border-radius: 4px;
 }
 
+.ep-skip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.ep-skip input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
 .ep-legend__now {
   color: var(--text);
   font-weight: 600;

@@ -466,3 +466,32 @@ test('плеер: AniLibria не ответила — включается др�
   await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://kodikplayer.com/seria/1/hash/720p')
   await expect(page.locator('.voices__list .voice__title')).toHaveText(['Studio Band', 'AniLibria'])
 })
+
+test('плеер: «Пропускать филлеры» — «Следующая серия» перескакивает филлеры подряд', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
+    route.fulfill({
+      json: { code: 0, episodes: [1, 2, 3, 4].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true, is_filler: n === 2 || n === 3 })) },
+    }),
+  )
+  await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
+  await page.goto('/watch/1/1')
+  const skip = page.getByRole('checkbox', { name: /Пропускать филлеры/ })
+  await skip.check()
+  await page.getByRole('button', { name: 'Следующая серия' }).click()
+  await expect(page).toHaveURL(/\/watch\/1\/4$/)
+  // Выбор запоминается: без него снова по порядку.
+  await page.reload()
+  await expect(page.getByRole('checkbox', { name: /Пропускать филлеры/ })).toBeChecked()
+  await page.getByRole('checkbox', { name: /Пропускать филлеры/ }).uncheck()
+  await page.goto('/watch/1/1')
+  await page.getByRole('button', { name: 'Следующая серия' }).click()
+  await expect(page).toHaveURL(/\/watch\/1\/2$/)
+})
