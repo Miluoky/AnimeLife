@@ -16,6 +16,7 @@ import { BackIcon, SearchIcon, SkipIcon } from '../components/Icons'
 
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
 const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
+const NextPart = lazy(() => import('../components/NextPart'))
 
 export default function Player() {
   const { id = '', episode = '1' } = useParams()
@@ -140,6 +141,7 @@ export default function Player() {
       </div>
 
       <Suspense fallback={null}>
+        {current >= total && !anime.ongoing && !anime.upcoming && <NextPart animeId={anime.id} />}
         <EpisodeComments animeId={anime.id} episode={current} />
       </Suspense>
     </main>

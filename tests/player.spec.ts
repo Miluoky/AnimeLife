@@ -344,3 +344,28 @@ test('обсуждение: таймкод в комментарии перев�
   await block.getByRole('button', { name: 'Вставить время' }).click()
   await expect(field).toHaveValue('Смотрите 12:34 ')
 })
+
+test('последняя серия: «Дальше по порядку» ведёт на следующую основную часть франшизы', async ({ page }) => {
+  const node = (id: number, year: number, kind: string, name: string) => ({
+    id,
+    date: Date.UTC(year, 0, 1) / 1000,
+    name,
+    image_url: `https://shikimori.io/system/animes/x96/${id}.jpg`,
+    year,
+    kind,
+  })
+  await page.route(/\/api\/(shiki\/)?animes\/1\/franchise/, (route) =>
+    route.fulfill({
+      json: {
+        current_id: 1,
+        nodes: [node(1, 1998, 'TV Сериал', 'Ковбой Бибоп'), node(9, 1999, 'OVA', 'Спецвыпуск'), node(5, 2001, 'Фильм', 'Ковбой Бибоп: Фильм')],
+      },
+    }),
+  )
+  await page.goto('/watch/1/26')
+  const next = page.getByRole('complementary', { name: 'Следующая часть' })
+  await expect(next).toContainText('Ковбой Бибоп: Фильм')
+  await expect(next.getByRole('link', { name: 'Смотреть' })).toHaveAttribute('href', '/watch/5/1')
+  await page.goto('/watch/1/25')
+  await expect(page.getByRole('complementary', { name: 'Следующая часть' })).toHaveCount(0)
+})
