@@ -50,7 +50,7 @@ export default function MyList() {
           <div className="grid grid--posters">
             {items.map((e) => (
               <div key={e.anime.id} className="list-item">
-                <PosterCard anime={e.anime} />
+                <PosterCard anime={e.anime} hideMine />
                 {(e.status === 'watching' || (e.watched ?? 0) > 0) && <EpisodeProgress entry={e} compact />}
               </div>
             ))}

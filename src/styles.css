@@ -2751,6 +2751,32 @@ input[type='radio'] {
   background: var(--accent);
   color: #0d0e13;
 }
+/* Статус из «Моего списка» и полоска просмотренных серий. */
+.poster-card__mine::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--mine, var(--muted));
+}
+.poster-card__mine--watching { --mine: var(--accent); }
+.poster-card__mine--completed { --mine: #4ade80; }
+.poster-card__mine--planned { --mine: #60a5fa; }
+.poster-card__mine--on_hold { --mine: #facc15; }
+.poster-card__progress {
+  position: absolute;
+  inset: auto 0 0;
+  height: 4px;
+  background: color-mix(in srgb, #000 55%, transparent);
+}
+.poster-card__progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
 
 /* Страница занимает хотя бы экран: пока грузится тайтл, подвал не мелькает наверху и не прыгает вниз (CLS). */
 .page {

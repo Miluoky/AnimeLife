@@ -87,3 +87,22 @@ test('каталог: «Без жанров» исключает жанр, вы�
   await expect(page).toHaveURL(/nogenre=1/)
   await expect.poll(() => last()?.get('genre')).toBe('4,!1')
 })
+
+test('каталог: на постерах виден статус из моего списка и сколько серий просмотрено', async ({ page }) => {
+  await page.addInitScript(() => {
+    const card = (id: string, title: string, episodes: number) => ({ id, title, kind: 'ТВ-сериал', episodes, posterFill: '#222' })
+    localStorage.setItem(
+      'anime.mylist.v1',
+      JSON.stringify([
+        { anime: card('60636', 'Блич', 10), status: 'watching', addedAt: 1, watched: 3 },
+        { anime: card('21', 'Ван-Пис', 0), status: 'completed', addedAt: 2 },
+      ]),
+    )
+  })
+  await page.goto('/catalog')
+  const bleach = page.locator('.poster-card', { hasText: 'Блич: Тысячелетняя' })
+  await expect(bleach.locator('.poster-card__mine')).toHaveText('Смотрю · 3/10')
+  await expect(bleach.locator('.poster-card__progress span')).toHaveAttribute('style', /width: 30%/)
+  await expect(page.locator('.poster-card', { hasText: 'Ван-Пис' }).locator('.poster-card__mine')).toHaveText('Просмотрено')
+  await expect(page.locator('.poster-card', { hasText: 'Детектив Конан' }).locator('.poster-card__mine')).toHaveCount(0)
+})
