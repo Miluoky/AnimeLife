@@ -247,7 +247,7 @@ test.describe('Worker: прокси Shikimori', () => {
     try {
       for (const [path, init] of [
         ['/api/shiki/api/users/1/anime_rates', undefined],
-        ['/api/shiki/api/animes/1/franchise', undefined],
+        ['/api/shiki/api/animes/1/topics', undefined],
         ['/api/shiki/api/graphql', undefined],
         ['/api/shiki/oauth/token', undefined],
         ['/api/shiki/api/animes', { method: 'DELETE' }],

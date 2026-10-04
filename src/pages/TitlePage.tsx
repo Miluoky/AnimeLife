@@ -19,6 +19,7 @@ import Shelf from '../components/Shelf'
 import { PlayIcon } from '../components/Icons'
 import NextEpisode from '../components/NextEpisode'
 import FollowButton from '../components/FollowButton'
+import WatchOrder from '../components/WatchOrder'
 import NotFound from './NotFound'
 import './title.css'
 
@@ -403,6 +404,8 @@ export default function TitlePage() {
             </div>
           </Lightbox>
         )}
+
+        {!result.value?.demo && <WatchOrder animeId={anime.id} />}
 
         <Reviews animeId={anime.id} />
 

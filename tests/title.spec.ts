@@ -79,3 +79,41 @@ test('длинный сериал на телефоне: диапазоны се
   const [scroll, client] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
   expect(scroll).toBeLessThanOrEqual(client)
 })
+
+test('порядок просмотра: франшиза по дате, текущая часть отмечена, OVA по кнопке', async ({ page }) => {
+  const node = (id: number, year: number, kind: string, name: string) => ({
+    id,
+    date: Date.UTC(year, 0, 1) / 1000,
+    name,
+    image_url: `https://shikimori.io/system/animes/x96/${id}.jpg`,
+    url: `/animes/${id}`,
+    year,
+    kind,
+    weight: 1,
+  })
+  await page.route(/\/api\/(shiki\/)?animes\/1\/franchise/, (route) =>
+    route.fulfill({
+      json: {
+        current_id: 1,
+        links: [],
+        nodes: [
+          node(5, 2001, 'Фильм', 'Ковбой Бибоп: Фильм'),
+          node(1, 1998, 'TV Сериал', 'Ковбой Бибоп'),
+          node(7, 1999, 'Спецвыпуск', 'Ковбой Бибоп: Сессия'),
+          node(9, 2021, 'ONA', 'Ковбой Бибоп: Новое'),
+          node(11, 2000, 'Клип', 'Клип'),
+        ],
+      },
+    }),
+  )
+  await page.goto('/anime/1')
+  const cards = page.locator('.order-card')
+  await expect(cards).toHaveCount(3)
+  await expect(cards.locator('.order-card__title')).toHaveText(['Ковбой Бибоп', 'Ковбой Бибоп: Фильм', 'Ковбой Бибоп: Новое'])
+  await expect(cards.first()).toHaveAttribute('aria-current', 'page')
+  await expect(cards.first()).toContainText('Вы здесь')
+  await page.getByRole('button', { name: 'Все части · 4' }).click()
+  await expect(cards).toHaveCount(4)
+  await expect(cards.nth(1)).toContainText('Сессия')
+  await expect(cards.nth(1)).toHaveAttribute('href', '/anime/7')
+})
