@@ -121,6 +121,9 @@ export interface TitleExtras {
   characters: Character[]
   videos: TitleVideo[]
   scores?: ScoreStats
+  /** кто озвучил и кто сделал субтитры (по Shikimori) */
+  dubbers?: string[]
+  subbers?: string[]
 }
 
 /** Дополнения к странице тайтла. Каждое грузится отдельно: если одно упало, остальные всё равно покажем. */
@@ -142,6 +145,8 @@ export async function loadTitleExtras(id: string): Promise<TitleExtras> {
     characters: characters.status === 'fulfilled' ? characters.value : [],
     videos: details.status === 'fulfilled' ? details.value.videos : [],
     scores: details.status === 'fulfilled' ? details.value.scores : undefined,
+    dubbers: details.status === 'fulfilled' ? details.value.dubbers : [],
+    subbers: details.status === 'fulfilled' ? details.value.subbers : [],
   }
 }
 

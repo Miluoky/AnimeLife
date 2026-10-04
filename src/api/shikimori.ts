@@ -61,6 +61,9 @@ interface ShikiAnimeFull extends ShikiAnimeShort {
   rating?: string | null
   /** когда выйдет следующая серия онгоинга (ISO), по расписанию Shikimori */
   next_episode_at?: string | null
+  /** студии и люди, которые озвучили и перевели тайтл субтитрами */
+  fandubbers?: string[]
+  fansubbers?: string[]
 }
 
 export interface Genre {
@@ -546,7 +549,7 @@ function youtubeId(url: string) {
 }
 
 /** Оценки зрителей и видео (трейлеры, опенинги, эндинги). Ответ тот же, что у fetchAnime, он берётся из кэша. */
-export async function fetchTitleDetails(id: string): Promise<{ scores?: ScoreStats; videos: TitleVideo[] }> {
+export async function fetchTitleDetails(id: string): Promise<{ scores?: ScoreStats; videos: TitleVideo[]; dubbers: string[]; subbers: string[] }> {
   const a = await get<ShikiAnimeFull>(`/animes/${encodeURIComponent(id)}`)
   const bars = [...(a.rates_scores_stats ?? [])]
     .map((r) => ({ score: Number(r.name), count: r.value }))
@@ -567,6 +570,8 @@ export async function fetchTitleDetails(id: string): Promise<{ scores?: ScoreSta
       ? { votes, bars, statuses: (a.rates_statuses_stats ?? []).map((r) => ({ title: r.name, count: r.value })) }
       : undefined,
     videos,
+    dubbers: a.fandubbers ?? [],
+    subbers: a.fansubbers ?? [],
   }
 }
 

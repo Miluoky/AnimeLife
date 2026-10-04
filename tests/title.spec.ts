@@ -134,3 +134,15 @@ test('тайтл: блок «Над аниме работали» из роле�
   await expect(staff.locator('dt')).toHaveText(['Режиссёр', 'Музыка'])
   await expect(staff.getByRole('link', { name: 'Ёко Канно' })).toHaveAttribute('href', /\/people\/2$/)
 })
+
+test('тайтл: озвучки и субтитры, длинный список раскрывается кнопкой', async ({ page }) => {
+  await page.goto('/anime/1')
+  const dub = page.locator('.voices', { has: page.getByRole('heading', { name: /Озвучка/ }) })
+  await expect(dub.getByRole('heading')).toHaveText('Озвучка 10')
+  await expect(dub.locator('li', { hasText: 'AniLibria' })).toHaveCount(0)
+  await dub.getByRole('button', { name: 'Ещё 4' }).click()
+  await expect(dub.locator('li', { hasText: 'AniLibria' })).toBeVisible()
+  await expect(dub.getByRole('button', { name: 'Свернуть' })).toHaveAttribute('aria-expanded', 'true')
+  const subs = page.locator('.voices', { has: page.getByRole('heading', { name: /Субтитры/ }) })
+  await expect(subs.locator('li')).toHaveText(["Dragon'Drop", 'Max Skuratov', 'Сергей Светличный', 'Suzaku', 'Faddeich', 'Netflix'])
+})

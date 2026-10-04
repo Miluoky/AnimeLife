@@ -326,3 +326,38 @@
 .staff-list a:hover {
   color: var(--accent-soft);
 }
+
+/* Озвучка и субтитры: компактные плашки с именами студий. */
+.voices__count {
+  font-size: 14px;
+}
+.voices__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.voices__list li {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+}
+.voices__list li:has(.voices__more) {
+  padding: 0;
+  border: 0;
+}
+.voices__more {
+  height: 100%;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px dashed var(--line);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}

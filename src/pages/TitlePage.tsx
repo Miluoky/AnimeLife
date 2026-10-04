@@ -31,6 +31,34 @@ function votesLabel(n: number) {
   return `${n.toLocaleString('ru')} ${word === 'one' ? 'оценка' : word === 'few' ? 'оценки' : 'оценок'}`
 }
 
+const VOICES_SHOWN = 6
+
+/** Кто озвучил тайтл или перевёл субтитрами: первые несколько, остальные по кнопке. */
+function Voices({ title, names = [] }: { title: string; names?: string[] }) {
+  const [all, setAll] = useState(false)
+  if (!names.length) return null
+  const shown = all ? names : names.slice(0, VOICES_SHOWN)
+  return (
+    <div className="stack voices" style={{ gap: 10 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 500 }}>
+        {title} <span className="muted voices__count">{names.length}</span>
+      </h2>
+      <ul className="voices__list">
+        {shown.map((n) => (
+          <li key={n}>{n}</li>
+        ))}
+        {names.length > VOICES_SHOWN && (
+          <li>
+            <button type="button" className="voices__more" aria-expanded={all} onClick={() => setAll(!all)}>
+              {all ? 'Свернуть' : `Ещё ${names.length - VOICES_SHOWN}`}
+            </button>
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
 /** Распределение оценок зрителей Shikimori. */
 function Scores({ stats }: { stats: ScoreStats }) {
   const top = Math.max(...stats.bars.map((b) => b.count))
@@ -330,6 +358,8 @@ export default function TitlePage() {
                 </dl>
               </div>
             )}
+            <Voices title="Озвучка" names={extras.value?.dubbers} />
+            <Voices title="Субтитры" names={extras.value?.subbers} />
             {scores && <Scores stats={scores} />}
             {!result.value?.demo && (
               <p className="muted source-note">
