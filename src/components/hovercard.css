@@ -1,0 +1,104 @@
+/* Карточка при наведении на постер (HoverCards.tsx): описание, жанры и кнопки рядом с постером. */
+.hovercard {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.55);
+  animation: hovercard-in 0.18s var(--ease);
+}
+.hovercard--left {
+  transform-origin: right center;
+}
+.hovercard--right {
+  transform-origin: left center;
+}
+@keyframes hovercard-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+.hovercard__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hovercard__title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.hovercard__score {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #1a0b10;
+}
+.hovercard__orig,
+.hovercard__meta,
+.hovercard__desc {
+  margin: 0;
+}
+.hovercard__orig {
+  margin-top: -6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.hovercard__meta {
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.hovercard__genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hovercard__genres span {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-2);
+}
+.hovercard__desc {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hovercard__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 2px;
+}
+.hovercard__btn {
+  height: 42px;
+  padding: 0 12px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hovercard {
+    animation: none;
+  }
+}

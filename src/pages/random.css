@@ -1,0 +1,276 @@
+/* «Что посмотреть?»: настроение, барабан с постерами и карточка выбранного тайтла. */
+.random-page {
+  display: grid;
+  gap: 28px;
+  padding-top: 32px;
+  padding-bottom: 56px;
+}
+
+.random-hero {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.random-hero__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+.random-hero__lead {
+  margin: 0;
+  max-width: 520px;
+}
+
+.random-form {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 55%),
+    var(--surface);
+}
+.random-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 40px;
+}
+.random-field {
+  display: grid;
+  gap: 10px;
+}
+.random-field__label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.random-moods {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 10px;
+}
+.mood {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  transition:
+    border-color 0.2s var(--ease),
+    background 0.2s var(--ease),
+    transform 0.2s var(--ease);
+}
+.mood:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  transform: translateY(-1px);
+}
+.mood--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+}
+.mood__emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.random-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+.random-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.random-spin {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 240px;
+  justify-content: center;
+}
+.random-error {
+  margin: 0;
+  color: var(--accent-soft);
+}
+
+/* Барабан: лента постеров уезжает вверх и замедляется, как в игровом автомате. */
+.reel {
+  position: relative;
+  width: 200px;
+  height: 284px;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--surface);
+}
+.reel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(var(--bg), transparent 22%, transparent 78%, var(--bg));
+  opacity: 0.7;
+}
+.reel__strip {
+  display: grid;
+  animation: reel-spin cubic-bezier(0.15, 0.6, 0.25, 1) forwards;
+}
+.reel__strip img {
+  width: 200px;
+  height: 284px;
+  object-fit: cover;
+  display: block;
+}
+@keyframes reel-spin {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% + 284px));
+  }
+}
+
+.pick {
+  position: relative;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  padding: 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  animation: pick-in 0.5s var(--ease);
+}
+.pick__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.pick__bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(40px) saturate(1.4);
+  opacity: 0.28;
+  transform: scale(1.2);
+}
+.pick__poster,
+.pick__body {
+  position: relative;
+}
+.pick__poster img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 16px;
+  display: block;
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.5);
+}
+.pick__body {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+.pick__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pick__title {
+  font-size: clamp(24px, 3.4vw, 40px);
+  font-weight: 600;
+  line-height: 1.15;
+}
+.pick__meta,
+.pick__text {
+  margin: 0;
+}
+.pick__text {
+  max-width: 720px;
+}
+@keyframes pick-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+
+.random-seen__title {
+  font-size: 18px;
+  font-weight: 500;
+}
+.random-seen__row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.random-seen__item {
+  flex: 0 0 72px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.random-seen__item img {
+  width: 72px;
+  height: 102px;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 720px) {
+  .random-form {
+    padding: 18px;
+  }
+  .random-moods {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .random-spin {
+    justify-self: stretch;
+  }
+  .pick {
+    grid-template-columns: 1fr;
+    padding: 20px;
+    gap: 20px;
+  }
+  .pick__poster {
+    justify-self: center;
+    width: 180px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel__strip,
+  .pick {
+    animation: none;
+  }
+}

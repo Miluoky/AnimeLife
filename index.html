@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Смотреть аниме онлайн бесплатно с русской озвучкой | Anime Life</title>
+    <meta name="description" content="Аниме онлайн бесплатно с русской озвучкой: онгоинги, каталог по жанрам и годам, расписание новых серий и «Мой список» с синхронизацией." />
+    <!-- Крупные превью картинок в выдаче. Для страниц вне поиска Worker меняет значение на noindex. -->
+    <meta name="robots" content="max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta property="og:site_name" content="Anime Life" />
+    <meta property="og:title" content="Смотреть аниме онлайн бесплатно с русской озвучкой | Anime Life" />
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="Аниме онлайн бесплатно с русской озвучкой: онгоинги, каталог по жанрам и годам, расписание новых серий и «Мой список» с синхронизацией." />
+    <meta property="og:url" content="https://animelife.top/" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:image" content="https://animelife.top/og-image.png" />
+    <!-- Основной адрес сайта. Worker (worker/index.js) и приложение (src/data/pageMeta.ts) подставляют сюда текущую страницу. -->
+    <link rel="canonical" href="https://animelife.top/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="application-name" content="Anime Life" />
+    <meta name="theme-color" content="#0D0E13" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Anime Life" />
+    <link rel="preconnect" href="https://shikimori.io" />
+    <link rel="preconnect" href="https://fra.cloud.appwrite.io" />
+  </head>
+  <body>
+    <script>
+      // Оформление (тема, акцент) применяется до первой отрисовки, чтобы страница не мигала. См. src/data/theme.ts.
+      try {
+        var a = JSON.parse(localStorage.getItem('anime.appearance') || '{}')
+        var d = document.documentElement.dataset
+        d.theme = a.theme || 'night'
+        d.accent = a.accent || 'rose'
+        d.calm = a.calm ? '1' : ''
+        if (a.theme === 'oled') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000000')
+      } catch (e) {}
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

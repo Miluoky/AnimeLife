@@ -1,0 +1,25 @@
+import { Link } from 'react-router-dom'
+import Mascot from '../components/Mascot'
+import { usePageMeta } from '../data/pageMeta'
+
+export default function NotFound({ title = 'Страница не найдена' }: { title?: string }) {
+  usePageMeta(title)
+  return (
+    <main className="container empty-page">
+      <Mascot mood="lost" />
+      <h1>{title}</h1>
+      <p className="muted">Этот раздел пока в разработке или такой страницы нет.</p>
+      <div className="actions">
+        <Link to="/" className="btn btn--accent">
+          На главную
+        </Link>
+        <Link to="/catalog" className="btn btn--ghost">
+          Каталог
+        </Link>
+        <Link to="/random" className="btn btn--ghost">
+          🎲 Что посмотреть?
+        </Link>
+      </div>
+    </main>
+  )
+}

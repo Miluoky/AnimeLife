@@ -1,0 +1,152 @@
+/* Подсказки поиска: грузятся вместе с SearchHints.tsx при первом фокусе на поле. */
+.search-hints {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  min-width: 320px;
+  z-index: 20;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.45);
+}
+
+.search--mobile .search-hints {
+  min-width: 0;
+}
+
+.search-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.search-hint.active,
+.search-hint:hover {
+  background: var(--surface-2);
+}
+
+.search-hint__poster {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  aspect-ratio: 2 / 3;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.search-hint__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.search-hint__title {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.search-hint--all {
+  justify-content: center;
+  font-weight: 600;
+  color: var(--accent-soft);
+}
+
+.search-hints {
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transform-origin: top;
+  animation: menu-in 0.2s var(--ease);
+}
+
+.search-hint__poster .placeholder-label {
+  display: none;
+}
+
+.search-hint__title mark,
+.search-hint__alt mark {
+  background: none;
+  color: var(--accent-soft);
+}
+
+.search-hint__alt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-hint__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.search-hint__score {
+  font-weight: 700;
+  color: #ffc857;
+}
+
+.search-hint__badge {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent-soft);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.search-hint__badge--soon {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.search-hints__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.search-hints__clear {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent-soft);
+  font: inherit;
+  cursor: pointer;
+}
+
+.search-hints__message {
+  padding: 10px 8px;
+  font-size: 13px;
+}
+
+/* В мобильном меню у формы и пунктов своя анимация (свой слой), поэтому поднимаем форму над пунктами. */
+.mobile-menu .search--mobile {
+  position: relative;
+  z-index: 2;
+}

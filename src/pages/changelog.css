@@ -1,0 +1,88 @@
+/* «Что нового»: лента обновлений по дням. */
+.changelog {
+  display: grid;
+  gap: 28px;
+  max-width: 820px;
+  padding-top: 32px;
+  padding-bottom: 56px;
+}
+.changelog__head p {
+  margin: 6px 0 0;
+}
+.changelog__list,
+.changelog__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.changelog__list {
+  display: grid;
+  gap: 32px;
+}
+.changelog__day {
+  display: grid;
+  gap: 14px;
+}
+.changelog__date {
+  font-family: var(--font-display, inherit);
+  font-size: 18px;
+  font-weight: 600;
+}
+.changelog__items {
+  display: grid;
+  gap: 10px;
+  padding-left: 18px;
+  border-left: 2px solid var(--line);
+}
+.changelog__item {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.changelog__item p {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.changelog__title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.changelog__title a:hover {
+  color: var(--accent-soft);
+}
+.changelog__tag {
+  justify-self: start;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.changelog__tag--new {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.changelog__tag--better {
+  color: #7cc4ff;
+  background: rgba(124, 196, 255, 0.14);
+}
+.changelog__tag--fix {
+  color: #8be28b;
+  background: rgba(139, 226, 139, 0.14);
+}
+@media (max-width: 560px) {
+  .changelog__items {
+    padding-left: 10px;
+  }
+  .changelog__item {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}

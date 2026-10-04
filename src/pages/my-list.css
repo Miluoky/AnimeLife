@@ -1,0 +1,114 @@
+/* Пустой «Мой список»: подсказка и популярные тайтлы, которые можно сразу добавить. */
+.list-empty {
+  display: grid;
+  gap: 28px;
+  padding: 16px 0 8px;
+}
+.list-empty__intro {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 28px;
+  border-radius: 20px;
+  background:
+    radial-gradient(80% 120% at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    var(--surface);
+  border: 1px solid var(--line);
+}
+.list-empty__intro p {
+  margin: 0;
+  max-width: 560px;
+}
+.list-empty__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.list-empty__title {
+  font-size: 22px;
+  font-weight: 600;
+}
+.list-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+.list-empty__sub {
+  font-size: 18px;
+  font-weight: 500;
+}
+.list-empty__add {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+/* «Выбрать за меня» во вкладке «Буду смотреть». */
+.pick-for-me__start {
+  justify-self: start;
+  align-self: flex-start;
+}
+.pick-for-me {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(90% 140% at 100% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
+    var(--surface);
+  animation: pick-in 0.35s ease;
+}
+.pick-for-me__poster {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+  width: 96px;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+}
+.pick-for-me__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.pick-for-me__title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text);
+}
+.pick-for-me__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+@keyframes pick-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pick-for-me {
+    animation: none;
+  }
+}
+@media (max-width: 480px) {
+  .pick-for-me__poster {
+    width: 76px;
+  }
+  .pick-for-me__title {
+    font-size: 17px;
+  }
+}
+.pick-for-me__poster .placeholder-label {
+  display: none;
+}

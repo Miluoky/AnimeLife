@@ -1,0 +1,20 @@
+// Публикация на Cloudflare Workers (Workers Builds, подключён к GitHub): статические файлы сайта
+// и небольшой Worker (worker/index.js) для превью ссылок, sitemap.xml и robots.txt.
+{
+  "name": "anime",
+  "compatibility_date": "2026-09-01",
+  "main": "worker/index.js",
+  "build": { "command": "npm run build" },
+  // Переменные из панели Cloudflare (коды подтверждения для поисковиков, см. README) не стираются при публикации.
+  "keep_vars": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Маршруты React: на любой незнакомый адрес отдаём index.html.
+    "not_found_handling": "single-page-application",
+    // Страницы сначала идут в Worker: он подставляет canonical, заголовок и картинку для превью ссылки, ставит 404
+    // и перенаправляет зеркала на animelife.top. Файлы сборки, картинки и service worker отдаются напрямую:
+    // такие запросы не тратят лимит Worker (100 тыс. в сутки на бесплатном тарифе).
+    "run_worker_first": ["/*", "!/assets/*", "!/*.png", "!/*.svg", "!/*.webmanifest", "!/sw.js"]
+  }
+}
