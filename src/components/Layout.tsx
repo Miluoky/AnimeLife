@@ -16,6 +16,8 @@ const InstallBanner = lazy(() => import('./InstallBanner'))
 const FooterLinks = lazy(() => import('./FooterLinks'))
 // Кнопка «Наверх» нужна только на длинных страницах и после прокрутки.
 const BackToTop = lazy(() => import('./BackToTop'))
+// Карточки при наведении на постер нужны только мыши: грузим, когда браузер свободен.
+const HoverCards = lazy(() => import('./HoverCards'))
 
 export function Logo() {
   return (
@@ -35,6 +37,7 @@ export default function Layout() {
   const [scrolled, setScrolled] = useState(false)
   const [hidden, setHidden] = useState(false)
   const header = useRef<HTMLElement>(null)
+  const [hoverCards, setHoverCards] = useState(false)
 
   useViewTransitions()
   useCanonical()
@@ -64,7 +67,10 @@ export default function Layout() {
   const publicProfile = !!(user?.prefs as { publicProfile?: boolean } | undefined)?.publicProfile
   useEffect(() => {
     const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500))
-    idle(() => void import('../data/achievements').then((m) => m.watchAchievements()))
+    idle(() => {
+      void import('../data/achievements').then((m) => m.watchAchievements())
+      setHoverCards(matchMedia('(hover: hover) and (pointer: fine)').matches)
+    })
   }, [])
   useEffect(() => {
     if (publicProfile) void import('../data/profile').then((m) => m.autoPublish())
@@ -175,6 +181,7 @@ export default function Layout() {
 
       <Suspense fallback={null}>
         <InstallBanner />
+        {hoverCards && <HoverCards />}
       </Suspense>
       <Toasts />
       {/* В плеере и комнатах своя прокрутка и свои кнопки в углу. */}

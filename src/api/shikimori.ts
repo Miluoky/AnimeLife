@@ -66,6 +66,8 @@ interface ShikiAnimeFull extends ShikiAnimeShort {
 export interface Genre {
   id: number
   title: string
+  /** у студий: настоящая студия, а не подразделение или лейбл */
+  real?: boolean
 }
 
 export type CatalogOrder = 'popularity' | 'ranked' | 'aired_on' | 'name'
@@ -245,6 +247,9 @@ export function absolute(path: string) {
 export function cleanDescription(text: string | null) {
   if (!text) return ''
   return text
+    // Вики-ссылки [[Имя]] и [[ссылка|Имя]] — оставляем имя; японское написание в скобках [緑谷 出久] убираем.
+    .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
+    .replace(/\s?\[[\u3000-\u30ff\u4e00-\u9fff\s・]+\]/g, '')
     .replace(/\[\/?[a-z_]+(?:=[^\]]*)?\]/gi, '')
     .replace(/\r\n/g, '\n')
     .trim()
@@ -280,6 +285,7 @@ function fromFull(a: ShikiAnimeFull): Anime {
     englishTitle: a.english?.[0] || undefined,
     episodeMinutes: a.duration || undefined,
     studio: a.studios[0]?.name,
+    studioId: a.studios[0]?.id,
     genres: a.genres.map((g) => g.russian || g.name),
     description: cleanDescription(a.description),
     trailerUrl: trailer ? trailer.player_url.replace(/^(https?:)?\/\//, 'https://') : undefined,
@@ -336,12 +342,11 @@ export async function fetchAllGenres(): Promise<Genre[]> {
     .sort((a, b) => a.title.localeCompare(b.title, 'ru'))
 }
 
-/** Студии для фильтра каталога: только настоящие (у Shikimori их около 120, остальные — подразделения и лейблы). */
+/** Студии для фильтра каталога. В списке только настоящие (real), остальные — подразделения и лейблы. */
 export async function fetchStudios(): Promise<Genre[]> {
   const all = await get<{ id: number; name: string; real?: boolean }[]>('/studios')
   return all
-    .filter((s) => s.real)
-    .map((s) => ({ id: s.id, title: s.name }))
+    .map((s) => ({ id: s.id, title: s.name, real: Boolean(s.real) }))
     .sort((a, b) => a.title.localeCompare(b.title, 'en'))
 }
 

@@ -9,6 +9,8 @@ export interface Anime {
   episodesAired?: number
   episodeMinutes?: number
   studio?: string
+  /** id студии у Shikimori: ссылка на каталог с её тайтлами */
+  studioId?: number
   season?: string
   genres: string[]
   ongoing: boolean

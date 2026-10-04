@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { loadCatalog, useAsync, type CatalogQuery } from '../api'
+import { loadCatalog, loadSchedule, useAsync, type CatalogQuery } from '../api'
 import Shelf from './Shelf'
 import PosterCard from './PosterCard'
-import { CalendarIcon, ClockIcon, TrophyIcon } from './Icons'
+import { CalendarIcon, ClockIcon, PlayIcon, TrophyIcon } from './Icons'
 
 const SHELF_SIZE = 16
 const SEASONS = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'fall', 'fall', 'fall', 'winter']
@@ -65,16 +65,48 @@ function LoadedShelf({
   )
 }
 
-/** Премьеры текущего сезона: сразу под баннером. */
+const DAY = 24 * 60 * 60 * 1000
+const time = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit' })
+
+/** «Когда»: «сегодня 19:30», «завтра 02:00». */
+function whenLabel(at: Date, now = new Date()) {
+  const days = Math.round((new Date(at).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / DAY)
+  return `${days <= 0 ? 'Сегодня' : days === 1 ? 'Завтра' : at.toLocaleDateString('ru', { weekday: 'short' })} ${time.format(at)}`
+}
+
+/** Серии, которые выйдут в ближайшие сутки, по времени выхода (из расписания Shikimori). */
+function UpcomingShelf() {
+  const schedule = useAsync(loadSchedule, [])
+  const now = Date.now()
+  const items = (schedule.value?.data ?? [])
+    .filter((i) => i.at.getTime() > now && i.at.getTime() - now < DAY)
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .slice(0, SHELF_SIZE)
+  if (items.length < 3) return null
+  return (
+    <Shelf title="Ближайшие серии" subtitle="Что выйдет в ближайшие сутки" icon={<PlayIcon size={18} />} more={{ to: '/schedule', label: 'Расписание' }}>
+      {items.map((i) => (
+        <div key={`${i.anime.id}-${i.episode}`} className="row-scroll__item">
+          <PosterCard anime={i.anime} tag={{ text: `${whenLabel(i.at)} · ${i.episode} эп.`, accent: true }} />
+        </div>
+      ))}
+    </Shelf>
+  )
+}
+
+/** Ближайшие серии и премьеры текущего сезона: сразу под баннером. */
 export function SeasonShelf() {
   const season = currentSeason()
   return (
-    <CatalogShelf
-      title={season.label}
-      subtitle="Премьеры и продолжения этого сезона"
-      icon={<CalendarIcon size={18} />}
-      query={{ season: season.code }}
-    />
+    <>
+      <UpcomingShelf />
+      <CatalogShelf
+        title={season.label}
+        subtitle="Премьеры и продолжения этого сезона"
+        icon={<CalendarIcon size={18} />}
+        query={{ season: season.code }}
+      />
+    </>
   )
 }
 

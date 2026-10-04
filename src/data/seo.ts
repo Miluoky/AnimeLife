@@ -34,6 +34,8 @@ export const ageLabel = (rating?: string | null) => (rating ? AGES[rating] : und
 /** Обрезает текст по границе слова и ставит многоточие. Разметку Shikimori ([character=1]…) и переносы убирает. */
 export function cut(text: string | null | undefined, max = MAX_DESCRIPTION) {
   const t = String(text ?? '')
+    // [[Имя]] и [[ссылка|Имя]] — вики-ссылки Shikimori: имя оставляем, иначе от фразы остаётся «] Идзуку…».
+    .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
     .replace(/\[[^\]]*\]/g, '')
     .replace(/\s+/g, ' ')
     .trim()

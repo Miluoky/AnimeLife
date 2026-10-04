@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { mockServices } from './mocks'
-import { titlePageDescription, titlePageTitle, watchPageTitle } from '../src/data/seo'
+import { cut, titlePageDescription, titlePageTitle, watchPageTitle } from '../src/data/seo'
 import { landingFor, landingPaths } from '../src/data/landings'
 
 test.beforeEach(async ({ page }) => {
@@ -133,4 +133,10 @@ test('один h1 на главной и ссылки на жанры и год�
   await expect(footer.getByRole('link', { name: 'Романтика' })).toHaveAttribute('href', '/genre/romance')
   await expect(footer.getByRole('link', { name: 'Аниме-фильмы' })).toHaveAttribute('href', '/type/movie')
   await expect(footer.getByRole('link', { name: /^Аниме \d{4} года$/ }).first()).toBeVisible()
+})
+
+test('описание без разметки Shikimori: вики-ссылки оставляют имя, теги и японские скобки уходят', () => {
+  expect(cut('[[Четырнадцатилетний]] Идзуку [[mid|Мидория]] [character=1]рано[/character] понял')).toBe(
+    'Четырнадцатилетний Идзуку Мидория рано понял',
+  )
 })

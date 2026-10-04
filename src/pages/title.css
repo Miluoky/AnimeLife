@@ -295,3 +295,34 @@
   outline: none;
   border-color: var(--accent);
 }
+
+/* Студия в фактах ведёт в каталог с её тайтлами. */
+.fact-pill a {
+  color: var(--accent-soft);
+}
+.fact-pill a:hover {
+  text-decoration: underline;
+}
+
+/* «Над аниме работали»: автор, режиссёр, сценарий, дизайн персонажей, музыка. */
+.staff-list {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.staff-list > div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  font-size: 14px;
+}
+.staff-list dt {
+  color: var(--muted);
+}
+.staff-list dd {
+  margin: 0;
+  font-weight: 600;
+}
+.staff-list a:hover {
+  color: var(--accent-soft);
+}

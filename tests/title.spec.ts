@@ -117,3 +117,20 @@ test('порядок просмотра: франшиза по дате, тек�
   await expect(cards.nth(1)).toContainText('Сессия')
   await expect(cards.nth(1)).toHaveAttribute('href', '/anime/7')
 })
+
+test('тайтл: блок «Над аниме работали» из ролей Shikimori', async ({ page }) => {
+  const person = (id: number, name: string, russian: string) => ({ id, name, russian, url: `/people/${id}` })
+  await page.route(/\/api\/(shiki\/)?animes\/1\/roles/, (route) =>
+    route.fulfill({
+      json: [
+        { roles: ['Director', 'Storyboard'], roles_russian: [], person: person(1, 'Shinichiro Watanabe', 'Синъитиро Ватанабэ'), character: null },
+        { roles: ['Music'], roles_russian: [], person: person(2, 'Yoko Kanno', 'Ёко Канно'), character: null },
+        { roles: ['Main'], roles_russian: [], person: null, character: { id: 1, name: 'Spike', russian: 'Спайк', url: '/characters/1' } },
+      ],
+    }),
+  )
+  await page.goto('/anime/1')
+  const staff = page.locator('.staff-list')
+  await expect(staff.locator('dt')).toHaveText(['Режиссёр', 'Музыка'])
+  await expect(staff.getByRole('link', { name: 'Ёко Канно' })).toHaveAttribute('href', /\/people\/2$/)
+})

@@ -211,7 +211,15 @@ export default function Catalog() {
           )}
           <Filter label="Оценка" name="score" value={value('score')} any="Любая" options={scores} onChange={change} />
           <Filter label="Возраст" name="age" value={value('age')} any="Любой" options={ages} onChange={change} />
-          <Filter label="Студия" name="studio" value={list('studio')[0] ?? ''} any="Любая" options={studios.value ?? []} onChange={change} />
+          <Filter
+            label="Студия"
+            name="studio"
+            value={list('studio')[0] ?? ''}
+            any="Любая"
+            // Подразделения и лейблы прячем, но выбранную по ссылке со страницы тайтла показываем.
+            options={(studios.value ?? []).filter((s) => s.real || String(s.id) === list('studio')[0])}
+            onChange={change}
+          />
           {myList.length > 0 && (
             <label className={`filter filter--check${hideMine ? ' filter--set' : ''}`}>
               <span className="filter__label">Мой список</span>

@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { type CSSProperties, type FormEvent, useState } from 'react'
+import { type CSSProperties, type FormEvent, type ReactNode, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { loadAnime, loadTitleExtras, useAsync } from '../api'
@@ -20,6 +20,7 @@ import { PlayIcon } from '../components/Icons'
 import NextEpisode from '../components/NextEpisode'
 import FollowButton from '../components/FollowButton'
 import WatchOrder from '../components/WatchOrder'
+import { fetchStaff } from '../api/staff'
 import NotFound from './NotFound'
 import './title.css'
 
@@ -66,6 +67,7 @@ export default function TitlePage() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadAnime(id), [id])
   const extras = useAsync(() => loadTitleExtras(id), [id])
+  const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
   // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.
   const [pageWanted, setPage] = useState(() => {
@@ -99,20 +101,25 @@ export default function TitlePage() {
   const to = Math.min(total, from + PAGE_SIZE - 1)
   const episodes = Array.from({ length: to - from + 1 }, (_, i) => from + i)
   const minutes = anime.episodeMinutes ? `${anime.episodeMinutes} мин` : ''
-  const facts: [string, string | number][] = [
-    ['Тип', anime.kind],
+  const facts = (
     [
-      'Серии',
-      anime.ongoing && anime.episodesAired
-        ? anime.episodes
-          ? `${anime.episodesAired} из ${anime.episodes}`
-          : `${anime.episodesAired} вышло`
-        : (anime.episodes ?? '?'),
-    ],
-    ['Длительность', minutes],
-    ['Студия', anime.studio ?? ''],
-    ['Сезон', anime.season ?? anime.year ?? ''],
-  ].filter((f): f is [string, string | number] => f[1] !== '' && f[1] !== undefined)
+      ['Тип', anime.kind],
+      [
+        'Серии',
+        anime.ongoing && anime.episodesAired
+          ? anime.episodes
+            ? `${anime.episodesAired} из ${anime.episodes}`
+            : `${anime.episodesAired} вышло`
+          : (anime.episodes ?? '?'),
+      ],
+      ['Длительность', minutes],
+      [
+        'Студия',
+        anime.studio && anime.studioId ? <Link to={`/catalog?studio=${anime.studioId}`}>{anime.studio}</Link> : (anime.studio ?? ''),
+      ],
+      ['Сезон', anime.season ?? anime.year ?? ''],
+    ] as [string, ReactNode][]
+  ).filter((f) => f[1] !== '' && f[1] !== undefined)
 
   const shots = extras.value?.screenshots ?? []
   const related = extras.value?.related ?? []
@@ -299,6 +306,28 @@ export default function TitlePage() {
                     </a>
                   ))}
                 </div>
+              </div>
+            )}
+            {(staff.value?.length ?? 0) > 0 && (
+              <div className="stack" style={{ gap: 10 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 500 }}>Над аниме работали</h2>
+                <dl className="staff-list">
+                  {staff.value!.map((s) => (
+                    <div key={s.role}>
+                      <dt>{s.role}</dt>
+                      <dd>
+                        {s.names.map((p, i) => (
+                          <span key={p.url}>
+                            {i > 0 && ', '}
+                            <a href={p.url} target="_blank" rel="noreferrer">
+                              {p.name}
+                            </a>
+                          </span>
+                        ))}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             )}
             {scores && <Scores stats={scores} />}
