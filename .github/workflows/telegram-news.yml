@@ -2,7 +2,7 @@ name: Новости в Telegram-канал
 
 # Автоновости канала Anime Life (scripts/telegram-news.mjs): новые серии онгоингов, анонсы сезона и обновления
 # сайта из «Что нового». Публикует бот @AnimeLifeAuth_bot, он должен быть администратором канала.
-# Канал: переменная репозитория TELEGRAM_CHANNEL (или значение ниже). Токен: секрет TELEGRAM_BOT_TOKEN,
+# Канал: https://t.me/AnimeLifeNew (переменная репозитория TELEGRAM_CHANNEL может его заменить). Токен: секрет TELEGRAM_BOT_TOKEN,
 # без него скрипт пробует взять токен у функции входа в Appwrite (секрет APPWRITE_API_KEY).
 # Что уже опубликовано, переносится между запусками кэшем GitHub Actions (.tg-news/state.json).
 on:
@@ -12,6 +12,11 @@ on:
     branches: [main]
     paths: ['src/data/changelog.ts']
   workflow_dispatch:
+    inputs:
+      test:
+        description: 'Пробный пост (самый популярный онгоинг), без изменения состояния'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      TELEGRAM_CHANNEL: ${{ vars.TELEGRAM_CHANNEL || '' }}
+      TELEGRAM_CHANNEL: ${{ vars.TELEGRAM_CHANNEL || '@AnimeLifeNew' }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
     steps:
@@ -39,15 +44,14 @@ jobs:
           fi
       - if: steps.check.outputs.ok == 'true'
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            scripts/telegram-news.mjs
-            src/data/changelog.ts
-          sparse-checkout-cone-mode: false
       - if: steps.check.outputs.ok == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      # Playwright рисует карточки тайтлов (scripts/telegram-card.mjs); Chromium ставится, только когда есть что публиковать.
+      - if: steps.check.outputs.ok == 'true'
+        run: npm ci
       - if: steps.check.outputs.ok == 'true'
         uses: actions/cache/restore@v4
         with:
@@ -57,6 +61,8 @@ jobs:
       - if: steps.check.outputs.ok == 'true'
         name: Опубликовать новости
         run: node scripts/telegram-news.mjs
+        env:
+          TEST_POST: ${{ inputs.test }}
       - if: always() && steps.check.outputs.ok == 'true' && hashFiles('.tg-news/state.json') != ''
         uses: actions/cache/save@v4
         with:
