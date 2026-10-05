@@ -21,6 +21,7 @@ import {
   profileSave,
 } from './profile.js'
 import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
+import { TG_PREFIX, telegramReady, tgSendEpisode, tgStatus, tgSubscribe, tgUnsubscribe } from './telegram.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -34,15 +35,16 @@ import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
  *   mod-list, mod-action {reviewId, decision: hide|show|delete}  только для админов (метка admin в Appwrite);
  *   push-subscribe {subscription, animeIds, site}  подписка браузера на тайтлы из «Смотрю»;
  *   push-unsubscribe {endpoint};
+ *   tg-status, tg-subscribe {animeIds, site}, tg-unsubscribe  то же самое в Telegram-боте, см. telegram.js;
  *   room-* совместный просмотр, см. rooms.js;
  *   list-init, profile-*, comment-*  список, открытый профиль и обсуждение серий, см. profile.js;
  *   takedown-*  жалобы правообладателей и обратная связь (без входа), для админов — список и статус, см. takedowns.js.
- * По расписанию (каждые 15 минут) функция смотрит календарь Shikimori и шлёт пуш подписчикам,
- * у которых вышла новая серия.
+ * По расписанию (каждые 15 минут) функция смотрит календарь Shikimori и шлёт пуш или сообщение в Telegram
+ * подписчикам, у которых вышла новая серия.
  *
  * Данные лежат в базе anime (TablesDB): reviews, votes, push, sent, takedowns. Читать отзывы может кто угодно,
  * а пишет в таблицы только эта функция, поэтому имя автора и его ID подделать нельзя.
- * Переменные: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (секрет), VAPID_SUBJECT,
+ * Переменные: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (секрет), VAPID_SUBJECT, TELEGRAM_BOT_TOKEN (секрет, для уведомлений в Telegram),
  * TURNSTILE_SECRET (секрет, необязательно: с ним отзывы, жалобы и обращения проверяются капчей Cloudflare),
  * IP_HASH_SALT (секрет, необязательно: соль для хеша IP в обращениях).
  */
@@ -369,6 +371,20 @@ async function notify(api, log) {
   let sent = 0
   for (const sub of await allSubscriptions(api)) {
     const mine = due.filter((e) => sub.animeIds?.includes(String(e.anime.id)))
+    if (sub.endpoint.startsWith(TG_PREFIX)) {
+      if (!telegramReady()) continue
+      for (const e of mine) {
+        const result = await tgSendEpisode(sub, e)
+        if (result === 'sent') sent++
+        if (result === 'failed') log(`telegram failed for ${sub.$id}`)
+        // Пользователь заблокировал бота: подписка больше не нужна.
+        if (result === 'gone') {
+          await api('DELETE', `${DB}/push/rows/${sub.$id}`)
+          break
+        }
+      }
+      continue
+    }
     for (const e of mine) {
       const title = e.anime.russian || e.anime.name
       const payload = JSON.stringify({
@@ -475,6 +491,12 @@ export default async ({ req, res, log, error }) => {
         return res.json({ serverNow: Date.now() })
       case 'push-unsubscribe':
         return res.json(await pushUnsubscribe(api, body))
+      case 'tg-status':
+        return res.json(await tgStatus(api, req))
+      case 'tg-subscribe':
+        return res.json(await tgSubscribe(api, req, body, SITES))
+      case 'tg-unsubscribe':
+        return res.json(await tgUnsubscribe(api, req))
       case 'takedown-create':
         return res.json(await takedownCreate(api, req, body))
       case 'takedown-list':

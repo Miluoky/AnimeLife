@@ -3,6 +3,7 @@ import type { Models } from 'appwrite'
 import { historyStore, type HistoryEntry } from './history'
 import { listStore, removedStore, type ListEntry } from './myList'
 import { flagsStore, mergeFlags, type Flag } from './flags'
+import { telegramOnStore } from './telegramFlag'
 
 /**
  * Аккаунт и синхронизация. «Мой список» и история просмотра лежат в настройках пользователя
@@ -282,6 +283,8 @@ export async function signOut() {
     // Список остаётся в браузере: выход не должен ничего стирать.
     remoteListLoaded = false
     rememberGuest(true)
+    // Уведомления в Telegram привязаны к аккаунту: без входа колокольчик о них не знает.
+    telegramOnStore.set(false)
     setState({ user: null, syncError: undefined })
   }
 }

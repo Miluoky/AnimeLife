@@ -5,7 +5,7 @@ name: Функции Appwrite
 on:
   push:
     branches: [main]
-    paths: ['functions/community/**', 'scripts/deploy-function.mjs', '.github/workflows/appwrite.yml']
+    paths: ['functions/community/**', 'scripts/deploy-function.mjs', 'scripts/set-function-var.mjs', '.github/workflows/appwrite.yml']
   workflow_dispatch:
 
 permissions:
@@ -39,6 +39,13 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Подготовить таблицы
         run: node functions/community/setup-comment-reports.mjs
+      # Токен бота для уведомлений в Telegram: из секрета TELEGRAM_BOT_TOKEN или, если его нет, из функции входа.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Токен Telegram-бота
+        continue-on-error: true
+        env:
+          VAR_VALUE: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: node scripts/set-function-var.mjs community TELEGRAM_BOT_TOKEN --from social-login
       - if: steps.keys.outputs.ok == 'true'
         name: Выложить функцию community
         run: node scripts/deploy-function.mjs community

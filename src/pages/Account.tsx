@@ -6,6 +6,7 @@ import { useMyList } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
 import ProfileStats from '../components/ProfileStats'
 import PushSettings from '../components/PushSettings'
+import TelegramNotifySettings from '../components/TelegramNotifySettings'
 import ProfileSettings from '../components/ProfileSettings'
 import AppearanceSettings from '../components/AppearanceSettings'
 import { SOCIAL_LOGIN } from '../api/appwrite'
@@ -348,6 +349,7 @@ export default function Account() {
       </section>
       <AppearanceSettings />
       <PushSettings />
+      <TelegramNotifySettings />
       {(user || list.length > 0) && <ProfileStats />}
       <ProfileSettings />
     </main>
