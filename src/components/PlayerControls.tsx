@@ -32,6 +32,8 @@ const autoSkipStore = createLocalStore('anime.autoskip.v1', false)
 const SKIP_NAMES = { opening: 'опенинг', ending: 'эндинг' }
 /** Включать следующую серию самим, когда эта закончилась: тоже настройка зрителя. */
 export const autoNextStore = createLocalStore('anime.autonext.v1', true)
+/** «Чётче»: резкость и растяжение картинки на видеокарте (enhanceGl.ts). Настройка зрителя. */
+export const enhanceStore = createLocalStore('anime.enhance.v1', false)
 const AUTO_NEXT_SECONDS = 8
 
 type FsDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void }
@@ -268,6 +270,7 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
 
   // Серия закончилась: отсчёт до следующей, как на стримингах. «Отмена» — до конца этой серии.
   const autoNext = autoNextStore.use()
+  const enhance = enhanceStore.use()
   const [counting, setCounting] = useState(false)
   const ended = !!v?.ended
   const hasNext = !!onNext
@@ -568,6 +571,15 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
                     </div>
                   </>
                 )}
+                <div className="vp-menu__title">Картинка</div>
+                <div className="vp-menu__opts">
+                  <button type="button" aria-pressed={!enhance} onClick={() => enhanceStore.set(false)}>
+                    Без фильтра
+                  </button>
+                  <button type="button" aria-pressed={enhance} onClick={() => enhanceStore.set(true)}>
+                    Чётче
+                  </button>
+                </div>
                 <div className="vp-menu__title">Скорость</div>
                 <div className="vp-menu__opts">
                   {SPEEDS.map((r) => (
