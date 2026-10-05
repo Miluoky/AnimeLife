@@ -5,8 +5,13 @@ name: Функции Appwrite
 on:
   push:
     branches: [main]
-    paths: ['functions/community/**', 'scripts/deploy-function.mjs', 'scripts/set-function-var.mjs', '.github/workflows/appwrite.yml']
+    paths: ['functions/community/**', 'scripts/deploy-function.mjs', 'scripts/set-function-var.mjs', 'scripts/telegram-test.mjs', '.github/workflows/appwrite.yml']
   workflow_dispatch:
+    inputs:
+      telegram_test_chat:
+        description: 'ID чата Telegram для тестового уведомления о серии (пусто — не отправлять)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -49,3 +54,9 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Выложить функцию community
         run: node scripts/deploy-function.mjs community
+      - if: steps.keys.outputs.ok == 'true' && inputs.telegram_test_chat != ''
+        name: Тестовое уведомление в Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ inputs.telegram_test_chat }}
+        run: node scripts/telegram-test.mjs "$CHAT"
