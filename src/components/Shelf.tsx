@@ -50,7 +50,8 @@ export default function Shelf({ title, subtitle, icon, more, variant, extra, chi
           </span>
         )}
         <div className="shelf__titles">
-          <h2>{title}</h2>
+          {/* Если у полки есть своя страница, на неё ведёт и заголовок, а не только «Все». */}
+          <h2>{more ? <Link to={more.to} className="shelf__title-link">{title}</Link> : title}</h2>
           {subtitle && <p className="muted">{subtitle}</p>}
         </div>
         {more && (
