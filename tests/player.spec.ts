@@ -683,3 +683,36 @@ test('плеер: разметку YummyAnime для файла другой д�
   await expect(page.locator('.vp-seek__mark')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Пропустить опенинг' })).toHaveCount(0)
 })
+
+test('плеер: «Чётче» рисует видео через фильтр на видеокарте, кнопки плеера остаются доступны', async ({ page }) => {
+  await mockAniLibria(page, search)
+  await page.addInitScript(() => {
+    const original = HTMLMediaElement.prototype.canPlayType
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      return type === 'application/vnd.apple.mpegurl' ? 'maybe' : original.call(this, type)
+    }
+  })
+  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
+  // Как настоящий сервер AniLibria: видео отдаётся с разрешением CORS.
+  await page.route(/cache\.libria\.fun\/.*\.m3u8/, (route) =>
+    route.fulfill({ contentType: 'video/webm', body: clip, headers: { 'Access-Control-Allow-Origin': '*' } }),
+  )
+  await page.goto('/watch/1/1')
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(1)
+
+  await page.getByRole('button', { name: 'Качество и скорость' }).click()
+  await page.getByRole('button', { name: 'Чётче' }).click()
+  // Видео перезагрузилось с crossOrigin, поверх него холст фильтра нужного размера.
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.crossOrigin)).toBe('anonymous')
+  const canvas = page.locator('canvas.player-canvas')
+  await expect(canvas).toBeVisible()
+  await expect.poll(() => canvas.evaluate((c: HTMLCanvasElement) => c.width)).toBeGreaterThan(0)
+  await expect(page.getByRole('status').filter({ hasText: 'не умеет улучшать' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Чётче' })).toHaveAttribute('aria-pressed', 'true')
+
+  // Выбор запоминается, «Без фильтра» убирает фильтр.
+  await page.getByRole('button', { name: 'Без фильтра' }).click()
+  await expect(canvas).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('anime.enhance.v1'))).toBe('false')
+})

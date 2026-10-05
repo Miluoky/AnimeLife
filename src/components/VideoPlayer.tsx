@@ -27,7 +27,8 @@ import {
 import { findAnimeVost, type AnimeVostEpisode } from '../api/animevost'
 import type { YummySkips } from '../api/yummy'
 import { anixartEpisodes } from '../api/anixart'
-import PlayerControls, { AutoNext, autoNextStore, formatTime } from './PlayerControls'
+import PlayerControls, { AutoNext, autoNextStore, enhanceStore, formatTime } from './PlayerControls'
+import { toast } from '../data/toast'
 import { getPosition, savePosition } from '../data/positions'
 import './player.css'
 import {
@@ -171,6 +172,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // Позиция, с которой продолжить после смены качества (поток меняется, а серия та же).
   const resumeAt = useRef(0)
   const hlsRef = useRef<import('hls.js').default | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const enhance = enhanceStore.use()
+  // Видео с чужого сервера для фильтра «Чётче» надо загрузить заново с crossOrigin: счётчик перезапускает поток.
+  const [corsReload, setCorsReload] = useState(0)
 
   // Сброс загрузки при смене провайдера.
   useEffect(() => {
@@ -296,6 +301,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       else resumeRef.current((t) => (video.currentTime = t))
     }
     const onError = () => setStreamError(PLAY_ERROR)
+    // Фильтру «Чётче» нужен доступ к кадрам: прямой файл и нативный HLS грузим с CORS (серверы его разрешают).
+    // hls.js отдаёт видео через blob и в этом не нуждается.
+    video.crossOrigin = enhanceStore.get() ? 'anonymous' : null
     // Прямой mp4 (AnimeVost) браузер играет сам.
     if (/\.mp4(\?|$)/.test(src)) {
       video.src = src
@@ -344,7 +352,37 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         video.load()
       }
     }
-  }, [src])
+  }, [src, corsReload])
+
+  /* ─── «Чётче»: фильтр на видеокарте поверх своего видео ─── */
+  useEffect(() => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!enhance || !src || !video || !canvas) return
+    let stop: (() => void) | undefined
+    let cancelled = false
+    import('./enhanceGl')
+      .then(({ startEnhance }) => {
+        if (cancelled) return
+        stop = startEnhance(video, canvas, {
+          onUnsupported: () => {
+            toast('Этот браузер не умеет улучшать картинку')
+            enhanceStore.set(false)
+          },
+          onCors: () => {
+            if (video.crossOrigin === 'anonymous') {
+              toast('Сервер этого видео не разрешает улучшать картинку')
+              enhanceStore.set(false)
+            } else setCorsReload((n) => n + 1)
+          },
+        })
+      })
+      .catch(() => !cancelled && enhanceStore.set(false))
+    return () => {
+      cancelled = true
+      stop?.()
+    }
+  }, [enhance, src, corsReload])
 
   /* ─── Продолжить с места: своё видео и Kodik ─── */
   // Плашка «Продолжили с 12:34» с кнопкой «С начала»; seek перематывает тот плеер, что сейчас играет.
@@ -505,7 +543,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   function renderOwn() {
     if (!src) return null
     // Видео остаётся в DOM и при ошибке потока: эффект HLS привязан к нему.
-    return <video ref={videoRef} className="player-video" playsInline autoPlay hidden={!!streamError} />
+    return (
+      <>
+        <video ref={videoRef} className="player-video" playsInline autoPlay hidden={!!streamError} />
+        {enhance && !streamError && <canvas key={`${src}:${corsReload}`} ref={canvasRef} className="player-video player-canvas" aria-hidden="true" />}
+      </>
+    )
   }
 
   /* ─── Почему текущий источник не может показать серию (null — может) ─── */

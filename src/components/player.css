@@ -368,6 +368,10 @@
   outline: none;
 }
 
+.player-canvas {
+  pointer-events: none;
+}
+
 .player-tag {
   position: absolute;
   top: 16px;
