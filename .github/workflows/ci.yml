@@ -22,6 +22,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Только имена секретов репозитория, без значений: видно, что владелец уже добавил.
+      - name: Какие секреты заданы
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: echo "$SECRETS_JSON" | jq -r 'keys[]' | grep -v '^github_token$' | sort
       - run: npm ci
       - name: Типы и сборка
         run: npm run build
