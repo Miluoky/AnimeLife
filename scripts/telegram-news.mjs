@@ -1,5 +1,5 @@
 // Автоновости в Telegram-канал Anime Life (.github/workflows/telegram-news.yml, запуск каждые 30 минут).
-// Публикует от имени бота @AnimeLifeAuth_bot (он должен быть администратором канала):
+// Посты с карточкой тайтла в дизайне сайта (scripts/telegram-card.mjs). Публикует бот @AnimeLifeAuth_bot (он должен быть администратором канала):
 //   • новые серии популярных онгоингов Shikimori: до трёх отдельными постами с постером, больше — одной сводкой;
 //   • анонс сезона за три недели до его начала: самые ожидаемые тайтлы и ссылка на страницу сезона;
 //   • обновления сайта из src/data/changelog.ts, один пост на день обновлений.
@@ -11,6 +11,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { CHANGELOG } from '../src/data/changelog.ts'
+import { closeCards, renderCard } from './telegram-card.mjs'
 
 const SITE = 'https://animelife.top'
 const SHIKIMORI = 'https://shikimori.io'
@@ -60,16 +61,30 @@ async function botToken() {
 
 let TOKEN = ''
 
-async function bot(method, params) {
+async function bot(method, params, image) {
+  if (DRY_RUN && image && process.env.CARD_DIR) {
+    const file = `${process.env.CARD_DIR}/card-${Date.now()}.png`
+    writeFileSync(file, image)
+    console.log(`[dry-run] карточка: ${file}`)
+  }
   if (DRY_RUN && method !== 'getChat' && method !== 'getMe') {
     console.log(`[dry-run] ${method}\n${params.caption ?? params.text}\n`)
     return { ok: true }
   }
   for (let attempt = 0; attempt < 3; attempt++) {
+    let body = JSON.stringify(params)
+    let headers = { 'Content-Type': 'application/json' }
+    // Картинка-файл (карточка) уходит формой multipart, остальные параметры рядом строками.
+    if (image) {
+      body = new FormData()
+      for (const [k, v] of Object.entries(params)) body.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v))
+      body.append('photo', new Blob([image], { type: 'image/png' }), 'card.png')
+      headers = {}
+    }
     const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      headers,
+      body,
       signal: AbortSignal.timeout(20000),
     })
     const json = await res.json().catch(() => ({}))
@@ -91,14 +106,24 @@ function silent(now = new Date()) {
   return hour >= 1 && hour < 8
 }
 
-async function post({ text, photo, buttons }) {
+// Telegram ограничивает подпись 1024 видимыми символами: теги разметки не считаются.
+const captionFits = (text) => text.replace(/<[^>]+>/g, '').replace(/&\w+;/g, '_').length <= 1024
+
+async function post({ text, photo, card, buttons }) {
   const base = {
     chat_id: CHANNEL,
     parse_mode: 'HTML',
     disable_notification: silent(),
     ...(buttons && { reply_markup: { inline_keyboard: buttons.map((row) => row.map(([t, url]) => ({ text: t, url }))) } }),
   }
-  if (photo && text.length <= 1024) {
+  if (card && captionFits(text)) {
+    try {
+      return await bot('sendPhoto', { ...base, caption: text }, card)
+    } catch (e) {
+      console.warn(`Карточка не отправилась (${e.message}), пробуем постер.`)
+    }
+  }
+  if (photo && captionFits(text)) {
     try {
       return await bot('sendPhoto', { ...base, photo, caption: text })
     } catch (e) {
@@ -123,7 +148,7 @@ async function graphql(query) {
   return json.data
 }
 
-const FIELDS = 'id name russian kind episodes episodesAired score poster { originalUrl } genres { russian kind } description'
+const FIELDS = 'id name russian kind episodes episodesAired score airedOn { year } poster { originalUrl } genres { russian kind } description'
 
 // ——— Новые серии ———
 
@@ -137,6 +162,8 @@ export function episodeCaption(a) {
     `Вышла ${n}-я серия${total}.${last}`,
     '',
     escapeHtml(shortText(a.description)),
+    '',
+    `▶️ <a href="${SITE}/watch/${a.id}/${n}">Смотреть на Anime Life</a>`,
     '',
     ['#новая_серия', ...tags].join(' '),
   ]
@@ -168,6 +195,7 @@ async function episodes(state) {
       await post({
         text: episodeCaption(a),
         photo: a.poster?.originalUrl,
+        card: await renderCard(a, { badge: `Новая серия · ${a.episodesAired}`, text: shortText(a.description, 400) }),
         buttons: [[['▶️ Смотреть', `${SITE}/watch/${a.id}/${a.episodesAired}`], ['О тайтле', `${SITE}/anime/${a.id}`]]],
       })
       next[a.id] = a.episodesAired
@@ -207,7 +235,8 @@ export async function season(state, now = new Date()) {
     `${SEASON_EMOJI[s.name]} <b>Аниме ${SEASON_NAMES[s.name]} ${s.year}: что ждём</b>\n\n` +
     `Самые ожидаемые тайтлы нового сезона:\n${lines.join('\n')}\n\n` +
     `Добавляйте в «Мой список» и включайте колокольчик: мы напомним о новых сериях.\n\n#анонс #сезон_${SEASON_NAMES[s.name]}`
-  await post({ text, photo: list[0].poster?.originalUrl, buttons: [[['Весь сезон', `${SITE}/year/${s.year}/${s.name}`]]] })
+  const card = await renderCard(list[0], { badge: `Анонс ${SEASON_NAMES[s.name]} ${s.year}`, text: shortText(list[0].description, 400) })
+  await post({ text, card, photo: list[0].poster?.originalUrl, buttons: [[['Весь сезон', `${SITE}/year/${s.year}/${s.name}`]]] })
   state.seasons = [...state.seasons, s.key].slice(-8)
   return 1
 }
@@ -298,6 +327,7 @@ async function main() {
     }
     saveState(state)
   }
+  await closeCards()
   if (failed) process.exitCode = 1
 }
 
