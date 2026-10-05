@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { setFollowing, useFollowing, usePushState } from '../data/push'
+import { telegramOnStore } from '../data/telegramFlag'
 import { toast } from '../data/toast'
 
 /**
@@ -8,12 +9,14 @@ import { toast } from '../data/toast'
  */
 export default function FollowButton({ animeId, title }: { animeId: string; title: string }) {
   const push = usePushState()
+  // Уведомления в Telegram работают и там, где браузер пуши не умеет.
+  const telegram = telegramOnStore.use()
   const following = useFollowing(animeId)
   const [busy, setBusy] = useState(false)
-  const on = following && push === 'on'
+  const on = following && (push === 'on' || telegram)
 
-  if (push === 'unsupported') return null
-  const blocked = push === 'denied' || push === 'ios-install'
+  if (push === 'unsupported' && !telegram) return null
+  const blocked = !telegram && (push === 'denied' || push === 'ios-install')
   const hint = blocked
     ? push === 'denied'
       ? 'Уведомления запрещены в настройках браузера'

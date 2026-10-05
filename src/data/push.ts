@@ -4,6 +4,7 @@ import { VAPID_PUBLIC_KEY } from '../api/config'
 const community = () => import('./community')
 import { createLocalStore } from './localStore'
 import { listStore } from './myList'
+import { telegramOnStore } from './telegramFlag'
 
 /**
  * Пуш-уведомления о новых сериях тайтлов из «Смотрю» и тех, на которые нажали колокольчик. Браузер выдаёт подписку, мы отправляем её
@@ -13,7 +14,7 @@ import { listStore } from './myList'
 
 export type PushState = 'unsupported' | 'ios-install' | 'denied' | 'off' | 'on'
 
-const site = () => `${window.location.origin}${import.meta.env.BASE_URL}`
+export const site = () => `${window.location.origin}${import.meta.env.BASE_URL}`
 
 const supported = () =>
   typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
@@ -44,8 +45,9 @@ export function usePushState(): PushState {
 }
 
 /** Тайтлы, на которые нажали колокольчик, и тайтлы из «Смотрю», о которых колокольчиком попросили молчать. */
-const followStore = createLocalStore<string[]>('anime.follow.v1', [])
-const muteStore = createLocalStore<string[]>('anime.mute.v1', [])
+export const followStore = createLocalStore<string[]>('anime.follow.v1', [])
+export const muteStore = createLocalStore<string[]>('anime.mute.v1', [])
+
 
 const watching = () =>
   listStore
@@ -54,7 +56,7 @@ const watching = () =>
     .map((e) => e.anime.id)
 
 /** О каких тайтлах сообщать: «Смотрю» и колокольчики, кроме выключенных. */
-const watchingIds = () => {
+export const watchingIds = () => {
   const muted = new Set(muteStore.get())
   return [...new Set([...watching(), ...followStore.get()])].filter((id) => !muted.has(id))
 }
@@ -73,8 +75,8 @@ export async function setFollowing(animeId: string, on: boolean) {
   if (on) {
     followStore.set([...without(followStore.get()), animeId])
     muteStore.set(without(muteStore.get()))
-    // Уведомления ещё не включены: колокольчик заодно спрашивает разрешение браузера.
-    if (state !== 'on') await enablePush()
+    // Уведомления ещё не включены ни в браузере, ни в Telegram: колокольчик заодно спрашивает разрешение браузера.
+    if (state !== 'on' && !telegramOnStore.get()) await enablePush()
   } else {
     followStore.set(without(followStore.get()))
     if (watching().includes(animeId)) muteStore.set([...without(muteStore.get()), animeId])
