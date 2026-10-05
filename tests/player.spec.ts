@@ -460,6 +460,7 @@ test('плеер: озвучки студий из Anixart, серия игра�
   await expect(page.getByText(/вот трейлер/)).toHaveCount(0)
 })
 
+  // Ссылка на старый домен Kodik (kodik.info) должна открыться на рабочем kodikplayer.com.
 test('плеер: AniLibria не ответила — включается другая озвучка, а AniLibria уходит в конец списка', async ({ page }) => {
   await page.route(/anilibria\.top\/api\/v1\/.*/, (route) => route.fulfill({ status: 500, body: '' }))
   await page.route(/api\.anixart\.tv\/search/, (route) =>
@@ -470,7 +471,7 @@ test('плеер: AniLibria не ответила — включается др�
   )
   await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
   await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
-    route.fulfill({ json: { code: 0, episodes: [{ position: 1, url: 'https://kodikplayer.com/seria/1/hash/720p', iframe: true }] } }),
+    route.fulfill({ json: { code: 0, episodes: [{ position: 1, url: 'https://kodik.info/seria/1/hash/720p', iframe: true }] } }),
   )
   await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
   await page.goto('/watch/1/1')

@@ -15,10 +15,48 @@ const env = import.meta.env as Record<string, string | undefined>
 export const KODIK_TOKEN = env.VITE_KODIK_TOKEN ?? ''
 
 /**
- * Базовый URL для embed-плеера Kodik.
- * Документация: https://kodik.info/
+ * Домен плееров Kodik. Если его заблокируют, Kodik сообщит новый: его задают переменной репозитория KODIK_DOMAIN
+ * (Settings → Variables), сайт пересобирается и все плееры Kodik переезжают туда же, без правки кода.
  */
-const KODIK_EMBED = 'https://kodik.info/find-player'
+export const KODIK_DOMAIN = env.VITE_KODIK_DOMAIN || 'kodikplayer.com'
+
+/**
+ * Старые и запасные домены Kodik: список из официального скрипта замены доменов
+ * (kodik-add.com/change-domains.min.js). Плееры с них переводим на KODIK_DOMAIN.
+ */
+const KODIK_HOSTS = new Set([
+  'kodikplayer.com',
+  'kodik.org',
+  'kodik.cc',
+  'kodik.info',
+  'hdlizor.com',
+  'aniqit.com',
+  'anivod.com',
+  'hdrise.com',
+  'kodik-video.com',
+  'kodik.biz',
+  'kodikdb.com',
+])
+
+/**
+ * Ссылка на плеер Kodik на рабочем домене. Подходит и для ссылок из API, и для чужих плееров
+ * (Anixart, YummyAnime отдают Kodik на своих доменах). Остальные адреса возвращает как есть.
+ */
+export function kodikHost(link: string): string {
+  try {
+    const url = new URL(link.startsWith('//') ? `https:${link}` : link)
+    const host = url.hostname.replace(/^www\./, '')
+    if (!KODIK_HOSTS.has(host) || host === KODIK_DOMAIN) return url.toString()
+    url.hostname = KODIK_DOMAIN
+    url.protocol = 'https:'
+    return url.toString()
+  } catch {
+    return link
+  }
+}
+
+/** Поиск плеера по id тайтла. Старый адрес kodik.info больше не открывается. */
+const KODIK_EMBED = `https://${KODIK_DOMAIN}/find-player`
 
 export interface KodikParams {
   /** Shikimori ID тайтла. */

@@ -5,7 +5,7 @@
  */
 
 import type { SkipSpan } from './anilibria'
-import { KODIK_TOKEN } from './balancers'
+import { KODIK_TOKEN, kodikHost } from './balancers'
 
 const API = 'https://kodik-api.com/search'
 
@@ -85,7 +85,7 @@ export function kodikSkipParam(spans: SkipSpan[]) {
  * skips — разметка опенинга и эндинга этой же озвучки в Kodik (из YummyAnime), если она есть.
  */
 export function kodikTranslationUrl(link: string, episode: number, skips?: SkipSpan[]) {
-  const url = new URL(link)
+  const url = new URL(kodikHost(link))
   url.searchParams.set('episode', String(episode))
   url.searchParams.set('translations', 'false')
   url.searchParams.set('hide_resume_button', 'true')
