@@ -84,6 +84,8 @@ export interface VideoPlayerProps {
   embed?: { url?: string; player: string; voice: string }
   /** опенинг и эндинг серии в той же озвучке из YummyAnime: пригодятся своему плееру, если у источника своей разметки нет */
   skips?: YummySkips
+  /** опенинг и эндинг этой серии в плеере Kodik той же озвучки (YummyAnime): станут кнопкой пропуска в Kodik */
+  kodikSkips?: YummySkips
 }
 
 /* ──────────────── Конфигурация табов ──────────────── */
@@ -430,7 +432,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   /* ─── Рендер провайдеров ─── */
 
   function renderKodik() {
-    const src = kodikLink ? kodikTranslationUrl(kodikLink, episode) : kodikEmbedUrl({
+    const src = kodikLink ? kodikTranslationUrl(kodikLink, episode, props.kodikSkips?.spans) : kodikEmbedUrl({
       shikimoriId,
       kinopoiskId,
       imdbId,

@@ -4,6 +4,7 @@
  * Документация: https://kodik-api.com (метод /search).
  */
 
+import type { SkipSpan } from './anilibria'
 import { KODIK_TOKEN } from './balancers'
 
 const API = 'https://kodik-api.com/search'
@@ -65,10 +66,30 @@ async function load(shikimoriId: string): Promise<KodikTranslation[]> {
   return [...byId.values()]
 }
 
-/** Плеер конкретной озвучки на нужной серии. Свой выбор озвучки в плеере Kodik прячем: он есть рядом. */
-export function kodikTranslationUrl(link: string, episode: number) {
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+
+/**
+ * Параметр skip_button плеера Kodik: кнопки «Пропустить опенинг/эндинг», например [opening]1:30-3:00,[ending]21:40-23:10.
+ * https://bd.kodikres.com/player-settings#skip_button
+ */
+export function kodikSkipParam(spans: SkipSpan[]) {
+  return spans
+    .filter((s) => s.stop > s.start)
+    .map((s) => `[${s.kind}]${clock(s.start)}-${clock(s.stop)}`)
+    .join(',')
+}
+
+/**
+ * Плеер конкретной озвучки на нужной серии. Свой выбор озвучки в плеере Kodik прячем: он есть рядом.
+ * Кнопку «Продолжить просмотр» Kodik тоже прячем: место в серии сайт запоминает и восстанавливает сам.
+ * skips — разметка опенинга и эндинга этой же озвучки в Kodik (из YummyAnime), если она есть.
+ */
+export function kodikTranslationUrl(link: string, episode: number, skips?: SkipSpan[]) {
   const url = new URL(link)
   url.searchParams.set('episode', String(episode))
   url.searchParams.set('translations', 'false')
+  url.searchParams.set('hide_resume_button', 'true')
+  const skip = skips && kodikSkipParam(skips)
+  if (skip) url.searchParams.set('skip_button', skip)
   return url.toString()
 }

@@ -55,6 +55,7 @@ export function kodikEmbedUrl(params: KodikParams): string | null {
   // Параметры плеера.
   url.searchParams.set('translations', 'true')
   url.searchParams.set('only_season', 'false')
+  url.searchParams.set('hide_resume_button', 'true')
 
   return url.toString()
 }
