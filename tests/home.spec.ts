@@ -87,3 +87,31 @@ test('главная: тайтл можно убрать из «Продолжи
   await expect(cards).toHaveCount(2)
   await expect(cards.first()).toContainText('Первый')
 })
+
+test('главная: заголовок полки сезона ведёт на страницу только этого сезона', async ({ page }) => {
+  await page.goto('/')
+  const link = page.locator('.shelf__title-link', { hasText: /^(Зима|Весна|Лето|Осень) \d{4}$/ })
+  await link.scrollIntoViewIfNeeded()
+  await expect(link).toHaveAttribute('href', /^\/year\/\d{4}\/(winter|spring|summer|fall)$/)
+  await link.click()
+  await expect(page).toHaveURL(/\/year\/\d{4}\/(winter|spring|summer|fall)$/)
+  await expect(page.locator('h1')).toContainText(/Аниме (зимы|весны|лета|осени) \d{4}/i)
+})
+
+test('«назад» со страницы тайтла возвращает на то же место главной', async ({ page }) => {
+  await page.goto('/')
+  // Полки грузятся по мере прокрутки: сначала докручиваем до жанров, потом берём постер полки над ними.
+  await page.getByRole('heading', { name: 'Жанры' }).scrollIntoViewIfNeeded()
+  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Лучшее за всё время' }) })
+  await shelf.scrollIntoViewIfNeeded()
+  const poster = shelf.locator('a[href^="/anime/"]').first()
+  await expect(poster).toBeVisible()
+  await page.waitForTimeout(300)
+  const before = await page.evaluate(() => window.scrollY)
+  expect(before).toBeGreaterThan(500)
+  await poster.click()
+  await expect(page).toHaveURL(/\/anime\//)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(100)
+  await page.goBack()
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before - 50)
+})

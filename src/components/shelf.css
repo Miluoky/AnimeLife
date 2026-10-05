@@ -26,6 +26,18 @@
   margin: 2px 0 0;
   font-size: 14px;
 }
+.shelf__title-link {
+  color: inherit;
+}
+.shelf__title-link::after {
+  content: ' ›';
+  color: var(--muted);
+  transition: color 0.15s;
+}
+.shelf__title-link:hover,
+.shelf__title-link:hover::after {
+  color: var(--accent);
+}
 .shelf__more {
   white-space: nowrap;
   font-size: 15px;

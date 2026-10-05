@@ -8,6 +8,7 @@ import PageErrorBoundary from './PageErrorBoundary'
 import { useAuth } from '../data/auth'
 import { applyAppearance } from '../data/theme'
 import { useViewTransitions } from './morph'
+import { useScrollRestore } from './scrollRestore'
 import { useCanonical } from '../data/pageMeta'
 
 // Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
@@ -48,11 +49,10 @@ export default function Layout() {
     setMenuClosing(!open)
   }
 
-  // При переходе на другую страницу: закрыть мобильное меню и вернуться наверх.
-  useEffect(() => {
-    setMenuOpen(false)
-    window.scrollTo(0, 0)
-  }, [location.pathname])
+  // При переходе на другую страницу: закрыть мобильное меню. Прокрутку (наверх или, по «назад»,
+  // туда, где зритель был) ведёт useScrollRestore.
+  useScrollRestore()
+  useEffect(() => setMenuOpen(false), [location.pathname])
 
   // Пока меню открыто, страница под ним не прокручивается; Esc закрывает меню.
   useEffect(() => {
