@@ -1,0 +1,44 @@
+name: Функции Appwrite
+
+# Выкладывает серверную функцию community (отзывы, комментарии, жалобы, совместный просмотр) в Appwrite,
+# когда её код меняется в main. Ключ Appwrite берётся только из секрета APPWRITE_API_KEY и в сайт не попадает.
+on:
+  push:
+    branches: [main]
+    paths: ['functions/community/**', 'scripts/deploy-function.mjs', '.github/workflows/appwrite.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appwrite
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+    steps:
+      - name: Проверить ключ Appwrite
+        id: keys
+        run: |
+          if [ -n "$APPWRITE_API_KEY" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Секрет APPWRITE_API_KEY не задан, функция не выложена."
+          fi
+      - if: steps.keys.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - if: steps.keys.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Колонки для жалоб на комментарии. Скрипт пропускает то, что уже есть.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Подготовить таблицы
+        run: node functions/community/setup-comment-reports.mjs
+      - if: steps.keys.outputs.ok == 'true'
+        name: Выложить функцию community
+        run: node scripts/deploy-function.mjs community

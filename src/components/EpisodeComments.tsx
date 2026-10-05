@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link } from 'react-router-dom'
 import { useAuth } from '../data/auth'
 import { CommunityError } from '../data/community'
-import { deleteComment, loadComments, saveComment, type EpisodeComment } from '../data/comments'
+import { deleteComment, loadComments, reportComment, saveComment, type EpisodeComment } from '../data/comments'
 import { markFlag } from '../data/flags'
 import { toast } from '../data/toast'
 import './comments.css'
@@ -59,6 +59,7 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
   const [spoiler, setSpoiler] = useState(false)
   const [busy, setBusy] = useState(false)
   const [shown, setShown] = useState<Set<string>>(new Set())
+  const [reported, setReported] = useState<Set<string>>(new Set())
   const field = useRef<HTMLTextAreaElement>(null)
   const isAdmin = !!user?.labels?.includes('admin')
 
@@ -111,6 +112,18 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
       setItems((list) => list?.filter((c) => c.$id !== id) ?? null)
     } catch (err) {
       toast(err instanceof CommunityError ? err.message : 'Не удалось убрать')
+    }
+  }
+
+  const report = async (id: string) => {
+    if (!window.confirm('Пожаловаться на комментарий? Модератор проверит его.')) return
+    try {
+      const res = await reportComment(id)
+      setReported((s) => new Set(s).add(id))
+      if (res.hidden) setItems((list) => list?.filter((c) => c.$id !== id) ?? null)
+      toast(res.already ? 'Вы уже жаловались на этот комментарий' : 'Жалоба отправлена, спасибо')
+    } catch (err) {
+      toast(err instanceof CommunityError ? err.message : 'Не удалось отправить жалобу')
     }
   }
 
@@ -171,6 +184,16 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
                   {(c.userId === user?.$id || isAdmin) && (
                     <button type="button" className="comment__delete" onClick={() => void remove(c.$id)}>
                       Убрать
+                    </button>
+                  )}
+                  {user && c.userId !== user.$id && !isAdmin && (
+                    <button
+                      type="button"
+                      className="comment__delete"
+                      disabled={reported.has(c.$id)}
+                      onClick={() => void report(c.$id)}
+                    >
+                      {reported.has(c.$id) ? 'Жалоба отправлена' : 'Пожаловаться'}
                     </button>
                   )}
                 </div>
