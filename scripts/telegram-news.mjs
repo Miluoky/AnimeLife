@@ -18,6 +18,8 @@ const SHIKIMORI = 'https://shikimori.io'
 const STATE_FILE = process.env.STATE_FILE || '.tg-news/state.json'
 const CHANNEL = (process.env.TELEGRAM_CHANNEL || '').trim()
 const DRY_RUN = process.argv.includes('--dry-run')
+// Пробный пост: самый популярный онгоинг как «новая серия», состояние не меняется.
+const TEST = process.argv.includes('--test') || process.env.TEST_POST === 'true'
 // Сколько онгоингов (по популярности) отслеживаем: дальше хвост, о котором канал не пишет.
 const ONGOING_LIMIT = 30
 // Больше стольких серий за запуск: одна сводка вместо отдельных постов.
@@ -302,6 +304,19 @@ async function main() {
   TOKEN = await botToken()
   if (!TOKEN && !DRY_RUN) {
     console.log('::notice::Нет токена бота: добавьте секрет TELEGRAM_BOT_TOKEN.')
+    return
+  }
+  if (TEST) {
+    const data = await graphql(`{ animes(status: "ongoing", order: popularity, limit: 1) { ${FIELDS} } }`)
+    const a = data.animes[0]
+    await post({
+      text: episodeCaption(a),
+      photo: a.poster?.originalUrl,
+      card: await renderCard(a, { badge: `Новая серия · ${a.episodesAired}`, text: shortText(a.description, 400) }),
+      buttons: [[['▶️ Смотреть', `${SITE}/watch/${a.id}/${a.episodesAired}`], ['О тайтле', `${SITE}/anime/${a.id}`]]],
+    })
+    await closeCards()
+    console.log(`Пробный пост опубликован: ${titleOf(a)}`)
     return
   }
   const state = readState()

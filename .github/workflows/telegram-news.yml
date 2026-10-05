@@ -12,6 +12,11 @@ on:
     branches: [main]
     paths: ['src/data/changelog.ts']
   workflow_dispatch:
+    inputs:
+      test:
+        description: 'Пробный пост (самый популярный онгоинг), без изменения состояния'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -56,6 +61,8 @@ jobs:
       - if: steps.check.outputs.ok == 'true'
         name: Опубликовать новости
         run: node scripts/telegram-news.mjs
+        env:
+          TEST_POST: ${{ inputs.test }}
       - if: always() && steps.check.outputs.ok == 'true' && hashFiles('.tg-news/state.json') != ''
         uses: actions/cache/save@v4
         with:
