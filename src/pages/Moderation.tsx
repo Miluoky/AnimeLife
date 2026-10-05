@@ -5,17 +5,20 @@ import { loadModeration, moderateReview, type Review } from '../data/community'
 
 // Обращения правообладателей и из «Контактов» — отдельная часть, грузится при открытии вкладки.
 const ModerationTakedowns = lazy(() => import('../components/ModerationTakedowns'))
+const ModerationComments = lazy(() => import('../components/ModerationComments'))
 
 const dateFormat = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 
 /**
- * Модерация: отзывы с жалобами и скрытые (оставить, скрыть, удалить) и обращения с форм сайта (?tab=takedowns).
+ * Модерация: отзывы с жалобами и скрытые (оставить, скрыть, удалить), то же для комментариев к сериям (?tab=comments)
+ * и обращения с форм сайта (?tab=takedowns).
  * Права проверяет функция.
  */
 export default function Moderation() {
   const { user, checking } = useAuth()
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'takedowns' ? 'takedowns' : 'reviews'
+  const asked = params.get('tab')
+  const tab = asked === 'takedowns' || asked === 'comments' ? asked : 'reviews'
   const [reviews, setReviews] = useState<Review[]>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string>()
@@ -51,6 +54,7 @@ export default function Moderation() {
       {(
         [
           ['reviews', 'Отзывы'],
+          ['comments', 'Комментарии'],
           ['takedowns', 'Обращения'],
         ] as const
       ).map(([id, name]) => (
@@ -74,11 +78,11 @@ export default function Moderation() {
         <h1 className="page-title">Модерация</h1>
         {!isAdmin ? (
           <p className="muted">Эта страница только для модераторов.</p>
-        ) : tab === 'takedowns' ? (
+        ) : tab !== 'reviews' ? (
           <>
             {tabs}
             <Suspense fallback={<div className="skeleton skeleton--line" aria-busy="true" />}>
-              <ModerationTakedowns />
+              {tab === 'takedowns' ? <ModerationTakedowns /> : <ModerationComments />}
             </Suspense>
           </>
         ) : (

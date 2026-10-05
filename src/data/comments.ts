@@ -12,6 +12,8 @@ export interface EpisodeComment {
   text: string
   spoiler: boolean
   at: number
+  reports?: number
+  hidden?: boolean
 }
 
 export async function loadComments(animeId: string, episode: number): Promise<EpisodeComment[]> {
@@ -35,3 +37,12 @@ export const saveComment = (animeId: string, episode: number, text: string, spoi
   )
 
 export const deleteComment = (commentId: string) => callCommunity({ action: 'comment-delete', commentId })
+
+export const reportComment = (commentId: string) =>
+  callCommunity<{ hidden?: boolean; already?: boolean }>({ action: 'comment-report', commentId })
+
+export const loadCommentModeration = () =>
+  callCommunity<{ comments: EpisodeComment[] }>({ action: 'comment-mod-list' }).then((r) => r.comments)
+
+export const moderateComment = (commentId: string, decision: 'hide' | 'show' | 'delete') =>
+  callCommunity<{ comment?: EpisodeComment }>({ action: 'comment-mod-action', commentId, decision })

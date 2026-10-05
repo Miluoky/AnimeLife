@@ -10,7 +10,16 @@ import {
   roomPresence,
   roomSignal,
 } from './rooms.js'
-import { commentDelete, commentSave, listInit, profileHide, profileSave } from './profile.js'
+import {
+  commentDelete,
+  commentModAction,
+  commentModList,
+  commentReport,
+  commentSave,
+  listInit,
+  profileHide,
+  profileSave,
+} from './profile.js'
 import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
 
 /**
@@ -454,6 +463,12 @@ export default async ({ req, res, log, error }) => {
         return res.json(await commentSave(api, req, body))
       case 'comment-delete':
         return res.json(await commentDelete(api, req, body))
+      case 'comment-report':
+        return res.json(await commentReport(api, req, body))
+      case 'comment-mod-list':
+        return res.json(await commentModList(api, req))
+      case 'comment-mod-action':
+        return res.json(await commentModAction(api, req, body))
       case 'list-init':
         return res.json(await listInit(api, req))
       case 'room-time':

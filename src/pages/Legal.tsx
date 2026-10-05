@@ -14,6 +14,10 @@ function Text({ text }: { text: string }) {
       {textParts(text).map((part, i) =>
         typeof part === 'string' ? (
           <Fragment key={i}>{part}</Fragment>
+        ) : part[1].startsWith('mailto:') ? (
+          <a key={i} href={part[1]}>
+            {part[0]}
+          </a>
         ) : (
           <Link key={i} to={part[1]}>
             {part[0]}

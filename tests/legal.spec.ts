@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import { mockServices } from './mocks'
-import { LEGAL } from '../src/data/legal'
+import { CONTACT_EMAIL, LEGAL } from '../src/data/legal'
 
 test.beforeEach(async ({ page }) => {
   await mockServices(page)
@@ -114,4 +114,10 @@ test('модерация: вкладка обращений для админа'
   await page.locator('article').getByRole('button', { name: 'Выполнено' }).click()
   await expect(page.getByText('Обращений нет.')).toBeVisible()
   expect(sent.find((b) => b.action === 'takedown-status')).toMatchObject({ takedownId: 't1', status: 'done' })
+})
+
+test('почта сайта на «Контактах» — ссылка mailto', async ({ page }) => {
+  await page.goto('/contacts')
+  const mail = page.locator('main').getByRole('link', { name: CONTACT_EMAIL })
+  await expect(mail).toHaveAttribute('href', `mailto:${CONTACT_EMAIL}`)
 })

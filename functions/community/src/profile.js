@@ -1,4 +1,4 @@
-import { DB, UserError, listRows } from './util.js'
+import { DB, UserError, hash, listRows, query } from './util.js'
 
 /**
  * Списки и профили.
@@ -33,11 +33,16 @@ export async function listInit(api, req) {
  *                                  достижения) приходит с сайта и проверяется на размер и форму;
  *   profile-hide                   закрыть профиль (строка удаляется);
  *   comment-save {animeId, episode, text, spoiler}  комментарий к серии;
- *   comment-delete {commentId}     убрать комментарий (автор или модератор).
+ *   comment-delete {commentId}     убрать комментарий (автор или модератор);
+ *   comment-report {commentId}     пожаловаться (после COMMENT_REPORTS_TO_HIDE жалоб комментарий скрывается);
+ *   comment-mod-list, comment-mod-action {commentId, decision: hide|show|delete}  только для админов.
+ * Жалобы лежат в таблице votes, как у отзывов: в reviewId — ID комментария, kind = report.
  */
 
 const MAX_SUMMARY = 60000
 const COMMENTS_PER_10MIN = 6
+/** Столько жалоб от разных людей, и комментарий прячется до решения модератора. */
+const COMMENT_REPORTS_TO_HIDE = 3
 
 export async function profileSave(api, req, body) {
   const user = await signedIn(api, req)
@@ -107,5 +112,80 @@ export async function commentDelete(api, req, body) {
   const isAdmin = (user.labels ?? []).includes('admin')
   if (row.json.userId !== user.$id && !isAdmin) throw new UserError('Убрать можно только свой комментарий.')
   await api('DELETE', `${DB}/comments/rows/${body.commentId}`)
+  await deleteReports(api, body.commentId)
   return { ok: true }
+}
+
+async function getComment(api, commentId) {
+  if (!/^[a-zA-Z0-9]{1,36}$/.test(String(commentId ?? ''))) throw new UserError('Комментарий не найден.')
+  const row = await api('GET', `${DB}/comments/rows/${commentId}`)
+  if (row.status === 404) throw new UserError('Комментарий не найден.')
+  return row.json
+}
+
+const reportFilter = (commentId) => [
+  { method: 'equal', attribute: 'reviewId', values: [commentId] },
+  { method: 'equal', attribute: 'kind', values: ['report'] },
+]
+
+async function deleteReports(api, commentId) {
+  for (;;) {
+    const rows = await listRows(api, 'votes', [...reportFilter(commentId), { method: 'limit', values: [100] }])
+    await Promise.all(rows.map((r) => api('DELETE', `${DB}/votes/rows/${r.$id}`)))
+    if (rows.length < 100) return
+  }
+}
+
+export async function commentReport(api, req, body) {
+  const user = await signedIn(api, req)
+  const comment = await getComment(api, body.commentId)
+  if (comment.userId === user.$id) throw new UserError('На свой комментарий жаловаться нельзя.')
+  const voteId = 'v' + hash(`comment:${comment.$id}:${user.$id}:report`)
+  if ((await api('GET', `${DB}/votes/rows/${voteId}`)).status !== 404) return { ok: true, already: true }
+  await api('PUT', `${DB}/votes/rows/${voteId}`, {
+    data: { reviewId: comment.$id, animeId: comment.animeId, userId: user.$id, kind: 'report' },
+  })
+  const count = await api('GET', `${DB}/votes/rows?${[...reportFilter(comment.$id), { method: 'limit', values: [1] }].map(query).join('&')}`)
+  const reports = count.json.total ?? 0
+  // Модератор уже оставил комментарий (moderated): повторные жалобы его снова не прячут.
+  const hidden = comment.hidden || (!comment.moderated && reports >= COMMENT_REPORTS_TO_HIDE)
+  await api('PATCH', `${DB}/comments/rows/${comment.$id}`, { data: { reports, hidden } })
+  return { ok: true, hidden }
+}
+
+async function signedAdmin(api, req) {
+  const user = await signedIn(api, req)
+  if (!(user.labels ?? []).includes('admin')) throw new UserError('Нужны права модератора.')
+  return user
+}
+
+export async function commentModList(api, req) {
+  await signedAdmin(api, req)
+  const comments = await listRows(api, 'comments', [
+    {
+      method: 'or',
+      values: [
+        { method: 'greaterThan', attribute: 'reports', values: [0] },
+        { method: 'equal', attribute: 'hidden', values: [true] },
+      ],
+    },
+    { method: 'orderDesc', attribute: 'reports' },
+    { method: 'limit', values: [100] },
+  ])
+  return { comments }
+}
+
+export async function commentModAction(api, req, body) {
+  await signedAdmin(api, req)
+  const comment = await getComment(api, body.commentId)
+  if (body.decision === 'delete') {
+    await api('DELETE', `${DB}/comments/rows/${comment.$id}`)
+    await deleteReports(api, comment.$id)
+    return { ok: true }
+  }
+  if (body.decision !== 'hide' && body.decision !== 'show') throw new UserError('Неизвестное действие модератора.')
+  const row = await api('PATCH', `${DB}/comments/rows/${comment.$id}`, {
+    data: { hidden: body.decision === 'hide', moderated: true },
+  })
+  return { comment: row.json }
 }

@@ -343,6 +343,17 @@ test('обсуждение: таймкод в комментарии перев�
   await field.fill('Смотрите')
   await block.getByRole('button', { name: 'Вставить время' }).click()
   await expect(field).toHaveValue('Смотрите 12:34 ')
+
+  // Жалоба на чужой комментарий уходит в функцию community, кнопка больше не нажимается.
+  const sent: Record<string, unknown>[] = []
+  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
+    sent.push(JSON.parse(route.request().postDataJSON().body))
+    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: '{"ok":true,"hidden":false}' } })
+  })
+  page.once('dialog', (d) => d.accept())
+  await block.getByRole('button', { name: 'Пожаловаться' }).click()
+  await expect(block.getByRole('button', { name: 'Жалоба отправлена' })).toBeDisabled()
+  expect(sent).toEqual([{ action: 'comment-report', commentId: 'c1' }])
 })
 
 test('последняя серия: «Дальше по порядку» ведёт на следующую основную часть франшизы', async ({ page }) => {
