@@ -43,6 +43,8 @@ jobs:
         run: npm run build
         env:
           VITE_KODIK_TOKEN: ${{ secrets.VITE_KODIK_TOKEN }}
+          # Новый домен плееров Kodik, если старый заблокируют (Settings → Variables → KODIK_DOMAIN).
+          VITE_KODIK_DOMAIN: ${{ vars.KODIK_DOMAIN }}
           VITE_ALLOHA_TOKEN: ${{ secrets.VITE_ALLOHA_TOKEN }}
       - if: steps.keys.outputs.ok == 'true'
         name: Выложить Worker с сайтом

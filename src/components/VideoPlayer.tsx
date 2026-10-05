@@ -33,6 +33,7 @@ import { getPosition, savePosition } from '../data/positions'
 import './player.css'
 import {
   kodikEmbedUrl,
+  kodikHost,
   allohaEmbedUrl,
   isBalancerAvailable,
 } from '../api/balancers'
@@ -508,8 +509,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }
 
   function renderAnixart() {
-    const src = axEpisodes?.get(episode)
-    if (!src) return null
+    // Anixart отдаёт плееры Kodik: переводим их на рабочий домен, как и свои.
+    const found = axEpisodes?.get(episode)
+    if (!found) return null
+    const src = kodikHost(found)
     return (
       <iframe
         key={src}
@@ -526,11 +529,13 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   function renderEmbed() {
     if (!embed?.url) return null
+    // Плееры Kodik из YummyAnime тоже открываем на рабочем домене Kodik; остальные адреса не меняются.
+    const src = kodikHost(embed.url)
     return (
       <iframe
-        key={embed.url}
+        key={src}
         className="player-iframe"
-        src={embed.url}
+        src={src}
         title={`${embed.voice}, плеер ${embed.player}: ${title}`}
         allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
         allowFullScreen
