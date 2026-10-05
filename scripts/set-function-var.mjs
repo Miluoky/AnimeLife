@@ -40,5 +40,6 @@ if (!value) {
 const existing = await findVar(id)
 const body = { key: name, value, secret: true }
 if (existing) await api('PUT', `/functions/${id}/variables/${existing.$id}`, body)
-else await api('POST', `/functions/${id}/variables`, body)
+// Новый API Appwrite требует свой ID переменной: берём имя в нижнем регистре.
+else await api('POST', `/functions/${id}/variables`, { variableId: name.toLowerCase(), ...body })
 console.log(`${name}: записана в функцию ${id}.`)
