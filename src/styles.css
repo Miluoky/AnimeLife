@@ -2269,13 +2269,13 @@ input[type='radio'] {
   color: #0d0e13;
   background: var(--accent);
 }
-.profile-stats {
+.public-profile .profile-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 12px;
   margin: 0;
 }
-.profile-stats div {
+.public-profile .profile-stats > div {
   padding: 14px 16px;
   border-radius: 16px;
   background: var(--surface);
