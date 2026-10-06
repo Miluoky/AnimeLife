@@ -25,7 +25,7 @@ test('главная: смену тайтлов в баннере можно о�
   await expect(title).toHaveText(pausedTitle ?? '')
 
   await page.getByRole('button', { name: 'Продолжить смену тайтлов' }).click()
-  await page.clock.fastForward(8100)
+  await page.clock.runFor(8100)
   await expect(title).not.toHaveText(pausedTitle ?? '')
 })
 
