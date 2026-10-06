@@ -27,6 +27,8 @@ jobs:
         run: npm run build
       - name: Бюджет размера
         run: node scripts/check-size.mjs
+      - name: Тесты community API
+        run: npm run test:community
       - uses: actions/upload-artifact@v4
         with:
           name: dist

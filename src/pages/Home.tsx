@@ -3,27 +3,30 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { fetchScreenshots } from '../api/shikimori'
 import { removeProgress, useHistory } from '../data/history'
+import type { HistoryEntry } from '../data/history'
+import { useMyList } from '../data/myList'
 import { getPosition } from '../data/positions'
 import { formatTime } from '../components/together/time'
 import { toast } from '../data/toast'
 import CatalogSection from '../components/CatalogSection'
 import { Poster } from '../components/PosterCard'
-import { PlayIcon } from '../components/Icons'
+import { PauseIcon, PlayIcon } from '../components/Icons'
 
 // Рекомендации ниже первого экрана: отдельная часть, грузится следом.
 const Recommendations = lazy(() => import('../components/Recommendations'))
 // Полки «сезон», «скоро», «лучшее» тоже ниже баннера: своей частью, чтобы не утяжелять первый экран.
 const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.SeasonShelf })))
+const NewEpisodesShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.NewEpisodesShelf })))
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 
 const HERO_COUNT = 5
 const HERO_INTERVAL = 8000
 
 function Hero() {
-  // «Сейчас в эфире»: пять самых популярных онгоингов сменяют друг друга, пауза при наведении.
+  // «Сейчас в эфире»: пять самых популярных онгоингов сменяют друг друга.
   const list = useAsync(() => loadCatalog({ status: 'ongoing', limit: HERO_COUNT }), [])
   const [index, setIndex] = useState(0)
-  const [paused, setPaused] = useState(false)
+  const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const items = list.value?.data ?? []
   const current = items[index] ?? items[0]
   const details = useAsync(async () => (current ? (await loadAnime(current.id)).data : undefined), [current?.id])
@@ -45,7 +48,7 @@ function Hero() {
   const shot = shots.value && !shots.loading ? shots.value : undefined
 
   useEffect(() => {
-    if (items.length < 2 || paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (items.length < 2 || paused) return
     const timer = setInterval(() => setIndex((i) => (i + 1) % items.length), HERO_INTERVAL)
     return () => clearInterval(timer)
   }, [items.length, paused])
@@ -60,15 +63,23 @@ function Hero() {
     <section
       className={`hero${paused ? ' hero--paused' : ''}`}
       style={{ '--glow': anime.posterFill, '--hero-ms': `${HERO_INTERVAL}ms` } as CSSProperties}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
     >
       <div className="hero__backdrop" aria-hidden="true">
         {anime.posterUrl && <img key={`bg-${anime.id}`} className="hero__blur" src={anime.posterSmall2x ?? anime.posterUrl} alt="" />}
         {shot && <img key={shot} className="hero__shot" src={shot} alt="" onLoad={(e) => e.currentTarget.classList.add('is-on')} />}
       </div>
+      {items.length > 1 && (
+        <button
+          type="button"
+          className="hero__toggle icon-btn"
+          aria-label={paused ? 'Продолжить смену тайтлов' : 'Поставить смену тайтлов на паузу'}
+          aria-pressed={paused}
+          title={paused ? 'Продолжить смену тайтлов' : 'Поставить смену тайтлов на паузу'}
+          onClick={() => setPaused((value) => !value)}
+        >
+          {paused ? <PlayIcon /> : <PauseIcon />}
+        </button>
+      )}
       <div className="hero__text" key={anime.id}>
         <div className="eyebrow">
           <span className="live-dot" aria-hidden="true" />
@@ -133,8 +144,7 @@ function Hero() {
   )
 }
 
-function ContinueWatching() {
-  const history = useHistory()
+function ContinueWatching({ history }: { history: HistoryEntry[] }) {
   if (!history.length) return null
 
   return (
@@ -189,16 +199,28 @@ function ContinueWatching() {
 export default function Home() {
   const [params] = useSearchParams()
   const query = (params.get('q') ?? '').trim()
+  const history = useHistory()
+  const watching = useMyList().some((entry) => entry.status === 'watching')
+  const hasPersonalContent = history.length > 0 || watching
 
   // Старые ссылки на поиск вида /?q=… ведут в каталог.
   if (query) return <Navigate to={`/catalog?q=${encodeURIComponent(query)}`} replace />
 
   return (
     <main className="container home">
-      {/* Заголовок страницы — о сайте, а не о тайтле в баннере: баннер меняется каждые 8 секунд. */}
-      <h1 className="home-title">Смотреть аниме онлайн</h1>
+      <div className={hasPersonalContent ? 'home__intro home__intro--personal' : 'home__intro'}>
+        {/* Заголовок страницы — о сайте, а не о тайтле в баннере: баннер меняется каждые 8 секунд. */}
+        <h1 className="home-title">Смотреть аниме онлайн</h1>
+        {hasPersonalContent && (
+          <div className="home__personal">
+            <ContinueWatching history={history} />
+            <Suspense fallback={null}>
+              <NewEpisodesShelf />
+            </Suspense>
+          </div>
+        )}
+      </div>
       <Hero />
-      <ContinueWatching />
       <Suspense fallback={null}>
         <SeasonShelf />
         <Recommendations />

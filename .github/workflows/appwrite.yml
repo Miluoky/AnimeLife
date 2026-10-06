@@ -44,6 +44,9 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Подготовить таблицы
         run: node functions/community/setup-comment-reports.mjs
+      - if: steps.keys.outputs.ok == 'true'
+        name: Подготовить общий чат
+        run: node functions/community/setup-community-chat.mjs
       # Токен бота для уведомлений в Telegram: из секрета TELEGRAM_BOT_TOKEN или, если его нет, из функции входа.
       - if: steps.keys.outputs.ok == 'true'
         name: Токен Telegram-бота

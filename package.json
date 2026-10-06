@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "playwright test",
+    "test:community": "node --test functions/community/test/*.test.js",
     "size": "node scripts/check-size.mjs"
   },
   "dependencies": {

@@ -461,6 +461,23 @@ h3 {
   flex-direction: column;
   gap: 56px;
 }
+.home__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.home__intro--personal {
+  gap: 24px;
+}
+.home__personal {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: -32px;
+}
+.home__personal > .stack {
+  min-width: 0;
+}
 
 .eyebrow {
   font-size: 13px;
@@ -2607,6 +2624,17 @@ input[type='radio'] {
   .section-head > :has(+ .chips) {
     flex-basis: 100%;
   }
+  .home__personal .grid--wide {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(240px, 82%);
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x mandatory;
+  }
+  .home__personal .continue-item {
+    scroll-snap-align: start;
+  }
   .grid--posters {
     gap: 20px 12px;
   }
@@ -2918,6 +2946,14 @@ input[type='radio'] {
   box-shadow: 0 24px 60px rgb(0 0 0 / 0.5);
   animation: page-in 0.5s var(--ease) both;
 }
+.hero__toggle {
+  position: absolute;
+  z-index: 1;
+  top: 20px;
+  right: 20px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(10px);
+}
 .hero__thumbs {
   position: absolute;
   right: 32px;
@@ -2994,6 +3030,10 @@ input[type='radio'] {
   }
   .hero__art-poster {
     display: none;
+  }
+  .hero__toggle {
+    top: 12px;
+    right: 12px;
   }
   .hero__thumbs {
     position: static;

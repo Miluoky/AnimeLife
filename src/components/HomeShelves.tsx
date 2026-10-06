@@ -103,7 +103,7 @@ function UpcomingShelf() {
  * Новые серии тайтлов, которые зритель смотрит: по расписанию Shikimori видно, сколько серий уже вышло,
  * а по списку и истории — на какой он остановился. Отдельных запросов к тайтлам не нужно.
  */
-function NewEpisodesShelf() {
+ export function NewEpisodesShelf() {
   const schedule = useAsync(loadSchedule, [])
   const list = useMyList()
   const history = useHistory()
@@ -135,7 +135,6 @@ export function SeasonShelf() {
   const season = currentSeason()
   return (
     <>
-      <NewEpisodesShelf />
       <UpcomingShelf />
       <CatalogShelf
         title={season.label}

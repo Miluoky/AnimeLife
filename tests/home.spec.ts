@@ -8,6 +8,53 @@ test.beforeEach(async ({ page }) => {
   await mockServices(page)
 })
 
+test('главная: смену тайтлов в баннере можно остановить и продолжить', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.clock.install()
+  await page.goto('/')
+  const title = page.locator('.hero__title')
+  await expect(title).toBeVisible()
+  const initialTitle = await title.textContent()
+
+  await page.clock.fastForward(8100)
+  await expect(title).not.toHaveText(initialTitle ?? '')
+
+  await page.getByRole('button', { name: 'Поставить смену тайтлов на паузу' }).click()
+  const pausedTitle = await title.textContent()
+  await page.clock.fastForward(16000)
+  await expect(title).toHaveText(pausedTitle ?? '')
+
+  await page.getByRole('button', { name: 'Продолжить смену тайтлов' }).click()
+  await page.clock.fastForward(8100)
+  await expect(title).not.toHaveText(pausedTitle ?? '')
+})
+
+test('главная: историю просмотра показывает перед баннером', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'anime.history.v1',
+      JSON.stringify([{ animeId: '1', title: 'Первый', posterFill: '#333', episode: 3, totalEpisodes: 12, updatedAt: 1 }]),
+    )
+  })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Продолжить просмотр' })).toBeVisible()
+  await expect(page.locator('.hero')).toBeVisible()
+  const positions = await page.evaluate(() => ({
+    personal: document.querySelector('.home__personal')!.getBoundingClientRect().top,
+    hero: document.querySelector('.hero')!.getBoundingClientRect().top,
+  }))
+  expect(positions.personal).toBeLessThan(positions.hero)
+})
+
+test('главная: при reduced motion баннер стоит на паузе, но его можно запустить вручную', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.clock.install()
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Продолжить смену тайтлов' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Продолжить смену тайтлов' }).click()
+  await expect(page.getByRole('button', { name: 'Поставить смену тайтлов на паузу' })).toHaveAttribute('aria-pressed', 'false')
+})
+
 test('главная: полка «Ближайшие серии» по расписанию на сутки вперёд', async ({ page }) => {
   const hours = (h: number) => new Date(Date.now() + h * 3600_000).toISOString()
   const calendar = [
@@ -48,6 +95,11 @@ test('главная: «Новые серии в вашем списке» по 
   const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Новые серии в вашем списке' }) })
   await expect(shelf.locator('.poster-card')).toHaveCount(1)
   await expect(shelf.locator('.poster-card__tag')).toHaveText('Новых серий: 2')
+  const positions = await page.evaluate(() => ({
+    shelf: document.querySelector('.home__personal')!.getBoundingClientRect().top,
+    hero: document.querySelector('.hero')!.getBoundingClientRect().top,
+  }))
+  expect(positions.shelf).toBeLessThan(positions.hero)
 })
 
 test('главная: плитки жанров ведут на страницы жанров', async ({ page }) => {

@@ -1,5 +1,6 @@
 import webpush from 'web-push'
 import { DB, UserError, checkCaptcha, hash, query } from './util.js'
+import { cleanCommunityChat, communityChatDelete, communityChatSend } from './communityChat.js'
 import {
   cleanRooms,
   roomClose,
@@ -420,7 +421,9 @@ export default async ({ req, res, log, error }) => {
 
   if (req.headers['x-appwrite-trigger'] === 'schedule') {
     try {
-      const result = { ...(await notify(api, log)), cleaned: await cleanRooms(api) }
+      const cleaned = await cleanRooms(api)
+      cleaned.communityChat = await cleanCommunityChat(api)
+      const result = { ...(await notify(api, log)), cleaned }
       log(JSON.stringify(result))
       return res.json(result)
     } catch (e) {
@@ -467,6 +470,10 @@ export default async ({ req, res, log, error }) => {
         return res.json(await roomClose(api, req, body))
       case 'room-message-delete':
         return res.json(await roomMessageDelete(api, req, body))
+      case 'community-chat-send':
+        return res.json(await communityChatSend(api, req, body))
+      case 'community-chat-delete':
+        return res.json(await communityChatDelete(api, req, body))
       case 'room-presence':
         return res.json(await roomPresence(api, req, body))
       case 'room-signal':

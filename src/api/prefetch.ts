@@ -15,6 +15,7 @@ export const pageChunks = {
   notFound: () => import('../pages/NotFound'),
   together: () => import('../pages/Together'),
   togetherHome: () => import('../pages/TogetherHome'),
+  communityChat: () => import('../pages/CommunityChat'),
   publicProfile: () => import('../pages/PublicProfile'),
   legal: () => import('../pages/Legal'),
   character: () => import('../pages/CharacterPage'),

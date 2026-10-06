@@ -18,6 +18,7 @@ const AuthCallback = lazy(pageChunks.authCallback)
 const NotFound = lazy(pageChunks.notFound)
 const Together = lazy(pageChunks.together)
 const TogetherHome = lazy(pageChunks.togetherHome)
+const CommunityChat = lazy(pageChunks.communityChat)
 const PublicProfile = lazy(pageChunks.publicProfile)
 const Legal = lazy(pageChunks.legal)
 const CharacterPage = lazy(pageChunks.character)
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="year/:year" element={<Landing />} />
           <Route path="year/:year/:season" element={<Landing />} />
           <Route path="together" element={<TogetherHome />} />
+          <Route path="chat" element={<CommunityChat />} />
           <Route path="u/:id" element={<PublicProfile />} />
           <Route path="character/:id" element={<CharacterPage />} />
           <Route path="together/:code" element={<TogetherRoute />} />
