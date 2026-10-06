@@ -5,6 +5,7 @@ const ENDPOINT = 'https://fra.cloud.appwrite.io/v1'
 const PROJECT = '6abf65850016889f9b1b'
 const DATABASE = 'anime'
 const TABLE = 'community_chat'
+const REPORTS_TABLE = 'community_chat_reports'
 const KEY = process.env.APPWRITE_API_KEY
 
 if (!KEY) {
@@ -29,29 +30,45 @@ const columns = [
   ['string', { key: 'name', size: 64, required: true }],
   ['string', { key: 'text', size: 500, required: true }],
   ['integer', { key: 'at', required: true }],
+  ['boolean', { key: 'hidden', required: false, default: false }],
+  ['integer', { key: 'reports', required: false, default: 0, min: 0 }],
+  ['boolean', { key: 'moderated', required: false, default: false }],
 ]
 const indexes = [
   { key: 'at_desc', type: 'key', columns: ['at'], orders: ['DESC'] },
   { key: 'user_at', type: 'key', columns: ['userId', 'at'], orders: ['ASC', 'DESC'] },
 ]
+const reportColumns = [
+  ['string', { key: 'messageId', size: 36, required: true }],
+  ['string', { key: 'userId', size: 36, required: true }],
+  ['integer', { key: 'at', required: true }],
+]
+const reportIndexes = [
+  { key: 'message_at', type: 'key', columns: ['messageId', 'at'], orders: ['ASC', 'DESC'] },
+  { key: 'user_at', type: 'key', columns: ['userId', 'at'], orders: ['ASC', 'DESC'] },
+]
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-async function main() {
-  const table = await api('GET', tablePath)
+async function ensureTable(tableId, name, permissions) {
+  const path = `/tablesdb/${DATABASE}/tables/${tableId}`
+  const table = await api('GET', path)
   if (table.status === 404) {
     await api('POST', `/tablesdb/${DATABASE}/tables`, {
-      tableId: TABLE,
-      name: 'Community Chat',
-      permissions: ['read("any")'],
+      tableId,
+      name,
+      permissions,
       rowSecurity: false,
       enabled: true,
     })
-    console.log(`Таблица ${TABLE} создана.`)
+    console.log(`Таблица ${tableId} создана.`)
   } else {
-    console.log(`Таблица ${TABLE} уже есть.`)
+    console.log(`Таблица ${tableId} уже есть.`)
   }
+  return `/tablesdb/${DATABASE}/tables/${tableId}`
+}
 
-  for (const [type, body] of columns) {
+async function ensureColumns(tablePath, definitions) {
+  for (const [type, body] of definitions) {
     const existing = await api('GET', `${tablePath}/columns/${body.key}`)
     if (existing.status !== 404) continue
     await api('POST', `${tablePath}/columns/${type}`, body)
@@ -66,13 +83,24 @@ async function main() {
     if (attempt > 60) throw new Error('Колонки создаются слишком долго, запустите скрипт позже.')
     await pause(1000)
   }
+}
 
-  for (const index of indexes) {
+async function ensureIndexes(tablePath, definitions) {
+  for (const index of definitions) {
     const existing = await api('GET', `${tablePath}/indexes/${index.key}`)
     if (existing.status !== 404) continue
     await api('POST', `${tablePath}/indexes`, index)
     console.log(`Индекс ${index.key} создан.`)
   }
+}
+
+async function main() {
+  const chatPath = await ensureTable(TABLE, 'Community Chat', ['read("any")'])
+  const reportsPath = await ensureTable(REPORTS_TABLE, 'Community Chat Reports', [])
+  await ensureColumns(chatPath, columns)
+  await ensureColumns(reportsPath, reportColumns)
+  await ensureIndexes(chatPath, indexes)
+  await ensureIndexes(reportsPath, reportIndexes)
   console.log('Готово.')
 }
 

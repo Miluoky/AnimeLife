@@ -6,6 +6,7 @@ import { loadModeration, moderateReview, type Review } from '../data/community'
 // Обращения правообладателей и из «Контактов» — отдельная часть, грузится при открытии вкладки.
 const ModerationTakedowns = lazy(() => import('../components/ModerationTakedowns'))
 const ModerationComments = lazy(() => import('../components/ModerationComments'))
+const ModerationChat = lazy(() => import('../components/ModerationChat'))
 
 const dateFormat = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 
@@ -18,7 +19,7 @@ export default function Moderation() {
   const { user, checking } = useAuth()
   const [params, setParams] = useSearchParams()
   const asked = params.get('tab')
-  const tab = asked === 'takedowns' || asked === 'comments' ? asked : 'reviews'
+  const tab = asked === 'takedowns' || asked === 'comments' || asked === 'chat' ? asked : 'reviews'
   const [reviews, setReviews] = useState<Review[]>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string>()
@@ -55,6 +56,7 @@ export default function Moderation() {
         [
           ['reviews', 'Отзывы'],
           ['comments', 'Комментарии'],
+          ['chat', 'Чат'],
           ['takedowns', 'Обращения'],
         ] as const
       ).map(([id, name]) => (
@@ -82,7 +84,7 @@ export default function Moderation() {
           <>
             {tabs}
             <Suspense fallback={<div className="skeleton skeleton--line" aria-busy="true" />}>
-              {tab === 'takedowns' ? <ModerationTakedowns /> : <ModerationComments />}
+              {tab === 'takedowns' ? <ModerationTakedowns /> : tab === 'comments' ? <ModerationComments /> : <ModerationChat />}
             </Suspense>
           </>
         ) : (

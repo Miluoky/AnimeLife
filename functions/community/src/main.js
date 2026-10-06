@@ -1,6 +1,13 @@
 import webpush from 'web-push'
 import { DB, UserError, checkCaptcha, hash, query } from './util.js'
-import { cleanCommunityChat, communityChatDelete, communityChatSend } from './communityChat.js'
+import {
+  cleanCommunityChat,
+  communityChatDelete,
+  communityChatModAction,
+  communityChatModList,
+  communityChatReport,
+  communityChatSend,
+} from './communityChat.js'
 import {
   cleanRooms,
   roomClose,
@@ -474,6 +481,12 @@ export default async ({ req, res, log, error }) => {
         return res.json(await communityChatSend(api, req, body))
       case 'community-chat-delete':
         return res.json(await communityChatDelete(api, req, body))
+      case 'community-chat-report':
+        return res.json(await communityChatReport(api, req, body))
+      case 'community-chat-mod-list':
+        return res.json(await communityChatModList(api, req))
+      case 'community-chat-mod-action':
+        return res.json(await communityChatModAction(api, req, body))
       case 'room-presence':
         return res.json(await roomPresence(api, req, body))
       case 'room-signal':

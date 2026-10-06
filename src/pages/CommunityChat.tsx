@@ -8,6 +8,7 @@ import {
   COMMUNITY_CHAT_LIMIT,
   deleteCommunityChatMessage,
   loadCommunityChat,
+  reportCommunityChatMessage,
   sendCommunityChatMessage,
   subscribeCommunityChat,
   type CommunityChatMessage,
@@ -36,6 +37,7 @@ export default function CommunityChat() {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [reported, setReported] = useState<Set<string>>(new Set())
   const list = useRef<HTMLOListElement>(null)
   const stickToBottom = useRef(true)
   const isAdmin = !!user?.labels?.includes('admin')
@@ -44,7 +46,10 @@ export default function CommunityChat() {
   useEffect(() => {
     let alive = true
     const unsubscribe = subscribeCommunityChat({
-      onMessage: (message) => setMessages((current) => mergeMessages(current ?? [], [message])),
+      onMessage: (message) =>
+        setMessages((current) =>
+          message.hidden ? current?.filter((item) => item.$id !== message.$id) ?? null : mergeMessages(current ?? [], [message]),
+        ),
       onDelete: (id) => setMessages((current) => current?.filter((message) => message.$id !== id) ?? null),
     })
     void loadCommunityChat()
@@ -83,6 +88,16 @@ export default function CommunityChat() {
       setMessages((current) => current?.filter((message) => message.$id !== messageId) ?? null)
     } catch (cause) {
       setError(cause instanceof CommunityError ? cause.message : 'Не удалось удалить сообщение.')
+    }
+  }
+
+  async function report(messageId: string) {
+    try {
+      const result = await reportCommunityChatMessage(messageId)
+      setReported((current) => new Set(current).add(messageId))
+      if (result.hidden) setMessages((current) => current?.filter((message) => message.$id !== messageId) ?? null)
+    } catch (cause) {
+      setError(cause instanceof CommunityError ? cause.message : 'Не удалось отправить жалобу.')
     }
   }
 
@@ -135,6 +150,16 @@ export default function CommunityChat() {
                       onClick={() => void remove(message.$id)}
                     >
                       ×
+                    </button>
+                  )}
+                  {user && !isAdmin && message.userId !== user.$id && (
+                    <button
+                      type="button"
+                      className="community-chat__report"
+                      disabled={reported.has(message.$id)}
+                      onClick={() => void report(message.$id)}
+                    >
+                      {reported.has(message.$id) ? 'Жалоба отправлена' : 'Пожаловаться'}
                     </button>
                   )}
                 </div>
