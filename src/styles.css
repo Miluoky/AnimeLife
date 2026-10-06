@@ -8,6 +8,9 @@
   --muted: #a3a3b2;
   --accent: #ff5470;
   --accent-soft: #ff8098;
+  --glass-surface: color-mix(in srgb, var(--surface) 78%, transparent);
+  --glass-edge: color-mix(in srgb, var(--text) 11%, var(--line));
+  --glass-shadow: 0 18px 48px rgb(0 0 0 / 0.3);
   --font-display: 'Unbounded', sans-serif;
   --font-body: 'Manrope', sans-serif;
   /* плавное торможение для всех анимаций */
@@ -45,7 +48,7 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   margin: 0;
 }
 
@@ -166,6 +169,7 @@ h3 {
 .btn--accent:hover {
   color: var(--bg);
   filter: brightness(1.08);
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .btn--ghost {
@@ -173,6 +177,18 @@ h3 {
   border: 1px solid var(--line);
   color: var(--text);
   font-weight: 600;
+}
+.btn--ghost:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--text) 8%);
+  border-color: var(--glass-edge);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  transform: translateY(-1px);
+}
+.icon-btn:hover {
+  border-color: var(--glass-edge);
+  background: color-mix(in srgb, var(--surface-2) 76%, var(--text) 8%);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
 }
 
 .chip {
@@ -872,10 +888,15 @@ h3 {
   gap: 12px;
   padding-top: 12px;
   padding-bottom: 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--text) 5%, transparent), transparent 58%),
+    var(--glass-surface);
+  border: 1px solid var(--glass-edge);
+  border-top: 0;
   border-radius: 0 0 24px 24px;
-  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.8);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 color-mix(in srgb, var(--text) 8%, transparent);
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
   transform-origin: top;
   animation: sheet-in 0.32s var(--ease) both;
 }
@@ -1775,16 +1796,20 @@ h3 {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: var(--bg);
-  transition: background 0.3s, backdrop-filter 0.3s, transform 0.3s var(--ease);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border-bottom-color: var(--glass-edge);
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s, transform 0.3s var(--ease);
 }
 .site-header--hidden:not(:focus-within) {
   transform: translateY(-100%);
 }
 .site-header--scrolled {
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.16);
 }
 
 /* Переходы между страницами (см. morph.ts): старая страница уходит, новая поднимается снизу,
@@ -1846,7 +1871,7 @@ h3 {
 
 /* Карточка: приподнимается, по постеру пробегает блик. */
 .poster-card__img {
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s;
+  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease), filter 0.35s var(--ease);
 }
 .poster-card__img::after {
   content: '';
@@ -1862,6 +1887,7 @@ h3 {
   .poster-card:focus-visible .poster-card__img {
     transform: translateY(-6px) scale(1.02);
     box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+    filter: saturate(1.08);
   }
   .poster-card:hover .poster-card__img::after {
     animation: shine 0.9s ease;
@@ -1988,10 +2014,11 @@ h3 {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     view-transition-name: bottom-nav;
-    background: color-mix(in srgb, var(--bg) 85%, transparent);
-    backdrop-filter: blur(16px) saturate(140%);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-    border-top: 1px solid var(--surface-2);
+    background: color-mix(in srgb, var(--surface) 76%, transparent);
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    border-top: 1px solid var(--glass-edge);
+    box-shadow: 0 -12px 32px rgb(0 0 0 / 0.22), inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent);
   }
   .bottom-nav__item {
     position: relative;
@@ -2951,8 +2978,11 @@ input[type='radio'] {
   z-index: 1;
   top: 20px;
   right: 20px;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  backdrop-filter: blur(10px);
+  background: var(--glass-surface);
+  border-color: var(--glass-edge);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 color-mix(in srgb, var(--text) 9%, transparent);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
 }
 .hero__thumbs {
   position: absolute;
