@@ -37,7 +37,7 @@ interface KodikState {
 }
 
 /** Сколько миллисекунд после команды комнаты события плеера считаем «эхом», а не действием человека. */
-const ECHO_MS = 900
+const ECHO_MS = 600
 
 const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
   { source, videoId, file, src, title, onUserChange, onReady, onEnded },
@@ -74,26 +74,34 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
       play() {
         hush()
         if (frame.current) {
-          // Пока Kodik не подтвердил плей событием, комната повторит команду через секунду.
           kodikCall('play')
-        } else if (yt.current) yt.current.playVideo()
-        else void video.current?.play().catch(() => undefined)
+        } else if (yt.current) {
+          yt.current.playVideo()
+        } else if (video.current) {
+          void video.current.play().catch(() => undefined)
+        }
       },
       pause() {
         hush()
         if (frame.current) {
           kodikCall('pause')
           kodik.current = { time: kodikTime(kodik.current), at: Date.now(), playing: false }
-        } else if (yt.current) yt.current.pauseVideo()
-        else video.current?.pause()
+        } else if (yt.current) {
+          yt.current.pauseVideo()
+        } else if (video.current) {
+          video.current.pause()
+        }
       },
       seek(s) {
         hush()
         if (frame.current) {
           kodikCall('seek', { seconds: s })
           kodik.current = { ...kodik.current, time: s, at: Date.now() }
-        } else if (yt.current) yt.current.seekTo(s, true)
-        else if (video.current) video.current.currentTime = s
+        } else if (yt.current) {
+          yt.current.seekTo(s, true)
+        } else if (video.current) {
+          video.current.currentTime = s
+        }
       },
       time() {
         if (frame.current) return kodikTime(kodik.current)
@@ -106,7 +114,9 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         return video.current?.paused ?? true
       },
       rate(r) {
-        if (video.current && Math.abs(video.current.playbackRate - r) > 0.001) video.current.playbackRate = r
+        if (video.current && !frame.current && Math.abs(video.current.playbackRate - r) > 0.001) {
+          video.current.playbackRate = r
+        }
       },
       coarse: () => !!frame.current,
     }),
@@ -123,8 +133,9 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
       if (typeof key !== 'string' || !key.startsWith('kodik_player_')) return
       const seconds = typeof value === 'number' ? value : Number((value as { time?: unknown } | null)?.time)
       const k = kodik.current
-      if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) kodik.current = { ...k, time: seconds, at: Date.now() }
-      else if (key === 'kodik_player_play') {
+      if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) {
+        kodik.current = { ...k, time: seconds, at: Date.now() }
+      } else if (key === 'kodik_player_play') {
         kodik.current = { ...k, playing: true, at: Date.now(), time: kodikTime(k) }
         report(true, kodikTime(kodik.current))
       } else if (key === 'kodik_player_pause') {
@@ -140,7 +151,6 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, src])
 
   // Поток сайта: mp4 браузер играет сам, HLS — сам Safari, остальным нужен hls.js.
@@ -251,9 +261,21 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
       controls
       playsInline
       onLoadedMetadata={() => readyRef.current()}
-      onPlay={(e) => report(true, e.currentTarget.currentTime)}
-      onPause={(e) => !e.currentTarget.seeking && !e.currentTarget.ended && report(false, e.currentTarget.currentTime)}
-      onSeeked={(e) => report(!e.currentTarget.paused, e.currentTarget.currentTime)}
+      onPlay={(e) => {
+        if (Date.now() >= quietUntil.current) {
+          report(true, e.currentTarget.currentTime)
+        }
+      }}
+      onPause={(e) => {
+        if (!e.currentTarget.seeking && !e.currentTarget.ended && Date.now() >= quietUntil.current) {
+          report(false, e.currentTarget.currentTime)
+        }
+      }}
+      onSeeked={(e) => {
+        if (Date.now() >= quietUntil.current) {
+          report(!e.currentTarget.paused, e.currentTarget.currentTime)
+        }
+      }}
       onEnded={() => endedRef.current?.()}
     />
   )

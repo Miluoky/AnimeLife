@@ -35,10 +35,10 @@ import Schedule from '../components/together/ScheduleSession'
 import { MEMBER_TTL, PRESENCE_EVERY, loadMembers, presence, subscribeMembers, type Member } from '../data/voice'
 
 /** Расхождение больше этого (секунд) исправляем перемоткой, меньше — подстройкой скорости. */
-const HARD_DRIFT = 1.5
-const SOFT_DRIFT = 0.3
+const HARD_DRIFT = 0.5
+const SOFT_DRIFT = 0.15
 /** Kodik сообщает время раз в секунду и перематывает дольше: держим комнату вместе с допуском пошире. */
-const COARSE_DRIFT = 4
+const COARSE_DRIFT = 1.5
 
 const errorText = (e: unknown) => (e instanceof CommunityError ? e.message : 'Не получилось. Попробуйте ещё раз.')
 
@@ -77,26 +77,42 @@ export default function Together() {
     const v = video.current
     if (!r || !v || !joined || !ready) return
     const target = roomPosition(r)
+    const current = v.time()
+    const drift = current - target
+    const coarse = v.coarse()
+    const hardLimit = coarse ? COARSE_DRIFT : HARD_DRIFT
+    
     if (!r.playing) {
       if (!v.paused()) v.pause()
-      if (Math.abs(v.time() - r.position) > 0.5) v.seek(r.position)
+      if (Math.abs(current - r.position) > 0.3) v.seek(r.position)
       v.rate(1)
       return
     }
-    const drift = v.time() - target
+    
     if (v.paused()) {
-      if (Math.abs(drift) > (v.coarse() ? COARSE_DRIFT : 0.5)) v.seek(target)
+      if (Math.abs(drift) > (coarse ? COARSE_DRIFT : 0.3)) v.seek(target)
       v.play()
-    } else if (Math.abs(drift) > (v.coarse() ? COARSE_DRIFT : HARD_DRIFT)) {
-      v.seek(target)
+      v.rate(1)
+      return
     }
-    // Отстаём или спешим чуть-чуть: ускоряем или замедляем на несколько процентов, без рывка.
-    v.rate(Math.abs(drift) > SOFT_DRIFT ? 1 - Math.max(-0.05, Math.min(0.05, drift * 0.1)) : 1)
+    
+    if (Math.abs(drift) > hardLimit) {
+      v.seek(target)
+      v.rate(1)
+      return
+    }
+    
+    if (Math.abs(drift) > SOFT_DRIFT) {
+      const speedAdjust = Math.max(-0.15, Math.min(0.15, drift * 0.2))
+      v.rate(1 - speedAdjust)
+    } else {
+      v.rate(1)
+    }
   }, [joined, ready])
 
   useEffect(() => {
     align()
-    const timer = setInterval(align, 1000)
+    const timer = setInterval(align, 250)
     return () => clearInterval(timer)
   }, [align, room])
 
@@ -125,6 +141,13 @@ export default function Together() {
           }
         }
         setRoom(next)
+        if (next.playing !== prev?.playing || Math.abs(next.position - (prev?.position ?? 0)) > 0.5) {
+          setTimeout(() => {
+            const v = video.current
+            if (v && next.playing && v.paused()) v.play()
+            else if (v && !next.playing && !v.paused()) v.pause()
+          }, 50)
+        }
       },
       onMessageGone: (id) => setMessages((list) => list.filter((x) => x.$id !== id)),
       onMessage: (m) => {
@@ -175,10 +198,16 @@ export default function Together() {
   const send = async (state: Partial<Room> & { playing: boolean; position: number }) => {
     const r = roomRef.current
     if (!r) return
-    // Сразу показываем у себя, не дожидаясь сервера: так управление не «тормозит».
-    setRoom({ ...r, ...state, at: serverNow(), actor: user?.name })
+    const now = serverNow()
+    const optimistic = { ...r, ...state, at: now, actor: user?.name }
+    setRoom(optimistic)
     try {
-      await controlRoom(r.$id, state)
+      const response = await controlRoom(r.$id, state)
+      if (response.serverNow) {
+        const corrected = { ...optimistic, at: response.serverNow }
+        setRoom(corrected)
+      }
+      align()
     } catch (e) {
       toast(errorText(e))
       void loadRoom(r.$id).then((fresh) => fresh && setRoom(fresh))
