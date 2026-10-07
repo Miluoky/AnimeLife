@@ -19,6 +19,7 @@ import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
+import NextEpisode from '../components/NextEpisode'
 
 // «Пропускать филлеры»: кнопка и автопереход ведут сразу к следующей сюжетной серии.
 const skipFillersStore = createLocalStore('anime.skipfillers.v1', false)
@@ -41,7 +42,7 @@ export default function Player() {
   const list = useMyList()
   const seen = (anime && list.find((e) => e.anime.id === anime.id)?.watched) || 0
 
-  const total = anime ? episodeCount(anime) : 1
+  const scheduledTotal = anime ? episodeCount(anime) : 1
   const kodik = useAsync(() => fetchKodikTranslations(id).catch(() => []), [id])
   // Где есть серии из бесплатных источников. Ответы запоминаются, плеер потом берёт их же без новых запросов.
   const free = useAsync(async () => {
@@ -70,6 +71,8 @@ export default function Player() {
       ),
     [kodik.value, names, free.value, yummy.value],
   )
+  const sourceTotal = Math.max(0, ...voices.map((v) => v.episodes ?? 0))
+  const total = sourceTotal || scheduledTotal
   // Своих источников нет: ждём YummyAnime, иначе сначала включится трейлер, а потом серия.
   const hasOwn = !!kodik.value?.length || !!free.value?.aniLibria || !!free.value?.animeVost || !!free.value?.anixart?.voices.length
   const waitYummy = yummy.loading && !hasOwn
@@ -94,17 +97,19 @@ export default function Player() {
     saveHost(id)
     setHostId(id)
   }
-  const current = Math.min(Math.max(1, Number(episode) || 1), total)
+  const requested = Math.max(1, Number(episode) || 1)
+  const current = Math.min(requested, total)
+  const isScheduled = !!anime?.ongoing && !!anime.nextEpisodeAt && requested === total + 1
 
   useEffect(() => {
-    if (!anime) return
+    if (!anime || isScheduled) return
     saveProgress(anime, current, total)
     // Открыли серию N: предыдущие считаем просмотренными, если тайтл в списке.
     const entry = getEntry(anime.id)
     if (entry && (entry.watched ?? 0) < current - 1) setWatched(anime.id, current - 1)
     const hour = new Date().getHours()
     if (hour < 5) markFlag('nightOwl')
-  }, [anime, current, total])
+  }, [anime, current, total, isScheduled])
 
   usePageMeta(
     anime && watchPageTitle(animeInfo(anime), current),
@@ -113,6 +118,17 @@ export default function Player() {
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   if (!anime) return <NotFound title="Тайтл не найден" />
+  if (isScheduled) {
+    return (
+      <main className="container empty-page episode-upcoming">
+        <h1>{anime.title}: серия {requested}</h1>
+        <p className="muted">Этой серии ещё нет ни в одном подключённом источнике.</p>
+        <NextEpisode at={anime.nextEpisodeAt!} episode={requested} />
+        <Link className="btn btn--ghost" to={`/anime/${anime.id}`}>Вернуться к сериалу</Link>
+      </main>
+    )
+  }
+  if (requested > total) return <NotFound title="Серия ещё не вышла" />
 
   const goTo = (n: number) => navigate(`/watch/${anime.id}/${n}`)
   // Вперёд на одну серию с включённым пропуском — через все филлеры подряд.
@@ -495,16 +511,26 @@ function HostPicker({ hosts, current, onChoose }: { hosts: Host[]; current?: str
   )
 }
 
-/** Логотип студии, а если его нет или он не загрузился — первая буква названия. */
-function VoiceMark({ title, icon }: { title: string; icon?: string }) {
+const VOICE_ICONS: Record<string, string> = {
+  anilibria: '/voiceovers/anilibria.svg',
+  steponee: '/voiceovers/steponee.svg',
+  'св-дубль': '/voiceovers/sv-dubl.svg',
+  'дубляж св-дубль': '/voiceovers/sv-dubl.svg',
+  miraidub: '/voiceovers/miraidub.svg',
+  'mca-lab': '/voiceovers/mca-lab.svg',
+}
+
+function localVoiceIcon(title: string, kind: Voice['kind']) {
+  return VOICE_ICONS[title.trim().toLowerCase()] ?? `/voiceovers/${kind}.svg`
+}
+
+/** Логотип студии, а если внешний адрес не загрузился — локальная картинка. */
+function VoiceMark({ title, kind, icon }: { title: string; kind: Voice['kind']; icon?: string }) {
   const [broken, setBroken] = useState(false)
+  const src = !broken && icon ? icon : localVoiceIcon(title, kind)
   return (
     <span className="voice__mark" aria-hidden="true">
-      {icon && !broken ? (
-        <img src={icon} alt="" width={36} height={36} loading="lazy" decoding="async" onError={() => setBroken(true)} />
-      ) : (
-        title.slice(0, 1).toUpperCase()
-      )}
+      <img src={src} alt="" width={36} height={36} loading="lazy" decoding="async" onError={() => setBroken(true)} />
     </span>
   )
 }
@@ -553,7 +579,7 @@ function VoicePicker({ voices, current, onChoose }: { voices: Voice[]; current?:
         {shown.map((v) => (
           <li key={v.key}>
             <button type="button" className="voice" aria-pressed={v.key === current} onClick={() => onChoose(v.key)}>
-              <VoiceMark title={v.title} icon={v.icon} />
+              <VoiceMark title={v.title} kind={v.kind} icon={v.icon} />
               <span className="voice__text">
                 <span className="voice__title">{v.title}</span>
                 <span className="voice__kind">{v.kind === 'subtitles' ? 'Субтитры' : 'Озвучка'}</span>

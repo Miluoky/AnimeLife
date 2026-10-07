@@ -106,6 +106,8 @@ test('главная: плитки жанров ведут на страницы
   await page.goto('/')
   const tiles = page.locator('.genre-tile')
   await expect(tiles).toHaveCount(12)
+  await expect(tiles.filter({ hasText: 'Экшен' }).locator('img')).toHaveAttribute('src', /40748\.jpg$/)
+  await expect(tiles.filter({ hasText: 'Романтика' }).locator('img')).toHaveAttribute('loading', 'lazy')
   await expect(tiles.filter({ hasText: 'Романтика' })).toHaveAttribute('href', '/genre/romance')
   await tiles.filter({ hasText: 'Меха' }).click()
   await expect(page).toHaveURL(/\/genre\/mecha$/)

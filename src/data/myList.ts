@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import type { Anime, AnimeCard } from './catalog'
 import { createLocalStore } from './localStore'
 
@@ -30,6 +31,15 @@ export interface ListEntry {
 const store = createLocalStore<ListEntry[]>('anime.mylist.v1', [])
 
 export const useMyList = store.use
+
+/** Подписка на запись одного тайтла: остальные карточки не перерисовываются при изменениях списка. */
+export function useMyListEntry(animeId: string) {
+  return useSyncExternalStore(
+    store.subscribe,
+    () => store.get().find((entry) => entry.anime.id === animeId),
+    () => undefined,
+  )
+}
 
 /** Удалённые тайтлы и время удаления: чтобы при синхронизации они не вернулись с другого устройства. */
 const removedStore = createLocalStore<Record<string, number>>('anime.mylist.removed.v1', {})

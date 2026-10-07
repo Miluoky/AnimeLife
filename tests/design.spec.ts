@@ -8,6 +8,23 @@ test.beforeEach(async ({ page }) => {
   await mockServices(page)
 })
 
+test('публичная главная отрисовывается до загрузки Appwrite SDK', async ({ page }) => {
+  const accountRequests: string[] = []
+  page.on('request', (request) => {
+    if (/cloud\.appwrite\.io\/v1\/account$/.test(request.url())) accountRequests.push(request.url())
+  })
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Смотреть аниме онлайн' })).toBeVisible()
+  expect(accountRequests).toHaveLength(0)
+})
+
+test('прямой вход в профиль не откладывает проверку сессии', async ({ page }) => {
+  const accountRequest = page.waitForRequest((request) => /cloud\.appwrite\.io\/v1\/account$/.test(request.url()))
+  await page.goto('/account', { waitUntil: 'domcontentloaded' })
+  await accountRequest
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible()
+})
+
 test('нижнее меню на телефоне ведёт по разделам', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'только телефон')
   await page.goto('/')

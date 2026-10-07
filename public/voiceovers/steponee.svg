@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="STEPonee">
+  <rect width="72" height="72" rx="18" fill="#151820"/>
+  <path d="M17 23c0-6 5-10 12-10h25v9H30c-2 0-4 1-4 3s2 3 4 3h12c8 0 13 5 13 14 0 10-6 16-16 16H17v-9h22c4 0 6-2 6-6 0-3-2-5-6-5H28c-7 0-11-6-11-15Z" fill="#f1d64b"/>
+  <circle cx="55" cy="55" r="7" fill="#e94f64"/>
+</svg>

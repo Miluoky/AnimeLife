@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 import type { SyntheticEvent } from 'react'
 import type { Anime, AnimeCard } from '../data/catalog'
 import { prefetchTitle } from '../api/prefetch'
-import { listStatuses, totalEpisodes, useMyList } from '../data/myList'
-import { useHistory } from '../data/history'
+import { listStatuses, totalEpisodes, useMyListEntry } from '../data/myList'
+import { useHistoryEntry } from '../data/history'
 
 /** Картинка проявляется, когда догрузилась, а не появляется построчно. */
 export const fadeIn = (e: SyntheticEvent<HTMLImageElement>) => e.currentTarget.classList.add('is-loaded')
@@ -63,8 +63,8 @@ export default function PosterCard({
   const prefetch = () => prefetchTitle(anime.id)
   const to = `/anime/${anime.id}`
   // Свой статус видно прямо на постере: что уже в списке и сколько серий осталось.
-  const entry = useMyList().find((e) => e.anime.id === anime.id)
-  const seen = useHistory().find((h) => h.animeId === anime.id)
+  const entry = useMyListEntry(anime.id)
+  const seen = useHistoryEntry(anime.id)
   const total = totalEpisodes(anime) || seen?.totalEpisodes || 0
   const watched = entry?.status === 'completed' ? total : Math.max(entry?.watched ?? 0, seen ? seen.episode - 1 : 0)
   const mine = !hideMine && entry && listStatuses.find((s) => s.id === entry.status)?.title

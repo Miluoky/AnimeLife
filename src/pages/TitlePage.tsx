@@ -179,7 +179,12 @@ export default function TitlePage() {
   if (!anime) return <NotFound title="Тайтл не найден" />
 
   const progress = history.find((h) => h.animeId === anime.id)
-  const total = episodeCount(anime)
+  const shikiTotal = episodeCount(anime)
+  const alEpisodes = release.value && String(release.value.shikimori?.id) === anime.id ? release.value.episodes : []
+  const sourceEpisodes = Math.max(alEpisodes.length, ...(anixart.value?.voices.map((v) => v.episodes) ?? [0]))
+  // Shikimori can announce the next episode before a source has published its video.
+  // Once a source answered, its real episode count is the list shown to the viewer.
+  const total = sourceEpisodes > 0 ? sourceEpisodes : shikiTotal
   const pages = Math.ceil(total / PAGE_SIZE)
   const page = Math.min(pageWanted, pages - 1)
   const from = page * PAGE_SIZE + 1
@@ -230,8 +235,6 @@ export default function TitlePage() {
     const a = i * PAGE_SIZE + 1
     return `${a}–${Math.min(total, a + PAGE_SIZE - 1)}`
   }
-
-  const alEpisodes = release.value && String(release.value.shikimori?.id) === anime.id ? release.value.episodes : []
 
   function episodeLabel(n: number) {
     if (progress && n < progress.episode) return 'Просмотрено'
@@ -285,7 +288,13 @@ export default function TitlePage() {
                 )
               })}
             </div>
-            {anime.nextEpisodeAt && <NextEpisode at={anime.nextEpisodeAt} episode={(anime.episodesAired ?? 0) + 1} />}
+            {anime.nextEpisodeAt && anime.ongoing && (
+              <NextEpisode
+                at={anime.nextEpisodeAt}
+                episode={total + 1}
+                href={`/watch/${anime.id}/${total + 1}`}
+              />
+            )}
             <div className="actions">
               <Link to={`/watch/${anime.id}/${progress?.episode ?? 1}`} className="btn btn--accent">
                 <PlayIcon />

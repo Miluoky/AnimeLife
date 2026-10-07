@@ -214,7 +214,19 @@ async function refresh() {
 
 if (typeof window !== 'undefined') {
   if (knownGuest()) setState({ checking: false, user: null })
-  else void refresh()
+  else if (/^\/(account|my-list|moderation|chat|together|auth)(\/|$)/.test(window.location.pathname)) void refresh()
+  else {
+    // Public pages can render from local stores; keep the Appwrite SDK off their initial loading path.
+    window.addEventListener(
+      'load',
+      () => {
+        const check = () => void refresh()
+        if ('requestIdleCallback' in window) window.requestIdleCallback(check, { timeout: 1200 })
+        else setTimeout(check, 300)
+      },
+      { once: true },
+    )
+  }
   // Вернулись на вкладку: подтягиваем то, что могли поменять на другом устройстве.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && state.user) void refresh()

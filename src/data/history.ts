@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import type { Anime } from './catalog'
 import { createLocalStore } from './localStore'
 
@@ -18,6 +19,15 @@ const store = createLocalStore<HistoryEntry[]>('anime.history.v1', [])
 
 export const getHistory = store.get
 export const useHistory = store.use
+
+/** Подписка на прогресс одного тайтла без перерисовки всех карточек истории. */
+export function useHistoryEntry(animeId: string) {
+  return useSyncExternalStore(
+    store.subscribe,
+    () => store.get().find((entry) => entry.animeId === animeId),
+    () => undefined,
+  )
+}
 
 /** Для синхронизации с аккаунтом. */
 export const historyStore = store

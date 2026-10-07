@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="AniLibria">
+  <rect width="72" height="72" rx="18" fill="#20232b"/>
+  <path d="m36 10 25 45H11L36 10Z" fill="#e24b43"/>
+  <path d="m36 25 12 22H24l12-22Z" fill="#f4f1e9"/>
+  <circle cx="36" cy="43" r="5" fill="#20232b"/>
+</svg>

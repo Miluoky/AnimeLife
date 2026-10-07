@@ -30,6 +30,7 @@ import {
 } from './profile.js'
 import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
 import { TG_PREFIX, telegramReady, tgSendEpisode, tgStatus, tgSubscribe, tgUnsubscribe } from './telegram.js'
+import { analyticsStats, analyticsTrack } from './analytics.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -360,15 +361,7 @@ async function allSubscriptions(api) {
 }
 
 async function notify(api, log) {
-  const due = []
-  for (const e of await freshEpisodes()) {
-    const id = `s${e.anime.id}-${e.next_episode}`
-    const seen = await api('GET', `${DB}/sent/rows/${id}`)
-    if (seen.status !== 404) continue
-    // Сначала отмечаем как отправленное: если запуск упадёт посередине, повторов не будет.
-    await api('PUT', `${DB}/sent/rows/${id}`, { data: { count: 0 } })
-    due.push(e)
-  }
+  const due = await freshEpisodes()
   if (!due.length) return { due: 0, sent: 0 }
 
   webpush.setVapidDetails(
@@ -382,8 +375,13 @@ async function notify(api, log) {
     if (sub.endpoint.startsWith(TG_PREFIX)) {
       if (!telegramReady()) continue
       for (const e of mine) {
+        const sentId = `s${hash(`${sub.$id}:${e.anime.id}:${e.next_episode}`)}`
+        if ((await api('GET', `${DB}/sent/rows/${sentId}`)).status !== 404) continue
         const result = await tgSendEpisode(sub, e)
-        if (result === 'sent') sent++
+        if (result === 'sent') {
+          await api('PUT', `${DB}/sent/rows/${sentId}`, { data: { count: 1 } })
+          sent++
+        }
         if (result === 'failed') log(`telegram failed for ${sub.$id}`)
         // Пользователь заблокировал бота: подписка больше не нужна.
         if (result === 'gone') {
@@ -394,6 +392,8 @@ async function notify(api, log) {
       continue
     }
     for (const e of mine) {
+      const sentId = `s${hash(`${sub.$id}:${e.anime.id}:${e.next_episode}`)}`
+      if ((await api('GET', `${DB}/sent/rows/${sentId}`)).status !== 404) continue
       const title = e.anime.russian || e.anime.name
       const payload = JSON.stringify({
         title: `Новая серия: ${title}`,
@@ -409,6 +409,7 @@ async function notify(api, log) {
             TTL: 6 * 3600,
           },
         )
+        await api('PUT', `${DB}/sent/rows/${sentId}`, { data: { count: 1 } })
         sent++
       } catch (err) {
         // Подписка больше не действует (браузер отписался): удаляем.
@@ -523,6 +524,10 @@ export default async ({ req, res, log, error }) => {
         return res.json(await takedownList(api, req, body))
       case 'takedown-status':
         return res.json(await takedownStatus(api, req, body))
+      case 'analytics-track':
+        return res.json(await analyticsTrack(api, body))
+      case 'analytics-stats':
+        return res.json(await analyticsStats(api, req))
       default:
         return res.json({ error: 'Неизвестное действие.' }, 400)
     }

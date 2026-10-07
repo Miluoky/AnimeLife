@@ -15,6 +15,24 @@
   --font-body: 'Manrope', sans-serif;
   /* плавное торможение для всех анимаций */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  scrollbar-color: var(--accent) var(--surface-2);
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-2);
+}
+::-webkit-scrollbar-thumb {
+  border: 2px solid var(--surface-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 76%, var(--muted));
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-soft);
 }
 
 * {
@@ -1051,6 +1069,49 @@ h3 {
   padding: 40px 0;
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0 36px;
+}
+
+.stats-grid > div {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.stats-grid strong {
+  font-size: 1.8rem;
+}
+
+.stats-grid span {
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.page-section section ul {
+  max-width: 720px;
+  padding: 0;
+  list-style: none;
+}
+
+.page-section section li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 700px) {
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .empty-state p {
   margin: 0;
   max-width: 520px;
@@ -1079,6 +1140,23 @@ h3 {
   overflow-x: auto;
   padding-bottom: 8px;
   scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--surface-2);
+}
+.row-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.row-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.row-scroll::-webkit-scrollbar-thumb {
+  border: 1px solid var(--surface-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 76%, var(--muted));
+}
+.row-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-soft);
 }
 
 .row-scroll__item {

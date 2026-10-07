@@ -5,6 +5,7 @@ import Shelf from './Shelf'
 import PosterCard from './PosterCard'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
+import { SHIKIMORI_URL } from '../api/shikimori'
 import { CalendarIcon, ClockIcon, PlayIcon, TrophyIcon } from './Icons'
 import { GENRES } from '../data/seo'
 import './genres.css'
@@ -182,6 +183,20 @@ export function MoreShelves() {
 }
 
 const TILE_GENRES = ['action', 'romance', 'comedy', 'fantasy', 'drama', 'sci-fi', 'mystery', 'slice-of-life', 'horror', 'sports', 'psychological', 'mecha']
+const GENRE_POSTERS: Record<string, number> = {
+  action: 40748,
+  romance: 32281,
+  comedy: 918,
+  fantasy: 52991,
+  drama: 33352,
+  'sci-fi': 1,
+  mystery: 235,
+  'slice-of-life': 5680,
+  horror: 11111,
+  sports: 20583,
+  psychological: 19,
+  mecha: 30,
+}
 
 /** Плитки жанров на главной: у каждого свой цвет, ведут на посадочные /genre/:slug. */
 function GenreTiles() {
@@ -203,7 +218,18 @@ function GenreTiles() {
       <div className="genre-tiles">
         {tiles.map((g, i) => (
           <Link key={g.slug} to={`/genre/${g.slug}`} className="genre-tile" style={{ '--h': (i * 360) / tiles.length + 340 } as CSSProperties}>
-            {g.slug === 'psychological' ? 'Психология' : g.name}
+            <img
+              className="genre-tile__image"
+              src={`${SHIKIMORI_URL}/system/animes/preview/${GENRE_POSTERS[g.slug]}.jpg`}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              decoding="async"
+              onError={(event) => {
+                event.currentTarget.style.opacity = '0'
+              }}
+            />
+            <span className="genre-tile__name">{g.slug === 'psychological' ? 'Психология' : g.name}</span>
           </Link>
         ))}
       </div>

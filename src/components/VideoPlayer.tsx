@@ -156,6 +156,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [frameAttempt, setFrameAttempt] = useState(0)
 
   // ─── AniLibria state ───
   const [alRelease, setAlRelease] = useState<AniLibriaRelease | null>(null)
@@ -182,7 +183,14 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     setLoading(true)
     setError(null)
+    setFrameAttempt(0)
   }, [provider, kodikLink, anixart?.type, embed?.url])
+
+  useEffect(() => {
+    if (!loading || provider === 'anilibria' || provider === 'animevost') return
+    const timer = window.setTimeout(() => setError('Плеер не ответил вовремя. Возможно, источник или CDN заблокирован. Попробуйте другой плеер.'), 15000)
+    return () => window.clearTimeout(timer)
+  }, [loading, provider, frameAttempt])
 
   const onEpisodesRef = useRef(onEpisodes)
   onEpisodesRef.current = onEpisodes
@@ -466,7 +474,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }, [provider, positionKey, episode, kodikLink, anixart?.type, embed?.url])
 
   /* ─── Хелпер: iframe загрузился ─── */
-  const onIframeLoad = useCallback(() => setLoading(false), [])
+  const onIframeLoad = useCallback(() => {
+    setLoading(false)
+    setError(null)
+  }, [])
 
   /* ─── Рендер провайдеров ─── */
 
@@ -481,6 +492,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     if (!src) return null
     return (
       <iframe
+        key={`${src}:${frameAttempt}`}
         className="player-iframe"
         src={src}
         title={`Kodik: ${title}`}
@@ -497,6 +509,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     if (!src) return null
     return (
       <iframe
+        key={`${src}:${frameAttempt}`}
         className="player-iframe"
         src={src}
         title={`Alloha: ${title}`}
@@ -515,7 +528,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     const src = kodikHost(found)
     return (
       <iframe
-        key={src}
+        key={`${src}:${frameAttempt}`}
         className="player-iframe"
         src={src}
         title={`${anixart?.title ?? 'Anixart'}: ${title}`}
@@ -533,7 +546,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     const src = kodikHost(embed.url)
     return (
       <iframe
-        key={src}
+        key={`${src}:${frameAttempt}`}
         className="player-iframe"
         src={src}
         title={`${embed.voice}, плеер ${embed.player}: ${title}`}
@@ -560,6 +573,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   function unavailableReason(): string | null {
     if (!provider) return NO_SOURCES
+    if ((provider === 'kodik' || provider === 'alloha' || provider === 'embed') && error) return error
     if (provider === 'kodik' && !kodikLink && !kodikEmbedUrl({ shikimoriId, kinopoiskId, imdbId, title, episode })) {
       return 'Kodik: токен не настроен или нет идентификатора тайтла'
     }
@@ -689,6 +703,11 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         ) : (
           <div className="vp-fallback">
             <p className="vp-fallback__text" role="status">{unavailable}.</p>
+            {provider !== 'anilibria' && provider !== 'animevost' && (
+              <button type="button" className="btn btn--ghost btn--small" onClick={() => { setError(null); setLoading(true); setFrameAttempt((n) => n + 1) }}>
+                Повторить загрузку
+              </button>
+            )}
             {switchButton}
           </div>
         ))}

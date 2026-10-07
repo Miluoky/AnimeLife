@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import '../pages/title.css'
 
 const dateFormat = new Intl.DateTimeFormat('ru-RU', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -7,7 +9,7 @@ const pad = (n: number) => String(n).padStart(2, '0')
  * Таймер до следующей серии онгоинга: дни, часы, минуты и секунды плюс дата по местному времени.
  * Время берём из расписания Shikimori; если оно давно прошло (расписание не обновили), блок не показываем.
  */
-export default function NextEpisode({ at, episode }: { at: string; episode: number }) {
+export default function NextEpisode({ at, episode, href }: { at: string; episode: number; href?: string }) {
   const target = new Date(at).getTime()
   const [now, setNow] = useState(() => Date.now())
 
@@ -25,8 +27,8 @@ export default function NextEpisode({ at, episode }: { at: string; episode: numb
     [left % 60, 'сек'],
   ]
 
-  return (
-    <div className="next-ep" role="timer" aria-label={`Серия ${episode}: ${dateFormat.format(target)}`}>
+  const content = (
+    <>
       <div className="next-ep__head">
         <span className="next-ep__dot" aria-hidden="true" />
         {left ? `Серия ${episode} выйдет через` : `Серия ${episode} вот-вот выйдет`}
@@ -42,6 +44,8 @@ export default function NextEpisode({ at, episode }: { at: string; episode: numb
         </div>
       )}
       <div className="next-ep__date muted">{dateFormat.format(target)}</div>
-    </div>
+    </>
   )
+  if (href) return <Link to={href} className="next-ep" role="timer" aria-label={`Серия ${episode}: ${dateFormat.format(target)}`}>{content}</Link>
+  return <div className="next-ep" role="timer" aria-label={`Серия ${episode}: ${dateFormat.format(target)}`}>{content}</div>
 }

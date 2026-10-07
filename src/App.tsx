@@ -27,6 +27,7 @@ const Top = lazy(pageChunks.top)
 const Changelog = lazy(pageChunks.changelog)
 const Collections = lazy(pageChunks.collections)
 const Quiz = lazy(pageChunks.quiz)
+const AdminAnalytics = lazy(() => import('./pages/AdminAnalytics'))
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="auth/vk" element={<AuthCallback />} />
           <Route path="my-list" element={<MyList />} />
           <Route path="moderation" element={<Moderation />} />
+          <Route path="admin/analytics" element={<AdminAnalytics />} />
           {/* Служебные страницы: тексты в src/data/legal.ts, у двух первых форма обращения. */}
           <Route path="rightholders" element={<Legal />} />
           <Route path="contacts" element={<Legal />} />

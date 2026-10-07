@@ -10,6 +10,7 @@ import { applyAppearance } from '../data/theme'
 import { useViewTransitions } from './morph'
 import { useScrollRestore } from './scrollRestore'
 import { useCanonical } from '../data/pageMeta'
+import { trackPage } from '../data/analytics'
 
 // Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
 const InstallBanner = lazy(() => import('./InstallBanner'))
@@ -42,6 +43,7 @@ export default function Layout() {
 
   useViewTransitions()
   useCanonical()
+  useEffect(() => trackPage(`${location.pathname}${location.search}`), [location.pathname, location.search])
 
   const toggleMenu = (open: boolean) => {
     if (open === menuOpen) return
