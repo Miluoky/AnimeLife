@@ -29,8 +29,9 @@ function Hero() {
   const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const items = list.value?.data ?? []
   const current = items[index] ?? items[0]
-  const details = useAsync(async () => (current ? (await loadAnime(current.id)).data : undefined), [current?.id])
-  const anime = details.value ?? current
+  const details = useAsync(async () => (current ? { of: current.id, data: (await loadAnime(current.id)).data } : undefined), [current?.id])
+  // Пока грузятся подробности нового тайтла, показываем его из списка, а не прошлый тайтл.
+  const anime = (details.value?.of === current?.id && details.value?.data) || current
   // Кадр из аниме на фон. Кадр следующего тайтла запрашиваем заранее, чтобы смена была без пустого фона.
   const shots = useAsync(async () => (current ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined), [current?.id])
   const next = items[(index + 1) % items.length]

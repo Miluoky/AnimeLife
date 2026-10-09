@@ -42,7 +42,8 @@ test('вошедший пользователь может отправить ж
   })
 
   await page.goto('/chat')
-  const report = page.getByRole('button', { name: 'Пожаловаться' }).first()
+  // Жалуемся на сообщение Ани: кнопка есть у каждого чужого сообщения.
+  const report = page.locator('li', { hasText: 'Аня' }).getByRole('button', { name: 'Пожаловаться' })
   await expect(report).toBeVisible()
   await report.click()
   await expect(page.getByRole('button', { name: 'Жалоба отправлена' }).first()).toBeDisabled()

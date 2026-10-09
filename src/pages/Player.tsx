@@ -72,7 +72,8 @@ export default function Player() {
     [kodik.value, names, free.value, yummy.value],
   )
   const sourceTotal = Math.max(0, ...voices.map((v) => v.episodes ?? 0))
-  const total = sourceTotal || scheduledTotal
+  // Источники могут знать больше серий, чем Shikimori, но меньше — не повод прятать вышедшие серии.
+  const total = Math.max(sourceTotal, scheduledTotal)
   // Своих источников нет: ждём YummyAnime, иначе сначала включится трейлер, а потом серия.
   const hasOwn = !!kodik.value?.length || !!free.value?.aniLibria || !!free.value?.animeVost || !!free.value?.anixart?.voices.length
   const waitYummy = yummy.loading && !hasOwn
