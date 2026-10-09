@@ -408,7 +408,7 @@ test('плеер: нет в AniLibria, но есть в AnimeVost — включ
   await stream
   expect(searches[0]).toBe('Ковбой Бибоп')
   await expect(page.getByRole('button', { name: /^AnimeVost/ })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByRole('button', { name: /^AnimeVost/ })).toContainText('3 эп.')
+  await expect(page.getByRole('button', { name: /^AnimeVost/ })).toContainText('3 из 26')
   // AniLibria без релиза в списке не показываем.
   await expect(page.getByRole('button', { name: /^AniLibria/ })).toHaveCount(0)
   await expect(page.getByText(/вот трейлер/)).toHaveCount(0)
@@ -452,7 +452,10 @@ test('плеер: озвучки студий из Anixart, серия игра�
   await expect(page.getByText(/Филлеры: 1 из 26/)).toContainText('Эта серия филлер.')
   // AniLibria без релиза: её студия приходит из Anixart, субтитры подписаны без префикса.
   await expect(page.getByRole('button', { name: /^AniLibria/ })).toContainText('26 эп.')
+  // Субтитры на своей вкладке, как на Senku.
+  await page.getByRole('button', { name: /^Субтитры/ }).click()
   await expect(page.getByRole('button', { name: /^CR/ })).toContainText('Субтитры')
+  await page.getByRole('button', { name: /^Озвучка/ }).click()
   // У студии есть логотип: он вместо буквы.
   await expect(page.getByRole('button', { name: /^Studio Band/ }).locator('img')).toHaveAttribute('src', /studio-band\.jpg$/)
   await page.getByRole('button', { name: /^Studio Band/ }).click()

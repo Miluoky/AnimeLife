@@ -1,0 +1,69 @@
+/* Значок студии озвучки: логотип или монограмма своего цвета (VoiceLogo.tsx). */
+.voice-logo {
+  --vl-a: hsl(var(--vl-h) 70% 54%);
+  --vl-b: hsl(calc(var(--vl-h) + 18) 60% 26%);
+  position: relative;
+  flex: 0 0 var(--vl-size);
+  width: var(--vl-size);
+  height: var(--vl-size);
+  border-radius: calc(var(--vl-size) * 0.3);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(140deg, var(--vl-a), var(--vl-b));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+  color: #fff;
+  isolation: isolate;
+}
+
+/* Четыре узора поверх цвета: студии с похожим оттенком всё равно различаются. */
+.voice-logo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.32;
+}
+.voice-logo--p0::before {
+  background: radial-gradient(circle at 78% 18%, rgb(255 255 255 / 0.55), transparent 42%);
+}
+.voice-logo--p1::before {
+  background: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.28) 0 2px, transparent 2px 7px);
+}
+.voice-logo--p2::before {
+  background: radial-gradient(circle at 20% 110%, rgb(0 0 0 / 0.55), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgb(255 255 255 / 0.4), transparent 38%);
+}
+.voice-logo--p3::before {
+  background: conic-gradient(from 210deg at 70% 30%, rgb(255 255 255 / 0.45), transparent 25%, transparent 75%, rgb(255 255 255 / 0.2));
+}
+
+.voice-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.voice-logo__letters {
+  font-family: var(--font-display);
+  font-size: calc(var(--vl-size) * 0.36);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
+}
+
+.voice-logo__cc {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  padding: 1px 3px;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  background: rgb(13 14 19 / 0.82);
+  color: #fff;
+}

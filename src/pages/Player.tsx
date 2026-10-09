@@ -19,6 +19,7 @@ import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
+import VoiceLogo from '../components/VoiceLogo'
 import NextEpisode from '../components/NextEpisode'
 
 // «Пропускать филлеры»: кнопка и автопереход ведут сразу к следующей сюжетной серии.
@@ -229,7 +230,7 @@ export default function Player() {
       </div>
 
       <div className="watch-side">
-        {voices.length > 0 && <VoicePicker voices={voices} current={voice?.key} onChoose={chooseVoice} />}
+        {voices.length > 0 && <VoicePicker voices={voices} current={voice?.key} total={total} onChoose={chooseVoice} />}
         <EpisodePicker
           animeId={anime.id}
           total={total}
@@ -512,37 +513,31 @@ function HostPicker({ hosts, current, onChoose }: { hosts: Host[]; current?: str
   )
 }
 
-const VOICE_ICONS: Record<string, string> = {
-  anilibria: '/voiceovers/anilibria.svg',
-  steponee: '/voiceovers/steponee.svg',
-  'св-дубль': '/voiceovers/sv-dubl.svg',
-  'дубляж св-дубль': '/voiceovers/sv-dubl.svg',
-  miraidub: '/voiceovers/miraidub.svg',
-  'mca-lab': '/voiceovers/mca-lab.svg',
-}
-
-function localVoiceIcon(title: string, kind: Voice['kind']) {
-  return VOICE_ICONS[title.trim().toLowerCase()] ?? `/voiceovers/${kind}.svg`
-}
-
-/** Логотип студии, а если внешний адрес не загрузился — локальная картинка. */
-function VoiceMark({ title, kind, icon }: { title: string; kind: Voice['kind']; icon?: string }) {
-  const [broken, setBroken] = useState(false)
-  const src = !broken && icon ? icon : localVoiceIcon(title, kind)
-  return (
-    <span className="voice__mark" aria-hidden="true">
-      <img src={src} alt="" width={36} height={36} loading="lazy" decoding="async" onError={() => setBroken(true)} />
-    </span>
-  )
+const SOURCE_LABEL: Record<Provider, string> = {
+  anilibria: 'Плеер сайта',
+  animevost: 'Плеер сайта',
+  anixart: 'Kodik',
+  kodik: 'Kodik',
+  alloha: 'Alloha',
+  embed: 'YummyAnime',
 }
 
 type VoiceSort = 'episodes' | 'title'
+type VoiceTab = Voice['kind']
 
-function VoicePicker({ voices, current, onChoose }: { voices: Voice[]; current?: string; onChoose: (key: string) => void }) {
+/** Озвучки карточками, как на Senku: вкладки «Озвучка» и «Субтитры», поиск, у каждой студии свой значок. */
+function VoicePicker({ voices, current, total, onChoose }: { voices: Voice[]; current?: string; total: number; onChoose: (key: string) => void }) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<VoiceSort>('episodes')
+  const active = voices.find((v) => v.key === current)
+  const dubs = voices.filter((v) => v.kind === 'voice')
+  const subs = voices.filter((v) => v.kind === 'subtitles')
+  // Пока зритель сам не выбрал вкладку, открыта та, где играющая озвучка.
+  const [picked, setTab] = useState<VoiceTab>()
+  const tab = picked ?? active?.kind ?? (dubs.length ? 'voice' : 'subtitles')
+  const tabbed = dubs.length > 0 && subs.length > 0
   const q = query.trim().toLowerCase()
-  const shown = voices
+  const shown = (tabbed ? (tab === 'voice' ? dubs : subs) : voices)
     .filter((v) => !q || v.title.toLowerCase().includes(q))
     .sort((a, b) => (sort === 'title' ? a.title.localeCompare(b.title, 'ru') : (b.episodes ?? 0) - (a.episodes ?? 0)))
 
@@ -555,6 +550,20 @@ function VoicePicker({ voices, current, onChoose }: { voices: Voice[]; current?:
         </div>
         <span className="voices__count">{voices.length}</span>
       </div>
+      {tabbed && (
+        <div className="voices__tabs" role="group" aria-label="Озвучка или субтитры">
+          {(
+            [
+              ['voice', 'Озвучка', dubs.length],
+              ['subtitles', 'Субтитры', subs.length],
+            ] as const
+          ).map(([id, label, count]) => (
+            <button key={id} type="button" className="voices__tab" aria-pressed={tab === id} onClick={() => setTab(id)}>
+              {label} <span>{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {voices.length > 4 && (
         <>
           <label className="side-search">
@@ -577,18 +586,39 @@ function VoicePicker({ voices, current, onChoose }: { voices: Voice[]; current?:
         </>
       )}
       <ul className="voices__list">
-        {shown.map((v) => (
-          <li key={v.key}>
-            <button type="button" className="voice" aria-pressed={v.key === current} onClick={() => onChoose(v.key)}>
-              <VoiceMark title={v.title} kind={v.kind} icon={v.icon} />
-              <span className="voice__text">
-                <span className="voice__title">{v.title}</span>
-                <span className="voice__kind">{v.kind === 'subtitles' ? 'Субтитры' : 'Озвучка'}</span>
-              </span>
-              {v.episodes ? <span className="voice__eps">{v.episodes} эп.</span> : null}
-            </button>
-          </li>
-        ))}
+        {shown.map((v) => {
+          const on = v.key === current
+          const share = v.episodes && total > 0 ? Math.min(1, v.episodes / total) : 0
+          return (
+            <li key={v.key}>
+              <button type="button" className="voice" aria-pressed={on} onClick={() => onChoose(v.key)}>
+                <VoiceLogo title={v.title} kind={v.kind} icon={v.icon} size={44} />
+                <span className="voice__text">
+                  <span className="voice__title">{v.title}</span>
+                  <span className="voice__kind">
+                    {v.kind === 'subtitles' ? 'Субтитры' : 'Озвучка'} · {SOURCE_LABEL[v.provider]}
+                    {v.episodes ? ` · ${total > 1 && v.episodes < total ? `${v.episodes} из ${total}` : `${v.episodes} эп.`}` : ''}
+                  </span>
+                  {share > 0 && (
+                    <span className="voice__bar" aria-hidden="true">
+                      <span style={{ width: `${Math.round(share * 100)}%` }} />
+                    </span>
+                  )}
+                </span>
+                {on && (
+                  <span className="voice__now">
+                    <span className="voice__eq" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                    Играет
+                  </span>
+                )}
+              </button>
+            </li>
+          )
+        })}
         {shown.length === 0 && <li className="muted side-empty">Ничего не нашлось</li>}
       </ul>
       {voices.length === 1 && <p className="muted voices__note">Других озвучек этого аниме пока нет.</p>}
