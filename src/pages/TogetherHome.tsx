@@ -119,7 +119,7 @@ export default function TogetherHome() {
             ))}
           </div>
         ) : rooms.length === 0 ? (
-          <div className="empty-page" style={{ minHeight: 0, padding: '24px 0' }}>
+          <div className="empty-card">
             <Mascot />
             <p className="muted">Сейчас открытых комнат нет. Создайте свою на странице любого тайтла.</p>
             <Link to="/catalog" className="btn btn--ghost">

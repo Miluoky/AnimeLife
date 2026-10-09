@@ -39,10 +39,32 @@
   color: var(--accent);
 }
 .shelf__more {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+/* «Все» — заметная кнопка-пилюля со стрелкой, а не серый текст в углу. */
+.shelf__more::after {
+  content: '›';
+  color: var(--accent);
+  font-size: 18px;
+  line-height: 1;
+}
+.shelf__more:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .shelf__body {
   position: relative;

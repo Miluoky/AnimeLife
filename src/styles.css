@@ -3005,7 +3005,7 @@ input[type='radio'] {
   }
   .hero__thumbs {
     position: static;
-    padding-top: 8px;
+    padding: 14px 2px 6px;
     overflow-x: auto;
   }
   .hero__thumb {
@@ -3067,4 +3067,37 @@ input[type='radio'] {
   body {
     padding-bottom: calc(44px + env(safe-area-inset-bottom));
   }
+}
+
+/* Постер не загрузился: прячем значок «битой картинки», остаётся спокойная подложка. */
+/* opacity, а не visibility: подпись картинки остаётся для экранных чтецов. */
+img.img--broken {
+  opacity: 0;
+}
+
+/* Пустые состояния по центру карточки: маскот, текст и кнопки. */
+.empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 36px 20px;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+.empty-card h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.empty-card p {
+  margin: 0;
+  max-width: 440px;
+}
+.empty-card .actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
 }

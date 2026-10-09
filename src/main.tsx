@@ -12,6 +12,23 @@ window.addEventListener('beforeinstallprompt', (e) => {
   ;(window as Window & { __installPrompt?: Event }).__installPrompt = e
 })
 
+// Битые постеры: вместо значка «картинка не загрузилась» показываем подложку карточки.
+// События error и load у картинок не всплывают, поэтому слушаем их на фазе захвата.
+document.addEventListener(
+  'error',
+  (e) => {
+    if (e.target instanceof HTMLImageElement) e.target.classList.add('img--broken')
+  },
+  true,
+)
+document.addEventListener(
+  'load',
+  (e) => {
+    if (e.target instanceof HTMLImageElement) e.target.classList.remove('img--broken')
+  },
+  true,
+)
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter basename={import.meta.env.BASE_URL}>
