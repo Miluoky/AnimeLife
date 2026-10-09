@@ -1,5 +1,5 @@
 import './account.css'
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
@@ -17,6 +17,9 @@ import {
   waitForTelegram,
   type TelegramLogin,
 } from '../data/socialAuth'
+
+// Сводка посещений нужна только администратору: отдельная часть, обычные пользователи её не скачивают.
+const AdminStatsCard = lazy(() => import('../components/AdminStatsCard'))
 
 const providers = [
   { id: 'vk', title: 'VK ID', mark: 'VK', on: !!SOCIAL_LOGIN.vkAppId },
@@ -325,9 +328,14 @@ export default function Account() {
                 Мой список
               </Link>
               {user.labels?.includes('admin') && (
-                <Link to="/moderation" className="btn btn--ghost">
-                  Модерация
-                </Link>
+                <>
+                  <Link to="/moderation" className="btn btn--ghost">
+                    Модерация
+                  </Link>
+                  <Link to="/admin/analytics" className="btn btn--ghost">
+                    Статистика
+                  </Link>
+                </>
               )}
               <button
                 type="button"
@@ -347,6 +355,11 @@ export default function Account() {
           <AuthForm />
         )}
       </section>
+      {user?.labels?.includes('admin') && (
+        <Suspense fallback={null}>
+          <AdminStatsCard />
+        </Suspense>
+      )}
       <AppearanceSettings />
       <PushSettings />
       <TelegramNotifySettings />
