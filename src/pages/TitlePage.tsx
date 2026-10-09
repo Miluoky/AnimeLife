@@ -261,6 +261,11 @@ export default function TitlePage() {
         ) : (
           <span className="art-label">[Широкий баннер тайтла]</span>
         )}
+        {anime.japaneseTitle && /[\u3040-\u30ff\u4e00-\u9fff]/.test(anime.japaneseTitle) && (
+          <span className="banner__jp" lang="ja" aria-hidden="true">
+            {anime.japaneseTitle}
+          </span>
+        )}
       </div>
       <main className="container title-page">
         <section className="title-head" style={{ '--glow': anime.posterFill } as CSSProperties}>
@@ -268,7 +273,7 @@ export default function TitlePage() {
             <Poster anime={anime} alt={`Постер аниме «${anime.title}»`} />
           </div>
           <div className="title-head__info">
-            {anime.originalTitle && <div className="muted">{anime.originalTitle}</div>}
+            {anime.originalTitle && <div className="title-head__orig">{anime.originalTitle}</div>}
             <h1 className="title-head__title">{anime.title}</h1>
             <div className="chips">
               <span className="chip chip--accent">{anime.ongoing ? 'Онгоинг' : anime.upcoming ? 'Анонс' : 'Вышел'}</span>
