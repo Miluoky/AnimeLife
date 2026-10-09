@@ -1033,67 +1033,82 @@
   font-size: 13px;
 }
 
+.voices__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.voices__tab {
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s;
+}
+
+.voices__tab span {
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.voices__tab[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+}
+
 .voices__list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 2px 0 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 320px;
+  gap: 6px;
+  max-height: 360px;
   overflow-y: auto;
   scrollbar-width: thin;
 }
 
 .voice {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: none;
+  padding: 8px 10px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   color: var(--text);
   text-align: left;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s var(--ease);
 }
 
 .voice:hover {
   background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--text) 16%, var(--line));
+}
+
+.voice:active {
+  transform: scale(0.985);
 }
 
 .voice[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--accent) 16%, var(--surface-2)), var(--surface-2) 70%);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
-.voice__mark {
-  flex: 0 0 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  background: var(--surface-2);
-  color: var(--text-soft);
-}
-
-.voice__mark img {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  object-fit: cover;
-}
-
-.voice[aria-pressed='true'] .voice__mark:has(img) {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.voice[aria-pressed='true'] .voice__mark {
-  background: var(--accent);
-  color: #0d0e13;
+.voice[aria-pressed='true'] .voice-logo {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .voice__text {
@@ -1101,6 +1116,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .voice__title {
@@ -1114,16 +1130,86 @@
 .voice__kind {
   font-size: 12px;
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Сколько серий тайтла есть в этой озвучке. */
+.voice__bar {
+  height: 3px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.voice__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 70%, var(--muted));
 }
 
 .voice__eps {
   flex: 0 0 auto;
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 3px 8px;
+  border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
   background: var(--surface-2);
   color: var(--text-soft);
+}
+
+.voice__now {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #0d0e13;
+}
+
+.voice__eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+}
+
+.voice__eq i {
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: currentColor;
+  animation: voice-eq 0.9s ease-in-out infinite alternate;
+}
+
+.voice__eq i:nth-child(2) {
+  animation-delay: -0.3s;
+}
+
+.voice__eq i:nth-child(3) {
+  animation-delay: -0.6s;
+}
+
+@keyframes voice-eq {
+  from {
+    transform: scaleY(0.3);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice__eq i {
+    animation: none;
+  }
 }
 
 .voices__note {

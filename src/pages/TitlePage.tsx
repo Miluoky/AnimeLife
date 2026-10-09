@@ -22,6 +22,7 @@ import FollowButton from '../components/FollowButton'
 import WatchOrder from '../components/WatchOrder'
 import { fetchStaff } from '../api/staff'
 import { findAnixart, type AnixartVoice } from '../api/anixart'
+import VoiceLogo from '../components/VoiceLogo'
 import NotFound from './NotFound'
 import './title.css'
 
@@ -89,10 +90,14 @@ function SiteVoices({ voices, href, total }: { voices: AnixartVoice[]; href: str
         {shown.map((v) => (
           <li key={v.type} className="voices__site">
             <Link to={href} onClick={() => choose(v)} title={`Смотреть в озвучке ${v.title}`}>
-              {v.icon && <img src={v.icon} alt="" width={20} height={20} loading="lazy" decoding="async" />}
-              {v.title}
-              {v.kind === 'subtitles' && <span className="muted"> · субтитры</span>}
-              {total > 1 && v.episodes < total && <span className="muted"> · {v.episodes} из {total}</span>}
+              <VoiceLogo title={v.title} kind={v.kind} icon={v.icon} size={36} />
+              <span className="voices__site-text">
+                <strong>{v.title}</strong>
+                <span className="muted">
+                  {v.kind === 'subtitles' ? 'субтитры' : 'озвучка'}
+                  {total > 1 && v.episodes < total ? ` · ${v.episodes} из ${total}` : ''}
+                </span>
+              </span>
             </Link>
           </li>
         ))}
