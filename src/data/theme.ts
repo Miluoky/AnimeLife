@@ -37,7 +37,7 @@ export function applyAppearance(a: Appearance = appearanceStore.get()) {
   root.dataset.theme = a.theme
   root.dataset.accent = a.accent
   root.dataset.calm = a.calm ? '1' : ''
-  const color = a.theme === 'oled' ? '#000000' : '#0d0e13'
+  const color = a.theme === 'oled' ? '#000000' : '#0a0a0c'
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
 }
 

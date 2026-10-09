@@ -17,6 +17,7 @@ const Recommendations = lazy(() => import('../components/Recommendations'))
 // Полки «сезон», «скоро», «лучшее» тоже ниже баннера: своей частью, чтобы не утяжелять первый экран.
 const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.SeasonShelf })))
 const NewEpisodesShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.NewEpisodesShelf })))
+const HomeBento = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.HomeBento })))
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 
 // 3D-кольцо постеров есть только на широком экране: его стили грузим только там.
@@ -247,6 +248,7 @@ export default function Home() {
       </div>
       <Hero />
       <Suspense fallback={null}>
+        <HomeBento />
         <SeasonShelf />
         <Recommendations />
         <MoreShelves />

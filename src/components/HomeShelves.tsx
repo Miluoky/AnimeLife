@@ -6,9 +6,10 @@ import PosterCard from './PosterCard'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
 import { SHIKIMORI_URL } from '../api/shikimori'
-import { CalendarIcon, ClockIcon, PlayIcon, TrophyIcon } from './Icons'
+import { CalendarIcon, ClockIcon, ListIcon, PlayIcon, SparkIcon, TrophyIcon } from './Icons'
 import { GENRES } from '../data/seo'
 import './genres.css'
+import './bento.css'
 
 const SHELF_SIZE = 16
 const SEASONS = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'fall', 'fall', 'fall', 'winter']
@@ -128,6 +129,93 @@ function UpcomingShelf() {
         </div>
       ))}
     </Shelf>
+  )
+}
+
+const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+const hhmm = (d: Date) => d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+
+/**
+ * Блоки под баннером: что выходит сегодня, быстрый вход в свой список (или в топ для новичков)
+ * и «Что посмотреть?». Расписание то же, что у полки новых серий, второй раз не грузится.
+ */
+export function HomeBento() {
+  const schedule = useAsync(loadSchedule, [])
+  const list = useMyList()
+  const today = new Date()
+  const items = (schedule.value?.data ?? []).filter((i) => sameDay(i.at, today)).sort((a, b) => +a.at - +b.at)
+  const watching = list.filter((e) => e.status === 'watching').length
+  const planned = list.filter((e) => e.status === 'planned').length
+
+  return (
+    <section className="bento" aria-label="Коротко на сегодня">
+      <div className="bento__tile bento__tile--today">
+        <div className="bento__head">
+          <span className="shelf__icon" aria-hidden="true">
+            <CalendarIcon size={18} />
+          </span>
+          <h2>Сегодня выходят</h2>
+          <Link to="/schedule" className="shelf__more">
+            График
+          </Link>
+        </div>
+        {schedule.loading && !schedule.value ? (
+          <div className="bento__skeleton skeleton" aria-busy="true" />
+        ) : items.length ? (
+          <ul className="bento__today">
+            {items.slice(0, 4).map((i) => (
+              <li key={i.anime.id}>
+                <Link to={`/anime/${i.anime.id}`}>
+                  <time className="bento__time" dateTime={i.at.toISOString()}>
+                    {hhmm(i.at)}
+                  </time>
+                  <span className="bento__name">{i.anime.title}</span>
+                  <span className="bento__ep">{i.episode} сер.</span>
+                </Link>
+              </li>
+            ))}
+            {items.length > 4 && (
+              <li className="bento__rest">
+                <Link to="/schedule">И ещё {items.length - 4} в графике</Link>
+              </li>
+            )}
+          </ul>
+        ) : (
+          <p className="muted bento__empty">Сегодня новых серий нет. Загляните в график на неделю.</p>
+        )}
+      </div>
+      {list.length ? (
+        <Link to="/my-list" className="bento__tile bento__tile--link">
+          <span className="shelf__icon" aria-hidden="true">
+            <ListIcon size={18} />
+          </span>
+          <strong>Мой список</strong>
+          <span className="bento__stats">
+            <span>
+              <b>{watching}</b> смотрю
+            </span>
+            <span>
+              <b>{planned}</b> в планах
+            </span>
+          </span>
+        </Link>
+      ) : (
+        <Link to="/top" className="bento__tile bento__tile--link">
+          <span className="shelf__icon" aria-hidden="true">
+            <TrophyIcon size={18} />
+          </span>
+          <strong>Топ аниме</strong>
+          <span className="muted">Лучшее по оценкам зрителей, с чего начать</span>
+        </Link>
+      )}
+      <Link to="/random" className="bento__tile bento__tile--link bento__tile--accent">
+        <span className="shelf__icon" aria-hidden="true">
+          <SparkIcon size={18} />
+        </span>
+        <strong>Что посмотреть?</strong>
+        <span className="muted">Подберём тайтл по настроению</span>
+      </Link>
+    </section>
   )
 }
 

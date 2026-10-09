@@ -7,6 +7,7 @@ import { untilText } from '../components/together/ScheduleSession'
 import { formatTime } from '../components/together/time'
 import { PeopleIcon } from '../components/Icons'
 import Mascot from '../components/Mascot'
+import '../components/empty-card.css'
 import { usePageMeta } from '../data/pageMeta'
 
 /** Вкладка «Вместе»: войти по коду и открытые комнаты, где смотрят прямо сейчас. */

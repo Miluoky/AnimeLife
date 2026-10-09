@@ -1,0 +1,126 @@
+/* ─── Блоки под баннером (bento): сегодня в эфире, свой список, «Что посмотреть?» ─── */
+.bento {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.bento__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--surface-2) 70%, transparent), var(--surface));
+  color: var(--text);
+}
+.bento__tile--today {
+  grid-row: span 2;
+}
+.bento__tile--link {
+  transition: border-color 0.2s, transform 0.25s var(--ease);
+}
+.bento__tile--link:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  transform: translateY(-3px);
+}
+.bento__tile--link strong {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 17px;
+}
+.bento__tile--link .muted {
+  font-size: 14px;
+}
+.bento__tile--accent {
+  background: radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%), var(--surface);
+}
+.bento__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bento__head h2 {
+  flex: 1;
+  margin: 0;
+  font-weight: 500;
+  font-size: 20px;
+}
+.bento__today {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.bento__today a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  color: var(--text);
+}
+.bento__today a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.bento__time,
+.bento__ep,
+.bento__stats b {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.bento__time {
+  color: var(--accent);
+  font-weight: 700;
+}
+.bento__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.bento__ep {
+  color: var(--muted);
+  font-size: 13px;
+}
+.bento__rest a {
+  color: var(--muted);
+  font-size: 14px;
+}
+.bento__empty {
+  margin: 0;
+}
+.bento__skeleton {
+  min-height: 150px;
+  border-radius: 12px;
+}
+.bento__stats {
+  display: flex;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.bento__stats b {
+  color: var(--text);
+  font-size: 22px;
+  margin-right: 4px;
+}
+@media (max-width: 900px) {
+  .bento {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .bento__tile--today {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+@media (max-width: 380px) {
+  .bento {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

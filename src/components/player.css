@@ -182,7 +182,7 @@
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--text);
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   font-weight: 500;
   font-size: 15px;
   display: grid;
@@ -1550,4 +1550,93 @@
     max-width: calc((100dvh - 112px) * 16 / 9);
     margin-inline: auto;
   }
+}
+
+/* ─── Мини-плеер: видео ушло вверх при прокрутке — оно играет в углу экрана ─── */
+.video-slot {
+  position: relative;
+  min-width: 0;
+}
+.video-slot--mini .video-player {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 45;
+  width: min(360px, 46vw);
+  gap: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.6), 0 0 0 1px var(--line);
+  animation: mini-in 0.25s var(--ease);
+}
+/* В углу только видео: вкладки источников и подписи вокруг него прячем. */
+.video-slot--mini .video-player > :not(.player-frame) {
+  display: none;
+}
+.video-slot__close {
+  position: fixed;
+  right: max(22px, calc(env(safe-area-inset-right) + 6px));
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + min(360px, 46vw) * 9 / 16 - 40px);
+  z-index: 46;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--text);
+  background: rgb(0 0 0 / 0.65);
+  cursor: pointer;
+}
+@media (max-width: 1099px) {
+  /* На телефоне мини-плеер стоит над нижним меню. */
+  .video-slot--mini .video-player {
+    width: min(300px, 58vw);
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+  .video-slot__close {
+    bottom: calc(84px + env(safe-area-inset-bottom) + min(300px, 58vw) * 9 / 16 - 40px);
+  }
+}
+@keyframes mini-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .video-slot--mini .video-player {
+    animation: none;
+  }
+}
+
+/* ─── Шторка света: вокруг видео темно, видео остаётся поверх ─── */
+.lights-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgb(0 0 0 / 0.88);
+  animation: curtain-in 0.35s ease;
+  cursor: pointer;
+}
+.player-page--dark .video-slot {
+  z-index: 71;
+}
+.player-page--dark .watch-lights {
+  position: relative;
+  z-index: 71;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+@keyframes curtain-in {
+  from {
+    opacity: 0;
+  }
+}
+.video-slot--mini .player-page .player-frame,
+.player-page .video-slot--mini .player-frame {
+  margin: 0;
+  border-radius: 0;
+  border-width: 0;
 }

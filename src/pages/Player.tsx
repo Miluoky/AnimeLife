@@ -18,7 +18,8 @@ import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
-import { BackIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
+import { BackIcon, BulbIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
+import { useLightsOff, useMiniPlayer } from '../components/watchModes'
 import VoiceLogo from '../components/VoiceLogo'
 import NextEpisode from '../components/NextEpisode'
 
@@ -113,6 +114,9 @@ export default function Player() {
     if (hour < 5) markFlag('nightOwl')
   }, [anime, current, total, isScheduled])
 
+  const [lightsOff, setLightsOff] = useLightsOff()
+  const miniPlayer = useMiniPlayer(!!anime && !isScheduled && !lightsOff)
+
   usePageMeta(
     anime && watchPageTitle(animeInfo(anime), current),
     anime && watchPageDescription(animeInfo(anime), current, total),
@@ -142,7 +146,18 @@ export default function Player() {
   const name = names[current]
 
   return (
-    <main className={`container player-page${wide ? ' player-page--wide' : ''}`}>
+    <main className={`container player-page${wide ? ' player-page--wide' : ''}${lightsOff ? ' player-page--dark' : ''}`}>
+      {lightsOff && <div className="lights-curtain" aria-hidden="true" onClick={() => setLightsOff(false)} />}
+      <div
+        ref={miniPlayer.slot}
+        className={`video-slot${miniPlayer.mini ? ' video-slot--mini' : ''}`}
+        style={miniPlayer.mini ? { minHeight: miniPlayer.height } : undefined}
+      >
+      {miniPlayer.mini && (
+        <button type="button" className="video-slot__close" aria-label="Закрыть мини-плеер" onClick={miniPlayer.close}>
+          <CloseIcon size={16} />
+        </button>
+      )}
       {/* Мульти-провайдерный плеер; если серию взять негде — трейлер */}
       {/* Пока не знаем озвучки Kodik, плеер не включаем: иначе он начнёт с одной озвучки и тут же сменит её. */}
       {kodik.loading || free.loading || !free.value || waitYummy ? (
@@ -180,6 +195,7 @@ export default function Player() {
         }}
       />
       )}
+      </div>
 
       {/* Заголовок и кнопки идут сразу за видео: на телефоне они не уезжают под длинный список озвучек. */}
       <div className="watch-head">
@@ -210,6 +226,16 @@ export default function Player() {
           >
             <WideIcon />
             <span className="sr-only">Широкий экран</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost watch-lights"
+            aria-pressed={lightsOff}
+            title={lightsOff ? 'Включить свет' : 'Выключить свет вокруг видео'}
+            onClick={() => setLightsOff(!lightsOff)}
+          >
+            <BulbIcon />
+            <span className="sr-only">Шторка света</span>
           </button>
           <WatchTogetherButton anime={anime} episode={current} />
           <button
