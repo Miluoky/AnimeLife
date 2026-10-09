@@ -30,6 +30,7 @@ import InviteCard from '../components/together/InviteCard'
 import { formatTime } from '../components/together/time'
 import { PeopleIcon, PlayIcon, SendIcon } from '../components/Icons'
 import Mascot from '../components/Mascot'
+import Hall from '../components/together/Hall'
 import People from '../components/together/People'
 import Schedule from '../components/together/ScheduleSession'
 import { MEMBER_TTL, PRESENCE_EVERY, loadMembers, presence, subscribeMembers, type Member } from '../data/voice'
@@ -388,6 +389,8 @@ export default function Together() {
             ))}
           </div>
         </div>
+
+        <Hall members={members} hostId={room.hostId} myId={user?.$id} />
 
         <div className="together__bar">
           <div className="stack" style={{ gap: 2 }}>

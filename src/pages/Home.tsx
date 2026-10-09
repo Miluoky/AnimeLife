@@ -19,15 +19,22 @@ const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => (
 const NewEpisodesShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.NewEpisodesShelf })))
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 
+// 3D-кольцо постеров есть только на широком экране: его стили грузим только там.
+if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
+
 const HERO_COUNT = 5
 const HERO_INTERVAL = 8000
 
 function Hero() {
   // «Сейчас в эфире»: пять самых популярных онгоингов сменяют друг друга.
   const list = useAsync(() => loadCatalog({ status: 'ongoing', limit: HERO_COUNT }), [])
-  const [index, setIndex] = useState(0)
+  // Шаг карусели растёт без сброса: так 3D-кольцо постеров всегда крутится вперёд, а не отматывается назад.
+  const [step, setStep] = useState(0)
   const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const items = list.value?.data ?? []
+  const count = items.length || 1
+  const index = ((step % count) + count) % count
+  const setIndex = (i: number) => setStep((s) => s + ((((i - s) % count) + count + Math.floor(count / 2)) % count) - Math.floor(count / 2))
   const current = items[index] ?? items[0]
   const details = useAsync(async () => (current ? { of: current.id, data: (await loadAnime(current.id)).data } : undefined), [current?.id])
   // Пока грузятся подробности нового тайтла, показываем его из списка, а не прошлый тайтл.
@@ -51,7 +58,7 @@ function Hero() {
   useEffect(() => {
     if (items.length < 2 || paused) return
     // Во вкладке в фоне баннер не листается: не грузим кадры, которых никто не увидит.
-    const timer = setInterval(() => !document.hidden && setIndex((i) => (i + 1) % items.length), HERO_INTERVAL)
+    const timer = setInterval(() => !document.hidden && setStep((s) => s + 1), HERO_INTERVAL)
     return () => clearInterval(timer)
   }, [items.length, paused])
 
@@ -63,7 +70,7 @@ function Hero() {
 
   return (
     <section
-      className={`hero${paused ? ' hero--paused' : ''}`}
+      className={`hero${paused ? ' hero--paused' : ''}${items.length > 1 ? ' hero--ring' : ''}`}
       style={{ '--glow': anime.posterFill, '--hero-ms': `${HERO_INTERVAL}ms` } as CSSProperties}
     >
       <div className="hero__backdrop" aria-hidden="true">
@@ -126,7 +133,13 @@ function Hero() {
         />
       )}
       {items.length > 1 && (
-        <div className="hero__thumbs" role="tablist" aria-label="Онгоинги в эфире">
+        // На компьютере миниатюры собраны в объёмное кольцо (CSS 3D), на телефоне — обычная лента.
+        <div
+          className="hero__thumbs"
+          role="tablist"
+          aria-label="Онгоинги в эфире"
+          style={{ '--turn': `${(step * 360) / count}deg` } as CSSProperties}
+        >
           {items.map((a, i) => (
             <button
               key={a.id}
@@ -135,9 +148,19 @@ function Hero() {
               aria-selected={i === index}
               aria-label={a.title}
               className={`hero__thumb${i === index ? ' hero__thumb--on' : ''}`}
+              // Насколько постер «впереди»: дальние темнее и прозрачнее.
+              style={{ '--a': `${(i * 360) / count}deg`, '--depth': ((1 + Math.cos(((i - step) * 2 * Math.PI) / count)) / 2).toFixed(3) } as CSSProperties}
               onClick={() => setIndex(i)}
             >
-              {a.posterSmall && <img src={a.posterSmall} alt="" />}
+              {a.posterSmall && (
+                <img
+                  src={a.posterSmall}
+                  srcSet={a.posterSmall2x ? `${a.posterSmall} 225w, ${a.posterSmall2x} 450w` : undefined}
+                  sizes="(min-width: 1101px) 132px, 44px"
+                  alt=""
+                  decoding="async"
+                />
+              )}
             </button>
           ))}
         </div>

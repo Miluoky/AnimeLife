@@ -72,6 +72,7 @@ export default function Layout() {
     idle(() => {
       void import('../data/achievements').then((m) => m.watchAchievements())
       setHoverCards(matchMedia('(hover: hover) and (pointer: fine)').matches)
+      void import('./tilt').then((m) => m.startTilt())
     })
   }, [])
   useEffect(() => {

@@ -264,11 +264,19 @@ test('кто в комнате и кто в голосовом чате, спи�
   const people = page.getByRole('region', { name: 'Кто в комнате' })
   await expect(people.getByText('Ведущий · ведущий')).toBeVisible()
   await expect(people.getByLabel('В голосовом чате')).toHaveCount(1)
+  // Кинозал под экраном: ведущий сидит в центре первого ряда, кресло горит золотым.
+  const hall = page.getByRole('img', { name: /В зале/ })
+  await expect(hall.locator('.hall__seat--on')).toHaveCount(1)
+  await expect(hall.locator('.hall__seat--host')).toHaveAttribute('title', 'Ведущий')
   await push('members', { $id: 'b', roomId: CODE, userId: 'u2', name: 'Аня', voice: true, muted: true, at: now }, 'create')
   await expect(people.getByText('Аня')).toBeVisible()
   await expect(people.getByLabel('Микрофон выключен')).toHaveCount(1)
+  // Новый зритель занимает соседнее кресло, и оно загорается.
+  await expect(hall.locator('.hall__seat--on')).toHaveCount(2)
+  await expect(hall.locator('.hall__seat[title="Аня"]')).toHaveText('А')
   await push('members', { $id: 'b', roomId: CODE, userId: 'u2', name: 'Аня', voice: false, muted: false, at: now }, 'delete')
   await expect(people.getByText('Аня')).toHaveCount(0)
+  await expect(hall.locator('.hall__seat--on')).toHaveCount(1)
 })
 
 test('сеанс по расписанию: обратный отсчёт и файл для календаря', async ({ page }) => {

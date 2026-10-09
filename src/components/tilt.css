@@ -1,0 +1,27 @@
+/* Грузится вместе с tilt.ts, только у пользователей с мышью. */
+/* Витрина в глубину: карточка под мышью наклоняется за курсором (--rx/--ry ставит tilt.ts),
+   а блик следует за ним (--gx/--gy). Без мыши остаётся простой подъём. */
+.poster-card__img::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), rgb(255 255 255 / 0.22), transparent 55%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .poster-card:hover .poster-card__img::before {
+    opacity: 1;
+  }
+  .poster-card:hover .poster-card__img,
+  .poster-card:focus-visible .poster-card__img {
+    transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-6px) scale(1.02);
+  }
+}
+/* Пока курсор ведёт карточку, наклон догоняет его быстро, без «резины». */
+.poster-card__img[style*='--rx'] {
+  transition: transform 0.12s linear, box-shadow 0.35s var(--ease), filter 0.35s var(--ease);
+}
