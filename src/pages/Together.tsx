@@ -34,11 +34,22 @@ import People from '../components/together/People'
 import Schedule from '../components/together/ScheduleSession'
 import { MEMBER_TTL, PRESENCE_EVERY, loadMembers, presence, subscribeMembers, type Member } from '../data/voice'
 
-/** Расхождение больше этого (секунд) исправляем перемоткой, меньше — подстройкой скорости. */
-const HARD_DRIFT = 0.5
-const SOFT_DRIFT = 0.15
-/** Kodik сообщает время раз в секунду и перематывает дольше: держим комнату вместе с допуском пошире. */
-const COARSE_DRIFT = 1.5
+/*
+ * Синхронизация как на Senku: команды комнаты (плей, пауза, перемотка) применяем один раз, когда они пришли,
+ * а мелкие расхождения не трогаем. Раньше видео подтягивалось к комнате 4 раза в секунду с допуском
+ * в полсекунды: пока поток догружался после перемотки, время отставало, плеер перематывался снова,
+ * его события уходили в комнату как действия зрителя, и у всех видео дёргалось по кругу.
+ */
+/** Расхождение (секунды), после которого перематываем идущее видео. */
+const SEEK_DRIFT = 2
+/** Kodik сообщает время раз в секунду и перематывает долго: допуск шире. */
+const COARSE_SEEK_DRIFT = 4
+/** На паузе ставим кадр точно: перемотка стоящего видео ничего не ломает. */
+const PAUSED_DRIFT = 0.25
+/** Как часто сверяемся с комнатой между командами. */
+const WATCH_EVERY = 2000
+/** В фоне перематываем не чаще этого (мс), чтобы догрузка потока не зациклила перемотки. */
+const SEEK_COOLDOWN = 6000
 
 const errorText = (e: unknown) => (e instanceof CommunityError ? e.message : 'Не получилось. Попробуйте ещё раз.')
 
@@ -71,50 +82,60 @@ export default function Together() {
   const isHost = !!user && room?.hostId === user.$id
   const canControl = !!user && !!room && (isHost || room.controlAll)
 
-  // Подтягиваем видео к состоянию комнаты: плей/пауза, перемотка, мягкая подстройка скорости.
-  const align = useCallback(() => {
-    const r = roomRef.current
-    const v = video.current
-    if (!r || !v || !joined || !ready) return
-    const target = roomPosition(r)
-    const current = v.time()
-    const drift = current - target
-    const coarse = v.coarse()
-    const hardLimit = coarse ? COARSE_DRIFT : HARD_DRIFT
-    
-    if (!r.playing) {
-      if (!v.paused()) v.pause()
-      if (Math.abs(current - r.position) > 0.3) v.seek(r.position)
-      v.rate(1)
-      return
-    }
-    
-    if (v.paused()) {
-      if (Math.abs(drift) > (coarse ? COARSE_DRIFT : 0.3)) v.seek(target)
-      v.play()
-      v.rate(1)
-      return
-    }
-    
-    if (Math.abs(drift) > hardLimit) {
-      v.seek(target)
-      v.rate(1)
-      return
-    }
-    
-    if (Math.abs(drift) > SOFT_DRIFT) {
-      const speedAdjust = Math.max(-0.15, Math.min(0.15, drift * 0.2))
-      v.rate(1 - speedAdjust)
-    } else {
-      v.rate(1)
-    }
-  }, [joined, ready])
+  // Подтягиваем видео к комнате. mode: 'event' — пришла команда, 'retry' — плеер мог её проглотить,
+  // 'watch' — плановая сверка: только заметные расхождения и не чаще SEEK_COOLDOWN.
+  const lastSeek = useRef(0)
+  const stalled = useRef(0)
+  const [blocked, setBlocked] = useState(false)
+  const align = useCallback(
+    (mode: 'event' | 'retry' | 'watch') => {
+      const r = roomRef.current
+      const v = video.current
+      if (!r || !v || !joined || !ready) return
+      const coarse = v.coarse()
+      if (!r.playing) {
+        if (!v.paused()) v.pause()
+        if (mode !== 'retry' && Math.abs(v.time() - r.position) > (coarse ? 1 : PAUSED_DRIFT)) v.seek(r.position)
+        v.rate(1)
+        stalled.current = 0
+        setBlocked(false)
+        return
+      }
+      const target = roomPosition(r)
+      const drift = v.time() - target
+      const now = Date.now()
+      if (mode !== 'retry' && Math.abs(drift) > (coarse ? COARSE_SEEK_DRIFT : SEEK_DRIFT) && (mode === 'event' || now - lastSeek.current > SEEK_COOLDOWN)) {
+        v.seek(target)
+        lastSeek.current = now
+        v.rate(1)
+      } else {
+        // Отстаём или спешим чуть-чуть: на 5% быстрее или медленнее, без рывка (только своё видео).
+        v.rate(Math.abs(drift) > 0.4 ? (drift > 0 ? 0.95 : 1.05) : 1)
+      }
+      if (v.paused()) {
+        v.play()
+        // Браузер не дал включить видео без нажатия: после двух сверок подряд просим нажать самому.
+        if (mode === 'watch' && ++stalled.current >= 2) setBlocked(true)
+      } else {
+        stalled.current = 0
+        setBlocked(false)
+      }
+    },
+    [joined, ready],
+  )
+
+  // Команда комнаты пришла (или плеер только что стал готов): применяем сразу и через секунду ещё раз
+  // проверяем плей/паузу — плеер мог догружаться и проглотить команду.
+  useEffect(() => {
+    align('event')
+    const retry = setTimeout(() => align('retry'), 1100)
+    return () => clearTimeout(retry)
+  }, [align, room?.at, room?.playing, room?.position, room?.episode])
 
   useEffect(() => {
-    align()
-    const timer = setInterval(align, 250)
+    const timer = setInterval(() => align('watch'), WATCH_EVERY)
     return () => clearInterval(timer)
-  }, [align, room])
+  }, [align])
 
   // Загрузка комнаты, чата, часов сервера и живая подписка.
   useEffect(() => {
@@ -141,13 +162,6 @@ export default function Together() {
           }
         }
         setRoom(next)
-        if (next.playing !== prev?.playing || Math.abs(next.position - (prev?.position ?? 0)) > 0.5) {
-          setTimeout(() => {
-            const v = video.current
-            if (v && next.playing && v.paused()) v.play()
-            else if (v && !next.playing && !v.paused()) v.pause()
-          }, 50)
-        }
       },
       onMessageGone: (id) => setMessages((list) => list.filter((x) => x.$id !== id)),
       onMessage: (m) => {
@@ -198,16 +212,11 @@ export default function Together() {
   const send = async (state: Partial<Room> & { playing: boolean; position: number }) => {
     const r = roomRef.current
     if (!r) return
-    const now = serverNow()
-    const optimistic = { ...r, ...state, at: now, actor: user?.name }
-    setRoom(optimistic)
+    // Сразу показываем у себя, не дожидаясь сервера: так управление не «тормозит».
+    // Точное время сервера придёт вместе с обновлённой комнатой через Realtime.
+    setRoom({ ...r, ...state, at: serverNow(), actor: user?.name })
     try {
-      const response = await controlRoom(r.$id, state)
-      if (response.serverNow) {
-        const corrected = { ...optimistic, at: response.serverNow }
-        setRoom(corrected)
-      }
-      align()
+      await controlRoom(r.$id, state)
     } catch (e) {
       toast(errorText(e))
       void loadRoom(r.$id).then((fresh) => fresh && setRoom(fresh))
@@ -215,11 +224,17 @@ export default function Together() {
   }
 
   const onUserChange = (state: { playing: boolean; position: number }) => {
+    const r = roomRef.current
+    if (!r) return
+    // Плеер сообщил то же, что и так в комнате (догрузка, эхо команды): никому ничего не шлём.
+    const tolerance = video.current?.coarse() ? COARSE_SEEK_DRIFT : 1.5
+    if (state.playing === r.playing && Math.abs(state.position - roomPosition(r)) < tolerance) return
     if (!canControl) {
       toast(user ? 'Управляет ведущий комнаты' : 'Войдите, чтобы управлять просмотром')
-      align()
+      align('event')
       return
     }
+    setBlocked(false)
     void send(state)
   }
 
@@ -347,6 +362,22 @@ export default function Together() {
               <span className="muted">
                 {room.playing ? `Уже смотрят: ${formatTime(roomPosition(room))}` : 'Видео на паузе, ждём всех'}
               </span>
+            </button>
+          )}
+          {joined && blocked && room.playing && (
+            <button
+              type="button"
+              className="together__gate together__gate--join"
+              onClick={() => {
+                video.current?.play()
+                setBlocked(false)
+              }}
+            >
+              <span className="together__play">
+                <PlayIcon size={28} />
+              </span>
+              <strong>Нажмите, чтобы смотреть со всеми</strong>
+              <span className="muted">Браузер не дал включить видео без нажатия</span>
             </button>
           )}
           <div className="bursts" aria-hidden="true">

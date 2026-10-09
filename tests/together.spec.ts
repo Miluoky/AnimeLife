@@ -72,6 +72,31 @@ async function mockRoom(page: Page, room: Record<string, unknown> | null, member
   }
 }
 
+/** Серии AnimeVost с роликом из tests/fixtures. delay — задержка ответа, как у медленного видеосервера. */
+async function mockAnimeVost(page: Page, delay = 0) {
+  await page.route(/api\.animevost\.org\/v1\/search/, (route) =>
+    route.fulfill({ json: { state: { status: 'ok' }, data: [{ id: 8, title: 'Ковбой Бибоп / Cowboy Bebop [1-26 из 26]', year: '1998' }] } }),
+  )
+  await page.route(/api\.animevost\.org\/v1\/playlist/, (route) =>
+    route.fulfill({ json: [1, 2].map((n) => ({ name: `${n} серия`, hd: `http://video.animetop.info/720/${n}.mp4` })) }),
+  )
+  const body = readFileSync(clip)
+  // Как настоящий сервер с роликами: отдаёт куски по Range, иначе браузер не даст перемотать.
+  await page.route(/video\.animetop\.info\/.*/, async (route) => {
+    if (delay) await new Promise((done) => setTimeout(done, delay))
+    const range = /bytes=(\d+)-(\d*)/.exec(route.request().headers().range ?? '')
+    if (!range) return route.fulfill({ contentType: 'video/webm', body })
+    const start = Number(range[1])
+    const end = range[2] ? Number(range[2]) : body.length - 1
+    return route.fulfill({
+      status: 206,
+      contentType: 'video/webm',
+      headers: { 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${body.length}` },
+      body: body.subarray(start, end + 1),
+    })
+  })
+}
+
 const video = (page: Page) =>
   page.evaluate(() => {
     const v = document.querySelector('video')
@@ -135,11 +160,93 @@ test('гость без входа не может управлять: виде�
   await page.locator('.together__gate input[type=file]').setInputFiles(clip)
   await page.getByRole('button', { name: /Присоединиться/ }).click()
   await expect.poll(async () => Math.abs((await video(page))!.t - 3)).toBeLessThan(0.3)
-  // Через секунду после подстройки: действия плеера в первые мгновения считаются эхом команды комнаты.
-  await page.waitForTimeout(1000)
+  // Через две секунды после подстройки: действия плеера в первые мгновения считаются эхом команды комнаты.
+  await page.waitForTimeout(2000)
   await page.evaluate(() => document.querySelector('video')!.play())
   await expect(page.getByRole('status').filter({ hasText: 'Войдите, чтобы управлять' })).toBeVisible()
   await expect.poll(async () => (await video(page))?.paused).toBe(true)
+})
+
+test('ведущий в идущей комнате: плеер не шлёт комнате своё же эхо, видео идёт без перемоток по кругу', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  // Медленный видеосервер: после перемотки поток догружается почти секунду.
+  await mockRoom(page, { ...baseRoom, source: 'trailer', videoId: 'pl-av-0', playing: true, position: 1, at: Date.now() })
+  await mockAnimeVost(page, 700)
+  const controls: string[] = []
+  page.on('request', (r) => {
+    if (r.url().includes('/functions/community/executions') && (r.postData() ?? '').includes('room-control')) controls.push(r.postData()!)
+  })
+  await page.goto(`/together/${CODE}`)
+  await page.getByRole('button', { name: /Начать просмотр/ }).click()
+  await expect.poll(async () => (await video(page))?.paused, { timeout: 5000 }).toBe(false)
+  const seeks = await page.evaluate(() => {
+    const v = document.querySelector('video')!
+    let n = 0
+    v.addEventListener('seeking', () => n++)
+    return new Promise<number>((done) => setTimeout(() => done(n), 4500))
+  })
+  expect(seeks).toBeLessThanOrEqual(1)
+  expect(controls).toEqual([])
+})
+
+/**
+ * Поддельный плеер Kodik с тем же postMessage API: время шлёт раз в секунду, после перемотки
+ * секунду догружается (время стоит), на команды отвечает событиями с задержкой, как настоящий.
+ */
+const FAKE_KODIK = `<!doctype html><script>
+let t = 0, playing = false, loadingUntil = 0, last = Date.now()
+const send = (key, value) => parent.postMessage({ key, value }, '*')
+setInterval(() => {
+  const now = Date.now()
+  if (playing && now > loadingUntil) t += (now - last) / 1000
+  last = now
+}, 50)
+setInterval(() => send('kodik_player_time_update', Math.floor(t)), 1000)
+window.state = () => ({ t, playing })
+addEventListener('message', (e) => {
+  const v = e.data && e.data.key === 'kodik_player_api' && e.data.value
+  if (!v) return
+  window.commands = (window.commands || 0) + 1
+  if (v.method === 'play' && !playing) { playing = true; setTimeout(() => send('kodik_player_play'), 900) }
+  if (v.method === 'pause' && playing) { playing = false; setTimeout(() => send('kodik_player_pause'), 900) }
+  if (v.method === 'seek') { t = v.seconds; loadingUntil = Date.now() + 1200; setTimeout(() => send('kodik_player_seek', { time: v.seconds }), 1300) }
+})
+</script>`
+
+test('комната с плеером Kodik: медленная перемотка не зацикливает синхронизацию', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  await mockRoom(page, { ...baseRoom, source: 'trailer', videoId: 'pl-ax-29', playing: true, position: 30, at: Date.now() })
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [{ position: 1, url: 'https://kodikplayer.com/seria/1/hash/720p', iframe: true }] } }),
+  )
+  await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: FAKE_KODIK }))
+  const controls: string[] = []
+  page.on('request', (r) => {
+    if (r.url().includes('/functions/community/executions') && (r.postData() ?? '').includes('room-control')) controls.push(r.postData()!)
+  })
+  await page.goto(`/together/${CODE}`)
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', /kodikplayer\.com/)
+  await page.getByRole('button', { name: /Начать просмотр/ }).click()
+  await page.waitForTimeout(9000)
+  const commands = await page.frameLocator('iframe.player-iframe').locator('body').evaluate(() => (window as unknown as { commands?: number }).commands ?? 0)
+  // Включили и перемотали к комнате, может быть один повтор — но не десятки команд по кругу.
+  expect(commands).toBeLessThanOrEqual(4)
+  // И при этом видео идёт вместе с комнатой: с 30-й секунды прошло около девяти.
+  const state = await page.frameLocator('iframe.player-iframe').locator('body').evaluate(() => (window as unknown as { state: () => { t: number; playing: boolean } }).state())
+  expect(state.playing).toBe(true)
+  expect(state.t).toBeGreaterThan(34)
+  expect(controls).toEqual([])
 })
 
 test('закрытая комната показывает понятный экран', async ({ page }) => {
@@ -187,26 +294,7 @@ test('плеер сайта в комнате: серия AnimeVost синхро
     route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
   )
   const push = await mockRoom(page, { ...baseRoom, source: 'trailer', videoId: 'pl-av-0' })
-  await page.route(/api\.animevost\.org\/v1\/search/, (route) =>
-    route.fulfill({ json: { state: { status: 'ok' }, data: [{ id: 8, title: 'Ковбой Бибоп / Cowboy Bebop [1-26 из 26]', year: '1998' }] } }),
-  )
-  await page.route(/api\.animevost\.org\/v1\/playlist/, (route) =>
-    route.fulfill({ json: [1, 2].map((n) => ({ name: `${n} серия`, hd: `http://video.animetop.info/720/${n}.mp4` })) }),
-  )
-  const body = readFileSync(clip)
-  // Как настоящий сервер с роликами: отдаёт куски по Range, иначе браузер не даст перемотать.
-  await page.route(/video\.animetop\.info\/.*/, (route) => {
-    const range = /bytes=(\d+)-(\d*)/.exec(route.request().headers().range ?? '')
-    if (!range) return route.fulfill({ contentType: 'video/webm', body })
-    const start = Number(range[1])
-    const end = range[2] ? Number(range[2]) : body.length - 1
-    return route.fulfill({
-      status: 206,
-      contentType: 'video/webm',
-      headers: { 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${body.length}` },
-      body: body.subarray(start, end + 1),
-    })
-  })
+  await mockAnimeVost(page)
   const stream = page.waitForRequest('https://video.animetop.info/720/1.mp4')
   await page.goto(`/together/${CODE}`)
   await stream
