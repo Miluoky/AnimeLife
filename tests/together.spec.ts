@@ -2,6 +2,7 @@ import { expect, test, type Page, type WebSocketRoute } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { mockServices } from './mocks'
+import { pressedAt } from '../functions/community/src/rooms.js'
 
 const CODE = 'ABC234'
 const clip = fileURLToPath(new URL('./fixtures/clip.webm', import.meta.url))
@@ -192,34 +193,34 @@ test('ведущий в идущей комнате: плеер не шлёт к
 })
 
 /**
- * Поддельный плеер Kodik с тем же postMessage API: время шлёт раз в секунду, после перемотки
- * секунду догружается (время стоит), на команды отвечает событиями с задержкой, как настоящий.
+ * Поддельный плеер Kodik с тем же postMessage API, повадки сняты с настоящего: само время шлёт раз в секунду
+ * целыми секундами, точное отдаёт на get_time, после перемотки секунду догружается (время стоит),
+ * на плей и паузу отвечает событиями с задержкой, скорость меняет командой speed.
  */
 const FAKE_KODIK = `<!doctype html><script>
-let t = 0, playing = false, loadingUntil = 0, last = Date.now()
+let t = 0, playing = false, loadingUntil = 0, last = Date.now(), rate = 1
 const send = (key, value) => parent.postMessage({ key, value }, '*')
 setInterval(() => {
   const now = Date.now()
-  if (playing && now > loadingUntil) t += (now - last) / 1000
+  if (playing && now > loadingUntil) t += ((now - last) / 1000) * rate
   last = now
-}, 50)
-setInterval(() => send('kodik_player_time_update', Math.floor(t)), 1000)
-window.state = () => ({ t, playing })
+}, 20)
+setInterval(() => send('kodik_player_time_update', Math.ceil(t)), 1000)
+window.state = () => ({ t, playing, rate })
 addEventListener('message', (e) => {
   const v = e.data && e.data.key === 'kodik_player_api' && e.data.value
   if (!v) return
+  if (v.method === 'get_time') return send('kodik_player_time', t)
+  if (v.method === 'speed') { rate = v.speed; return send('kodik_player_speed_change', { speed: v.speed }) }
   window.commands = (window.commands || 0) + 1
   if (v.method === 'play' && !playing) { playing = true; setTimeout(() => send('kodik_player_play'), 900) }
   if (v.method === 'pause' && playing) { playing = false; setTimeout(() => send('kodik_player_pause'), 900) }
-  if (v.method === 'seek') { t = v.seconds; loadingUntil = Date.now() + 1200; setTimeout(() => send('kodik_player_seek', { time: v.seconds }), 1300) }
+  if (v.method === 'seek') { t = v.seconds; loadingUntil = Date.now() + 1000; setTimeout(() => send('kodik_player_seek', { time: v.seconds }), 100) }
 })
 </script>`
 
-test('комната с плеером Kodik: медленная перемотка не зацикливает синхронизацию', async ({ page }) => {
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
-    route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
-  )
-  await mockRoom(page, { ...baseRoom, source: 'trailer', videoId: 'pl-ax-29', playing: true, position: 30, at: Date.now() })
+/** Тайтл с озвучкой Anixart, серия которой открывается в (поддельном) плеере Kodik. */
+async function mockKodikVoice(page: Page) {
   await page.route(/api\.anixart\.tv\/search/, (route) =>
     route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
   )
@@ -231,6 +232,20 @@ test('комната с плеером Kodik: медленная перемот�
     route.fulfill({ json: { code: 0, episodes: [{ position: 1, url: 'https://kodikplayer.com/seria/1/hash/720p', iframe: true }] } }),
   )
   await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: FAKE_KODIK }))
+}
+
+const kodikState = (page: Page) =>
+  page
+    .frameLocator('iframe.player-iframe')
+    .locator('body')
+    .evaluate(() => (window as unknown as { state: () => { t: number; playing: boolean; rate: number } }).state())
+
+test('комната с плеером Kodik: медленная перемотка не зацикливает синхронизацию', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  await mockRoom(page, { ...baseRoom, source: 'trailer', videoId: 'pl-ax-29', playing: true, position: 30, at: Date.now() })
+  await mockKodikVoice(page)
   const controls: string[] = []
   page.on('request', (r) => {
     if (r.url().includes('/functions/community/executions') && (r.postData() ?? '').includes('room-control')) controls.push(r.postData()!)
@@ -243,10 +258,71 @@ test('комната с плеером Kodik: медленная перемот�
   // Включили и перемотали к комнате, может быть один повтор — но не десятки команд по кругу.
   expect(commands).toBeLessThanOrEqual(4)
   // И при этом видео идёт вместе с комнатой: с 30-й секунды прошло около девяти.
-  const state = await page.frameLocator('iframe.player-iframe').locator('body').evaluate(() => (window as unknown as { state: () => { t: number; playing: boolean } }).state())
+  const state = await kodikState(page)
   expect(state.playing).toBe(true)
   expect(state.t).toBeGreaterThan(34)
   expect(controls).toEqual([])
+})
+
+test('две вкладки одной комнаты идут вровень: плей, перемотка и пауза с задержками сервера и сбитыми часами', async ({ browser, isMobile }) => {
+  test.skip(isMobile, 'синхронизация одна и та же, хватает прогона на компьютере')
+  test.setTimeout(90_000)
+  // Общий «сервер» на две вкладки: функция отвечает почти секунду, Realtime доходит до вкладок по-разному,
+  // часы у второго устройства спешат на 1,7 секунды. Момент нажатия сервер берёт так же, как настоящий.
+  let room: Record<string, unknown> = { ...baseRoom, source: 'trailer', videoId: 'pl-ax-29', playing: false, position: 0, at: Date.now() }
+  const pushes: Array<(payload: Record<string, unknown>) => Promise<void>> = []
+  const open = async (host: boolean, skew: number, delay: number) => {
+    const context = await browser.newContext({ baseURL: 'http://localhost:4173', serviceWorkers: 'block' })
+    if (skew) await context.addInitScript((ms) => { const now = Date.now.bind(Date); Date.now = () => now() + ms }, skew)
+    const page = await context.newPage()
+    await mockServices(page)
+    await mockKodikVoice(page)
+    const push = await mockRoom(page, room)
+    await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/rooms\/rows\/.*/, (route) => route.fulfill({ json: room }))
+    await page.route(/\/api\/time$/, (route) => route.fulfill({ json: { now: Date.now() } }))
+    if (host)
+      await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+        route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
+      )
+    await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, async (route) => {
+      const body = JSON.parse(JSON.parse(route.request().postData()!).body)
+      await new Promise((done) => setTimeout(done, 600))
+      if (body.action === 'room-control') {
+        room = { ...room, playing: body.playing, position: body.position, at: pressedAt(body.at, Date.now()), actor: 'Ведущий' }
+        const payload = room
+        setTimeout(() => pushes.forEach((p) => void p(payload)), 200)
+      }
+      await route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: JSON.stringify({ ok: true, serverNow: Date.now() }) } })
+    })
+    pushes.push((payload) => new Promise((done) => setTimeout(() => void push('rooms', payload).then(done), delay)))
+    await page.goto(`/together/${CODE}`)
+    await page.getByRole('button', { name: host ? /Начать просмотр/ : /Присоединиться/ }).click()
+    await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', /kodikplayer\.com/)
+    return page
+  }
+  const a = await open(true, 0, 100)
+  const b = await open(false, 1700, 300)
+  await a.waitForTimeout(2000)
+  // Ведущий жмёт в самом плеере Kodik: плеер сообщает о плее, сайт рассылает комнате.
+  const hostPresses = (method: string, extra = {}) =>
+    a.frameLocator('iframe.player-iframe').locator('body').evaluate((_, [m, e]) => {
+      const w = window as unknown as { commands?: number; state: () => { t: number } }
+      postMessage({ key: 'kodik_player_api', value: { method: m, ...(e as object) } }, '*')
+      return w.state().t
+    }, [method, extra] as const)
+  const gap = async () => {
+    const [x, y] = await Promise.all([kodikState(a), kodikState(b)])
+    return Math.abs(x.t - y.t)
+  }
+  await hostPresses('play')
+  await expect.poll(async () => (await kodikState(b)).t, { timeout: 8000 }).toBeGreaterThan(2)
+  await expect.poll(gap, { timeout: 20_000, intervals: [500] }).toBeLessThan(0.3)
+  await hostPresses('seek', { seconds: 300 })
+  await expect.poll(async () => (await kodikState(b)).t, { timeout: 5000 }).toBeGreaterThan(299)
+  await expect.poll(gap, { timeout: 20_000, intervals: [500] }).toBeLessThan(0.3)
+  await hostPresses('pause')
+  await expect.poll(async () => (await kodikState(b)).playing, { timeout: 5000 }).toBe(false)
+  await expect.poll(gap, { timeout: 5000, intervals: [500] }).toBeLessThan(0.3)
 })
 
 test('закрытая комната показывает понятный экран', async ({ page }) => {
