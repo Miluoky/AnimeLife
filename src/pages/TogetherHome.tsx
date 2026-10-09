@@ -37,7 +37,8 @@ export default function TogetherHome() {
       if (alive) setViewers(counts)
     }
     void syncClock(1).then(refresh)
-    const timer = setInterval(refresh, 20_000)
+    // Список комнат обновляем, только пока вкладка открыта: фоновая вкладка не тратит запросы к Appwrite.
+    const timer = setInterval(() => !document.hidden && refresh(), 20_000)
     return () => {
       alive = false
       clearInterval(timer)

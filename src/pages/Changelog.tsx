@@ -9,7 +9,7 @@ const dateFmt = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', y
 export default function Changelog() {
   usePageMeta('Что нового', 'Обновления Anime Life: новые разделы, функции плеера и исправления.')
   return (
-    <div className="container changelog">
+    <main className="container changelog">
       <header className="changelog__head">
         <h1 className="page-title">Что нового</h1>
         <p className="muted">Что появилось на сайте за последнее время. Новые обновления сверху.</p>
@@ -34,7 +34,7 @@ export default function Changelog() {
           </li>
         ))}
       </ol>
-    </div>
+    </main>
   )
 }
 

@@ -86,15 +86,6 @@ export function VolumeIcon({ size = 20 }: IconProps) {
   )
 }
 
-export function SubtitlesIcon({ size = 20 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <path d="M7 13h4M13 13h4M7 16h7" />
-    </svg>
-  )
-}
-
 export function FullscreenIcon({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">

@@ -17,7 +17,6 @@ export interface HistoryEntry {
 
 const store = createLocalStore<HistoryEntry[]>('anime.history.v1', [])
 
-export const getHistory = store.get
 export const useHistory = store.use
 
 /** Подписка на прогресс одного тайтла без перерисовки всех карточек истории. */
@@ -31,10 +30,6 @@ export function useHistoryEntry(animeId: string) {
 
 /** Для синхронизации с аккаунтом. */
 export const historyStore = store
-
-export function getProgress(animeId: string): HistoryEntry | undefined {
-  return store.get().find((h) => h.animeId === animeId)
-}
 
 /** Убрать тайтл из «Продолжить просмотр»; возвращает запись, чтобы можно было отменить. */
 export function removeProgress(animeId: string) {

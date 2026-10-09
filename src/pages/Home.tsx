@@ -50,7 +50,8 @@ function Hero() {
 
   useEffect(() => {
     if (items.length < 2 || paused) return
-    const timer = setInterval(() => setIndex((i) => (i + 1) % items.length), HERO_INTERVAL)
+    // Во вкладке в фоне баннер не листается: не грузим кадры, которых никто не увидит.
+    const timer = setInterval(() => !document.hidden && setIndex((i) => (i + 1) % items.length), HERO_INTERVAL)
     return () => clearInterval(timer)
   }, [items.length, paused])
 

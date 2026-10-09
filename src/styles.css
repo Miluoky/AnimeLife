@@ -68,17 +68,27 @@ h3 {
   font-family: var(--font-display);
   letter-spacing: 0;
   margin: 0;
+  /* Широкий Unbounded: длинное слово («конфиденциальности») на телефоне 320 px переносится, а не вылезает за экран. */
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .container {
   max-width: 1360px;
   margin: 0 auto;
-  padding: 0 40px;
+  /* Повёрнутый боком iPhone шире 640 px, а вырез экрана у него сбоку: отступ не меньше выреза. */
+  padding: 0 max(40px, env(safe-area-inset-right)) 0 max(40px, env(safe-area-inset-left));
+}
+
+@media (max-width: 900px) {
+  .container {
+    padding: 0 max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
+  }
 }
 
 @media (max-width: 640px) {
   .container {
-    padding: 0 16px;
+    padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   }
 }
 
@@ -2469,12 +2479,7 @@ input[type='radio'] {
 
 /* ===== Оформление (шаг 3): отклик на касания, анимации, ровная вёрстка на телефоне ===== */
 
-/* Отступы по краям учитывают вырез и закругления iPhone в горизонтальном положении. */
 @media (max-width: 640px) {
-  .container {
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-  }
   .home {
     padding-top: 24px;
     gap: 40px;
@@ -3182,4 +3187,29 @@ input[type='radio'] {
 :root[data-calm='1'] .hero__backdrop img,
 :root[data-calm='1'] .hero__thumb--on::after {
   animation: none;
+}
+
+/* Телефон боком: экран низкий (около 360 px), поэтому шапка и нижнее меню компактнее,
+   а нижнее меню — одной строкой «значок + подпись», чтобы не съедать треть экрана. */
+@media (max-width: 950px) and (orientation: landscape) and (max-height: 500px) {
+  .site-header__inner {
+    height: 52px;
+  }
+  .bottom-nav {
+    padding: 2px max(4px, env(safe-area-inset-right)) calc(2px + env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+  }
+  .bottom-nav__item {
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 2px;
+    font-size: 11px;
+  }
+  .bottom-nav__glider {
+    top: 2px;
+    height: 34px;
+  }
+  body {
+    padding-bottom: calc(44px + env(safe-area-inset-bottom));
+  }
 }
