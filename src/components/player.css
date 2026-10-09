@@ -118,7 +118,9 @@
   .watch-actions .btn {
     padding: 0 16px;
   }
-  .watch-actions > :first-child {
+  /* «Смотреть вместе» — отдельной строкой под парой «назад / следующая серия».
+     Кнопка «Широкий экран» (первая) на телефоне скрыта, поэтому считаем со второй. */
+  .watch-actions > :nth-child(2) {
     grid-column: 1 / -1;
     order: 1;
   }
@@ -1538,5 +1540,14 @@
   from {
     opacity: 0;
     transform: translateY(6px);
+  }
+}
+
+/* Телефон боком: видео целиком помещается по высоте экрана (под компактной шапкой), а не уходит под нижнее меню. */
+@media (max-width: 950px) and (orientation: landscape) and (max-height: 500px) {
+  .player-page .player-frame {
+    width: 100%;
+    max-width: calc((100dvh - 112px) * 16 / 9);
+    margin-inline: auto;
   }
 }

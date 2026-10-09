@@ -264,11 +264,19 @@ test('кто в комнате и кто в голосовом чате, спи�
   const people = page.getByRole('region', { name: 'Кто в комнате' })
   await expect(people.getByText('Ведущий · ведущий')).toBeVisible()
   await expect(people.getByLabel('В голосовом чате')).toHaveCount(1)
+  // Кинозал под экраном: ведущий сидит в центре первого ряда, кресло горит золотым.
+  const hall = page.getByRole('img', { name: /В зале/ })
+  await expect(hall.locator('.hall__seat--on')).toHaveCount(1)
+  await expect(hall.locator('.hall__seat--host')).toHaveAttribute('title', 'Ведущий')
   await push('members', { $id: 'b', roomId: CODE, userId: 'u2', name: 'Аня', voice: true, muted: true, at: now }, 'create')
   await expect(people.getByText('Аня')).toBeVisible()
   await expect(people.getByLabel('Микрофон выключен')).toHaveCount(1)
+  // Новый зритель занимает соседнее кресло, и оно загорается.
+  await expect(hall.locator('.hall__seat--on')).toHaveCount(2)
+  await expect(hall.locator('.hall__seat[title="Аня"]')).toHaveText('А')
   await push('members', { $id: 'b', roomId: CODE, userId: 'u2', name: 'Аня', voice: false, muted: false, at: now }, 'delete')
   await expect(people.getByText('Аня')).toHaveCount(0)
+  await expect(hall.locator('.hall__seat--on')).toHaveCount(1)
 })
 
 test('сеанс по расписанию: обратный отсчёт и файл для календаря', async ({ page }) => {
@@ -299,8 +307,10 @@ test('плеер сайта в комнате: серия AnimeVost синхро
   await page.goto(`/together/${CODE}`)
   await stream
   await expect(page.getByText(/Ведущий: Ведущий · AnimeVost/)).toBeVisible()
-  const picker = page.getByLabel('Плеер и озвучка')
-  await expect(picker).toHaveValue('pl-av-0')
+  // Плеер и озвучка карточками: играющая отмечена «Играет».
+  const picker = page.getByRole('region', { name: 'Плеер и озвучка' })
+  await expect(picker.getByRole('button', { name: /AnimeVost/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(picker.getByRole('button', { name: /AnimeVost/ })).toContainText('Играет')
 
   await page.getByRole('button', { name: /Начать просмотр/ }).click()
   await push('rooms', { ...baseRoom, source: 'trailer', videoId: 'pl-av-0', playing: true, position: 2, at: Date.now() })
@@ -312,4 +322,40 @@ test('плеер сайта в комнате: серия AnimeVost синхро
   await page.getByLabel('Выбрать серию').selectOption('2')
   const sent = JSON.parse(JSON.parse((await control).postData()!).body)
   expect(sent).toMatchObject({ action: 'room-control', episode: 2, playing: false, position: 0 })
+})
+
+test('ведущий выбирает озвучку карточкой: вкладки, выбор уходит всей комнате', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  await mockRoom(page, { ...baseRoom, source: 'trailer', videoId: 'pl-av-0' })
+  await mockAnimeVost(page)
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({
+      json: {
+        code: 0,
+        types: [
+          { id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 },
+          { id: 46, name: 'Субтитры | CR', is_sub: true, episodes_count: 20 },
+        ],
+      },
+    }),
+  )
+  await page.goto(`/together/${CODE}`)
+  const picker = page.getByRole('region', { name: 'Плеер и озвучка' })
+  await expect(picker.getByRole('button', { name: /AnimeVost/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(picker.getByRole('button', { name: /Studio Band/ })).toContainText('Anixart · 26 эп.')
+  // Субтитры на своей вкладке.
+  await expect(picker.getByRole('button', { name: /^CR/ })).toHaveCount(0)
+  await picker.getByRole('button', { name: /Субтитры/ }).click()
+  await expect(picker.getByRole('button', { name: /^CR/ })).toBeVisible()
+  await picker.getByRole('button', { name: /Озвучка/ }).click()
+
+  const control = page.waitForRequest((r) => r.url().includes('/functions/community/executions') && (r.postData() ?? '').includes('room-control'))
+  await picker.getByRole('button', { name: /Studio Band/ }).click()
+  const sent = JSON.parse(JSON.parse((await control).postData()!).body)
+  expect(sent).toMatchObject({ action: 'room-control', videoId: 'pl-ax-29', playing: false, position: 0 })
 })

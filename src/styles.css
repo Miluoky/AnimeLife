@@ -68,17 +68,27 @@ h3 {
   font-family: var(--font-display);
   letter-spacing: 0;
   margin: 0;
+  /* Широкий Unbounded: длинное слово («конфиденциальности») на телефоне 320 px переносится, а не вылезает за экран. */
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .container {
   max-width: 1360px;
   margin: 0 auto;
-  padding: 0 40px;
+  /* Повёрнутый боком iPhone шире 640 px, а вырез экрана у него сбоку: отступ не меньше выреза. */
+  padding: 0 max(40px, env(safe-area-inset-right)) 0 max(40px, env(safe-area-inset-left));
+}
+
+@media (max-width: 900px) {
+  .container {
+    padding: 0 max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
+  }
 }
 
 @media (max-width: 640px) {
   .container {
-    padding: 0 16px;
+    padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   }
 }
 
@@ -116,6 +126,37 @@ h3 {
 
 .site-nav a {
   color: var(--muted);
+  white-space: nowrap;
+}
+/* 901–1300 px: меню и поиск не помещаются вместе. Поиск сжимается до значка,
+   а при вводе раскрывается на месте меню — кнопка входа больше не уходит за край. */
+@media (min-width: 901px) and (max-width: 1300px) {
+  .site-header__inner {
+    gap: 20px;
+  }
+  .site-nav {
+    gap: 16px;
+  }
+  .search:not(:focus-within) {
+    width: 44px;
+    padding: 0 13px;
+    cursor: text;
+  }
+  /* Невидимое поле на весь значок: нажатие по значку сразу ставит курсор в поиск. */
+  .search:not(:focus-within) input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+  }
+  .search:not(:focus-within) .search__kbd {
+    display: none;
+  }
+  .search:focus-within {
+    width: min(420px, 50vw);
+  }
+  .site-header__inner:has(.search:focus-within) .site-nav {
+    display: none;
+  }
 }
 
 .site-nav a.active {
@@ -1511,139 +1552,6 @@ h3 {
   }
 }
 
-/* Профиль и статистика */
-.profile-stats h3 {
-  font-size: 18px;
-}
-
-.stat-tiles {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-
-@media (max-width: 900px) {
-  .stat-tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-}
-
-.stat-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 20px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-}
-
-.stat-tile__value {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 32px;
-  line-height: 1.15;
-  color: var(--accent);
-}
-
-.stat-tile__label {
-  font-weight: 600;
-}
-
-.stat-tile__hint {
-  font-size: 13px;
-}
-
-.profile-columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-@media (max-width: 900px) {
-  .profile-columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.profile-panel {
-  gap: 16px;
-  padding: 20px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-}
-
-.profile-panel p {
-  margin: 0;
-}
-
-.score-bar--wide {
-  grid-template-columns: minmax(96px, 150px) 1fr 28px;
-}
-
-.score-bar--wide .score-bar__label {
-  font-weight: 600;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rated-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 8px 16px;
-}
-
-.rated-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 8px;
-  border-radius: 12px;
-}
-
-.rated-item:hover {
-  background: var(--surface);
-}
-
-.rated-item img,
-.rated-item__poster {
-  width: 44px;
-  height: 62px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.rated-item__text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  font-size: 13px;
-}
-
-.rated-item__title {
-  font-weight: 700;
-  font-size: 15px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rated-item__score {
-  flex-shrink: 0;
-  font-family: var(--font-display);
-  font-weight: 700;
-  color: var(--accent);
-}
-
 /* Отзывы */
 .field textarea {
   padding: 12px 14px;
@@ -2469,12 +2377,7 @@ input[type='radio'] {
 
 /* ===== Оформление (шаг 3): отклик на касания, анимации, ровная вёрстка на телефоне ===== */
 
-/* Отступы по краям учитывают вырез и закругления iPhone в горизонтальном положении. */
 @media (max-width: 640px) {
-  .container {
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-  }
   .home {
     padding-top: 24px;
     gap: 40px;
@@ -3182,4 +3085,29 @@ input[type='radio'] {
 :root[data-calm='1'] .hero__backdrop img,
 :root[data-calm='1'] .hero__thumb--on::after {
   animation: none;
+}
+
+/* Телефон боком: экран низкий (около 360 px), поэтому шапка и нижнее меню компактнее,
+   а нижнее меню — одной строкой «значок + подпись», чтобы не съедать треть экрана. */
+@media (max-width: 950px) and (orientation: landscape) and (max-height: 500px) {
+  .site-header__inner {
+    height: 52px;
+  }
+  .bottom-nav {
+    padding: 2px max(4px, env(safe-area-inset-right)) calc(2px + env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+  }
+  .bottom-nav__item {
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 2px;
+    font-size: 11px;
+  }
+  .bottom-nav__glider {
+    top: 2px;
+    height: 34px;
+  }
+  body {
+    padding-bottom: calc(44px + env(safe-area-inset-bottom));
+  }
 }

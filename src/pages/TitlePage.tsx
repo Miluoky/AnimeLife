@@ -1,3 +1,4 @@
+import '../components/profile-stats.css'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { type CSSProperties, type FormEvent, type ReactNode, useState } from 'react'
 import type { ScoreStats } from '../api'

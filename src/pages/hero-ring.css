@@ -1,0 +1,71 @@
+/* Грузится отдельно и только на широком экране (см. Home.tsx): основной CSS сайта не тяжелеет. */
+/* Витрина в глубину: на компьютере постеры онгоингов стоят объёмным кольцом справа от текста.
+   Кольцо поворачивается на --turn, каждый постер стоит на своём угле --a и разворачивается к зрителю;
+   --depth (1 — впереди, 0 — сзади) приглушает дальние. Только трансформации: дёшево для видеокарты. */
+@media (min-width: 1101px) {
+  .hero--ring .hero__art-poster {
+    display: none;
+  }
+  .hero--ring .hero__thumbs {
+    --card: clamp(100px, 9vw, 132px);
+    --r: clamp(140px, 14.5vw, 215px);
+    position: relative;
+    right: auto;
+    bottom: auto;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: center;
+    width: var(--card);
+    height: calc(var(--card) * 1.5);
+    perspective: 1100px;
+    transform-style: preserve-3d;
+    /* Смотрим на кольцо чуть сверху: задние постеры выглядывают над передними. */
+    transform: translateY(14px) rotateX(-16deg);
+    gap: 0;
+  }
+  .hero--ring .hero__thumb {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    opacity: calc(0.35 + var(--depth, 1) * 0.65);
+    filter: brightness(calc(0.45 + var(--depth, 1) * 0.55));
+    box-shadow: 0 30px 60px -24px rgb(0 0 0 / 0.9);
+    /* Кольцо поворачивается целиком (rotateY(-turn)), а постер — обратно, лицом к зрителю. */
+    transform: rotateY(calc(var(--a) - var(--turn))) translateZ(var(--r)) rotateY(calc(var(--turn) - var(--a)));
+    transition:
+      transform 1s var(--ease),
+      opacity 1s var(--ease),
+      filter 1s var(--ease),
+      border-color 0.3s;
+  }
+  .hero--ring .hero__thumb:hover {
+    opacity: 1;
+    filter: none;
+  }
+  .hero--ring .hero__thumb--on {
+    transform: rotateY(calc(var(--a) - var(--turn))) translateZ(var(--r)) rotateY(calc(var(--turn) - var(--a))) scale(1.08);
+  }
+  /* Отражение-подсветка под кольцом: сцена «стоит» на полу кинозала. */
+  .hero--ring .hero__thumbs::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: calc(var(--r) * 2.6);
+    height: 60px;
+    transform: translate(-50%, 10px) rotateX(75deg);
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 35%, transparent), transparent);
+    filter: blur(6px);
+    pointer-events: none;
+  }
+}
+@media (min-width: 1101px) and (prefers-reduced-motion: reduce) {
+  .hero--ring .hero__thumb {
+    transition: none;
+  }
+}
+:root[data-calm='1'] .hero--ring .hero__thumb {
+  transition: none;
+}

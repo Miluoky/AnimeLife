@@ -28,6 +28,8 @@ export interface RoomVoice extends PlayerPick {
   group: string
   subtitles?: boolean
   episodes?: number
+  /** логотип студии, если источник его даёт */
+  icon?: string
 }
 
 const CODE = /^pl-(al|av|ax|kd)-(\d{1,12})$/
@@ -69,7 +71,7 @@ export async function roomVoices(q: AnimeQuery): Promise<RoomVoice[]> {
   if (al?.episodes.length) list.push({ kind: 'al', voice: 0, title: 'AniLibria', group: 'Свой плеер', episodes: al.episodes.length })
   if (av?.length) list.push({ kind: 'av', voice: 0, title: 'AnimeVost', group: 'Свой плеер', episodes: av.length })
   for (const v of ax?.voices ?? [])
-    list.push({ kind: 'ax', voice: v.type, title: v.title, group: 'Озвучки Anixart', subtitles: v.kind === 'subtitles', episodes: v.episodes })
+    list.push({ kind: 'ax', voice: v.type, title: v.title, group: 'Озвучки Anixart', subtitles: v.kind === 'subtitles', episodes: v.episodes, icon: v.icon })
   for (const t of kd)
     if (!list.some((v) => v.kind === 'ax' && v.title === t.title))
       list.push({ kind: 'kd', voice: t.id, title: t.title, group: 'Kodik', subtitles: t.kind === 'subtitles', episodes: t.episodes })
