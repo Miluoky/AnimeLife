@@ -50,6 +50,7 @@ interface ShikiVideo {
 
 interface ShikiAnimeFull extends ShikiAnimeShort {
   english?: (string | null)[]
+  japanese?: (string | null)[]
   description: string | null
   duration: number
   genres: ShikiGenre[]
@@ -286,6 +287,7 @@ function fromFull(a: ShikiAnimeFull): Anime {
   return {
     ...fromShort(a),
     englishTitle: a.english?.[0] || undefined,
+    japaneseTitle: a.japanese?.[0] || undefined,
     episodeMinutes: a.duration || undefined,
     studio: a.studios[0]?.name,
     studioId: a.studios[0]?.id,

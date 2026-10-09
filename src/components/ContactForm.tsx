@@ -1,3 +1,4 @@
+import './reviews.css'
 import { type FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Turnstile, { captchaEnabled } from './Turnstile'

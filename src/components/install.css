@@ -13,13 +13,13 @@
   padding: 12px 8px 12px 12px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 6px;
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
   animation: install-in 0.25s ease-out;
 }
 
 .install-banner img {
-  border-radius: 10px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
 

@@ -8,7 +8,7 @@
 
 .schedule-day {
   padding: 20px;
-  border-radius: 18px;
+  border-radius: 8px;
   background: var(--surface);
 }
 
@@ -35,7 +35,7 @@
   gap: 12px;
   padding: 8px;
   margin: 0 -8px;
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
 .schedule-row:hover {
@@ -132,7 +132,7 @@
   width: 100%;
   margin-bottom: 8px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 6px;
   border: 1px dashed var(--line);
   background: none;
   color: var(--muted);

@@ -185,7 +185,7 @@ export function HomeBento() {
         )}
       </div>
       {list.length ? (
-        <Link to="/my-list" className="bento__tile bento__tile--link">
+        <Link to="/my-list" className="bento__tile bento__tile--link frame-corners">
           <span className="shelf__icon" aria-hidden="true">
             <ListIcon size={18} />
           </span>
@@ -200,7 +200,7 @@ export function HomeBento() {
           </span>
         </Link>
       ) : (
-        <Link to="/top" className="bento__tile bento__tile--link">
+        <Link to="/top" className="bento__tile bento__tile--link frame-corners">
           <span className="shelf__icon" aria-hidden="true">
             <TrophyIcon size={18} />
           </span>
@@ -208,7 +208,7 @@ export function HomeBento() {
           <span className="muted">Лучшее по оценкам зрителей, с чего начать</span>
         </Link>
       )}
-      <Link to="/random" className="bento__tile bento__tile--link bento__tile--accent">
+      <Link to="/random" className="bento__tile bento__tile--link frame-corners bento__tile--accent">
         <span className="shelf__icon" aria-hidden="true">
           <SparkIcon size={18} />
         </span>

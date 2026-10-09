@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { type CSSProperties, type FormEvent, type ReactNode, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
+import { useAmbient } from '../components/ambient'
 import { loadAnime, loadTitleExtras, useAsync } from '../api'
 import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeCount } from '../data/catalog'
@@ -150,6 +151,8 @@ export default function TitlePage() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadAnime(id), [id])
   const extras = useAsync(() => loadTitleExtras(id), [id])
+  // «Кадр»: страница подсвечена постером тайтла.
+  useAmbient(result.value?.data?.posterSmall)
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
   // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.

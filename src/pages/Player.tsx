@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { useAmbient } from '../components/ambient'
 import { loadAnime, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { saveProgress } from '../data/history'
@@ -37,6 +38,8 @@ export default function Player() {
   const navigate = useNavigate()
   const result = useAsync(() => loadAnime(id), [id])
   const anime = result.value?.data
+  // «Кадр»: вокруг плеера свет постера.
+  useAmbient(anime?.posterSmall)
   // Названия серий приходят от AniLibria, когда плеер нашёл релиз.
   const [names, setNames] = useState<Record<number, string>>({})
   // Другой тайтл — серии прошлого релиза не в счёт.

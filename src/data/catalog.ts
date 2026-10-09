@@ -3,6 +3,8 @@ export interface Anime {
   title: string
   originalTitle?: string
   englishTitle?: string
+  /** название по-японски (кандзи/кана), для вертикальной надписи у постера */
+  japaneseTitle?: string
   year?: number
   kind: string
   episodes?: number

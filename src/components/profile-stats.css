@@ -1,3 +1,8 @@
+.profile-stats dd {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+}
 /* Статистика профиля и шкала оценок: нужны только в профиле и на странице тайтла, поэтому не в основном CSS. */
 .profile-stats h3 {
   font-size: 18px;
@@ -21,7 +26,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 20px;
-  border-radius: 16px;
+  border-radius: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
 }
@@ -57,7 +62,7 @@
 .profile-panel {
   gap: 16px;
   padding: 20px;
-  border-radius: 16px;
+  border-radius: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
 }
@@ -92,7 +97,7 @@
   align-items: center;
   gap: 14px;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
 .rated-item:hover {

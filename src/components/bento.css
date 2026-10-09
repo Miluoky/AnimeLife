@@ -9,11 +9,24 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+  position: relative;
   padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--surface-2) 70%, transparent), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
   color: var(--text);
+}
+/* «Кадр»: при наведении плитку ловят уголки видоискателя. */
+.bento__tile--link::before {
+  --fc-inset: 6px;
+  --fc-color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.25s, inset 0.3s var(--ease);
+}
+.bento__tile--link:hover::before,
+.bento__tile--link:focus-visible::before {
+  --fc-inset: -7px;
+  opacity: 1;
 }
 .bento__tile--today {
   grid-row: span 2;
@@ -23,13 +36,13 @@
 }
 .bento__tile--link:hover {
   color: var(--text);
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
-  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
 }
 .bento__tile--link strong {
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 700;
   font-size: 17px;
+  letter-spacing: -0.01em;
 }
 .bento__tile--link .muted {
   font-size: 14px;
@@ -45,8 +58,9 @@
 .bento__head h2 {
   flex: 1;
   margin: 0;
-  font-weight: 500;
+  font-weight: 700;
   font-size: 20px;
+  letter-spacing: -0.02em;
 }
 .bento__today {
   list-style: none;
@@ -61,11 +75,11 @@
   align-items: center;
   gap: 12px;
   padding: 9px 10px;
-  border-radius: 12px;
+  border-radius: 6px;
   color: var(--text);
 }
 .bento__today a:hover {
-  background: var(--surface-2);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 80%);
   color: var(--text);
 }
 .bento__time,
@@ -97,7 +111,7 @@
 }
 .bento__skeleton {
   min-height: 150px;
-  border-radius: 12px;
+  border-radius: 6px;
 }
 .bento__stats {
   display: flex;
