@@ -380,7 +380,7 @@
   left: 16px;
   height: 28px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 3px;
   background: var(--accent);
   color: var(--bg);
   font-size: 13px;

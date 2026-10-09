@@ -312,7 +312,7 @@ h3 {
 
 .poster-card__img {
   aspect-ratio: 2 / 3;
-  border-radius: 6px;
+  border-radius: 3px;
   position: relative;
   display: flex;
   align-items: flex-end;
@@ -320,19 +320,30 @@ h3 {
   overflow: hidden;
 }
 
+/* «Онгоинг» — как метка записи на камере: красная точка и моноширинная подпись. */
 .poster-card__badge {
   position: absolute;
   top: 10px;
   left: 10px;
-  height: 26px;
-  padding: 0 8px;
-  border-radius: 3px;
-  background: var(--accent);
-  color: var(--bg);
-  font-size: 12px;
-  font-weight: 700;
+  height: 22px;
+  padding: 0 7px;
+  gap: 6px;
+  border-radius: 2px;
+  background: rgb(10 10 12 / 0.8);
+  color: var(--text);
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   display: flex;
   align-items: center;
+}
+.poster-card__badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
 }
 
 .poster-card__title {
@@ -800,9 +811,9 @@ h3 {
   top: 10px;
   right: 10px;
   height: 26px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: rgba(13, 14, 19, 0.85);
+  padding: 0 7px;
+  border-radius: 2px;
+  background: rgb(10 10 12 / 0.8);
   color: var(--text);
   font-size: 12px;
   font-weight: 700;
@@ -1559,7 +1570,7 @@ h3 {
 
 .chip-btn {
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: 3px;
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--text-soft);
@@ -1727,29 +1738,33 @@ h3 {
 .poster-card__img {
   transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease), filter 0.35s var(--ease);
 }
+/* «Кадр»: при наведении на постере сходятся уголки видоискателя, как будто камера ловит фокус. */
 .poster-card__img::after {
   content: '';
   position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.18) 50%, transparent 65%);
-  transform: translateX(-120%);
-  pointer-events: none;
+  inset: 18px;
   z-index: 2;
+  pointer-events: none;
+  border: 2px solid rgb(255 255 255 / 0.92);
+  -webkit-mask: conic-gradient(at 14px 14px, #0000 75%, #000 0) 0 0 / calc(100% - 14px) calc(100% - 14px);
+  mask: conic-gradient(at 14px 14px, #0000 75%, #000 0) 0 0 / calc(100% - 14px) calc(100% - 14px);
+  opacity: 0;
+  transition: opacity 0.25s, inset 0.35s var(--ease);
+}
+.poster-card:focus-visible .poster-card__img::after {
+  inset: 5px;
+  opacity: 1;
 }
 @media (hover: hover) {
   .poster-card:hover .poster-card__img,
   .poster-card:focus-visible .poster-card__img {
     transform: translateY(-6px) scale(1.02);
-    box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
-    filter: saturate(1.08);
+    box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8);
+    filter: saturate(1.1);
   }
   .poster-card:hover .poster-card__img::after {
-    animation: shine 0.9s ease;
-  }
-}
-@keyframes shine {
-  to {
-    transform: translateX(120%);
+    inset: 5px;
+    opacity: 1;
   }
 }
 
@@ -2305,7 +2320,7 @@ input[type='radio'] {
   min-width: 0;
 }
 .poster-card__img {
-  border-radius: 6px;
+  border-radius: 3px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 /* Название в две строки: карточки в сетке одной высоты. */
@@ -2542,10 +2557,11 @@ input[type='radio'] {
   bottom: 10px;
   z-index: 1;
   max-width: calc(100% - 20px);
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2975,7 +2991,7 @@ img.img--broken {
   display: grid;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
-  border-radius: 50%;
+  border-radius: 2px;
   color: var(--text);
   background: color-mix(in srgb, var(--bg) 85%, transparent);
   cursor: pointer;
