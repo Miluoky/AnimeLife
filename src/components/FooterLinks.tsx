@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { DISCLAIMER, GENRES, KINDS, LEGAL_LINKS } from '../data/seo'
+import { ABOUT_LINKS, DISCLAIMER, GENRES, KINDS, LEGAL_LINKS } from '../data/seo'
 
 /**
- * Подвал: документы (правообладателям, контакты, политика, соглашение), ссылки на жанры, типы и годы —
+ * Подвал: о проекте, приложение, документы (правообладателям, контакты, политика, соглашение), ссылки на жанры, типы и годы —
  * с любой страницы видно, что ещё есть на сайте. Отдельная часть, грузится следом.
  */
 export default function FooterLinks() {
@@ -10,7 +10,7 @@ export default function FooterLinks() {
   return (
     <>
       <nav className="footer-legal" aria-label="Документы">
-        {LEGAL_LINKS.map(([name, to]) => (
+        {[...ABOUT_LINKS, ...LEGAL_LINKS].map(([name, to]) => (
           <Link key={to} to={to}>
             {name}
           </Link>

@@ -84,3 +84,7 @@
   border-color: var(--accent);
   color: var(--text);
 }
+
+.legal__install {
+  margin: 8px 0 24px;
+}

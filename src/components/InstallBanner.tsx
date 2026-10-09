@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CloseIcon } from './Icons'
+import { type InstallPromptEvent, isIosSafari, isStandalone } from './install'
 import './install.css'
-
-/** Событие Chrome/Android, которое позволяет показать системное окно «Установить приложение». */
-interface InstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
 
 const DISMISS_KEY = 'install-banner-hidden-until'
 const HIDE_FOR = 14 * 24 * 60 * 60 * 1000
@@ -25,17 +20,6 @@ function hideForAWhile() {
   } catch {
     // Без хранилища баннер просто появится снова при следующем заходе.
   }
-}
-
-const isStandalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (navigator as Navigator & { standalone?: boolean }).standalone === true
-
-// На iPhone нет кнопки установки: Safari умеет только «На экран Домой» через меню «Поделиться».
-const isIosSafari = () => {
-  const ua = navigator.userAgent
-  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  return ios && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|YaBrowser/.test(ua)
 }
 
 export default function InstallBanner() {

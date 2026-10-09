@@ -79,6 +79,8 @@ export default function App() {
           <Route path="moderation" element={<Moderation />} />
           <Route path="admin/analytics" element={<AdminAnalytics />} />
           {/* Служебные страницы: тексты в src/data/legal.ts, у двух первых форма обращения. */}
+          <Route path="about" element={<Legal />} />
+          <Route path="app" element={<Legal />} />
           <Route path="rightholders" element={<Legal />} />
           <Route path="contacts" element={<Legal />} />
           <Route path="privacy" element={<Legal />} />

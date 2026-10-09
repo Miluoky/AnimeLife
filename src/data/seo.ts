@@ -20,6 +20,12 @@ const MAX_DESCRIPTION = 160
 export const DISCLAIMER =
   'Anime Life не хранит видео: плееры встроены со сторонних сервисов. Каталог — по данным Shikimori. Возрастные ограничения указаны на страницах тайтлов.'
 
+/** О сайте и установка приложения: в подвале, в навигации для поисковиков и в карте сайта. Тексты в legal.ts. */
+export const ABOUT_LINKS: [string, string][] = [
+  ['О проекте', '/about'],
+  ['Приложение', '/app'],
+]
+
 export const LEGAL_LINKS: [string, string][] = [
   ['Правообладателям', '/rightholders'],
   ['Контакты', '/contacts'],
