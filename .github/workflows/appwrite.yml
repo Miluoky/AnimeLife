@@ -47,6 +47,10 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Подготовить общий чат
         run: node functions/community/setup-community-chat.mjs
+      # Закрытые таблицы статистики для админа (/admin/analytics). Скрипт пропускает то, что уже есть.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Подготовить таблицы статистики
+        run: node functions/community/setup-analytics.mjs
       # Токен бота для уведомлений в Telegram: из секрета TELEGRAM_BOT_TOKEN или, если его нет, из функции входа.
       - if: steps.keys.outputs.ok == 'true'
         name: Токен Telegram-бота
