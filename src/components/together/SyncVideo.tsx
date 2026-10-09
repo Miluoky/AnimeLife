@@ -45,6 +45,8 @@ interface KodikState {
   exact: number
   /** когда перематывали: ответы на get_time, отправленные до перемотки, ещё со старым временем */
   seekAt: number
+  /** когда встал на паузу: ответы на get_time, ушедшие до паузы, ещё «идут» */
+  pausedAt: number
 }
 
 /**
@@ -67,7 +69,7 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
 ) {
   const host = useRef<HTMLDivElement>(null)
   const frame = useRef<HTMLIFrameElement>(null)
-  const kodik = useRef<KodikState>({ time: 0, at: 0, playing: false, rate: 1, exact: 0, seekAt: 0 })
+  const kodik = useRef<KodikState>({ time: 0, at: 0, playing: false, rate: 1, exact: 0, seekAt: 0, pausedAt: 0 })
   const yt = useRef<YTPlayer | null>(null)
   const video = useRef<HTMLVideoElement>(null)
   /** до какого момента события плеера считаем эхом своей команды — отдельно для плея, паузы и перемотки */
@@ -111,7 +113,7 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         hush('pause')
         if (frame.current) {
           kodikCall('pause')
-          kodik.current = { ...kodik.current, time: kodikTime(kodik.current), at: Date.now(), playing: false }
+          kodik.current = { ...kodik.current, time: kodikTime(kodik.current), at: Date.now(), playing: false, pausedAt: Date.now() }
         } else if (yt.current) {
           yt.current.pauseVideo()
         } else if (video.current) {
@@ -158,7 +160,7 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
   // Kodik: слушаем его события. Плей, пауза и перемотка руками в плеере уходят в комнату.
   useEffect(() => {
     if (source !== 'kodik') return
-    kodik.current = { time: 0, at: Date.now(), playing: false, rate: 1, exact: 0, seekAt: 0 }
+    kodik.current = { time: 0, at: Date.now(), playing: false, rate: 1, exact: 0, seekAt: 0, pausedAt: 0 }
     let askedAt = 0
     const ask = setInterval(() => {
       askedAt = Date.now()
@@ -179,7 +181,9 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         // чтобы скорость не дёргалась туда-сюда, а большую (перемотка, догрузка) принимаем сразу.
         const expected = kodikTime(k, at)
         // Стоял, а время пошло: зритель нажал плей в самом плеере, а событие kodik_player_play ещё в пути.
-        const started = !k.playing && !!k.exact && now - k.exact < 1500 && seconds - k.time > 0.15 && seconds - k.time < 1.5
+        // Сразу после паузы не верим: ответ мог уйти, пока видео ещё шло (так терялась пауза ведущего).
+        const step = seconds - k.time
+        const started = !k.playing && !!k.exact && now - k.exact < 1500 && now - k.pausedAt > 1500 && step > 0.3 && step < 1.5
         const time = Math.abs(seconds - expected) > 0.5 || !k.exact ? seconds : expected + (seconds - expected) * 0.3
         kodik.current = { ...k, time: started ? seconds : time, at, exact: now, playing: k.playing || started }
         if (started) report('play', true, seconds)
@@ -191,7 +195,7 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         kodik.current = { ...k, playing: true, at: now, time: kodikTime(k) }
         report('play', true, kodikTime(kodik.current))
       } else if (key === 'kodik_player_pause') {
-        kodik.current = { ...k, time: kodikTime(k), at: now, playing: false }
+        kodik.current = { ...k, time: kodikTime(k), at: now, playing: false, pausedAt: now }
         report('pause', false, kodik.current.time)
       } else if (key === 'kodik_player_seek' && Number.isFinite(seconds)) {
         kodik.current = { ...k, time: seconds, at: now, seekAt: now }
