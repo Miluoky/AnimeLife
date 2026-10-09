@@ -1,3 +1,4 @@
+import '../components/tracking.css'
 import '../components/profile.css'
 import '../components/profile-stats.css'
 import type { ReactNode } from 'react'

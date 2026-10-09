@@ -152,7 +152,7 @@ export default function TitlePage() {
   const result = useAsync(() => loadAnime(id), [id])
   const extras = useAsync(() => loadTitleExtras(id), [id])
   // «Кадр»: страница подсвечена постером тайтла.
-  useAmbient(result.value?.data?.posterSmall)
+  useAmbient(result.value?.data?.posterSmall ?? result.value?.data?.posterUrl)
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
   // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.

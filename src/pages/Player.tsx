@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { useAmbient } from '../components/ambient'
 import { loadAnime, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
@@ -39,7 +39,7 @@ export default function Player() {
   const result = useAsync(() => loadAnime(id), [id])
   const anime = result.value?.data
   // «Кадр»: вокруг плеера свет постера.
-  useAmbient(anime?.posterSmall)
+  useAmbient(anime?.posterSmall ?? anime?.posterUrl)
   // Названия серий приходят от AniLibria, когда плеер нашёл релиз.
   const [names, setNames] = useState<Record<number, string>>({})
   // Другой тайтл — серии прошлого релиза не в счёт.
@@ -149,7 +149,10 @@ export default function Player() {
   const name = names[current]
 
   return (
-    <main className={`container player-page${wide ? ' player-page--wide' : ''}${lightsOff ? ' player-page--dark' : ''}`}>
+    <main
+      className={`container player-page${wide ? ' player-page--wide' : ''}${lightsOff ? ' player-page--dark' : ''}`}
+      style={(anime.posterSmall ?? anime.posterUrl) ? ({ '--poster': `url("${anime.posterSmall ?? anime.posterUrl}")` } as CSSProperties) : undefined}
+    >
       {lightsOff && <div className="lights-curtain" aria-hidden="true" onClick={() => setLightsOff(false)} />}
       <div
         ref={miniPlayer.slot}

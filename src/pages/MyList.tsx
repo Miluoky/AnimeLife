@@ -1,3 +1,4 @@
+import '../components/tracking.css'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { listStatuses, setListStatus, useMyList, type ListStatus } from '../data/myList'

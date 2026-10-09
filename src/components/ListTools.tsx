@@ -1,3 +1,4 @@
+import './tracking.css'
 import { useState, type FormEvent } from 'react'
 import { useMyList } from '../data/myList'
 import { toast } from '../data/toast'

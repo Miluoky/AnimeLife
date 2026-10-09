@@ -112,9 +112,22 @@ h3 {
 
 .logo {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 800;
   font-size: 22px;
+  letter-spacing: -0.02em;
   white-space: nowrap;
+}
+/* «Кадр»: точка записи перед названием, как REC на камере. */
+.logo::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 10px;
+  vertical-align: 0.2em;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
 }
 
 .logo span {
@@ -165,6 +178,10 @@ h3 {
 
 .site-nav a.active {
   color: var(--text);
+}
+.site-nav a.active::before {
+  content: '▸ ';
+  color: var(--accent);
 }
 
 .search {
@@ -1927,8 +1944,10 @@ h3 {
     left: 4px;
     width: calc((100% - 8px) / 6);
     height: 50px;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    /* «Кадр»: активный раздел ловят уголки видоискателя, они и переезжают между пунктами */
+    border: 2px solid var(--accent);
+    -webkit-mask: conic-gradient(at 10px 10px, #0000 75%, #000 0) 0 0 / calc(100% - 10px) calc(100% - 10px);
+    mask: conic-gradient(at 10px 10px, #0000 75%, #000 0) 0 0 / calc(100% - 10px) calc(100% - 10px);
     transform: translateX(calc(var(--i) * 100%));
     transition: transform 0.45s cubic-bezier(0.3, 1.3, 0.5, 1);
     pointer-events: none;
@@ -2004,106 +2023,7 @@ input[type='radio'] {
   accent-color: var(--accent);
 }
 
-/* ---------- Трекинг: прогресс серий, импорт (шаг 5) ---------- */
-.list-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-.progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  font-size: 14px;
-}
-.progress__bar {
-  flex: 1 1 120px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.progress__bar span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), var(--accent-soft));
-  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.progress__text {
-  color: var(--text-soft);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.progress__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 34px;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-weight: 700;
-  font-size: 13px;
-  cursor: pointer;
-  transition: transform 0.15s, background 0.2s;
-}
-.progress__btn--plus {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
-  color: var(--accent);
-}
-.progress__btn:active {
-  transform: scale(0.92);
-}
-.progress--compact {
-  gap: 6px;
-  font-size: 12px;
-}
-.progress--compact .progress__bar {
-  flex-basis: 100%;
-  order: -1;
-  height: 4px;
-}
-.progress--compact .progress__btn {
-  height: 26px;
-  margin-left: auto;
-}
-.title-head .progress {
-  max-width: 420px;
-  margin-top: 4px;
-}
-.list-tools {
-  border-radius: 8px;
-  background: var(--surface);
-  padding: 14px 18px;
-}
-.list-tools summary {
-  cursor: pointer;
-  font-weight: 700;
-}
-.list-tools__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
-  margin-top: 14px;
-}
-.list-tools__card {
-  gap: 8px;
-  padding: 14px;
-  border-radius: 6px;
-  background: var(--surface-2);
-}
-.list-tools__card .btn {
-  align-self: flex-start;
-}
-
+/* ---------- Трекинг: прогресс серий, импорт (шаг 5): стили в components/tracking.css ---------- */
 /* ---------- Профиль, достижения, обсуждение серий (шаг 5): стили в components/profile.css и comments.css ---------- */
 .link-accent {
   color: var(--accent);

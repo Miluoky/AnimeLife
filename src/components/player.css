@@ -80,9 +80,10 @@
 
 .watch-head__title {
   display: block;
-  margin-bottom: 4px;
-  font: 400 16px var(--font-body);
-  letter-spacing: normal;
+  margin-bottom: 6px;
+  font: 600 12px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .watch-head__age {
@@ -1639,4 +1640,26 @@
   margin: 0;
   border-radius: 0;
   border-width: 0;
+}
+
+/* ─── «Кадр»: свет постера вокруг экрана, как подсветка стены за телевизором ─── */
+.video-slot {
+  isolation: isolate;
+}
+.video-slot:not(.video-slot--mini)::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  /* Размытие растекается за края само и не добавляет прокрутки, а растянутый слой добавил бы. */
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--poster) center / cover;
+  filter: blur(60px) saturate(1.7);
+  opacity: 0.55;
+  pointer-events: none;
+}
+:root[data-lite='1'] .video-slot::before {
+  display: none;
 }
