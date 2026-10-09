@@ -21,6 +21,8 @@ test('главная: смену тайтлов в баннере можно о�
   await expect(title).not.toHaveAttribute('aria-label', initialTitle ?? '')
 
   await page.getByRole('button', { name: 'Поставить смену тайтлов на паузу' }).click()
+  // Сначала дожидаемся, что пауза применилась: иначе тайтл можно прочитать до последней смены.
+  await expect(page.getByRole('button', { name: 'Продолжить смену тайтлов' })).toBeVisible()
   const pausedTitle = await title.getAttribute('aria-label')
   await page.clock.fastForward(16000)
   await expect(title).toHaveAttribute('aria-label', pausedTitle ?? '')
