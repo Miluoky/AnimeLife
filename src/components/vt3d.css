@@ -1,0 +1,45 @@
+/* 3D-переходы между страницами (редизайн «Витрина в глубину»).
+   Грузится отдельно и только в браузерах с View Transitions (см. morph.ts), поэтому основной CSS не тяжелеет. */
+
+/* Старая страница уходит вглубь, новая выезжает из глубины навстречу. */
+::view-transition-old(root) {
+  animation: 0.26s ease-in both vt3d-out;
+}
+::view-transition-new(root) {
+  animation: 0.46s var(--ease) both vt3d-in;
+}
+@keyframes vt3d-out {
+  to {
+    opacity: 0;
+    transform: perspective(1400px) translateZ(-90px) rotateX(3deg);
+  }
+}
+@keyframes vt3d-in {
+  from {
+    opacity: 0;
+    transform: perspective(1400px) translateZ(-60px) rotateX(-4deg) translateY(16px);
+  }
+}
+
+/* Постер летит в шапку тайтла с поворотом, как карта, которую переворачивают к зрителю. */
+::view-transition-group(poster) {
+  animation-duration: 0.6s;
+}
+::view-transition-image-pair(poster) {
+  animation: vt3d-flip 0.6s var(--ease) both;
+  transform-origin: 50% 50%;
+}
+@keyframes vt3d-flip {
+  45% {
+    transform: perspective(900px) rotateY(-22deg) rotateX(6deg) scale(1.06);
+    filter: drop-shadow(0 30px 40px rgb(0 0 0 / 0.55)) drop-shadow(0 0 24px color-mix(in srgb, var(--accent) 45%, transparent));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-image-pair(poster) {
+    animation: none !important;
+  }
+}

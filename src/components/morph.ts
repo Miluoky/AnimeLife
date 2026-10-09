@@ -22,6 +22,8 @@ export function useViewTransitions() {
   useEffect(() => {
     const doc = document as ViewTransitionDoc
     if (!doc.startViewTransition) return
+    // Объёмные переходы (страница уходит вглубь, постер переворачивается в полёте): стили отдельным файлом.
+    void import('./vt3d.css')
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || calm()) return
       const link = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null

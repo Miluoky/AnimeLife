@@ -21,7 +21,7 @@ import {
   type RoomMessage,
   youtubeId,
 } from '../data/rooms'
-import { pickCode, roomStream, roomVideo, roomVoices, samePick, type PlayerPick, type RoomVoice } from '../data/roomPlayer'
+import { pickCode, roomStream, roomVideo, roomVoices, samePick, type PlayerPick } from '../data/roomPlayer'
 import { toast } from '../data/toast'
 import { markFlag } from '../data/flags'
 import { usePageMeta } from '../data/pageMeta'
@@ -31,6 +31,7 @@ import { formatTime } from '../components/together/time'
 import { PeopleIcon, PlayIcon, SendIcon } from '../components/Icons'
 import Mascot from '../components/Mascot'
 import Hall from '../components/together/Hall'
+import RoomVoices from '../components/together/RoomVoices'
 import People from '../components/together/People'
 import Schedule from '../components/together/ScheduleSession'
 import { MEMBER_TTL, PRESENCE_EVERY, loadMembers, presence, subscribeMembers, type Member } from '../data/voice'
@@ -450,6 +451,8 @@ export default function Together() {
 
         {showInvite && <InviteCard code={room.$id} title={room.animeTitle} />}
 
+        {isHost && <RoomVoices voices={voices.value} loading={voices.loading} current={pick} onChoose={switchPlayer} />}
+
         <Schedule
           room={room}
           isHost={isHost}
@@ -465,7 +468,6 @@ export default function Together() {
         {isHost && (
           <div className="together__host chips">
             <span className="muted">Видео:</span>
-            <VoicePicker voices={voices.value} loading={voices.loading} current={pick} onChoose={switchPlayer} />
             <button
               type="button"
               className={`chip-btn${playing?.type === 'trailer' ? ' chip-btn--on' : ''}`}
@@ -539,50 +541,6 @@ export default function Together() {
         onSeek={canControl ? (t) => void send({ playing: room.playing, position: t }) : undefined}
       />
     </main>
-  )
-}
-
-/** Плеер и озвучка для всей комнаты: AniLibria, AnimeVost, студии из Anixart и Kodik. */
-function VoicePicker({
-  voices,
-  loading,
-  current,
-  onChoose,
-}: {
-  voices?: RoomVoice[]
-  loading: boolean
-  current: PlayerPick | null
-  onChoose: (p: PlayerPick) => void
-}) {
-  if (loading && !voices) return <span className="muted">ищем озвучки…</span>
-  if (!voices?.length) return <span className="muted">серий в плеерах сайта нет</span>
-  const groups = [...new Set(voices.map((v) => v.group))]
-  const value = current ? pickCode(current) : ''
-  return (
-    <select
-      className={`together__select together__voices${current ? ' together__select--on' : ''}`}
-      value={value}
-      onChange={(e) => {
-        const v = voices.find((x) => pickCode(x) === e.target.value)
-        if (v) onChoose(v)
-      }}
-      aria-label="Плеер и озвучка"
-    >
-      {!current && <option value="">Плеер и озвучка ({voices.length})</option>}
-      {groups.map((g) => (
-        <optgroup key={g} label={g}>
-          {voices
-            .filter((v) => v.group === g)
-            .map((v) => (
-              <option key={pickCode(v)} value={pickCode(v)}>
-                {v.title}
-                {v.subtitles ? ' (субтитры)' : ''}
-                {v.episodes ? ` · ${v.episodes} сер.` : ''}
-              </option>
-            ))}
-        </optgroup>
-      ))}
-    </select>
   )
 }
 

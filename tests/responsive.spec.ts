@@ -2,13 +2,14 @@ import { expect, test } from '@playwright/test'
 import { mockServices } from './mocks'
 
 // Ни одна страница не должна давать горизонтальную прокрутку: от самого узкого телефона (320 px)
-// до широкого монитора и телефона, повёрнутого боком. SHOTS=папка сохраняет скриншоты для просмотра глазами.
+// через ноутбук 1024 px до широкого монитора и телефона, повёрнутого боком. SHOTS=папка сохраняет скриншоты для просмотра глазами.
 const SCREENS = [
   { name: '320', width: 320, height: 640 },
   { name: '375', width: 375, height: 740 },
   { name: '430', width: 430, height: 900 },
   { name: 'landscape', width: 740, height: 360 },
   { name: 'tablet', width: 820, height: 1180 },
+  { name: 'small-laptop', width: 1024, height: 700 },
   { name: 'laptop', width: 1280, height: 800 },
   { name: 'wide', width: 1920, height: 1080 },
 ]
@@ -41,6 +42,12 @@ for (const screen of SCREENS) {
         return `${document.documentElement.scrollWidth}px: ${culprits.join(', ')}`
       })
       if (overflow) wide.push(`${route} ${overflow}`)
+      // Шапка обрезает лишнее, поэтому её проверяем отдельно: на 920–1180 px кнопка входа уезжала за край.
+      const header = await page.evaluate(() => {
+        const el = document.querySelector('.site-header__inner')
+        return el && el.scrollWidth > el.clientWidth + 1 ? el.scrollWidth : 0
+      })
+      if (header) wide.push(`${route} шапка ${header}px`)
       if (process.env.SHOTS) {
         await page.screenshot({ path: `${process.env.SHOTS}/${screen.name}${route.replace(/\//g, '_') || '_home'}.png` })
       }
