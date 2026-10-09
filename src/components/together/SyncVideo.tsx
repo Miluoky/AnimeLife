@@ -8,10 +8,12 @@ export interface VideoControl {
   seek(seconds: number): void
   time(): number
   paused(): boolean
-  /** мягкая подстройка скорости, чтобы догнать комнату без рывка (только для своего видео) */
+  /** мягкая подстройка скорости, чтобы догнать комнату без рывка */
   rate(r: number): void
-  /** время известно лишь примерно (Kodik сообщает его раз в секунду): мелкие расхождения не трогаем */
-  coarse(): boolean
+  /** плеер умеет менять скорость (своё видео и Kodik; YouTube — только ступенями, его догоняем перемоткой) */
+  smooth(): boolean
+  /** «плей» сразу за перемоткой стоящего плеера срабатывает (Kodik его пропускает: сначала включаем, потом перематываем) */
+  seekThenPlay(): boolean
 }
 
 interface Props {
@@ -29,11 +31,20 @@ interface Props {
   onEnded?: () => void
 }
 
-/** Состояние iframe Kodik по его сообщениям: время приходит само, раз в секунду. */
+/**
+ * Состояние iframe Kodik по его сообщениям. Само он присылает время целыми секундами (kodik_player_time_update),
+ * это ошибка до секунды. Точное время с долями секунды отдаёт по запросу get_time (kodik_player_time),
+ * его и спрашиваем дважды в секунду. Проверено на настоящем плеере Kodik.
+ */
 interface KodikState {
   time: number
   at: number
   playing: boolean
+  rate: number
+  /** когда последний раз пришло точное время */
+  exact: number
+  /** когда перематывали: ответы на get_time, отправленные до перемотки, ещё со старым временем */
+  seekAt: number
 }
 
 /**
@@ -41,8 +52,14 @@ interface KodikState {
  * Как на Senku: 1,8 секунды — после перемотки поток успевает догрузиться и прислать свои play/seek.
  */
 const ECHO_MS = 1800
+
+type Echo = 'play' | 'pause' | 'seek'
+/** Какие события плеера вызывает наша команда: после перемотки плеер догружается и сам шлёт ещё и «плей». */
+const ECHOES: Record<Echo, Echo[]> = { play: ['play'], pause: ['pause'], seek: ['seek', 'play'] }
 /** Kodik принимает команды не сразу после загрузки страницы плеера, а когда поднимется его API. */
 const KODIK_WARMUP_MS = 1500
+/** Как часто спрашиваем у Kodik точное время. */
+const KODIK_ASK_MS = 500
 
 const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
   { source, videoId, file, src, title, onUserChange, onReady, onEnded },
@@ -50,10 +67,11 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
 ) {
   const host = useRef<HTMLDivElement>(null)
   const frame = useRef<HTMLIFrameElement>(null)
-  const kodik = useRef<KodikState>({ time: 0, at: 0, playing: false })
+  const kodik = useRef<KodikState>({ time: 0, at: 0, playing: false, rate: 1, exact: 0, seekAt: 0 })
   const yt = useRef<YTPlayer | null>(null)
   const video = useRef<HTMLVideoElement>(null)
-  const quietUntil = useRef(0)
+  /** до какого момента события плеера считаем эхом своей команды — отдельно для плея, паузы и перемотки */
+  const quietUntil = useRef<Record<Echo, number>>({ play: 0, pause: 0, seek: 0 })
   const [url, setUrl] = useState<string>()
   const [failed, setFailed] = useState(false)
   const changeRef = useRef(onUserChange)
@@ -65,11 +83,14 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
   const kodikCall = (method: string, extra: Record<string, unknown> = {}) =>
     frame.current?.contentWindow?.postMessage({ key: 'kodik_player_api', value: { method, ...extra } }, '*')
 
-  const hush = () => {
-    quietUntil.current = Date.now() + ECHO_MS
+  // Глушим только эхо своей команды: пауза, нажатая зрителем сразу после нашей перемотки, — его действие,
+  // и её надо разослать комнате (раньше глушилось всё подряд, и такая пауза терялась).
+  const hush = (command: Echo) => {
+    for (const e of ECHOES[command]) quietUntil.current[e] = Date.now() + ECHO_MS
   }
-  const report = (playing: boolean, position: number) => {
-    if (Date.now() < quietUntil.current) return
+  const quiet = (kind: Echo) => Date.now() < quietUntil.current[kind]
+  const report = (kind: Echo, playing: boolean, position: number) => {
+    if (quiet(kind)) return
     changeRef.current({ playing, position })
   }
 
@@ -77,7 +98,7 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
     ref,
     () => ({
       play() {
-        hush()
+        hush('play')
         if (frame.current) {
           kodikCall('play')
         } else if (yt.current) {
@@ -87,10 +108,10 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         }
       },
       pause() {
-        hush()
+        hush('pause')
         if (frame.current) {
           kodikCall('pause')
-          kodik.current = { time: kodikTime(kodik.current), at: Date.now(), playing: false }
+          kodik.current = { ...kodik.current, time: kodikTime(kodik.current), at: Date.now(), playing: false }
         } else if (yt.current) {
           yt.current.pauseVideo()
         } else if (video.current) {
@@ -98,10 +119,10 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         }
       },
       seek(s) {
-        hush()
+        hush('seek')
         if (frame.current) {
           kodikCall('seek', { seconds: s })
-          kodik.current = { ...kodik.current, time: s, at: Date.now() }
+          kodik.current = { ...kodik.current, time: s, at: Date.now(), seekAt: Date.now() }
         } else if (yt.current) {
           yt.current.seekTo(s, true)
         } else if (video.current) {
@@ -119,11 +140,17 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         return video.current?.paused ?? true
       },
       rate(r) {
-        if (video.current && !frame.current && Math.abs(video.current.playbackRate - r) > 0.001) {
+        const k = kodik.current
+        if (frame.current) {
+          if (Math.abs(k.rate - r) < 0.001) return
+          kodikCall('speed', { speed: r })
+          kodik.current = { ...k, time: kodikTime(k), at: Date.now(), rate: r }
+        } else if (video.current && Math.abs(video.current.playbackRate - r) > 0.001) {
           video.current.playbackRate = r
         }
       },
-      coarse: () => !!frame.current,
+      smooth: () => !yt.current,
+      seekThenPlay: () => !frame.current,
     }),
     [],
   )
@@ -131,31 +158,57 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
   // Kodik: слушаем его события. Плей, пауза и перемотка руками в плеере уходят в комнату.
   useEffect(() => {
     if (source !== 'kodik') return
-    kodik.current = { time: 0, at: Date.now(), playing: false }
+    kodik.current = { time: 0, at: Date.now(), playing: false, rate: 1, exact: 0, seekAt: 0 }
+    let askedAt = 0
+    const ask = setInterval(() => {
+      askedAt = Date.now()
+      kodikCall('get_time')
+    }, KODIK_ASK_MS)
     const onMessage = (e: MessageEvent) => {
       if (!frame.current || e.source !== frame.current.contentWindow) return
       const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
       if (typeof key !== 'string' || !key.startsWith('kodik_player_')) return
       const seconds = typeof value === 'number' ? value : Number((value as { time?: unknown } | null)?.time)
       const k = kodik.current
-      if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) {
-        kodik.current = { ...k, time: seconds, at: Date.now() }
+      const now = Date.now()
+      if (key === 'kodik_player_time' && Number.isFinite(seconds)) {
+        if (now - k.seekAt < KODIK_ASK_MS * 2) return
+        // Ответ на get_time: время было снято примерно посередине между вопросом и ответом.
+        const at = askedAt && now - askedAt < KODIK_ASK_MS ? (askedAt + now) / 2 : now
+        // Ответы немного «дрожат» (плеер обновляет время пару раз в секунду): мелкую разницу сглаживаем,
+        // чтобы скорость не дёргалась туда-сюда, а большую (перемотка, догрузка) принимаем сразу.
+        const expected = kodikTime(k, at)
+        // Стоял, а время пошло: зритель нажал плей в самом плеере, а событие kodik_player_play ещё в пути.
+        const started = !k.playing && !!k.exact && now - k.exact < 1500 && seconds - k.time > 0.15 && seconds - k.time < 1.5
+        const time = Math.abs(seconds - expected) > 0.5 || !k.exact ? seconds : expected + (seconds - expected) * 0.3
+        kodik.current = { ...k, time: started ? seconds : time, at, exact: now, playing: k.playing || started }
+        if (started) report('play', true, seconds)
+      } else if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) {
+        // Целые секунды: нужны, только если точное время давно не приходило или плеер прыгнул сам.
+        if (now - k.exact > 3000 || Math.abs(seconds - kodikTime(k)) > 2) kodik.current = { ...k, time: seconds, at: now }
       } else if (key === 'kodik_player_play') {
-        kodik.current = { ...k, playing: true, at: Date.now(), time: kodikTime(k) }
-        report(true, kodikTime(kodik.current))
+        if (k.playing) return
+        kodik.current = { ...k, playing: true, at: now, time: kodikTime(k) }
+        report('play', true, kodikTime(kodik.current))
       } else if (key === 'kodik_player_pause') {
-        kodik.current = { time: kodikTime(k), at: Date.now(), playing: false }
-        report(false, kodik.current.time)
+        kodik.current = { ...k, time: kodikTime(k), at: now, playing: false }
+        report('pause', false, kodik.current.time)
       } else if (key === 'kodik_player_seek' && Number.isFinite(seconds)) {
-        kodik.current = { ...k, time: seconds, at: Date.now() }
-        report(k.playing, seconds)
+        kodik.current = { ...k, time: seconds, at: now, seekAt: now }
+        report('seek', k.playing, seconds)
+      } else if (key === 'kodik_player_speed_change') {
+        const speed = Number((value as { speed?: unknown } | null)?.speed)
+        if (speed > 0) kodik.current = { ...k, time: kodikTime(k), at: now, rate: speed }
       } else if (key === 'kodik_player_video_ended') {
         kodik.current = { ...k, playing: false }
         endedRef.current?.()
       }
     }
     window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
+    return () => {
+      clearInterval(ask)
+      window.removeEventListener('message', onMessage)
+    }
   }, [source, src])
 
   // Поток сайта: mp4 браузер играет сам, HLS — сам Safari, остальным нужен hls.js.
@@ -203,8 +256,8 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
             onStateChange: (e) => {
               const p = yt.current
               if (!p) return
-              if (e.data === YT_PLAYING) report(true, p.getCurrentTime())
-              else if (e.data === YT_PAUSED || e.data === YT_ENDED) report(false, p.getCurrentTime())
+              if (e.data === YT_PLAYING) report('play', true, p.getCurrentTime())
+              else if (e.data === YT_PAUSED || e.data === YT_ENDED) report('pause', false, p.getCurrentTime())
             },
           },
         })
@@ -270,26 +323,20 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
       playsInline
       onLoadedMetadata={() => readyRef.current()}
       onPlay={(e) => {
-        if (Date.now() >= quietUntil.current) {
-          report(true, e.currentTarget.currentTime)
-        }
+        report('play', true, e.currentTarget.currentTime)
       }}
       onPause={(e) => {
-        if (!e.currentTarget.seeking && !e.currentTarget.ended && Date.now() >= quietUntil.current) {
-          report(false, e.currentTarget.currentTime)
-        }
+        if (!e.currentTarget.seeking && !e.currentTarget.ended) report('pause', false, e.currentTarget.currentTime)
       }}
       onSeeked={(e) => {
-        if (Date.now() >= quietUntil.current) {
-          report(!e.currentTarget.paused, e.currentTarget.currentTime)
-        }
+        report('seek', !e.currentTarget.paused, e.currentTarget.currentTime)
       }}
       onEnded={() => endedRef.current?.()}
     />
   )
 })
 
-/** Где сейчас Kodik: последнее присланное время плюс сколько прошло, если идёт. */
-const kodikTime = (k: KodikState) => k.time + (k.playing && k.at ? (Date.now() - k.at) / 1000 : 0)
+/** Где сейчас Kodik: последнее присланное время плюс сколько прошло с учётом скорости, если идёт. */
+const kodikTime = (k: KodikState, now = Date.now()) => k.time + (k.playing && k.at ? ((now - k.at) / 1000) * k.rate : 0)
 
 export default SyncVideo
