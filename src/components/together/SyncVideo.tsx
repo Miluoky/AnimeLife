@@ -36,8 +36,13 @@ interface KodikState {
   playing: boolean
 }
 
-/** Сколько миллисекунд после команды комнаты события плеера считаем «эхом», а не действием человека. */
-const ECHO_MS = 600
+/**
+ * Сколько миллисекунд после команды комнаты события плеера считаем «эхом», а не действием человека.
+ * Как на Senku: 1,8 секунды — после перемотки поток успевает догрузиться и прислать свои play/seek.
+ */
+const ECHO_MS = 1800
+/** Kodik принимает команды не сразу после загрузки страницы плеера, а когда поднимется его API. */
+const KODIK_WARMUP_MS = 1500
 
 const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
   { source, videoId, file, src, title, onUserChange, onReady, onEnded },
@@ -241,7 +246,10 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
         allowFullScreen
         referrerPolicy="strict-origin-when-cross-origin"
-        onLoad={() => readyRef.current()}
+        onLoad={(e) => {
+          const el = e.currentTarget
+          window.setTimeout(() => el.isConnected && readyRef.current(), KODIK_WARMUP_MS)
+        }}
       />
     )
   }
