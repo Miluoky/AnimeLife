@@ -12,21 +12,22 @@ test('главная: смену тайтлов в баннере можно о�
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.clock.install()
   await page.goto('/')
-  const title = page.locator('.hero__title')
-  await expect(title).toBeVisible()
-  const initialTitle = await title.textContent()
+  // Какой тайтл сейчас в баннере — по выбранной миниатюре: подробности тайтла в заготовках у всех одинаковые.
+  const title = page.locator('.hero__thumbs [aria-selected="true"]')
+  await expect(page.locator('.hero__title')).toBeVisible()
+  const initialTitle = await title.getAttribute('aria-label')
 
   await page.clock.fastForward(8100)
-  await expect(title).not.toHaveText(initialTitle ?? '')
+  await expect(title).not.toHaveAttribute('aria-label', initialTitle ?? '')
 
   await page.getByRole('button', { name: 'Поставить смену тайтлов на паузу' }).click()
-  const pausedTitle = await title.textContent()
+  const pausedTitle = await title.getAttribute('aria-label')
   await page.clock.fastForward(16000)
-  await expect(title).toHaveText(pausedTitle ?? '')
+  await expect(title).toHaveAttribute('aria-label', pausedTitle ?? '')
 
   await page.getByRole('button', { name: 'Продолжить смену тайтлов' }).click()
   await page.clock.runFor(8100)
-  await expect(title).not.toHaveText(pausedTitle ?? '')
+  await expect(title).not.toHaveAttribute('aria-label', pausedTitle ?? '')
 })
 
 test('главная: историю просмотра показывает перед баннером', async ({ page }) => {
