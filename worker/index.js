@@ -833,6 +833,12 @@ export default {
     const url = new URL(request.url)
     // robots.txt отдаём на любом адресе: и на зеркале он указывает на карту сайта основного домена.
     if (url.pathname === '/robots.txt') return robots()
+    // Точные часы для совместного просмотра: ответ с ближайшего узла Cloudflare приходит за миллисекунды,
+    // поэтому все зрители комнаты считают позицию видео по одним и тем же часам (src/data/rooms.ts).
+    if (url.pathname === '/api/time')
+      return new Response(JSON.stringify({ now: Date.now() }), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      })
     if (MIRRORS.has(url.hostname)) return Response.redirect(ORIGIN + url.pathname + url.search, 301)
     const moved = url.pathname.match(/^\/genre\/([a-z-]+)\/?$/)?.[1]
     if (moved && MOVED_GENRES[moved]) return Response.redirect(`${ORIGIN}/genre/${MOVED_GENRES[moved]}${url.search}`, 301)

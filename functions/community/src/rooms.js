@@ -6,7 +6,7 @@ import { DB, UserError, hash, listRows } from './util.js'
  *
  *   room-create {animeId, animeTitle, poster, episode, source, videoId, title, public, controlAll}
  *       создать комнату (у одного человека одна комната: старая закрывается);
- *   room-control {roomId, playing, position, episode?, source?, videoId?, controlAll?, public?, title?, startsAt?}
+ *   room-control {roomId, playing, position, at?, episode?, source?, videoId?, controlAll?, public?, title?, startsAt?}
  *       плей, пауза, перемотка, смена серии. Управляет ведущий или все, если он разрешил;
  *   room-message {roomId, kind: chat|reaction, text, t}  сообщение или реакция в чат;
  *   room-message-delete {messageId}  убрать сообщение (ведущий комнаты или модератор);
@@ -62,6 +62,16 @@ function playback(body) {
   const position = Number(body.position)
   if (!Number.isFinite(position) || position < 0 || position > 24 * 3600) throw new UserError('Неверная позиция видео.')
   return { playing: Boolean(body.playing), position }
+}
+
+/**
+ * Когда зритель нажал плей, паузу или перемотал — по общим часам (клиент присылает их в at).
+ * Время сервера на момент записи опаздывает на запуск функции и запросы к базе (до пары секунд),
+ * и все остальные зрители отставали ровно на эту задержку. Чужие и сбитые часы не принимаем.
+ */
+export function pressedAt(at, now) {
+  const t = Number(at)
+  return Number.isFinite(t) && t <= now + 1000 && t >= now - 10_000 ? Math.round(t) : now
 }
 
 function source(body, data) {
@@ -138,7 +148,7 @@ export async function roomControl(api, req, body) {
   const room = await getRoom(api, body.roomId)
   if (room.hostId !== user.$id && !room.controlAll) throw new UserError('Управляет только ведущий комнаты.')
   const now = Date.now()
-  const data = source(body, { ...playback(body), at: now, lastActive: now, actor: displayName(user) })
+  const data = source(body, { ...playback(body), at: pressedAt(body.at, now), lastActive: now, actor: displayName(user) })
   // Настройки комнаты (кто управляет, открыта ли она всем, название) меняет только ведущий.
   if (room.hostId === user.$id) {
     if (body.controlAll != null) data.controlAll = Boolean(body.controlAll)

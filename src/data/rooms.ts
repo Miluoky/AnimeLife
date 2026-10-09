@@ -42,15 +42,17 @@ export interface RoomMessage {
 
 export const REACTIONS = ['❤️', '😂', '😮', '😭', '🔥', '👏']
 
-// --- Часы сервера ---
-// Позицию видео все считают по часам сервера: у телефонов и компьютеров время расходится на секунды.
+// --- Общие часы ---
+// Позицию видео все считают по одним часам: у телефонов и компьютеров время расходится на секунды.
+// Часы берём у Worker сайта (/api/time): узел Cloudflare рядом, ответ за миллисекунды, и ошибка
+// (половина времени ответа) почти нулевая. Без Worker (локальная разработка) — у функции Appwrite.
 
 let offset = 0
 let bestRtt = Infinity
 
-function noteServerTime(serverNow: number | undefined, sentAt: number) {
+function noteServerTime(serverNow: number | undefined, sentAt: number, receivedAt = Date.now()) {
   if (!serverNow) return
-  const rtt = Date.now() - sentAt
+  const rtt = receivedAt - sentAt
   // Самый быстрый ответ точнее всего: задержка сети меньше всего искажает время.
   if (rtt <= bestRtt) {
     bestRtt = rtt
@@ -60,24 +62,36 @@ function noteServerTime(serverNow: number | undefined, sentAt: number) {
 
 export const serverNow = () => Date.now() + offset
 
-export async function syncClock(samples = 3) {
-  for (let i = 0; i < samples; i++) {
-    const sentAt = Date.now()
-    const reply = await callCommunity<{ serverNow: number }>({ action: 'room-time' }).catch(() => undefined)
-    noteServerTime(reply?.serverNow, sentAt)
-  }
+async function edgeTime() {
+  const sentAt = Date.now()
+  const res = await fetch('/api/time', { cache: 'no-store' })
+  const receivedAt = Date.now()
+  const { now } = (await res.json()) as { now?: number }
+  if (typeof now !== 'number') throw new Error('no time')
+  noteServerTime(now, sentAt, receivedAt)
+}
+
+let clockSynced: Promise<void> | undefined
+
+/** Сверяем часы несколько раз и берём самый быстрый ответ. Повторный вызов ждёт ту же сверку. */
+export function syncClock(samples = 5) {
+  clockSynced ??= (async () => {
+    try {
+      for (let i = 0; i < samples; i++) await edgeTime()
+    } catch {
+      for (let i = 0; i < Math.min(samples, 3); i++) {
+        const sentAt = Date.now()
+        const reply = await callCommunity<{ serverNow: number }>({ action: 'room-time' }).catch(() => undefined)
+        noteServerTime(reply?.serverNow, sentAt)
+      }
+    }
+  })()
+  return clockSynced
 }
 
 /** Где сейчас должно быть видео комнаты, в секундах. */
 export const roomPosition = (room: Pick<Room, 'playing' | 'position' | 'at'>) =>
   room.position + (room.playing ? Math.max(0, serverNow() - room.at) / 1000 : 0)
-
-async function timed<T extends { serverNow?: number }>(body: object) {
-  const sentAt = Date.now()
-  const reply = await callCommunity<T>(body)
-  noteServerTime(reply.serverNow, sentAt)
-  return reply
-}
 
 // --- Действия ---
 
@@ -94,7 +108,7 @@ export interface NewRoom {
 }
 
 export const createRoom = (room: NewRoom) =>
-  timed<{ room: Room; serverNow: number }>({ action: 'room-create', ...room }).then((r) => r.room)
+  callCommunity<{ room: Room }>({ action: 'room-create', ...room }).then((r) => r.room)
 
 export const controlRoom = (
   roomId: string,
@@ -108,8 +122,10 @@ export const controlRoom = (
     public?: boolean
     title?: string
     startsAt?: number | null
+    /** когда нажали, по общим часам (serverNow): от этого момента все считают позицию видео */
+    at?: number
   },
-) => timed<{ serverNow: number }>({ action: 'room-control', roomId, ...state })
+) => callCommunity<{ serverNow: number }>({ action: 'room-control', roomId, ...state })
 
 export const sendRoomMessage = (roomId: string, kind: RoomMessage['kind'], text: string, t: number) =>
   callCommunity<{ message: RoomMessage }>({ action: 'room-message', roomId, kind, text, t }).then((r) => r.message)
