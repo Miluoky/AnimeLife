@@ -157,3 +157,165 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.catalog-links .pill--link {
+  gap: 8px;
+}
+
+/* ─── «Кадр»: пульт каталога как экран видоискателя — строка REC, подписи-таймкоды, тонкие рамки ─── */
+.catalog__deck {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 18px 18px;
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  border-radius: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 70%, transparent), transparent 140%);
+}
+/* уголки видоискателя по краям пульта */
+.catalog__deck::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border: 2px solid color-mix(in srgb, var(--text) 55%, transparent);
+  -webkit-mask: conic-gradient(at 16px 16px, #0000 75%, #000 0) 0 0 / calc(100% - 16px) calc(100% - 16px);
+  mask: conic-gradient(at 16px 16px, #0000 75%, #000 0) 0 0 / calc(100% - 16px) calc(100% - 16px);
+}
+.catalog__rec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin: 0;
+  color: var(--muted);
+  font: 600 11px/1.4 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.catalog__rec > span:not(.catalog__dot)::before {
+  content: '·';
+  margin-right: 14px;
+  color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+.catalog__rec > span:nth-child(3)::before {
+  content: none;
+}
+.catalog__dot {
+  width: 7px;
+  height: 7px;
+  margin-right: -8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: catalog-rec 1.6s steps(2, jump-none) infinite;
+}
+.catalog__rec > span:nth-child(3) {
+  color: var(--text-soft);
+}
+.catalog__rec b {
+  color: var(--accent);
+}
+@keyframes catalog-rec {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Чипы: тонкая рамка, выбранный — с красной меткой, как активный режим на камере. */
+.catalog .filters {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.catalog .chip-filter {
+  align-items: center;
+  gap: 6px;
+}
+.chip-filter__label {
+  flex: 0 0 auto;
+  min-width: 92px;
+  color: var(--muted);
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.catalog .chip-filter .pill,
+.catalog .filters-toggle {
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 2px;
+  border-color: color-mix(in srgb, var(--text) 12%, transparent);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+.catalog .chip-filter .pill.active {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.catalog .chip-filter .pill.active,
+.catalog .filters-toggle.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+  font-weight: 700;
+}
+.catalog .chip-filter .pill.active::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+}
+.catalog .chip-filter .pill:hover:not(.active) {
+  border-color: color-mix(in srgb, var(--text) 30%, transparent);
+  color: var(--text);
+}
+
+/* Подборщики: подписи моноширинные, поля с тонкой рамкой без скруглений. */
+.catalog .filter__label {
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.catalog .filter select,
+.catalog .multi-pick__button,
+.catalog .filter__check {
+  height: 40px;
+  border-radius: 2px;
+  border-color: color-mix(in srgb, var(--text) 12%, transparent);
+  background-color: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  font-size: 13px;
+}
+.catalog .filter--set select,
+.catalog .filter--set .multi-pick__button,
+.catalog .filter--set .filter__check {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.catalog .multi-pick__panel {
+  border-radius: 2px;
+}
+
+@media (max-width: 640px) {
+  .catalog__deck {
+    padding: 14px 14px 16px;
+  }
+  .catalog .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .catalog__deck .chip-filter {
+    margin: 0 -14px;
+    padding: 2px 14px;
+    max-width: calc(100% + 28px);
+  }
+  .chip-filter__label {
+    min-width: 0;
+    margin-right: 4px;
+  }
+  /* на узком экране в строке REC только режим и фильтры */
+  .catalog__rec > span:nth-child(4),
+  .catalog__rec > span:nth-child(6) {
+    display: none;
+  }
+}
