@@ -26,3 +26,46 @@
 .manga__links .btn {
   border: 1px solid var(--line);
 }
+
+.manga__langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.manga__chapters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  max-height: 420px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.manga__chapters a {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.manga__chapters a:hover {
+  background: var(--surface);
+}
+
+.manga__chapters a.is-current {
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.manga__credit {
+  font-size: 13px;
+}

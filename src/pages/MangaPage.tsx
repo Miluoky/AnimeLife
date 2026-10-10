@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga, type MangaPage as Manga } from '../api/manga'
+import { chapterLabel, fetchChapters, findMangadex, langName, preferredLang, readProgress, setPreferredLang } from '../api/mangadex'
 import PosterCard from '../components/PosterCard'
 import { usePageMeta } from '../data/pageMeta'
 import NotFound from './NotFound'
@@ -37,6 +38,89 @@ function Description({ parts }: { parts: Manga['description'] }) {
           {open ? 'Свернуть' : 'Показать полностью'}
         </button>
       )}
+    </section>
+  )
+}
+
+const chapterUrl = (mangaId: string, chapterId: string, lang: string) => `/manga/${mangaId}/chapter/${chapterId}?lang=${lang}`
+
+/** «Читать»: главы из MangaDex прямо на сайте, язык на выбор (по умолчанию русский, если он есть). */
+function ReadBlock({ m }: { m: Manga }) {
+  const md = useAsync(() => findMangadex(m.id, [m.originalTitle, m.english, m.title]).catch(() => 'error' as const), [m.id])
+  const [picked, setPicked] = useState<string>()
+  const title = md.value && md.value !== 'error' ? md.value : undefined
+  const pref = picked ?? preferredLang()
+  const lang = title ? (title.langs.includes(pref) ? pref : title.langs[0]) : undefined
+  const chapters = useAsync(
+    () => (title && lang ? fetchChapters(title.id, lang).catch(() => 'error' as const) : Promise.resolve(undefined)),
+    [title?.id, lang],
+  )
+  const list = Array.isArray(chapters.value) ? chapters.value : []
+  const progress = readProgress(m.id)
+
+  const langs = title && lang && title.langs.length > 1 && (
+    <div className="manga__langs" role="group" aria-label="Язык перевода">
+      {title.langs.map((l) => (
+        <button
+          key={l}
+          type="button"
+          className={`chip-btn${l === lang ? ' chip-btn--on' : ''}`}
+          aria-pressed={l === lang}
+          onClick={() => {
+            setPicked(l)
+            setPreferredLang(l)
+          }}
+        >
+          {langName(l)}
+        </button>
+      ))}
+    </div>
+  )
+
+  let body
+  if (md.loading || (title && chapters.loading && !list.length)) body = <p className="muted">Ищем главы…</p>
+  else if (md.value === 'error' || chapters.value === 'error') body = <p className="muted">Не удалось загрузить главы. Попробуйте обновить страницу.</p>
+  else if (!title || !lang) body = <p className="muted">Глав для чтения на сайте пока нет.</p>
+  // Лицензионные главы MangaDex убирает: язык в списке есть, а читать на нём нечего.
+  else if (!list.length) body = <p className="muted">На этом языке глав на сайте нет, выберите другой.</p>
+  else
+    body = (
+      <>
+        <div className="manga__links">
+          <Link className="btn btn--accent" to={chapterUrl(m.id, list[0].id, lang)}>
+            Читать с начала
+          </Link>
+          {progress && (
+            <Link className="btn" to={chapterUrl(m.id, progress.chapterId, progress.lang)}>
+              Продолжить: {chapterLabel({ num: progress.num })}
+              {progress.lang !== lang ? ` (${langName(progress.lang).toLowerCase()})` : ''}
+            </Link>
+          )}
+        </div>
+        <ol className="manga__chapters" reversed>
+          {[...list].reverse().map((c) => (
+            <li key={c.id}>
+              <Link to={chapterUrl(m.id, c.id, lang)} className={c.id === progress?.chapterId ? 'is-current' : undefined}>
+                <span>{chapterLabel(c)}</span>
+                {c.title && c.num && <span className="muted"> · {c.title}</span>}
+              </Link>
+            </li>
+          ))}
+        </ol>
+        <p className="muted manga__credit">
+          {list.length} гл. на языке «{langName(lang)}». Главы и переводы:{' '}
+          <a href={`https://mangadex.org/title/${title.id}`} target="_blank" rel="noopener noreferrer">
+            MangaDex
+          </a>{' '}
+          и команды переводчиков, их имена указаны в каждой главе.
+        </p>
+      </>
+    )
+  return (
+    <section className="stack">
+      <h2>Читать</h2>
+      {langs}
+      {body}
     </section>
   )
 }
@@ -100,6 +184,8 @@ export default function MangaPage() {
       </section>
 
       {m.description.length > 0 && <Description parts={m.description} />}
+
+      {m.kind !== 'Ранобэ' && m.kind !== 'Новелла' && <ReadBlock m={m} />}
 
       {m.links.length > 0 && (
         <section className="stack">

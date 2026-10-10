@@ -10,7 +10,8 @@
  * Несуществующие страницы получают код 404, временные и личные — noindex. Старые адреса (www, workers.dev)
  * постоянно перенаправляются на animelife.top. Плюс карта сайта (/sitemap.xml — индекс из трёх частей), /robots.txt
  * и прокси к API Shikimori с кэшем для приложения (/api/shiki/*, worker/shikiProxy.js),
- * а также к списку серий YummyAnime (/api/yummy/videos/*, worker/yummyProxy.js).
+ * а также к списку серий YummyAnime (/api/yummy/videos/*, worker/yummyProxy.js) и к главам манги MangaDex
+ * (/api/mangadex/*, worker/mangadexProxy.js).
  * Шаблоны заголовков и посадочные страницы общие с приложением: src/data/seo.ts и src/data/landings.ts.
  * Если внешний сервис не ответил, отдаётся обычный index.html: сайт работает как раньше.
  */
@@ -18,6 +19,7 @@ import { CATALOG, landingFor, landingPaths } from '../src/data/landings.ts'
 import { LEGAL, textParts } from '../src/data/legal.ts'
 import { isShikiProxy, shikiProxy } from './shikiProxy.js'
 import { isYummyProxy, yummyProxy } from './yummyProxy.js'
+import { isMangadexProxy, mangadexProxy } from './mangadexProxy.js'
 import {
   DISCLAIMER,
   GENRES,
@@ -50,9 +52,9 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|manga\/\d{1,10}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/[0-9a-f-]{36})?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
-const PRIVATE = /^\/(?:together\/|account|auth\/|my-list|watching|moderation|admin\/)/
+const PRIVATE = /^\/(?:together\/|manga\/\d+\/chapter\/|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
 const PAGED = /^\/(?:catalog$|genre\/|type\/|year\/)/
 
@@ -878,6 +880,8 @@ export default {
     if (isShikiProxy(url.pathname)) return shikiProxy(request, ctx)
     // Серии YummyAnime сжатыми и через кэш (worker/yummyProxy.js).
     if (isYummyProxy(url.pathname)) return yummyProxy(request, ctx)
+    // Главы манги из MangaDex для читалки (worker/mangadexProxy.js).
+    if (isMangadexProxy(url.pathname)) return mangadexProxy(request, ctx)
     if (url.pathname === '/sitemap.xml') return sitemapIndex()
     if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')

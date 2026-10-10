@@ -1,0 +1,96 @@
+/* Читалка манги: страницы лентой во всю ширину колонки, сверху панель глав. */
+.reader {
+  display: grid;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px 0 48px;
+}
+
+.reader__bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.reader__back {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.reader__select {
+  max-width: 260px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.reader__lang,
+.reader__saver,
+.reader__credit {
+  font-size: 13px;
+}
+
+.reader__saver {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.reader__credit {
+  margin: 0;
+  padding: 0 16px;
+}
+
+.reader__pages {
+  display: grid;
+  min-height: 60vh;
+}
+
+.reader__pages img {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 200px;
+  background: var(--surface);
+}
+
+.reader__error {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  padding: 48px 16px;
+}
+
+.reader__nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.reader__retry {
+  min-height: 200px;
+  border: 1px dashed var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  font: inherit;
+  cursor: pointer;
+}

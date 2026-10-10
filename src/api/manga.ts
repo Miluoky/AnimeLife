@@ -7,6 +7,7 @@ export interface MangaPage {
   id: string
   title: string
   originalTitle?: string
+  english?: string
   japanese?: string
   kind: string
   image?: string
@@ -27,6 +28,7 @@ interface ShikiMangaFull {
   id: number
   name: string
   russian: string | null
+  english: string[] | null
   japanese: string[] | null
   image: ShikiImage
   kind: string | null
@@ -75,6 +77,7 @@ export async function fetchManga(id: string): Promise<MangaPage> {
     id: String(m.id),
     title: m.russian || m.name,
     originalTitle: m.russian ? m.name : undefined,
+    english: m.english?.[0] || undefined,
     japanese: m.japanese?.[0] || undefined,
     kind: (m.kind && mangaKinds[m.kind]) || 'Манга',
     image: absolute(m.image?.original),
