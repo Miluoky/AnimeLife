@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { Link } from 'react-router-dom'
 import { usePageMeta } from '../data/pageMeta'
 import { CatalogShelf } from '../components/HomeShelves'
@@ -71,6 +72,9 @@ const COLLECTIONS: Collection[] = [
   },
 ]
 
+// Подборки зрителей тянут SDK Appwrite: отдельной частью, готовые полки показываются сразу.
+const UserCollectionsShelf = lazy(() => import('./UserCollections').then((m) => ({ default: m.UserCollectionsShelf })))
+
 export default function Collections() {
   usePageMeta('Подборки аниме', 'Подборки аниме на вечер: с чего начать, лучшие фильмы, психологические триллеры, комедии, фэнтези, классика 90-х и 2000-х.')
   return (
@@ -87,6 +91,9 @@ export default function Collections() {
           </p>
         </div>
       </header>
+      <Suspense fallback={null}>
+        <UserCollectionsShelf />
+      </Suspense>
       {COLLECTIONS.map((c) => (
         <CatalogShelf key={c.title} title={c.title} subtitle={c.subtitle} icon={<SparkIcon size={18} />} query={c.query} more={c.catalog} />
       ))}

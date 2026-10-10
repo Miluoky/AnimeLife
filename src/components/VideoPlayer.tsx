@@ -14,7 +14,7 @@
  * Если ни один источник не может показать серию, вместо пустого экрана — трейлер с Shikimori.
  */
 
-import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense, type CSSProperties } from 'react'
 import {
   findRelease,
   episodeStream,
@@ -30,6 +30,7 @@ import { anixartEpisodes } from '../api/anixart'
 import PlayerControls, { AutoNext, autoNextStore, enhanceStore, formatTime } from './PlayerControls'
 import { toast } from '../data/toast'
 import { getPosition, savePosition } from '../data/positions'
+import { emitPlayerTime } from '../data/playerTime'
 import './player.css'
 import {
   kodikEmbedUrl,
@@ -38,6 +39,9 @@ import {
   isBalancerAvailable,
 } from '../api/balancers'
 import { kodikTranslationUrl } from '../api/kodik'
+
+// Комментарии поверх видео тянут SDK Appwrite: отдельной частью, когда серия уже играет.
+const Danmaku = lazy(() => import('./Danmaku'))
 
 /* ──────────────── Типы ──────────────── */
 
@@ -289,6 +293,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // Эффект объявлен раньше потока, поэтому сбрасывает позицию до того, как поток её прочитает.
   useEffect(() => {
     resumeAt.current = 0
+    emitPlayerTime(0)
   }, [shikimoriId, episode])
 
   /* ─── Инициализация HLS потока для AniLibria ─── */
@@ -420,6 +425,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     if (!video || !src) return
     let last = 0
     const onTime = () => {
+      emitPlayerTime(video.currentTime)
       if (Math.abs(video.currentTime - last) < 5) return
       last = video.currentTime
       savePosition(positionKey, episode, video.currentTime, video.duration)
@@ -453,6 +459,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       if (typeof key !== 'string' || !key.startsWith('kodik_player_')) return
       const seconds = typeof value === 'number' ? value : Number((value as { time?: unknown } | null)?.time)
       if (key === 'kodik_player_duration_update' && Number.isFinite(seconds)) duration = seconds
+      if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) emitPlayerTime(seconds)
       if (key === 'kodik_player_time_update' && Number.isFinite(seconds) && Math.abs(seconds - last) >= 5) {
         last = seconds
         savePosition(positionKey, episode, seconds, duration)
@@ -667,6 +674,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             skips={ownSkips.length ? ownSkips : props.skips?.spans}
             skipsFor={ownSkips.length ? undefined : props.skips?.duration}
           />
+        )}
+
+        {shikimoriId && !unavailable && (provider !== 'anilibria' && provider !== 'animevost' ? true : !!stream) && (
+          <Suspense fallback={null}>
+            <Danmaku animeId={shikimoriId} episode={episode} />
+          </Suspense>
         )}
 
         {resumed && !unavailable && (

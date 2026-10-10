@@ -31,6 +31,7 @@ import {
 import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
 import { TG_PREFIX, telegramReady, tgSendEpisode, tgStatus, tgSubscribe, tgUnsubscribe } from './telegram.js'
 import { analyticsStats, analyticsTrack } from './analytics.js'
+import { socialActions } from './social.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -530,6 +531,8 @@ export default async ({ req, res, log, error }) => {
       case 'analytics-stats':
         return res.json(await analyticsStats(api, req))
       default:
+        // Подписки, лента, подборки, клубы, оценки серий и Shikimori: см. social.js.
+        if (Object.hasOwn(socialActions, body.action)) return res.json(await socialActions[body.action](api, req, body))
         return res.json({ error: 'Неизвестное действие.' }, 400)
     }
   } catch (e) {

@@ -28,6 +28,12 @@ export const pageChunks = {
   changelog: () => import('../pages/Changelog'),
   collections: () => import('../pages/Collections'),
   quiz: () => import('../pages/Quiz'),
+  community: () => import('../pages/Community'),
+  club: () => import('../pages/ClubPage'),
+  userCollections: () => import('../pages/UserCollections'),
+  recap: () => import('../pages/Recap'),
+  scene: () => import('../pages/SceneSearch'),
+  news: () => import('../pages/News'),
 }
 
 const prefetched = new Set<string>()

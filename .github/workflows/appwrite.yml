@@ -51,6 +51,23 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Подготовить таблицы статистики
         run: node functions/community/setup-analytics.mjs
+      # Подписки и лента, подборки зрителей, клубы, оценки серий, связь с Shikimori, опыт в профилях.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Подготовить таблицы сообщества
+        run: node functions/community/setup-social.mjs
+      # Синхронизация списка с Shikimori: приложение OAuth на shikimori.io (переменная SHIKIMORI_CLIENT_ID и секрет SHIKIMORI_CLIENT_SECRET).
+      - if: steps.keys.outputs.ok == 'true'
+        name: Ключи Shikimori
+        continue-on-error: true
+        env:
+          VAR_VALUE: ${{ vars.SHIKIMORI_CLIENT_ID }}
+        run: node scripts/set-function-var.mjs community SHIKIMORI_CLIENT_ID
+      - if: steps.keys.outputs.ok == 'true'
+        name: Секрет Shikimori
+        continue-on-error: true
+        env:
+          VAR_VALUE: ${{ secrets.SHIKIMORI_CLIENT_SECRET }}
+        run: node scripts/set-function-var.mjs community SHIKIMORI_CLIENT_SECRET
       # Главы манги от команд переводчиков: таблица manga_chapters и хранилище manga-pages.
       # Если у ключа нет прав на хранилища, шаг падает, но функция всё равно выкладывается.
       - if: steps.keys.outputs.ok == 'true'

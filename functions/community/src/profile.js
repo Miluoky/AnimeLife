@@ -48,21 +48,39 @@ export async function profileSave(api, req, body) {
   const user = await signedIn(api, req)
   const summary = typeof body.summary === 'string' ? body.summary : JSON.stringify(body.summary ?? {})
   if (summary.length > MAX_SUMMARY) throw new UserError('Слишком большой профиль.')
+  let parsed
   try {
-    const parsed = JSON.parse(summary)
+    parsed = JSON.parse(summary)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error()
   } catch {
     throw new UserError('Неверные данные профиля.')
   }
+  // Опыт для топа зрителей: сайт считает его по списку, здесь только отсекаем явную накрутку.
+  const int = (v, max) => (Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0)
+  const xp = int(parsed.xp, 5_000_000)
+  const weekKey = int(parsed.week?.key, 999_999)
+  const weekXp = weekKey === isoWeekKey() ? int(parsed.week?.xp, 30_000) : 0
   await api('PUT', `${DB}/profiles/rows/${user.$id}`, {
     data: {
       name: (user.name || 'Зритель').slice(0, 64),
       about: String(body.about ?? '').trim().slice(0, 300),
       summary,
+      xp,
+      weekXp,
+      weekKey: weekXp ? weekKey : 0,
       updatedAt: Date.now(),
     },
   })
   return { ok: true }
+}
+
+/** Номер недели ГГГГНН по ISO, как на сайте (src/data/xp.ts). */
+export function isoWeekKey(t = Date.now()) {
+  const d = new Date(t)
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
+  const week = Math.ceil(((date - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7)
+  return date.getUTCFullYear() * 100 + week
 }
 
 export async function profileHide(api, req) {

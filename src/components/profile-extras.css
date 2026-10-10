@@ -1,0 +1,161 @@
+/* Аватар с рамкой: общие для профиля и страниц сообщества. */
+.s-avatar {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 700;
+  color: #fff;
+  background: color-mix(in srgb, var(--accent) 55%, var(--surface-2));
+}
+.s-avatar--accent {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 0 4px var(--accent);
+}
+.s-avatar--sakura {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 0 4px #ffb7c5, 0 0 14px #ffb7c588;
+}
+.s-avatar--gold {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 0 4px #e8b84a, 0 0 16px #e8b84a99;
+}
+.s-avatar--neon {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 0 4px #22d3ee, 0 0 18px #ec4899;
+}
+.s-avatar--legend {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 0 4px #fff, 0 0 22px var(--accent);
+  background: linear-gradient(135deg, var(--accent), #7c3aed);
+}
+.s-level {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  white-space: nowrap;
+  width: fit-content;
+}
+
+.pf-cover {
+  height: 140px;
+  border-radius: 12px 12px 0 0;
+  margin-bottom: -70px;
+}
+.pf-follow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.pf-sub {
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+.pf-compat__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.pf-compat__ring {
+  --p: 0;
+  flex: 0 0 auto;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(closest-side, var(--surface) 76%, transparent 78%),
+    conic-gradient(var(--accent) calc(var(--p) * 1%), rgb(255 255 255 / 0.08) 0);
+  font-size: 20px;
+}
+.pf-style__covers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pf-style__covers button {
+  width: 64px;
+  height: 40px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.pf-style__covers button[aria-pressed='true'] {
+  border-color: #fff;
+}
+.pf-style__frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pf-style__frames button {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px;
+  min-width: 84px;
+  font-size: 12px;
+  border-radius: 10px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+}
+.pf-style__frames button[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+.pf-style__frames button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pf-style__pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+.pf-style__pick button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pf-style__pick button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+}
+.pf-note {
+  font-size: 13px;
+}
+.pf-level {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.pf-level__badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 700 22px var(--font-display, sans-serif);
+  color: #fff;
+  background: conic-gradient(from 200deg, var(--accent), #7c3aed, var(--accent));
+}
+.pf-level__bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  overflow: hidden;
+}
+.pf-level__bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}

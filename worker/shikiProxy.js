@@ -38,6 +38,8 @@ const PATHS = [
   [/^\/api\/studios$/, () => 7 * DAY, []],
   [new RegExp(`^/api/characters/${ID}$`), () => DAY, []],
   [new RegExp(`^/api/mangas/${ID}(?:/related|/external_links)?$`), () => 12 * HOUR, []],
+  // Новости аниме (/news): форум новостей Shikimori.
+  [/^\/api\/topics$/, () => 15 * MIN, ['forum', 'limit', 'page', 'linked_id', 'linked_type']],
 ]
 // GraphQL пропускаем только в виде, который шлёт withPosters: постеры пачки тайтлов (до 50).
 const GRAPHQL = /^\{ animes\(ids: "\d{1,10}(?:,\d{1,10}){0,49}", limit: \d{1,2}\) \{ id poster \{ originalUrl mainUrl main2xUrl \} \} \}$/

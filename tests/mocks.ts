@@ -44,5 +44,8 @@ export async function mockServices(page: Page) {
   )
   await page.route(/api\.anixart\.tv\/.*/, (route) => route.fulfill({ json: { code: 0, content: [], types: [], sources: [], episodes: [] } }))
   await page.route(/api\.yani\.tv\/.*/, (route) => route.fulfill({ json: { response: [] } }))
+  // Опенинги и эндинги (AnimeThemes) и поиск по кадру (trace.moe) по умолчанию ничего не находят.
+  await page.route(/api\.animethemes\.moe\/.*/, (route) => route.fulfill({ json: { anime: [] } }))
+  await page.route(/api\.trace\.moe\/.*/, (route) => route.fulfill({ json: { result: [] } }))
   await page.route(/youtube\.com\/embed\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Трейлер</title>' }))
 }

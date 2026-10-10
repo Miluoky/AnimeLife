@@ -20,7 +20,11 @@ const LINKS = [
   { to: '/random', title: 'Случайное', hint: 'Испытать удачу', icon: <Svg d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /> },
   { to: '/collections', title: 'Подборки', hint: 'По настроению', icon: <Svg d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /> },
   { to: '/quiz', title: 'Викторина', hint: 'Угадай аниме', icon: <SparkIcon size={22} /> },
+  { to: '/community', title: 'Сообщество', hint: 'Лента, клубы, топ', icon: <PeopleIcon /> },
   { to: '/chat', title: 'Чат', hint: 'Общий разговор', icon: <Svg d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /> },
+  { to: '/news', title: 'Новости', hint: 'Анонсы и премьеры', icon: <Svg d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5" /> },
+  { to: '/scene', title: 'По кадру', hint: 'Найти по скриншоту', icon: <Svg d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0" /> },
+  { to: '/recap', title: 'Итоги года', hint: 'Мой год в аниме', icon: <TrophyIcon size={22} /> },
   { to: '/changelog', title: 'Что нового', hint: 'Обновления сайта', icon: <Svg d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" /> },
 ]
 
