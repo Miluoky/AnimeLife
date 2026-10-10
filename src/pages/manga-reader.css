@@ -94,3 +94,36 @@
   font: inherit;
   cursor: pointer;
 }
+
+/* Загрузка главы командой переводчиков. */
+.upload {
+  max-width: 640px;
+  padding-top: 24px;
+  padding-bottom: 48px;
+}
+
+.upload__form {
+  display: grid;
+  gap: 14px;
+}
+
+.upload__form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.upload__form input:not([type='file']),
+.upload__form select {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.upload__error {
+  color: var(--accent);
+}

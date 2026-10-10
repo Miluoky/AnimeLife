@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga, type MangaPage as Manga } from '../api/manga'
-import { chapterLabel, fetchChapters, findMangadex, langName, preferredLang, readProgress, setPreferredLang } from '../api/mangadex'
+import { chapterLabel, findMangadex, langName, mergeChapters, preferredLang, readProgress, setPreferredLang, sortLangs } from '../api/mangadex'
+import { fetchOwnChapters } from '../api/mangaOwn'
+import { useAuth } from '../data/auth'
 import PosterCard from '../components/PosterCard'
 import { usePageMeta } from '../data/pageMeta'
 import NotFound from './NotFound'
@@ -44,19 +46,28 @@ function Description({ parts }: { parts: Manga['description'] }) {
 
 const chapterUrl = (mangaId: string, chapterId: string, lang: string) => `/manga/${mangaId}/chapter/${chapterId}?lang=${lang}`
 
-/** «Читать»: главы из MangaDex прямо на сайте, язык на выбор (по умолчанию русский, если он есть). */
+/** «Читать»: главы прямо на сайте — загруженные командами к нам и из MangaDex, язык на выбор (русский первым). */
 function ReadBlock({ m }: { m: Manga }) {
-  const md = useAsync(() => findMangadex(m.id, [m.originalTitle, m.english, m.title]).catch(() => 'error' as const), [m.id])
+  const sources = useAsync(
+    () =>
+      Promise.all([
+        findMangadex(m.id, [m.originalTitle, m.english, m.title]).catch(() => null),
+        fetchOwnChapters(m.id).catch(() => []),
+      ]).then(([md, own]) => ({ md, own, langs: sortLangs([...(md?.langs ?? []), ...own.map((c) => c.lang ?? 'ru')]) })),
+    [m.id],
+  )
   const [picked, setPicked] = useState<string>()
-  const title = md.value && md.value !== 'error' ? md.value : undefined
+  const title = sources.value?.langs.length ? sources.value : undefined
   const pref = picked ?? preferredLang()
   const lang = title ? (title.langs.includes(pref) ? pref : title.langs[0]) : undefined
   const chapters = useAsync(
-    () => (title && lang ? fetchChapters(title.id, lang).catch(() => 'error' as const) : Promise.resolve(undefined)),
-    [title?.id, lang],
+    () => (title && lang ? mergeChapters(title.own, title.md?.id, lang).catch(() => 'error' as const) : Promise.resolve(undefined)),
+    [title, lang],
   )
   const list = Array.isArray(chapters.value) ? chapters.value : []
   const progress = readProgress(m.id)
+  const { user } = useAuth()
+  const canUpload = !!user?.labels?.some((l) => l === 'translator' || l === 'admin')
 
   const langs = title && lang && title.langs.length > 1 && (
     <div className="manga__langs" role="group" aria-label="Язык перевода">
@@ -78,8 +89,8 @@ function ReadBlock({ m }: { m: Manga }) {
   )
 
   let body
-  if (md.loading || (title && chapters.loading && !list.length)) body = <p className="muted">Ищем главы…</p>
-  else if (md.value === 'error' || chapters.value === 'error') body = <p className="muted">Не удалось загрузить главы. Попробуйте обновить страницу.</p>
+  if (sources.loading || (title && chapters.loading && !list.length)) body = <p className="muted">Ищем главы…</p>
+  else if (chapters.value === 'error') body = <p className="muted">Не удалось загрузить главы. Попробуйте обновить страницу.</p>
   else if (!title || !lang) body = <p className="muted">Глав для чтения на сайте пока нет.</p>
   // Лицензионные главы MangaDex убирает: язык в списке есть, а читать на нём нечего.
   else if (!list.length) body = <p className="muted">На этом языке глав на сайте нет, выберите другой.</p>
@@ -108,11 +119,16 @@ function ReadBlock({ m }: { m: Manga }) {
           ))}
         </ol>
         <p className="muted manga__credit">
-          {list.length} гл. на языке «{langName(lang)}». Главы и переводы:{' '}
-          <a href={`https://mangadex.org/title/${title.id}`} target="_blank" rel="noopener noreferrer">
-            MangaDex
-          </a>{' '}
-          и команды переводчиков, их имена указаны в каждой главе.
+          {list.length} гл. на языке «{langName(lang)}». Переводы команд, их имена указаны в каждой главе; источники: Anime Life
+          {title.md && (
+            <>
+              {' '}и{' '}
+              <a href={`https://mangadex.org/title/${title.md.id}`} target="_blank" rel="noopener noreferrer">
+                MangaDex
+              </a>
+            </>
+          )}
+          .
         </p>
       </>
     )
@@ -121,6 +137,9 @@ function ReadBlock({ m }: { m: Manga }) {
       <h2>Читать</h2>
       {langs}
       {body}
+      <p className="muted manga__credit">
+        <Link to={`/manga/${m.id}/upload`}>{canUpload ? 'Загрузить главу' : 'Вы переводчик? Выкладывайте главы у нас'}</Link>
+      </p>
     </section>
   )
 }

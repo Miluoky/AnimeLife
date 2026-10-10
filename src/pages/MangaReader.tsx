@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga } from '../api/manga'
-import { chapterLabel, fallbackPage, fetchChapters, fetchPages, findMangadex, langName, preferredLang, saveProgress } from '../api/mangadex'
+import { chapterLabel, fallbackPage, fetchPages, findMangadex, langName, mergeChapters, preferredLang, saveProgress } from '../api/mangadex'
+import { OWN_PREFIX, fetchOwnChapter, fetchOwnChapters } from '../api/mangaOwn'
 import { usePageMeta } from '../data/pageMeta'
 import './manga-reader.css'
 
@@ -21,7 +22,8 @@ const loadSaver = () => {
  */
 function Page({ src, n }: { src: string; n: number }) {
   const [attempt, setAttempt] = useState(0)
-  const main = fallbackPage(src)
+  // У наших глав запасного сервера нет: сразу предлагаем повторить.
+  const main = src.includes('/api/mangadex-img/') || src.includes('mangadex') ? fallbackPage(src) : src
   if (attempt > 1)
     return (
       <button type="button" className="reader__retry" onClick={() => setAttempt(0)}>
@@ -54,14 +56,22 @@ export default function MangaReader() {
   const chapters = useAsync(
     () =>
       m
-        ? findMangadex(m.id, [m.originalTitle, m.english, m.title])
-            .then((t) => (t ? fetchChapters(t.id, lang) : []))
+        ? Promise.all([findMangadex(m.id, [m.originalTitle, m.english, m.title]).catch(() => null), fetchOwnChapters(m.id).catch(() => [])])
+            .then(([t, own]) => mergeChapters(own, t?.id, lang))
             .catch(() => [])
         : Promise.resolve([]),
     [m?.id, lang],
   )
   // Страницы грузим сразу, не дожидаясь списка глав: id главы уже в адресе.
-  const pages = useAsync(() => fetchPages(chapter, saver).catch(() => null), [chapter, saver, retry])
+  // Наши главы (загруженные командами) хранятся в Appwrite: у них адреса страниц готовые.
+  const pages = useAsync(
+    () =>
+      (chapter.startsWith(OWN_PREFIX)
+        ? fetchOwnChapter(chapter.slice(OWN_PREFIX.length)).then((c) => c?.pageUrls ?? null)
+        : fetchPages(chapter, saver)
+      ).catch(() => null),
+    [chapter, saver, retry],
+  )
 
   const list = chapters.value ?? []
   const index = list.findIndex((c) => c.id === chapter)
@@ -149,7 +159,7 @@ export default function MangaReader() {
       {current && (
         <p className="muted reader__credit">
           {current.title && current.num ? `${current.title} · ` : ''}
-          Перевод: {current.group ?? 'неизвестная команда'} · источник: MangaDex
+          Перевод: {current.group ?? 'неизвестная команда'} · {current.own ? 'загружено на Anime Life' : 'источник: MangaDex'}
         </p>
       )}
 

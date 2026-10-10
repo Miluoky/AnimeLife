@@ -25,6 +25,7 @@ const Legal = lazy(pageChunks.legal)
 const CharacterPage = lazy(pageChunks.character)
 const MangaPage = lazy(pageChunks.manga)
 const MangaReader = lazy(pageChunks.mangaReader)
+const MangaUpload = lazy(pageChunks.mangaUpload)
 const Random = lazy(pageChunks.random)
 const Top = lazy(pageChunks.top)
 const Changelog = lazy(pageChunks.changelog)
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="character/:id" element={<CharacterPage />} />
           <Route path="manga/:id" element={<MangaPage />} />
           <Route path="manga/:id/chapter/:chapter" element={<MangaReader />} />
+          <Route path="manga/:id/upload" element={<MangaUpload />} />
           <Route path="together/:code" element={<TogetherRoute />} />
           <Route path="catalog" element={<Catalog />} />
           <Route path="schedule" element={<Schedule />} />

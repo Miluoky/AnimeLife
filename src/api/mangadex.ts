@@ -38,6 +38,7 @@ const langRank = (l: string) => {
   return i === -1 ? 999 : i
 }
 export const langName = (l: string) => LANGS[l] ?? l.toUpperCase()
+export const sortLangs = (langs: string[]) => [...new Set(langs)].sort((a, b) => langRank(a) - langRank(b))
 
 export interface MangadexTitle {
   id: string
@@ -53,6 +54,11 @@ export interface Chapter {
   title?: string
   pages: number
   group?: string
+  /** глава загружена командой прямо на Anime Life (src/api/mangaOwn.ts), а не взята с MangaDex */
+  own?: boolean
+  lang?: string
+  /** готовые адреса страниц у наших глав; у глав MangaDex адреса выдаёт at-home */
+  pageUrls?: string[]
 }
 
 async function api<T>(path: string, params: [string, string][] = []): Promise<T> {
@@ -204,4 +210,15 @@ export function saveProgress(mangaId: string, p: ReadProgress) {
   } catch {
     // Без хранилища место чтения не запомнится.
   }
+}
+
+/**
+ * Главы на одном языке из обоих источников: наши (загруженные командами) и MangaDex.
+ * Если одну главу есть в обоих, берём нашу: её команда выложила для читателей Anime Life.
+ */
+export async function mergeChapters(own: Chapter[], mdId: string | undefined, lang: string): Promise<Chapter[]> {
+  const ours = own.filter((c) => c.lang === lang)
+  const md = mdId ? await fetchChapters(mdId, lang) : []
+  const taken = new Set(ours.map((c) => c.num))
+  return [...ours, ...md.filter((c) => !c.num || !taken.has(c.num))].sort((a, b) => (Number(a.num) || 0) - (Number(b.num) || 0))
 }

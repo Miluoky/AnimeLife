@@ -52,9 +52,9 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/[0-9a-f-]{36})?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
-const PRIVATE = /^\/(?:together\/|manga\/\d+\/chapter\/|account|auth\/|my-list|watching|moderation|admin\/)/
+const PRIVATE = /^\/(?:together\/|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
 const PAGED = /^\/(?:catalog$|genre\/|type\/|year\/)/
 
