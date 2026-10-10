@@ -7,12 +7,13 @@ import { useAuth } from '../data/auth'
 export default function BottomNav() {
   const { user } = useAuth()
   const { pathname } = useLocation()
-  const items = [
+  const items: { to: string; title: string; short?: string; icon: JSX.Element; end?: boolean }[] = [
     { to: '/', title: 'Главная', icon: <HomeIcon />, end: true },
     { to: '/catalog', title: 'Каталог', icon: <CompassIcon /> },
     { to: '/schedule', title: 'График', icon: <CalendarIcon /> },
     { to: '/together', title: 'Вместе', icon: <PeopleIcon /> },
-    { to: '/my-list', title: 'Мой список', icon: <ListIcon /> },
+    // На узком телефоне «Мой список» не влезает в шестую часть экрана: подпись короче, полное имя — для экранных чтецов.
+    { to: '/my-list', title: 'Мой список', short: 'Список', icon: <ListIcon /> },
     { to: '/account', title: user ? 'Профиль' : 'Войти', icon: <UserIcon size={22} /> },
   ]
   // Подложка активного раздела переезжает от пункта к пункту (--i — номер пункта).
@@ -21,9 +22,9 @@ export default function BottomNav() {
     <nav className="bottom-nav" aria-label="Разделы сайта" style={{ '--i': active } as CSSProperties}>
       {active >= 0 && <span className="bottom-nav__glider" aria-hidden="true" />}
       {items.map((i) => (
-        <NavLink key={i.to} to={i.to} end={i.end} className="bottom-nav__item">
+        <NavLink key={i.to} to={i.to} end={i.end} className="bottom-nav__item" aria-label={i.short && i.title}>
           {i.icon}
-          <span>{i.title}</span>
+          <span>{i.short ?? i.title}</span>
         </NavLink>
       ))}
     </nav>

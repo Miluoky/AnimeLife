@@ -243,7 +243,7 @@ export default function Player() {
             <BulbIcon />
             <span className="sr-only">Шторка света</span>
           </button>
-          <WatchTogetherButton anime={anime} episode={current} />
+          <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
           <button
             type="button"
             className="btn btn--ghost"
