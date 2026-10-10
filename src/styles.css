@@ -354,6 +354,16 @@ h3 {
   display: flex;
   align-items: center;
 }
+/* Узкая карточка (полка на телефоне 320 px): от метки остаётся точка, чтобы не наезжать на оценку. */
+.poster-card__img {
+  container-type: inline-size;
+}
+@container (max-width: 170px) {
+  .poster-card__badge {
+    font-size: 0;
+    gap: 0;
+  }
+}
 .poster-card__badge::before {
   content: '';
   width: 6px;
@@ -463,6 +473,10 @@ h3 {
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: -40px;
+}
+/* Перед «Продолжить просмотр» строка не заезжает под заголовок полки. */
+.home__intro--personal .home-title {
+  margin: 0;
 }
 
 .crumbs {
@@ -2143,7 +2157,7 @@ input[type='radio'] {
 .seg__item {
   min-width: 0;
   height: 38px;
-  padding: 0 18px;
+  padding: 0 min(18px, 3vw);
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -2243,17 +2257,14 @@ input[type='radio'] {
   border-radius: 3px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
-/* Название в две строки: карточки в сетке одной высоты. */
+/* Название в две строки: карточки в сетке одной высоты. Длинное слово переносится, а не залезает на соседнюю карточку. */
 .poster-card__title {
+  hyphens: auto;
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-.poster-card__meta {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .chip-filter {
@@ -2285,7 +2296,9 @@ input[type='radio'] {
   }
   .home__personal .grid--wide {
     grid-auto-flow: column;
-    grid-auto-columns: minmax(240px, 82%);
+    /* Две карточки целиком, без обрезанной подписи у края экрана; остальные — прокруткой. */
+    grid-auto-columns: calc(50% - 6px);
+    gap: 12px;
     grid-template-columns: none;
     overflow-x: auto;
     padding-bottom: 6px;

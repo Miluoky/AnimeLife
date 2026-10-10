@@ -55,3 +55,39 @@ for (const screen of SCREENS) {
     expect(wide).toEqual([])
   })
 }
+
+// Короткие подписи не обрезаются многоточием и не наезжают друг на друга (баг с iPhone: «Мой спис…»,
+// строка «Смотреть аниме онлайн» под «Продолжить просмотр», «мотреть вместе» в узкой ячейке под плеером).
+for (const width of [320, 390]) {
+  test(`подписи целиком: ${width}`, async ({ page }) => {
+    test.skip(test.info().project.name !== 'desktop', 'размеры экрана задаются в самом тесте')
+    await mockServices(page)
+    await page.addInitScript(() => {
+      const entry = (id: string, title: string) => ({ animeId: id, title, posterFill: '#333', episode: 1, totalEpisodes: 1155, updatedAt: 1 })
+      localStorage.setItem('anime.history.v1', JSON.stringify([entry('1', 'Первый'), entry('2', 'Второй')]))
+    })
+    await page.setViewportSize({ width, height: 760 })
+    const cut: string[] = []
+    for (const route of ['/', '/watch/21/1', '/account', '/catalog']) {
+      await page.goto(route)
+      await page.locator('main').first().waitFor({ timeout: 5000 })
+      await page.waitForTimeout(400)
+      cut.push(
+        ...(await page.evaluate(() => {
+          const out: string[] = []
+          const els = document.querySelectorAll('.bottom-nav__item span, .watch-actions .btn, .seg__item, .poster-card__meta, .continue-card .poster-card__meta')
+          for (const el of els) {
+            const r = el.getBoundingClientRect()
+            if (r.width === 0) continue
+            if (el.scrollWidth > el.clientWidth + 1 || r.left < -1 || r.right > innerWidth + 1) out.push(`${location.pathname} «${el.textContent?.trim()}»`)
+          }
+          const title = document.querySelector('.home-title')?.getBoundingClientRect()
+          const shelf = document.querySelector('.home__personal h2')?.getBoundingClientRect()
+          if (title && shelf && title.bottom > shelf.top) out.push('«Смотреть аниме онлайн» наезжает на «Продолжить просмотр»')
+          return out
+        })),
+      )
+    }
+    expect(cut).toEqual([])
+  })
+}
