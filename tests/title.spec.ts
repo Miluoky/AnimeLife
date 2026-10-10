@@ -158,7 +158,8 @@ test('тайтл: сколько времени займёт весь сериа
     ),
   )
   await page.reload()
-  await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин · осталось 8 ч 24 мин')
+  await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин')
+  await expect(facts.locator('div', { hasText: 'Осталось' })).toContainText('8 ч 24 мин')
 })
 
 test('тайтл: в порядке просмотра у длинной франшизы видно, чем части отличаются', async ({ page }) => {

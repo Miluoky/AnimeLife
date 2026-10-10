@@ -68,14 +68,14 @@ for (const width of [320, 390]) {
     })
     await page.setViewportSize({ width, height: 760 })
     const cut: string[] = []
-    for (const route of ['/', '/watch/21/1', '/account', '/catalog']) {
+    for (const route of ['/', '/watch/21/1', '/anime/21', '/account', '/catalog']) {
       await page.goto(route)
       await page.locator('main').first().waitFor({ timeout: 5000 })
       await page.waitForTimeout(400)
       cut.push(
         ...(await page.evaluate(() => {
           const out: string[] = []
-          const els = document.querySelectorAll('.bottom-nav__item span, .watch-actions .btn, .seg__item, .poster-card__meta, .continue-card .poster-card__meta')
+          const els = document.querySelectorAll('.bottom-nav__item span, .watch-actions .btn, .title-head .actions > *, .title-head .actions select, .seg__item, .poster-card__meta, .continue-card .poster-card__meta')
           for (const el of els) {
             const r = el.getBoundingClientRect()
             if (r.width === 0) continue

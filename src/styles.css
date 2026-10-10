@@ -1124,6 +1124,8 @@ h3 {
 
 .list-select select {
   appearance: none;
+  width: 100%;
+  text-align: center;
   height: 100%;
   padding: 0 22px;
   border: 0;
@@ -2359,14 +2361,10 @@ input[type='radio'] {
     flex-basis: 100%;
     min-width: 0;
   }
-  /* Две кнопки в ряд, а значки «Поделиться» и колокольчик — маленькие квадраты справа, не на пол-экрана. */
-  .title-head .actions {
-    display: flex;
-    flex-wrap: wrap;
-  }
+  /* Кнопки не сжимаются уже своей подписи: не влезают (крупный шрифт на iPhone) — переходят на новую строку.
+     Значки «Поделиться» и колокольчик — маленькие квадраты. Раскладка по строкам — в pages/title.css. */
   .title-head .actions > * {
-    flex: 1 1 34%;
-    min-width: 0;
+    flex: 1 1 auto;
     padding: 0 12px;
   }
   .title-head .actions > .title-share,

@@ -495,3 +495,28 @@
     font-size: 20px;
   }
 }
+
+/* Кнопки в шапке тайтла на телефоне (основа в styles.css): «Смотреть» во всю ширину, «Мой список» и оценка — пополам. */
+@media (max-width: 640px) {
+  .title-head .actions > .btn--accent {
+    flex-basis: 100%;
+  }
+  .title-head .actions > .list-select {
+    flex-basis: calc(50% - 6px);
+    min-width: 0;
+    padding: 0;
+  }
+  .title-head .list-select select {
+    padding: 0 8px;
+  }
+}
+/* Узкий телефон: «Смотреть вместе» без значка, чтобы помещался в строку с двумя квадратами. */
+@media (max-width: 400px) {
+  .title-head .watch-together svg {
+    display: none;
+  }
+  .title-head .actions > .title-share,
+  .title-head .actions > .follow-btn {
+    flex-basis: 48px;
+  }
+}
