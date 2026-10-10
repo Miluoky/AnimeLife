@@ -216,6 +216,43 @@ test('тайтл: озвучки, которые есть в плеере, от�
   await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://kodikplayer.com/seria/1/hash/720p')
 })
 
+test('тайтл: «Все плееры» догружают студии Kodik и YummyAnime, которых нет в Anixart', async ({ page }) => {
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  const yummy: string[] = []
+  await page.route(/api\.yani\.tv\/search/, (route) => {
+    yummy.push(route.request().url())
+    return route.fulfill({ json: { response: [{ anime_id: 8, remote_ids: { shikimori_id: 1 } }] } })
+  })
+  await page.route(/api\.yani\.tv\/anime\/8\/videos/, (route) =>
+    route.fulfill({
+      json: {
+        response: [
+          // Studio Band уже есть из Anixart, OnWave — только в YummyAnime.
+          ...[1, 2].map((n) => ({ number: String(n), iframe_url: `//cvh.example/band/${n}`, data: { player: 'Плеер CVH', dubbing: 'Озвучка StudioBand' } })),
+          ...[1, 2].map((n) => ({ number: String(n), iframe_url: `//cvh.example/onwave/${n}`, data: { player: 'Плеер CVH', dubbing: 'Озвучка OnWave' } })),
+        ],
+      },
+    }),
+  )
+  await page.route(/\.example\//, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Плеер</title>' }))
+  await page.goto('/anime/1')
+  const site = page.locator('.voices', { has: page.getByRole('heading', { name: /Озвучки на сайте/ }) })
+  await expect(site.getByRole('heading')).toHaveText('Озвучки на сайте 1')
+  // Пока не попросили — YummyAnime не спрашиваем.
+  expect(yummy).toEqual([])
+  await site.getByRole('button', { name: 'Все плееры' }).click()
+  await expect(site.getByRole('heading')).toHaveText('Озвучки на сайте 2')
+  await expect(site.getByRole('link', { name: /OnWave/ })).toContainText('озвучка · 2 из 26')
+  await site.getByRole('link', { name: /OnWave/ }).click()
+  await expect(page).toHaveURL(/\/watch\/1\/1$/)
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://cvh.example/onwave/1')
+})
+
 test('тайтл: Anixart находит релиз по английскому названию и без года в скобках', async ({ page }) => {
   const renamed = { ...anime, russian: 'Ковбой Бибоп (1998)', name: 'Kaubōi Bibappu', english: ['Cowboy Bebop'] }
   await page.route(/\/api\/(shiki\/)?animes\/1(\?|$)/, (route) => route.fulfill({ json: renamed }))

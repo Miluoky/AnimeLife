@@ -142,6 +142,12 @@ export default function Quiz() {
   return (
     <main className="container quiz-page">
       <header className="quiz-head">
+        <p className="quiz-rec" aria-hidden="true">
+          <i />
+          <b>REC</b>
+          <span>Раунд {String(score.total + (picked ? 0 : 1)).padStart(2, '0')}</span>
+          <span>4 варианта</span>
+        </p>
         <h1 className="page-title">Угадай аниме по кадру</h1>
         <p className="soft">Четыре варианта, один верный. Сколько угадаете подряд?</p>
         <dl className="quiz-score" aria-label="Счёт">
@@ -168,8 +174,21 @@ export default function Quiz() {
         </div>
       ) : (
         <section className="quiz-card" aria-busy={!round}>
-          <div className="quiz-shot">
+          <div className="quiz-shot frame-corners">
             {round ? <img key={round.shot} src={round.shot} alt="Кадр из загаданного аниме" /> : <span className="quiz-shot__wait">Ищем кадр…</span>}
+            {/* Экран видоискателя: метки по углам кадра, после ответа — год и оценка загаданного тайтла */}
+            <span className="quiz-hud quiz-hud--tl" aria-hidden="true">
+              <i /> REC
+            </span>
+            <span className="quiz-hud quiz-hud--tr" aria-hidden="true">
+              {picked && round?.answer.year ? round.answer.year : 'EP ??'}
+            </span>
+            <span className="quiz-hud quiz-hud--bl" aria-hidden="true">
+              16:9 · 24 FPS
+            </span>
+            <span className="quiz-hud quiz-hud--br" aria-hidden="true">
+              ★ {picked && round?.answer.score ? round.answer.score.toFixed(2) : '?.??'}
+            </span>
           </div>
           <div className="quiz-options" role="group" aria-label="Варианты ответа">
             {(round?.options ?? Array.from({ length: 4 }, () => undefined)).map((a, i) => {
