@@ -51,9 +51,9 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|together|my-list|moderation|about|app|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
-const PRIVATE = /^\/(?:together\/|account|auth\/|my-list|moderation)/
+const PRIVATE = /^\/(?:together\/|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
 const PAGED = /^\/(?:catalog$|genre\/|type\/|year\/)/
 
@@ -852,6 +852,12 @@ export default {
     const url = new URL(request.url)
     // robots.txt отдаём на любом адресе: и на зеркале он указывает на карту сайта основного домена.
     if (url.pathname === '/robots.txt') return robots()
+    // Точные часы для совместного просмотра: ответ с ближайшего узла Cloudflare приходит за миллисекунды,
+    // поэтому все зрители комнаты считают позицию видео по одним и тем же часам (src/data/rooms.ts).
+    if (url.pathname === '/api/time')
+      return new Response(JSON.stringify({ now: Date.now() }), {
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      })
     if (MIRRORS.has(url.hostname)) return Response.redirect(ORIGIN + url.pathname + url.search, 301)
     const moved = url.pathname.match(/^\/genre\/([a-z-]+)\/?$/)?.[1]
     if (moved && MOVED_GENRES[moved]) return Response.redirect(`${ORIGIN}/genre/${MOVED_GENRES[moved]}${url.search}`, 301)

@@ -7,6 +7,7 @@ import { untilText } from '../components/together/ScheduleSession'
 import { formatTime } from '../components/together/time'
 import { PeopleIcon } from '../components/Icons'
 import Mascot from '../components/Mascot'
+import '../components/empty-card.css'
 import { usePageMeta } from '../data/pageMeta'
 
 /** Вкладка «Вместе»: войти по коду и открытые комнаты, где смотрят прямо сейчас. */
@@ -53,10 +54,12 @@ export default function TogetherHome() {
 
   return (
     <main className="container stack together-home">
-      <section className="together-hero">
+      <section className="together-hero frame-corners">
         <div className="stack" style={{ gap: 12 }}>
-          <span className="eyebrow">
-            <PeopleIcon size={16} /> Вместе
+          <span className="eyebrow together-rec">
+            <i aria-hidden="true" />
+            <b aria-hidden="true">LIVE</b> Вместе
+            <span aria-hidden="true">Синхронно · чат · голос</span>
           </span>
           <h1>Смотрите аниме вместе с друзьями</h1>
           <p className="muted">
@@ -65,8 +68,8 @@ export default function TogetherHome() {
           </p>
         </div>
         <form className="join-form" onSubmit={join}>
-          <label htmlFor="room-code" className="muted">
-            Код комнаты
+          <label htmlFor="room-code" className="join-form__label">
+            Код комнаты <span aria-hidden="true">6 знаков</span>
           </label>
           <input
             id="room-code"
@@ -110,7 +113,7 @@ export default function TogetherHome() {
       <section className="stack">
         <div className="section-head">
           <h2>Открытые комнаты</h2>
-          {rooms && <span className="muted">{rooms.length}</span>}
+          {rooms && <span className="together-count">{rooms.length}</span>}
         </div>
         {rooms === null ? (
           <div className="rooms-grid" aria-busy="true">
@@ -119,7 +122,7 @@ export default function TogetherHome() {
             ))}
           </div>
         ) : rooms.length === 0 ? (
-          <div className="empty-page" style={{ minHeight: 0, padding: '24px 0' }}>
+          <div className="empty-card together-empty frame-corners">
             <Mascot />
             <p className="muted">Сейчас открытых комнат нет. Создайте свою на странице любого тайтла.</p>
             <Link to="/catalog" className="btn btn--ghost">

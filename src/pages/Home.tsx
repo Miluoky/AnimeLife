@@ -1,4 +1,4 @@
-import { type CSSProperties, Suspense, lazy, useEffect, useState } from 'react'
+import { type CSSProperties, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { fetchScreenshots } from '../api/shikimori'
@@ -8,16 +8,20 @@ import { useMyList } from '../data/myList'
 import { getPosition } from '../data/positions'
 import { formatTime } from '../components/together/time'
 import { toast } from '../data/toast'
-import CatalogSection from '../components/CatalogSection'
 import { Poster } from '../components/PosterCard'
 import { PauseIcon, PlayIcon } from '../components/Icons'
+import { useAmbient } from '../components/ambient'
 
 // Рекомендации ниже первого экрана: отдельная часть, грузится следом.
 const Recommendations = lazy(() => import('../components/Recommendations'))
 // Полки «сезон», «скоро», «лучшее» тоже ниже баннера: своей частью, чтобы не утяжелять первый экран.
 const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.SeasonShelf })))
 const NewEpisodesShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.NewEpisodesShelf })))
+const HomeBento = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.HomeBento })))
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
+// «Популярное» — в самом низу и в той же границе Suspense, что и полки выше: раньше оно отрисовывалось сразу
+// под баннером, а потом догруженные полки вставали над ним и сдвигали страницу (CLS на телефоне до 0,3).
+const CatalogSection = lazy(() => import('../components/CatalogSection'))
 
 // 3D-кольцо постеров есть только на широком экране: его стили грузим только там.
 if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
@@ -54,11 +58,17 @@ function Hero() {
     return () => clearTimeout(t)
   }, [next?.id, items.length])
   const shot = shots.value && !shots.loading ? shots.value : undefined
+  // Страница подсвечивается постером тайтла из баннера.
+  useAmbient(current?.posterSmall)
 
+  // Пауза ставится сразу по нажатию: эффект снимет таймер только после отрисовки,
+  // а шаг, пришедший в этот промежуток, не должен перелистнуть баннер.
+  const pausedNow = useRef(paused)
+  pausedNow.current = paused
   useEffect(() => {
     if (items.length < 2 || paused) return
     // Во вкладке в фоне баннер не листается: не грузим кадры, которых никто не увидит.
-    const timer = setInterval(() => !document.hidden && setStep((s) => s + 1), HERO_INTERVAL)
+    const timer = setInterval(() => !document.hidden && !pausedNow.current && setStep((s) => s + 1), HERO_INTERVAL)
     return () => clearInterval(timer)
   }, [items.length, paused])
 
@@ -66,7 +76,13 @@ function Hero() {
     return <section className="hero skeleton hero--loading" aria-busy={list.loading} />
   }
 
-  const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} серий`, anime.studio].filter(Boolean)
+  const meta = [
+    anime.episodesAired ? `EP ${anime.episodesAired}${anime.episodes ? `/${anime.episodes}` : ''}` : anime.episodes && `${anime.episodes} серий`,
+    anime.score && `★ ${anime.score.toFixed(2)}`,
+    anime.year,
+    anime.kind,
+    anime.studio,
+  ].filter(Boolean)
 
   return (
     <section
@@ -84,10 +100,18 @@ function Hero() {
           aria-label={paused ? 'Продолжить смену тайтлов' : 'Поставить смену тайтлов на паузу'}
           aria-pressed={paused}
           title={paused ? 'Продолжить смену тайтлов' : 'Поставить смену тайтлов на паузу'}
-          onClick={() => setPaused((value) => !value)}
+          onClick={() => {
+            pausedNow.current = !paused
+            setPaused(!paused)
+          }}
         >
           {paused ? <PlayIcon /> : <PauseIcon />}
         </button>
+      )}
+      {anime.japaneseTitle && /[\u3040-\u30ff\u4e00-\u9fff]/.test(anime.japaneseTitle) && (
+        <span key={`jp-${anime.id}`} className="hero__jp" lang="ja" aria-hidden="true">
+          {anime.japaneseTitle}
+        </span>
       )}
       <div className="hero__text" key={anime.id}>
         <div className="eyebrow">
@@ -247,11 +271,12 @@ export default function Home() {
       </div>
       <Hero />
       <Suspense fallback={null}>
+        <HomeBento />
         <SeasonShelf />
         <Recommendations />
         <MoreShelves />
+        <CatalogSection title="Популярное" moreLink="/catalog" />
       </Suspense>
-      <CatalogSection title="Популярное" moreLink="/catalog" />
     </main>
   )
 }

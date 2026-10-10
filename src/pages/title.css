@@ -7,7 +7,7 @@
   align-self: start;
   padding: 12px 16px;
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
-  border-radius: 14px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
@@ -44,7 +44,7 @@
   justify-items: center;
   min-width: 52px;
   padding: 6px 8px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--surface-2);
 }
 
@@ -113,7 +113,7 @@
   gap: 12px;
   padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--surface);
   color: var(--text);
   transition:
@@ -152,7 +152,7 @@
   min-width: 22px;
   height: 22px;
   padding: 0 6px;
-  border-radius: 11px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -187,7 +187,7 @@
   justify-self: start;
   margin-top: 2px;
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: 3px;
   font-size: 11px;
   font-weight: 600;
   background: var(--surface-2);
@@ -218,47 +218,54 @@
 }
 
 /* Факты о тайтле плашками «подпись: значение» прямо в шапке. */
+/* «Кадр»: факты — служебная строка кадра, ячейки через тонкие линии, цифры моноширинным. */
 .fact-pills {
   margin: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
 }
 .fact-pill {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 7px 12px;
-  border-radius: 10px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 18px 10px 0;
+  margin-right: 18px;
+  border-right: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
   font-size: 14px;
+}
+.fact-pill:last-child {
+  border-right: 0;
 }
 .fact-pill dt {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .fact-pill dd {
   margin: 0;
+  font-family: var(--font-mono);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* «О чём»: описание под названием, свёрнутое до четырёх строк. */
 .about-card {
-  padding: 20px 22px;
-  border-radius: 18px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  max-width: 72ch;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 .about-card__title {
-  font-size: 18px;
-  font-weight: 500;
+  font: 600 11px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.about-card__text {
+  font-size: 17px;
+  line-height: 1.65;
 }
 .about-card__text {
   margin: 0;
@@ -284,7 +291,7 @@
 .episode-jump input {
   width: 150px;
   padding: 0 14px;
-  border-radius: 12px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--text);
@@ -341,7 +348,7 @@
 }
 .title-page .voices__list li {
   padding: 5px 11px;
-  border-radius: 999px;
+  border-radius: 3px;
   border: 1px solid var(--line);
   font-size: 13px;
 }
@@ -353,7 +360,7 @@
 }
 .title-page .voices__list li.voices__site {
   padding: 0;
-  border-radius: 14px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   transition: border-color 0.2s, background 0.2s, transform 0.2s var(--ease);
 }
@@ -390,7 +397,7 @@
 }
 .title-page .voices__list:has(.voices__site) .voices__more {
   width: 100%;
-  border-radius: 14px;
+  border-radius: 6px;
 }
 .title-page .voices__list li:has(.voices__more) {
   padding: 0;
@@ -407,4 +414,175 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* ===== «Кадр»: шапка тайтла ===== */
+/* Постер в шапке — кадр в видоискателе: уголки поверх картинки. */
+.title-head__poster {
+  border-radius: 3px;
+  border: 0;
+  box-shadow: 0 40px 90px -30px color-mix(in srgb, var(--glow, #000) 70%, #000);
+}
+.title-head__poster::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  z-index: 2;
+  pointer-events: none;
+  border: 2px solid rgb(255 255 255 / 0.85);
+  -webkit-mask: conic-gradient(at 16px 16px, #0000 75%, #000 0) 0 0 / calc(100% - 16px) calc(100% - 16px);
+  mask: conic-gradient(at 16px 16px, #0000 75%, #000 0) 0 0 / calc(100% - 16px) calc(100% - 16px);
+}
+.title-head__title {
+  font-size: clamp(30px, 4.6vw, 60px);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+/* Оригинальное название — строка над заголовком, как надпись на хлопушке. */
+.title-head__orig {
+  font: 600 12px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+}
+/* Японское название крупно и вертикально на кадре вверху страницы, как на японском постере. */
+.banner__jp {
+  position: absolute;
+  z-index: 1;
+  top: 28px;
+  right: max(40px, calc((100vw - 1360px) / 2 + 40px));
+  max-height: 340px;
+  overflow: hidden;
+  writing-mode: vertical-rl;
+  font: 600 clamp(24px, 2.6vw, 34px) / 1 var(--font-jp);
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 0.82);
+  text-shadow: 0 2px 20px rgb(0 0 0 / 0.6);
+}
+.banner__jp::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 48px;
+  margin-top: 16px;
+  background: var(--accent);
+}
+/* Справа место под вертикальное японское название: длинный заголовок его не перекрывает. */
+@media (min-width: 901px) {
+  .title-head__info {
+    padding-right: 72px;
+  }
+}
+@media (max-width: 640px) {
+  .fact-pills {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .fact-pill,
+  .fact-pill:last-child {
+    margin: 0;
+    padding: 8px 8px 8px 0;
+    border-right: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  }
+  .banner__jp {
+    top: 16px;
+    right: 16px;
+    max-height: 150px;
+    font-size: 20px;
+  }
+}
+
+/* Кнопки в шапке тайтла на телефоне (основа в styles.css): «Смотреть» во всю ширину, «Мой список» и оценка — пополам. */
+@media (max-width: 640px) {
+  .title-head .actions > .btn--accent {
+    flex-basis: 100%;
+  }
+  .title-head .actions > .list-select {
+    flex-basis: calc(50% - 6px);
+    min-width: 0;
+    padding: 0;
+  }
+  .title-head .list-select select {
+    padding: 0 8px;
+  }
+}
+/* Узкий телефон: «Смотреть вместе» без значка, чтобы помещался в строку с двумя квадратами. */
+@media (max-width: 400px) {
+  .title-head .watch-together svg {
+    display: none;
+  }
+  .title-head .actions > .title-share,
+  .title-head .actions > .follow-btn {
+    flex-basis: 48px;
+  }
+}
+
+/* Перенесено из общих стилей: нужно только странице тайтла. */
+
+.character-card {
+  gap: 6px;
+  color: inherit;
+}
+
+.character-card__img {
+  aspect-ratio: 3 / 4;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.character-card__name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.character-card__role {
+  font-size: 12px;
+}
+
+.video-card {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.video-card__img {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.video-card__play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #0d0e13;
+}
+
+.video-card__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.shots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
 }

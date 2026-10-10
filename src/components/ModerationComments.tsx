@@ -1,3 +1,4 @@
+import './reviews.css'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { loadCommentModeration, moderateComment, type EpisodeComment } from '../data/comments'

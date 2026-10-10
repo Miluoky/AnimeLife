@@ -23,7 +23,7 @@
 .community-chat {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 8px;
   background: var(--surface);
 }
 .community-chat__bar,
@@ -67,14 +67,14 @@
   max-width: min(82%, 720px);
   padding: 10px 14px;
   border: 1px solid var(--line);
-  border-radius: 4px 14px 14px;
+  border-radius: 4px 6px 6px;
   background: var(--surface-2);
   overflow-wrap: anywhere;
 }
 .community-chat__message--mine {
   align-self: flex-end;
   border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
-  border-radius: 14px 4px 14px 14px;
+  border-radius: 6px 4px 6px 6px;
 }
 .community-chat__message-head {
   display: flex;
@@ -144,7 +144,7 @@
   height: 46px;
   padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--bg);
   color: var(--text);
   font: inherit;

@@ -1,5 +1,5 @@
 import './account.css'
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
@@ -17,6 +17,9 @@ import {
   waitForTelegram,
   type TelegramLogin,
 } from '../data/socialAuth'
+
+// Сводка посещений нужна только администратору: отдельная часть, обычные пользователи её не скачивают.
+const AdminStatsCard = lazy(() => import('../components/AdminStatsCard'))
 
 const providers = [
   { id: 'vk', title: 'VK ID', mark: 'VK', on: !!SOCIAL_LOGIN.vkAppId },
@@ -160,6 +163,45 @@ function SocialButtons({ onError }: { onError: (message: string) => void }) {
 function titles(n: number) {
   const word = new Intl.PluralRules('ru').select(n)
   return `${n} ${word === 'one' ? 'тайтл' : word === 'few' ? 'тайтла' : 'тайтлов'}`
+}
+
+/** Что даёт аккаунт: экран видоискателя рядом с формой входа (на телефоне скрыт, чтобы форма была сразу под рукой). */
+function AccountPerks() {
+  const perks = [
+    ['Мой список', 'одинаковый на телефоне и компьютере'],
+    ['Смотрю', 'серия и минута, где вы остановились'],
+    ['Новые серии', 'уведомления о том, что вы смотрите'],
+    ['Профиль', 'достижения, оценки и статистика'],
+  ]
+  return (
+    <aside className="acc__screen frame-corners" aria-label="Что даёт аккаунт">
+      <span className="acc__hud acc__hud--tl" aria-hidden="true">
+        <i /> REC
+      </span>
+      <span className="acc__hud acc__hud--tr" aria-hidden="true">
+        SYNC
+      </span>
+      <p className="acc__screen-title">Ваше аниме — на всех экранах</p>
+      <ol className="acc__perks">
+        {perks.map(([title, text], i) => (
+          <li key={title}>
+            <span className="acc__tc" aria-hidden="true">
+              {`0${i + 1}`}
+            </span>
+            <span>
+              <b>{title}</b> {text}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <span className="acc__hud acc__hud--bl" aria-hidden="true">
+        00:24:00
+      </span>
+      <span className="acc__hud acc__hud--br" aria-hidden="true">
+        ★ 10.0
+      </span>
+    </aside>
+  )
 }
 
 function AuthForm() {
@@ -307,7 +349,13 @@ export default function Account() {
 
   return (
     <main className="container home">
-      <section className="stack auth-page">
+      <section className={`stack auth-page acc${user ? '' : ' acc--guest'}`}>
+        <p className="acc__rec" aria-hidden="true">
+          <i />
+          <b>REC</b>
+          <span>{user ? 'Профиль' : 'Вход'}</span>
+          <span>{user ? 'Синхронизация' : 'CAM 01'}</span>
+        </p>
         <h1 className="page-title">{user ? 'Профиль' : 'Вход'}</h1>
         {user ? (
           <div className="auth-card stack">
@@ -325,9 +373,14 @@ export default function Account() {
                 Мой список
               </Link>
               {user.labels?.includes('admin') && (
-                <Link to="/moderation" className="btn btn--ghost">
-                  Модерация
-                </Link>
+                <>
+                  <Link to="/moderation" className="btn btn--ghost">
+                    Модерация
+                  </Link>
+                  <Link to="/admin/analytics" className="btn btn--ghost">
+                    Статистика
+                  </Link>
+                </>
               )}
               <button
                 type="button"
@@ -344,9 +397,17 @@ export default function Account() {
             </div>
           </div>
         ) : (
-          <AuthForm />
+          <div className="acc__grid">
+            <AuthForm />
+            <AccountPerks />
+          </div>
         )}
       </section>
+      {user?.labels?.includes('admin') && (
+        <Suspense fallback={null}>
+          <AdminStatsCard />
+        </Suspense>
+      )}
       <AppearanceSettings />
       <PushSettings />
       <TelegramNotifySettings />

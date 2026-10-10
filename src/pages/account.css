@@ -84,36 +84,223 @@
   color: var(--accent);
 }
 
-/* Уведомления о сериях */
-.push-card {
+/* ─── «Кадр»: вход и профиль как экран видоискателя — строка REC, тонкие рамки, моноширинные подписи ─── */
+.acc__rec {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 20px;
-  padding: 20px 24px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  gap: 4px 12px;
+  margin: 0 0 -8px;
+  color: var(--muted);
+  font: 600 11px/1.4 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
-
-.push-card__text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.acc__rec i,
+.acc__hud i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: acc-rec 1.6s steps(2, jump-none) infinite;
 }
-
-.push-card h3 {
-  font-size: 18px;
+.acc__rec i {
+  margin-right: -6px;
 }
-
-.push-card p {
-  margin: 0;
+.acc__rec b {
+  color: var(--accent);
 }
-
-@media (max-width: 640px) {
-  .push-card {
-    flex-direction: column;
-    align-items: stretch;
+.acc__rec span::before {
+  content: '·';
+  margin-right: 12px;
+  color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+.acc__rec span:first-of-type {
+  color: var(--text-soft);
+}
+@keyframes acc-rec {
+  50% {
+    opacity: 0.25;
   }
 }
+
+.acc .auth-card {
+  position: relative;
+  border-color: color-mix(in srgb, var(--text) 8%, transparent);
+  border-radius: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 85%, transparent), color-mix(in srgb, var(--surface) 55%, transparent));
+}
+/* уголки видоискателя по краям карточки */
+.acc .auth-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border: 2px solid color-mix(in srgb, var(--text) 55%, transparent);
+  -webkit-mask: conic-gradient(at 16px 16px, #0000 75%, #000 0) 0 0 / calc(100% - 16px) calc(100% - 16px);
+  mask: conic-gradient(at 16px 16px, #0000 75%, #000 0) 0 0 / calc(100% - 16px) calc(100% - 16px);
+}
+.acc .seg,
+.acc .seg::before,
+.acc .seg__item,
+.acc .social-btn,
+.acc .field input {
+  border-radius: 2px;
+}
+.acc .seg {
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+.acc .seg__item {
+  font: 600 12px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.acc .seg__item--on {
+  color: var(--text);
+}
+.acc .field > span {
+  color: var(--muted);
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.acc .field input {
+  border-color: color-mix(in srgb, var(--text) 12%, transparent);
+  background: color-mix(in srgb, var(--bg) 55%, var(--surface-2));
+}
+.acc .field input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.acc .divider {
+  color: var(--muted);
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.acc .divider::before,
+.acc .divider::after {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.acc .social-btn__mark {
+  border-radius: 2px;
+}
+
+/* Гость на широком экране: форма и рядом экран «что даёт аккаунт». */
+.acc--guest {
+  max-width: 1000px;
+}
+.acc__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+.acc__screen {
+  --fc-inset: 12px;
+  --fc-color: color-mix(in srgb, var(--text) 65%, transparent);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 22px;
+  min-height: 360px;
+  padding: 64px 44px;
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  border-radius: 2px;
+  background:
+    radial-gradient(70% 60% at 85% 110%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+    radial-gradient(60% 50% at 0% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+    #08080a;
+}
+/* развёртка экрана */
+.acc__screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgb(0 0 0 / 0.22) 0 1px, transparent 1px 3px);
+}
+.acc__screen-title {
+  margin: 0;
+  max-width: 16ch;
+  font: 600 clamp(22px, 2.4vw, 30px) / 1.2 var(--font-display);
+}
+.acc__perks {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.acc__perks li {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.acc__perks b {
+  color: var(--text);
+  font-weight: 700;
+}
+.acc__tc {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--accent);
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.08em;
+}
+.acc__hud {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, var(--text) 80%, transparent);
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.acc__hud--tl {
+  top: 26px;
+  left: 30px;
+  color: var(--accent-soft);
+}
+.acc__hud--tr {
+  top: 26px;
+  right: 30px;
+}
+.acc__hud--bl {
+  bottom: 26px;
+  left: 30px;
+}
+.acc__hud--br {
+  right: 30px;
+  bottom: 26px;
+  color: var(--accent-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  .acc__rec i,
+  .acc__hud i {
+    animation: none;
+  }
+}
+@media (max-width: 860px) {
+  .acc__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .acc__screen {
+    display: none;
+  }
+  .acc--guest {
+    max-width: 460px;
+  }
+}
+

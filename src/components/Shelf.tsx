@@ -24,8 +24,13 @@ export default function Shelf({ title, subtitle, icon, more, variant, extra, chi
   useEffect(() => {
     const el = row.current
     if (!el) return
-    const update = () =>
-      setEdges({ start: el.scrollLeft < 4, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 4 })
+    // Новый объект только когда край действительно сменился: иначе каждое событие прокрутки
+    // перерисовывало бы всю полку со всеми карточками.
+    const update = () => {
+      const start = el.scrollLeft < 4
+      const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4
+      setEdges((prev) => (prev.start === start && prev.end === end ? prev : { start, end }))
+    }
     update()
     el.addEventListener('scroll', update, { passive: true })
     const resize = new ResizeObserver(update)

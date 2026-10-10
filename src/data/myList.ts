@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { Anime, AnimeCard } from './catalog'
+import type { AnimeCard } from './catalog'
 import { createLocalStore } from './localStore'
 
 // «Мой список» хранится в браузере, пока нет аккаунтов.
@@ -48,7 +48,7 @@ const removedStore = createLocalStore<Record<string, number>>('anime.mylist.remo
 export const listStore = store
 export { removedStore }
 
-export function setListStatus(anime: Anime, status: ListStatus | undefined) {
+export function setListStatus(anime: AnimeCard, status: ListStatus | undefined) {
   const rest = store.get().filter((e) => e.anime.id !== anime.id)
   if (!status) {
     removedStore.set({ ...removedStore.get(), [anime.id]: Date.now() })

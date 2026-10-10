@@ -9,7 +9,7 @@ import { usePageMeta } from '../data/pageMeta'
 import { swapLayout } from '../data/keyboard'
 import { CATALOG } from '../data/landings'
 import { PAGE_SIZE, pageParam } from '../data/seo'
-import { FilterIcon, SparkIcon } from '../components/Icons'
+import { FilterIcon, ListIcon, SparkIcon } from '../components/Icons'
 import Shelf from '../components/Shelf'
 import PosterCard from '../components/PosterCard'
 import './catalog.css'
@@ -98,6 +98,9 @@ function ChipFilter({ label, name, value, any, options, onChange }: FilterProps)
   const all = any ? [{ id: '', title: any }, ...options] : options
   return (
     <div className="chip-filter" role="group" aria-label={label}>
+      <span className="chip-filter__label" aria-hidden="true">
+        {label}
+      </span>
       {all.map((o) => {
         const on = String(o.id) === value
         return (
@@ -177,7 +180,7 @@ export default function Catalog() {
   const filtersSet = ['order', 'status', 'kind', 'year', 'part', 'score', 'genre', 'nogenre', 'studio', 'age', 'hide'].some((n) => params.has(n))
 
   return (
-    <main className="container home">
+    <main className="container home catalog">
       <section className="stack">
         <div className="section-head">
           <h1 className="page-title">{search ? `Поиск: «${search}»` : CATALOG.h1}</h1>
@@ -188,86 +191,98 @@ export default function Catalog() {
           ) : (
             <div className="catalog-links">
               <Link to="/collections" className="pill pill--link">
-                ✨ Подборки
+                <ListIcon size={16} />
+                Подборки
               </Link>
               <Link to="/random" className="pill pill--link">
-                🎲 Что посмотреть?
+                <SparkIcon size={16} />
+                Что посмотреть?
               </Link>
             </div>
           )}
         </div>
 
-        <ChipFilter
-          label="Сортировка"
-          name="order"
-          value={value('order') || 'popularity'}
-          any=""
-          options={orders}
-          onChange={(name, v) => change(name, v === 'popularity' ? '' : v)}
-        />
-        <ChipFilter label="Статус" name="status" value={value('status')} any="Все" options={statuses} onChange={change} />
+        <div className="catalog__deck">
+          <p className="catalog__rec" aria-hidden="true">
+            <span className="catalog__dot" />
+            <b>REC</b>
+            <span>{orders.find((o) => o.id === (value('order') || 'popularity'))?.title}</span>
+            <span>{statuses.find((o) => o.id === value('status'))?.title ?? 'Все статусы'}</span>
+            <span>Фильтров {String(setCount).padStart(2, '0')}</span>
+            <span>Стр {String(page).padStart(2, '0')}</span>
+          </p>
+          <ChipFilter
+            label="Сортировка"
+            name="order"
+            value={value('order') || 'popularity'}
+            any=""
+            options={orders}
+            onChange={(name, v) => change(name, v === 'popularity' ? '' : v)}
+          />
+          <ChipFilter label="Статус" name="status" value={value('status')} any="Все" options={statuses} onChange={change} />
 
-        <button
-          type="button"
-          className={`pill filters-toggle${filtersOpen ? ' active' : ''}`}
-          aria-expanded={filtersOpen}
-          aria-controls="catalog-filters"
-          onClick={() => setFiltersOpen(!filtersOpen)}
-        >
-          <FilterIcon size={16} />
-          Фильтры{setCount > 0 && <span className="pill__count">{setCount}</span>}
-        </button>
-        <div id="catalog-filters" className={`filters${filtersOpen ? ' filters--open' : ''}`} role="group" aria-label="Фильтры каталога">
-          <MultiPick
-            label="Жанры"
-            any="Любые"
-            options={genres.value?.data ?? []}
-            value={list('genre')}
-            onChange={(ids) => change('genre', ids.join(','))}
-            searchable
-          />
-          <MultiPick
-            label="Без жанров"
-            any="Не исключать"
-            options={(genres.value?.data ?? []).filter((g) => !list('genre').includes(String(g.id)))}
-            value={list('nogenre')}
-            onChange={(ids) => change('nogenre', ids.join(','))}
-            searchable
-          />
-          <Filter label="Тип" name="kind" value={value('kind')} any="Любой" options={kinds} onChange={change} />
-          <Filter label="Год" name="year" value={year} any="Любой" options={years} onChange={change} />
-          {/^\d{4}$/.test(year) && (
-            <Filter label="Сезон" name="part" value={part} any="Весь год" options={parts} onChange={change} />
-          )}
-          <Filter label="Оценка" name="score" value={value('score')} any="Любая" options={scores} onChange={change} />
-          <Filter label="Возраст" name="age" value={value('age')} any="Любой" options={ages} onChange={change} />
-          <Filter
-            label="Студия"
-            name="studio"
-            value={list('studio')[0] ?? ''}
-            any="Любая"
-            // Подразделения и лейблы прячем, но выбранную по ссылке со страницы тайтла показываем.
-            options={(studios.value ?? []).filter((s) => s.real || String(s.id) === list('studio')[0])}
-            onChange={change}
-          />
-          {myList.length > 0 && (
-            <label className={`filter filter--check${hideMine ? ' filter--set' : ''}`}>
-              <span className="filter__label">Мой список</span>
-              <span className="filter__check">
-                <input type="checkbox" checked={hideMine} onChange={(e) => change('hide', e.target.checked ? 'mine' : '')} />
-                Скрыть добавленные
-              </span>
-            </label>
-          )}
-          {filtersSet && (
-            <button
-              type="button"
-              className="pill"
-              onClick={() => setParams(search ? { q: search } : {}, { replace: true })}
-            >
-              Сбросить фильтры
-            </button>
-          )}
+          <button
+            type="button"
+            className={`pill filters-toggle${filtersOpen ? ' active' : ''}`}
+            aria-expanded={filtersOpen}
+            aria-controls="catalog-filters"
+            onClick={() => setFiltersOpen(!filtersOpen)}
+          >
+            <FilterIcon size={16} />
+            Фильтры{setCount > 0 && <span className="pill__count">{setCount}</span>}
+          </button>
+          <div id="catalog-filters" className={`filters${filtersOpen ? ' filters--open' : ''}`} role="group" aria-label="Фильтры каталога">
+            <MultiPick
+              label="Жанры"
+              any="Любые"
+              options={genres.value?.data ?? []}
+              value={list('genre')}
+              onChange={(ids) => change('genre', ids.join(','))}
+              searchable
+            />
+            <MultiPick
+              label="Без жанров"
+              any="Не исключать"
+              options={(genres.value?.data ?? []).filter((g) => !list('genre').includes(String(g.id)))}
+              value={list('nogenre')}
+              onChange={(ids) => change('nogenre', ids.join(','))}
+              searchable
+            />
+            <Filter label="Тип" name="kind" value={value('kind')} any="Любой" options={kinds} onChange={change} />
+            <Filter label="Год" name="year" value={year} any="Любой" options={years} onChange={change} />
+            {/^\d{4}$/.test(year) && (
+              <Filter label="Сезон" name="part" value={part} any="Весь год" options={parts} onChange={change} />
+            )}
+            <Filter label="Оценка" name="score" value={value('score')} any="Любая" options={scores} onChange={change} />
+            <Filter label="Возраст" name="age" value={value('age')} any="Любой" options={ages} onChange={change} />
+            <Filter
+              label="Студия"
+              name="studio"
+              value={list('studio')[0] ?? ''}
+              any="Любая"
+              // Подразделения и лейблы прячем, но выбранную по ссылке со страницы тайтла показываем.
+              options={(studios.value ?? []).filter((s) => s.real || String(s.id) === list('studio')[0])}
+              onChange={change}
+            />
+            {myList.length > 0 && (
+              <label className={`filter filter--check${hideMine ? ' filter--set' : ''}`}>
+                <span className="filter__label">Мой список</span>
+                <span className="filter__check">
+                  <input type="checkbox" checked={hideMine} onChange={(e) => change('hide', e.target.checked ? 'mine' : '')} />
+                  Скрыть добавленные
+                </span>
+              </label>
+            )}
+            {filtersSet && (
+              <button
+                type="button"
+                className="pill"
+                onClick={() => setParams(search ? { q: search } : {}, { replace: true })}
+              >
+                Сбросить фильтры
+              </button>
+            )}
+          </div>
         </div>
 
         <CatalogGrid key={JSON.stringify(query) + page} query={query} start={page} onFirst={(n) => setFirst([page, n])} />

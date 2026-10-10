@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { BackIcon, CloseIcon, NextIcon } from './Icons'
+import './lightbox.css'
 
 interface Props {
   label: string

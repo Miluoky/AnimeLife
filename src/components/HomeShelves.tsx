@@ -1,14 +1,14 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { loadCatalog, loadSchedule, useAsync, type CatalogQuery } from '../api'
+import { loadCatalog, loadSchedule, useAsync, type CatalogQuery, type ScheduleItem } from '../api'
 import Shelf from './Shelf'
-import PosterCard from './PosterCard'
+import PosterCard, { Poster } from './PosterCard'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
-import { SHIKIMORI_URL } from '../api/shikimori'
-import { CalendarIcon, ClockIcon, PlayIcon, TrophyIcon } from './Icons'
+import { CalendarIcon, ClockIcon, ListIcon, PlayIcon, SparkIcon, TrophyIcon } from './Icons'
 import { GENRES } from '../data/seo'
 import './genres.css'
+import './bento.css'
 
 const SHELF_SIZE = 16
 const SEASONS = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'fall', 'fall', 'fall', 'winter']
@@ -131,6 +131,133 @@ function UpcomingShelf() {
   )
 }
 
+const FILM_FRAMES = 10
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/**
+ * «Сегодня в эфире» киноплёнкой: кадр на серию с таймкодом выхода, сверху и снизу перфорация.
+ * Вышедшие серии чуть приглушены, ближайшая отмечена «REC». Плёнка листается вбок и на телефоне, и на ПК.
+ */
+function FilmStrip({ items }: { items: ScheduleItem[] }) {
+  const now = Date.now()
+  const next = items.find((i) => i.at.getTime() > now)
+  const rest = items.length - FILM_FRAMES
+  const strip = useRef<HTMLDivElement>(null)
+  // Утром плёнка начинается с первой серии, вечером — с ближайшей: вышедшие остаются слева.
+  useEffect(() => {
+    const el = strip.current
+    const frame = el?.querySelector<HTMLElement>('.film__frame--next')
+    if (el && frame) el.scrollLeft = Math.max(0, frame.offsetLeft - 48)
+  }, [])
+  return (
+    <div ref={strip} className="film" role="region" tabIndex={0} aria-label="Серии сегодня, листается вбок">
+      <ol className="film__frames">
+        {items.slice(0, FILM_FRAMES).map((i, n) => {
+          const aired = i.at.getTime() <= now
+          return (
+            <li key={`${i.anime.id}-${i.episode}`} className={`film__frame${aired ? ' film__frame--aired' : ''}${i === next ? ' film__frame--next' : ''}`}>
+              <Link to={`/anime/${i.anime.id}`} title={i.anime.title}>
+                <span className="film__shot" style={{ background: i.anime.posterFill }}>
+                  <Poster anime={i.anime} />
+                  <span className="film__badge">{i === next ? 'REC' : aired ? 'Вышла' : `#${pad(n + 1)}`}</span>
+                  <time className="film__tc" dateTime={i.at.toISOString()}>
+                    {hhmm(i.at)}
+                  </time>
+                </span>
+                <span className="film__name">{i.anime.title}</span>
+                <span className="film__ep">EP {pad(i.episode)}</span>
+              </Link>
+            </li>
+          )
+        })}
+        {rest > 0 && (
+          <li className="film__frame film__frame--more">
+            <Link to="/schedule">
+              <span className="film__shot">
+                <b>+{rest}</b>
+                <span>в графике</span>
+              </span>
+            </Link>
+          </li>
+        )}
+      </ol>
+    </div>
+  )
+}
+
+const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+const hhmm = (d: Date) => d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+
+/**
+ * Блоки под баннером: что выходит сегодня, быстрый вход в свой список (или в топ для новичков)
+ * и «Что посмотреть?». Расписание то же, что у полки новых серий, второй раз не грузится.
+ */
+export function HomeBento() {
+  const schedule = useAsync(loadSchedule, [])
+  const list = useMyList()
+  const today = new Date()
+  const items = (schedule.value?.data ?? []).filter((i) => sameDay(i.at, today)).sort((a, b) => +a.at - +b.at)
+  const watching = list.filter((e) => e.status === 'watching').length
+  const planned = list.filter((e) => e.status === 'planned').length
+
+  return (
+    <section className="bento" aria-label="Коротко на сегодня">
+      <div className="bento__tile bento__tile--today">
+        <div className="bento__head">
+          <span className="shelf__icon" aria-hidden="true">
+            <CalendarIcon size={18} />
+          </span>
+          <div className="bento__titles">
+            <h2>Сегодня в эфире</h2>
+            {items.length > 0 && <span className="film__count">{pad(items.length)} сер.</span>}
+          </div>
+          <Link to="/schedule" className="shelf__more">
+            График
+          </Link>
+        </div>
+        {schedule.loading && !schedule.value ? (
+          <div className="bento__skeleton skeleton" aria-busy="true" />
+        ) : items.length ? (
+          <FilmStrip items={items} />
+        ) : (
+          <p className="muted bento__empty">Сегодня новых серий нет. Загляните в график на неделю.</p>
+        )}
+      </div>
+      {list.length ? (
+        <Link to="/my-list" className="bento__tile bento__tile--link frame-corners">
+          <span className="shelf__icon" aria-hidden="true">
+            <ListIcon size={18} />
+          </span>
+          <strong>Мой список</strong>
+          <span className="bento__stats">
+            <span>
+              <b>{watching}</b> смотрю
+            </span>
+            <span>
+              <b>{planned}</b> в планах
+            </span>
+          </span>
+        </Link>
+      ) : (
+        <Link to="/top" className="bento__tile bento__tile--link frame-corners">
+          <span className="shelf__icon" aria-hidden="true">
+            <TrophyIcon size={18} />
+          </span>
+          <strong>Топ аниме</strong>
+          <span className="muted">Лучшее по оценкам зрителей, с чего начать</span>
+        </Link>
+      )}
+      <Link to="/random" className="bento__tile bento__tile--link frame-corners bento__tile--accent">
+        <span className="shelf__icon" aria-hidden="true">
+          <SparkIcon size={18} />
+        </span>
+        <strong>Что посмотреть?</strong>
+        <span className="muted">Подберём тайтл по настроению</span>
+      </Link>
+    </section>
+  )
+}
+
 /** Ближайшие серии и премьеры текущего сезона: сразу под баннером. */
 export function SeasonShelf() {
   const season = currentSeason()
@@ -183,20 +310,12 @@ export function MoreShelves() {
 }
 
 const TILE_GENRES = ['action', 'romance', 'comedy', 'fantasy', 'drama', 'sci-fi', 'mystery', 'slice-of-life', 'horror', 'sports', 'psychological', 'mecha']
-const GENRE_POSTERS: Record<string, number> = {
-  action: 40748,
-  romance: 32281,
-  comedy: 918,
-  fantasy: 52991,
-  drama: 33352,
-  'sci-fi': 1,
-  mystery: 235,
-  'slice-of-life': 5680,
-  horror: 11111,
-  sports: 20583,
-  psychological: 19,
-  mecha: 30,
-}
+// Кадр из узнаваемого тайтла жанра (Магическая битва, Твоё имя, Гинтама, Фрирен, Вайолет Эвергарден, Ковбой Бибоп,
+// Детектив Конан, K-On!, Иная, Волейбол!!, Тетрадь смерти, Евангелион). Лежат в сборке: свой кэш, не зависят от Shikimori.
+// Короче или с мягким переносом: длинное слово на узкой плитке переносится по слогу, а не по букве.
+const TILE_NAMES: Record<string, string> = { psychological: 'Психология', 'slice-of-life': 'Повседнев\u00adность' }
+const GENRE_IMAGES = import.meta.glob<string>('../assets/genres/*.webp', { eager: true, import: 'default' })
+const genreImage = (slug: string) => GENRE_IMAGES[`../assets/genres/${slug}.webp`]
 
 /** Плитки жанров на главной: у каждого свой цвет, ведут на посадочные /genre/:slug. */
 function GenreTiles() {
@@ -220,7 +339,9 @@ function GenreTiles() {
           <Link key={g.slug} to={`/genre/${g.slug}`} className="genre-tile" style={{ '--h': (i * 360) / tiles.length + 340 } as CSSProperties}>
             <img
               className="genre-tile__image"
-              src={`${SHIKIMORI_URL}/system/animes/preview/${GENRE_POSTERS[g.slug]}.jpg`}
+              src={genreImage(g.slug)}
+              width={560}
+              height={280}
               alt=""
               aria-hidden="true"
               loading="lazy"
@@ -229,7 +350,7 @@ function GenreTiles() {
                 event.currentTarget.style.opacity = '0'
               }}
             />
-            <span className="genre-tile__name">{g.slug === 'psychological' ? 'Психология' : g.name}</span>
+            <span className="genre-tile__name">{TILE_NAMES[g.slug] ?? g.name}</span>
           </Link>
         ))}
       </div>

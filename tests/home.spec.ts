@@ -21,8 +21,10 @@ test('главная: смену тайтлов в баннере можно о�
   await expect(title).not.toHaveAttribute('aria-label', initialTitle ?? '')
 
   await page.getByRole('button', { name: 'Поставить смену тайтлов на паузу' }).click()
-  // Сначала дожидаемся, что пауза применилась: иначе тайтл можно прочитать до последней смены.
+  // Preact снимает таймер в эффекте после отрисовки (rAF или setTimeout), а часы в тесте ненастоящие:
+  // чуть прокручиваем их, чтобы пауза точно вступила в силу до следующей смены через 8 с.
   await expect(page.getByRole('button', { name: 'Продолжить смену тайтлов' })).toBeVisible()
+  await page.clock.runFor(200)
   const pausedTitle = await title.getAttribute('aria-label')
   await page.clock.fastForward(16000)
   await expect(title).toHaveAttribute('aria-label', pausedTitle ?? '')
@@ -109,7 +111,7 @@ test('главная: плитки жанров ведут на страницы
   await page.goto('/')
   const tiles = page.locator('.genre-tile')
   await expect(tiles).toHaveCount(12)
-  await expect(tiles.filter({ hasText: 'Экшен' }).locator('img')).toHaveAttribute('src', /40748\.jpg$/)
+  await expect(tiles.filter({ hasText: 'Экшен' }).locator('img')).toHaveAttribute('src', /\/assets\/action-[\w-]+\.webp$/)
   await expect(tiles.filter({ hasText: 'Романтика' }).locator('img')).toHaveAttribute('loading', 'lazy')
   await expect(tiles.filter({ hasText: 'Романтика' })).toHaveAttribute('href', '/genre/romance')
   await tiles.filter({ hasText: 'Меха' }).click()

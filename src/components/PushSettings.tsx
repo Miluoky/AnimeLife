@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { disablePush, enablePush, usePushState } from '../data/push'
 import { useMyList } from '../data/myList'
+import './push.css'
 
 /** Переключатель уведомлений о новых сериях для тайтлов из «Смотрю». */
 export default function PushSettings() {

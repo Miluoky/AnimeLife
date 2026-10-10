@@ -1,3 +1,4 @@
+import '../components/reviews.css'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { useAuth } from '../data/auth'

@@ -1,9 +1,10 @@
 import '../components/profile-stats.css'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { type CSSProperties, type FormEvent, type ReactNode, useState } from 'react'
+import { type CSSProperties, type FormEvent, type ReactNode, Suspense, lazy, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
-import { loadAnime, loadTitleExtras, useAsync } from '../api'
+import { useAmbient } from '../components/ambient'
+import { loadAnime, loadScreenshots, loadTitleExtras, useAsync } from '../api'
 import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeCount } from '../data/catalog'
 import { useHistory } from '../data/history'
@@ -15,17 +16,20 @@ import ShareButton from '../components/ShareButton'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { useMyList } from '../data/myList'
-import Reviews from '../components/Reviews'
 import Shelf from '../components/Shelf'
 import { PlayIcon } from '../components/Icons'
 import NextEpisode from '../components/NextEpisode'
 import FollowButton from '../components/FollowButton'
 import WatchOrder from '../components/WatchOrder'
 import { fetchStaff } from '../api/staff'
-import { findAnixart, type AnixartVoice } from '../api/anixart'
+import { findAnixart } from '../api/anixart'
+import { choosePlayerVoice, voiceKey } from '../api/voiceKey'
 import VoiceLogo from '../components/VoiceLogo'
 import NotFound from './NotFound'
 import './title.css'
+
+// Отзывы ниже первого экрана: их код (с формой и модерацией) грузится отдельно и не задерживает страницу.
+const Reviews = lazy(() => import('../components/Reviews'))
 
 const MAX_SHOTS = 8
 
@@ -69,28 +73,75 @@ function Voices({ title, names = [] }: { title: string; names?: string[] }) {
   )
 }
 
+interface SiteVoice {
+  title: string
+  kind: 'voice' | 'subtitles'
+  episodes: number
+  icon?: string
+}
+
+/**
+ * Студии из Kodik и YummyAnime, которых нет в Anixart: плеер показывает и их. На странице тайтла
+ * их не грузим заранее (YummyAnime — поиск и большой список серий), только по «Ещё». Ответы
+ * запоминаются на сеанс, и плеер потом берёт их же без новых запросов.
+ */
+async function loadMoreVoices(anime: { id: string; titles: (string | undefined)[] }, known: SiteVoice[]): Promise<SiteVoice[]> {
+  const [{ fetchKodikTranslations }, { findYummy }] = await Promise.all([import('../api/kodik'), import('../api/yummy')])
+  const [kodik, yummy] = await Promise.all([
+    fetchKodikTranslations(anime.id).catch(() => []),
+    findYummy(anime.id, anime.titles).catch(() => null),
+  ])
+  // Сверка такая же, как в плеере (buildVoices): Kodik — по названию, YummyAnime — по ключу студии.
+  const list = [...known]
+  const extra: SiteVoice[] = []
+  const titles = new Set(list.map((v) => v.title.toLowerCase()))
+  for (const t of [...kodik].sort((a, b) => b.episodes - a.episodes)) {
+    if (titles.has(t.title.toLowerCase())) continue
+    titles.add(t.title.toLowerCase())
+    extra.push(t)
+    list.push(t)
+  }
+  for (const y of yummy ?? []) {
+    if (list.some((v) => v.kind === y.kind && voiceKey(v.title) === voiceKey(y.title))) continue
+    extra.push(y)
+    list.push(y)
+  }
+  return extra
+}
+
 /** Озвучки, которые есть прямо в плеере сайта: по клику плеер открывается сразу в выбранной. */
-function SiteVoices({ voices, href, total }: { voices: AnixartVoice[]; href: string; total: number }) {
+function SiteVoices({
+  voices,
+  href,
+  total,
+  anime,
+}: {
+  voices: SiteVoice[]
+  href: string
+  total: number
+  anime: { id: string; titles: (string | undefined)[] }
+}) {
   const [all, setAll] = useState(false)
-  const shown = all ? voices : voices.slice(0, VOICES_SHOWN * 2)
-  // Тот же ключ, что у списка озвучек в плеере (Player.tsx): у своих плееров AniLibria и AnimeVost ключ — имя источника.
-  const choose = (v: AnixartVoice) => {
-    const own = v.title.toLowerCase()
-    try {
-      sessionStorage.setItem('player-voice', own === 'anilibria' || own === 'animevost' ? own : `anixart:${v.type}`)
-    } catch {
-      // Без хранилища плеер откроется в озвучке по умолчанию.
-    }
+  const [more, setMore] = useState<SiteVoice[] | 'loading'>()
+  const extra = Array.isArray(more) ? more : []
+  const list = all ? [...voices, ...extra] : voices.slice(0, VOICES_SHOWN * 2)
+  const hidden = voices.length + extra.length - list.length
+  const expand = () => {
+    setAll(true)
+    if (more) return
+    setMore('loading')
+    loadMoreVoices(anime, voices).then(setMore, () => setMore([]))
   }
   return (
     <div className="stack voices" style={{ gap: 10 }}>
       <h2 style={{ fontSize: 18, fontWeight: 500 }}>
-        Озвучки на сайте <span className="muted voices__count">{voices.length}</span>
+        Озвучки на сайте <span className="muted voices__count">{voices.length + extra.length}</span>
       </h2>
-      <ul className="voices__list">
-        {shown.map((v) => (
-          <li key={v.type} className="voices__site">
-            <Link to={href} onClick={() => choose(v)} title={`Смотреть в озвучке ${v.title}`}>
+      <ul className="voices__list" aria-busy={more === 'loading'}>
+        {list.map((v) => (
+          <li key={`${v.kind}:${v.title}`} className="voices__site">
+            {/* Плеер узнаёт студию по названию: она могла прийти к нему из другого источника (playerVoiceKey). */}
+            <Link to={href} onClick={() => choosePlayerVoice(v)} title={`Смотреть в озвучке ${v.title}`}>
               <VoiceLogo title={v.title} kind={v.kind} icon={v.icon} size={36} />
               <span className="voices__site-text">
                 <strong>{v.title}</strong>
@@ -102,13 +153,21 @@ function SiteVoices({ voices, href, total }: { voices: AnixartVoice[]; href: str
             </Link>
           </li>
         ))}
-        {voices.length > shown.length || all ? (
-          <li>
-            <button type="button" className="voices__more" aria-expanded={all} onClick={() => setAll(!all)}>
-              {all ? 'Свернуть' : `Ещё ${voices.length - shown.length}`}
+        <li>
+          {more === 'loading' ? (
+            <span className="muted voices__more">Ищем в других плеерах…</span>
+          ) : all ? (
+            voices.length + extra.length > VOICES_SHOWN * 2 && (
+              <button type="button" className="voices__more" aria-expanded onClick={() => setAll(false)}>
+                Свернуть
+              </button>
+            )
+          ) : (
+            <button type="button" className="voices__more" aria-expanded={false} onClick={expand}>
+              {hidden > 0 ? `Ещё ${hidden}` : 'Все плееры'}
             </button>
-          </li>
-        ) : null}
+          )}
+        </li>
       </ul>
     </div>
   )
@@ -150,6 +209,9 @@ export default function TitlePage() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadAnime(id), [id])
   const extras = useAsync(() => loadTitleExtras(id), [id])
+  const screenshots = useAsync(() => loadScreenshots(id), [id])
+  // «Кадр»: страница подсвечена постером тайтла.
+  useAmbient(result.value?.data?.posterSmall ?? result.value?.data?.posterUrl)
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
   // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.
@@ -200,10 +262,9 @@ export default function TitlePage() {
   // Сколько времени займёт весь сериал (или вышедшие серии онгоинга) и сколько осталось от места, где остановились.
   const outNow = anime.ongoing ? (anime.episodesAired ?? 0) : (anime.episodes ?? 0)
   const left = Math.max(0, outNow - (progress ? progress.episode - 1 : 0))
-  const totalTime =
-    anime.episodeMinutes && outNow > 1
-      ? `≈ ${hoursLabel(outNow * anime.episodeMinutes)}${progress && left > 0 && left < outNow ? ` · осталось ${hoursLabel(left * anime.episodeMinutes)}` : ''}`
-      : ''
+  const totalTime = anime.episodeMinutes && outNow > 1 ? `≈ ${hoursLabel(outNow * anime.episodeMinutes)}` : ''
+  // «Осталось» — отдельной ячейкой: в одной строке с «≈ 48 мин» на телефоне выходило три строки.
+  const leftTime = totalTime && progress && left > 0 && left < outNow ? hoursLabel(left * anime.episodeMinutes!) : ''
   const facts = (
     [
       ['Тип', anime.kind],
@@ -217,6 +278,7 @@ export default function TitlePage() {
       ],
       ['Длительность', minutes],
       [anime.ongoing ? 'Вышло на' : 'Всего', totalTime],
+      ['Осталось', leftTime],
       [
         'Студия',
         anime.studio && anime.studioId ? <Link to={`/catalog?studio=${anime.studioId}`}>{anime.studio}</Link> : (anime.studio ?? ''),
@@ -225,7 +287,7 @@ export default function TitlePage() {
     ] as [string, ReactNode][]
   ).filter((f) => f[1] !== '' && f[1] !== undefined)
 
-  const shots = extras.value?.screenshots ?? []
+  const shots = screenshots.value ?? []
   const related = extras.value?.related ?? []
   const similar = extras.value?.similar ?? []
   const watchLinks = extras.value?.watchLinks ?? []
@@ -258,6 +320,11 @@ export default function TitlePage() {
         ) : (
           <span className="art-label">[Широкий баннер тайтла]</span>
         )}
+        {anime.japaneseTitle && /[\u3040-\u30ff\u4e00-\u9fff]/.test(anime.japaneseTitle) && (
+          <span className="banner__jp" lang="ja" aria-hidden="true">
+            {anime.japaneseTitle}
+          </span>
+        )}
       </div>
       <main className="container title-page">
         <section className="title-head" style={{ '--glow': anime.posterFill } as CSSProperties}>
@@ -265,7 +332,7 @@ export default function TitlePage() {
             <Poster anime={anime} alt={`Постер аниме «${anime.title}»`} />
           </div>
           <div className="title-head__info">
-            {anime.originalTitle && <div className="muted">{anime.originalTitle}</div>}
+            {anime.originalTitle && <div className="title-head__orig">{anime.originalTitle}</div>}
             <h1 className="title-head__title">{anime.title}</h1>
             <div className="chips">
               <span className="chip chip--accent">{anime.ongoing ? 'Онгоинг' : anime.upcoming ? 'Анонс' : 'Вышел'}</span>
@@ -307,7 +374,7 @@ export default function TitlePage() {
                 {progress ? `Продолжить: серия ${progress.episode}` : 'Смотреть'}
               </Link>
               <ListButton anime={anime} />
-              <WatchTogetherButton anime={anime} />
+              <WatchTogetherButton anime={anime} className="btn btn--ghost watch-together" />
               {(anime.ongoing || anime.upcoming) && <FollowButton animeId={anime.id} title={anime.title} />}
               <ShareButton title={anime.title} path={`/anime/${anime.id}`} className="btn btn--ghost title-share" />
             </div>
@@ -439,7 +506,12 @@ export default function TitlePage() {
               </div>
             )}
             {anixart.value?.voices.length ? (
-              <SiteVoices voices={anixart.value.voices} href={`/watch/${anime.id}/${progress?.episode ?? 1}`} total={total} />
+              <SiteVoices
+                voices={anixart.value.voices}
+                href={`/watch/${anime.id}/${progress?.episode ?? 1}`}
+                total={total}
+                anime={{ id: anime.id, titles: [anime.title, anime.originalTitle, anime.englishTitle] }}
+              />
             ) : (
               <Voices title="Озвучка" names={extras.value?.dubbers} />
             )}
@@ -550,7 +622,9 @@ export default function TitlePage() {
 
         {!result.value?.demo && <WatchOrder animeId={anime.id} />}
 
-        <Reviews animeId={anime.id} />
+        <Suspense fallback={null}>
+          <Reviews animeId={anime.id} />
+        </Suspense>
 
         {related.length > 0 && (
           <Shelf title="Связанное" subtitle="Сначала то, что смотрят по порядку, потом остальные части">

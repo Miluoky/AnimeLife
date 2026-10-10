@@ -1,3 +1,4 @@
+import './reviews.css'
 import { Link } from 'react-router-dom'
 import { markFlag } from '../data/flags'
 import { useEffect, useState, type FormEvent } from 'react'

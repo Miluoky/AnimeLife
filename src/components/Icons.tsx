@@ -104,6 +104,14 @@ export function WideIcon({ size = 20 }: IconProps) {
   )
 }
 
+export function BulbIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z" />
+    </svg>
+  )
+}
+
 export function FilterIcon({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
@@ -237,6 +245,29 @@ export function ArrowUpIcon({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
       <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  )
+}
+
+/** Экран с кнопкой воспроизведения: вкладка «Смотрю». */
+export function ScreenPlayIcon({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <rect x="2.5" y="4" width="19" height="13" rx="2" />
+      <path d="M8 21h8" />
+      <path d="M10.5 8.2v4.6l4-2.3z" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** Четыре квадрата: «Ещё» в нижнем меню. */
+export function MoreIcon({ size = 22 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
+      <circle cx="16.75" cy="16.75" r="3.25" />
     </svg>
   )
 }

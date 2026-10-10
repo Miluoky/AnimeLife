@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { useAmbient } from '../components/ambient'
 import { loadAnime, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { saveProgress } from '../data/history'
@@ -13,12 +14,14 @@ import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
 import { findYummy, voiceKey, type YummyPlayer, type YummyVoice } from '../api/yummy'
+import { playerVoiceKey } from '../api/voiceKey'
 import { markFlag } from '../data/flags'
 import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
-import { BackIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
+import { BackIcon, BulbIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
+import { useLightsOff, useMiniPlayer } from '../components/watchModes'
 import VoiceLogo from '../components/VoiceLogo'
 import NextEpisode from '../components/NextEpisode'
 
@@ -36,6 +39,8 @@ export default function Player() {
   const navigate = useNavigate()
   const result = useAsync(() => loadAnime(id), [id])
   const anime = result.value?.data
+  // «Кадр»: вокруг плеера свет постера.
+  useAmbient(anime?.posterSmall ?? anime?.posterUrl)
   // Названия серий приходят от AniLibria, когда плеер нашёл релиз.
   const [names, setNames] = useState<Record<number, string>>({})
   // Другой тайтл — серии прошлого релиза не в счёт.
@@ -87,7 +92,8 @@ export default function Player() {
   const skipFillers = skipFillersStore.use()
   const wide = wideStore.use()
   const [voiceKey, setVoiceKey] = useState(savedVoice)
-  const voice = voices.find((v) => v.key === voiceKey) ?? voices[0]
+  // Со страницы тайтла приходит ключ по названию студии (playerVoiceKey): источник там неизвестен.
+  const voice = voices.find((v) => v.key === voiceKey || playerVoiceKey(v) === voiceKey) ?? voices[0]
   const chooseVoice = (key: string) => {
     saveVoice(key)
     setVoiceKey(key)
@@ -113,6 +119,9 @@ export default function Player() {
     if (hour < 5) markFlag('nightOwl')
   }, [anime, current, total, isScheduled])
 
+  const [lightsOff, setLightsOff] = useLightsOff()
+  const miniPlayer = useMiniPlayer(!!anime && !isScheduled && !lightsOff)
+
   usePageMeta(
     anime && watchPageTitle(animeInfo(anime), current),
     anime && watchPageDescription(animeInfo(anime), current, total),
@@ -130,7 +139,19 @@ export default function Player() {
       </main>
     )
   }
-  if (requested > total) return <NotFound title="Серия ещё не вышла" />
+  if (requested > total) {
+    return (
+      <NotFound
+        title="Серия ещё не вышла"
+        text={anime.ongoing ? `Пока вышло серий: ${total}. Новые появляются здесь сразу после выхода.` : `Всего серий: ${total}.`}
+        action={
+          <Link to={`/watch/${anime.id}/${total}`} className="btn btn--accent">
+            Последняя серия
+          </Link>
+        }
+      />
+    )
+  }
 
   const goTo = (n: number) => navigate(`/watch/${anime.id}/${n}`)
   // Вперёд на одну серию с включённым пропуском — через все филлеры подряд.
@@ -142,7 +163,21 @@ export default function Player() {
   const name = names[current]
 
   return (
-    <main className={`container player-page${wide ? ' player-page--wide' : ''}`}>
+    <main
+      className={`container player-page${wide ? ' player-page--wide' : ''}${lightsOff ? ' player-page--dark' : ''}`}
+      style={(anime.posterSmall ?? anime.posterUrl) ? ({ '--poster': `url("${anime.posterSmall ?? anime.posterUrl}")` } as CSSProperties) : undefined}
+    >
+      {lightsOff && <div className="lights-curtain" aria-hidden="true" onClick={() => setLightsOff(false)} />}
+      <div
+        ref={miniPlayer.slot}
+        className={`video-slot${miniPlayer.mini ? ' video-slot--mini' : ''}`}
+        style={miniPlayer.mini ? { minHeight: miniPlayer.height } : undefined}
+      >
+      {miniPlayer.mini && (
+        <button type="button" className="video-slot__close" aria-label="Закрыть мини-плеер" onClick={miniPlayer.close}>
+          <CloseIcon size={16} />
+        </button>
+      )}
       {/* Мульти-провайдерный плеер; если серию взять негде — трейлер */}
       {/* Пока не знаем озвучки Kodik, плеер не включаем: иначе он начнёт с одной озвучки и тут же сменит её. */}
       {kodik.loading || free.loading || !free.value || waitYummy ? (
@@ -180,6 +215,7 @@ export default function Player() {
         }}
       />
       )}
+      </div>
 
       {/* Заголовок и кнопки идут сразу за видео: на телефоне они не уезжают под длинный список озвучек. */}
       <div className="watch-head">
@@ -211,7 +247,17 @@ export default function Player() {
             <WideIcon />
             <span className="sr-only">Широкий экран</span>
           </button>
-          <WatchTogetherButton anime={anime} episode={current} />
+          <button
+            type="button"
+            className="btn btn--ghost watch-lights"
+            aria-pressed={lightsOff}
+            title={lightsOff ? 'Включить свет' : 'Выключить свет вокруг видео'}
+            onClick={() => setLightsOff(!lightsOff)}
+          >
+            <BulbIcon />
+            <span className="sr-only">Шторка света</span>
+          </button>
+          <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
           <button
             type="button"
             className="btn btn--ghost"

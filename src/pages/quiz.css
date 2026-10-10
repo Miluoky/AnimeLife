@@ -13,50 +13,141 @@
 .quiz-head p {
   margin: 0;
 }
+/* Счёт — полоса показаний камеры: три ячейки с моноширинными цифрами. */
 .quiz-score {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 460px);
+  margin: 10px 0 0;
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
 }
 .quiz-score div {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface);
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 14px 10px;
+}
+.quiz-score div + div {
+  border-left: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
 }
 .quiz-score dt {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--muted);
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 .quiz-score dd {
   margin: 0;
-  font-weight: 700;
+  font: 700 20px/1.2 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* серия подряд — главная цифра, акцентом */
+.quiz-score div:first-child dd {
+  color: var(--accent);
+}
+
+/* Строка «● REC · раунд» над заголовком, как на экране камеры. */
+.quiz-rec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--muted);
+  font: 600 11px/1.4 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.quiz-rec i,
+.quiz-hud i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: quiz-rec 1.6s steps(2, jump-none) infinite;
+}
+.quiz-rec i {
+  margin-right: -6px;
+}
+.quiz-rec b {
+  color: var(--accent);
+}
+.quiz-rec span::before {
+  content: '·';
+  margin-right: 12px;
+  color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+.quiz-rec span:first-of-type {
+  color: var(--text-soft);
 }
 .quiz-card {
   display: grid;
   gap: 16px;
-  padding: 16px;
-  border-radius: 20px;
-  border: 1px solid var(--line);
+  padding: 14px;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
   background:
-    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 55%),
-    var(--surface);
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 55%),
+    color-mix(in srgb, var(--surface) 70%, transparent);
 }
+/* Кадр — экран видоискателя: уголки, развёртка, затемнение к краям и метки по углам. */
 .quiz-shot {
+  --fc-inset: 12px;
+  --fc-color: color-mix(in srgb, var(--text) 75%, transparent);
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  border-radius: 14px;
-  background: var(--surface-2);
+  border-radius: 2px;
+  background: #050506;
   display: grid;
   place-items: center;
+}
+.quiz-shot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.12) 0 1px, transparent 1px 3px),
+    radial-gradient(90% 90% at 50% 50%, transparent 55%, rgb(5 5 6 / 0.55));
+}
+.quiz-hud {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, var(--text) 90%, transparent);
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.9);
+  font-variant-numeric: tabular-nums;
+  padding: 3px 7px;
+  background: rgb(5 5 6 / 0.6);
+}
+.quiz-hud--tl {
+  top: 24px;
+  left: 28px;
+  color: var(--accent-soft);
+}
+.quiz-hud--tr {
+  top: 24px;
+  right: 28px;
+}
+.quiz-hud--bl {
+  bottom: 24px;
+  left: 28px;
+}
+.quiz-hud--br {
+  right: 28px;
+  bottom: 24px;
+  color: var(--accent-soft);
 }
 .quiz-shot img {
   position: absolute;
@@ -69,39 +160,79 @@
   animation: quiz-in 0.3s ease;
 }
 .quiz-shot__wait {
+  position: relative;
+  z-index: 2;
   color: var(--muted);
+  font: 600 12px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  animation: quiz-rec 1.6s steps(2, jump-none) infinite;
 }
 .quiz-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  counter-reset: quiz-key;
 }
+/* Варианты — кнопки пульта: буква A–D моноширинным слева (счётчиком, чтобы не попасть в текст кнопки). */
 .quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-height: 56px;
   padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   color: var(--text);
   font: inherit;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.quiz-option::before {
+  counter-increment: quiz-key;
+  content: counter(quiz-key, upper-latin);
+  flex: 0 0 26px;
+  display: grid;
+  place-items: center;
+  height: 26px;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  color: var(--muted);
+  font: 700 12px var(--font-mono);
+  transition: inherit;
 }
 .quiz-option:not(:disabled):hover {
   border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.quiz-option:not(:disabled):hover::before {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .quiz-option:disabled {
   cursor: default;
 }
 .quiz-option--right {
   border-color: #3ecf8e;
-  background: color-mix(in srgb, #3ecf8e 18%, transparent);
+  background: color-mix(in srgb, #3ecf8e 16%, transparent);
+  box-shadow: inset 3px 0 0 #3ecf8e;
+}
+.quiz-option--right::before {
+  border-color: #3ecf8e;
+  background: #3ecf8e;
+  color: #0a0a0c;
 }
 .quiz-option--wrong {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.quiz-option--wrong::before {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #0a0a0c;
 }
 .quiz-result {
   display: flex;
@@ -114,13 +245,24 @@
   flex: 1 1 260px;
   margin: 0;
 }
+.quiz-result strong {
+  font-family: var(--font-display);
+}
 @keyframes quiz-in {
   from {
     opacity: 0;
   }
 }
+@keyframes quiz-rec {
+  50% {
+    opacity: 0.25;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .quiz-shot img {
+  .quiz-shot img,
+  .quiz-rec i,
+  .quiz-hud i,
+  .quiz-shot__wait {
     animation: none;
   }
 }
@@ -133,5 +275,40 @@
   }
   .quiz-result .btn {
     flex: 1 1 100%;
+  }
+  .quiz-card {
+    padding: 10px;
+  }
+  .quiz-shot {
+    --fc-inset: 8px;
+  }
+  .quiz-hud {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  .quiz-hud--tl,
+  .quiz-hud--tr {
+    top: 18px;
+  }
+  .quiz-hud--bl,
+  .quiz-hud--br {
+    bottom: 18px;
+  }
+  .quiz-hud--tl,
+  .quiz-hud--bl {
+    left: 20px;
+  }
+  .quiz-hud--tr,
+  .quiz-hud--br {
+    right: 20px;
+  }
+  .quiz-hud {
+    padding: 2px 5px;
+  }
+  .quiz-score div {
+    padding: 8px 10px 9px;
+  }
+  .quiz-score dd {
+    font-size: 17px;
   }
 }

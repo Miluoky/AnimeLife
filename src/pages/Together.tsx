@@ -37,21 +37,39 @@ import Schedule from '../components/together/ScheduleSession'
 import { MEMBER_TTL, PRESENCE_EVERY, loadMembers, presence, subscribeMembers, type Member } from '../data/voice'
 
 /*
- * Синхронизация как на Senku: команды комнаты (плей, пауза, перемотка) применяем один раз, когда они пришли,
- * а мелкие расхождения не трогаем. Раньше видео подтягивалось к комнате 4 раза в секунду с допуском
- * в полсекунды: пока поток догружался после перемотки, время отставало, плеер перематывался снова,
- * его события уходили в комнату как действия зрителя, и у всех видео дёргалось по кругу.
+ * Синхронизация. Комната хранит опорную точку: позицию видео и момент нажатия по общим часам (serverNow).
+ * Где видео должно быть сейчас, каждый считает сам (roomPosition) и раз в секунду сверяется:
+ * - отстали или спешим на долю секунды — чуть меняем скорость (до ±10%), догоняем без рывка;
+ * - разошлись больше чем на секунду — перематываем, сразу с поправкой на то, сколько плеер грузится
+ *   после перемотки (её узнаём по прошлой перемотке), и после этого не перематываем SEEK_COOLDOWN.
+ * Раньше мелкие расхождения не трогали вовсе (допуск 2 с, у Kodik 4 с), время у Kodik знали с точностью
+ * до секунды, а момент нажатия сервер записывал с опозданием на работу функции — отсюда отставание на пару секунд.
  */
-/** Расхождение (секунды), после которого перематываем идущее видео. */
-const SEEK_DRIFT = 2
-/** Kodik сообщает время раз в секунду и перематывает долго: допуск шире. */
-const COARSE_SEEK_DRIFT = 4
+/** Расхождение (секунды), после которого перематываем, а не догоняем скоростью. */
+const SEEK_DRIFT = 1
+/** У YouTube скорость меняется только ступенями: там перематываем раньше. */
+const SEEK_DRIFT_NO_RATE = 0.6
+/** Меньше этого расхождения не замечаем (секунды): точнее время плеера всё равно не узнать. */
+const FINE_DRIFT = 0.12
+/** Насколько сильнее разгоняемся на каждую секунду расхождения, и предел разгона. */
+const RATE_GAIN = 0.3
+const MAX_NUDGE = 0.1
 /** На паузе ставим кадр точно: перемотка стоящего видео ничего не ломает. */
-const PAUSED_DRIFT = 0.25
+const PAUSED_DRIFT = 0.1
 /** Как часто сверяемся с комнатой между командами. */
-const WATCH_EVERY = 2000
+const WATCH_EVERY = 1000
 /** В фоне перематываем не чаще этого (мс), чтобы догрузка потока не зациклила перемотки. */
-const SEEK_COOLDOWN = 6000
+const SEEK_COOLDOWN = 5000
+/** Через сколько после перемотки смотрим, сколько плеер на ней потерял. */
+const LEAD_CHECK_MS = 2500
+/** Предел поправки на загрузку после перемотки (секунды). */
+const MAX_LEAD = 2
+
+/** Скорость, с которой догоняем комнату: drift > 0 — спешим, замедляемся; drift < 0 — отстаём, ускоряемся. */
+function catchUpRate(drift: number) {
+  if (Math.abs(drift) < FINE_DRIFT) return 1
+  return Math.round((1 - Math.max(-MAX_NUDGE, Math.min(MAX_NUDGE, drift * RATE_GAIN))) * 100) / 100
+}
 
 const errorText = (e: unknown) => (e instanceof CommunityError ? e.message : 'Не получилось. Попробуйте ещё раз.')
 
@@ -85,8 +103,11 @@ export default function Together() {
   const canControl = !!user && !!room && (isHost || room.controlAll)
 
   // Подтягиваем видео к комнате. mode: 'event' — пришла команда, 'retry' — плеер мог её проглотить,
-  // 'watch' — плановая сверка: только заметные расхождения и не чаще SEEK_COOLDOWN.
+  // 'watch' — плановая сверка раз в секунду: скорость подстраиваем всегда, перематываем не чаще SEEK_COOLDOWN.
   const lastSeek = useRef(0)
+  /** на сколько секунд вперёд перематывать: столько плеер грузится после перемотки */
+  const seekLead = useRef(0)
+  const leadPending = useRef(false)
   const stalled = useRef(0)
   const [blocked, setBlocked] = useState(false)
   const align = useCallback(
@@ -94,33 +115,50 @@ export default function Together() {
       const r = roomRef.current
       const v = video.current
       if (!r || !v || !joined || !ready) return
-      const coarse = v.coarse()
       if (!r.playing) {
         if (!v.paused()) v.pause()
-        if (mode !== 'retry' && Math.abs(v.time() - r.position) > (coarse ? 1 : PAUSED_DRIFT)) v.seek(r.position)
+        // Кадр ставим точно, когда пришла команда; в плановой сверке — только если ушли далеко: плеер мог
+        // уже пойти от нажатия зрителя, а событие об этом ещё в пути (перемотка его бы заглушила).
+        if (mode !== 'retry' && Math.abs(v.time() - r.position) > (mode === 'event' ? PAUSED_DRIFT : SEEK_DRIFT)) v.seek(r.position)
         v.rate(1)
+        leadPending.current = false
         stalled.current = 0
         setBlocked(false)
         return
       }
       const target = roomPosition(r)
+      // Стоит, а должно идти: ставим на место и включаем. Kodik пропускает «плей», присланный сразу
+      // за перемоткой стоящего плеера (на настоящем плеере видео так стояло 12 секунд), его сначала
+      // включаем, а догоняем на следующей сверке, когда уже идёт.
+      if (v.paused()) {
+        if (mode !== 'retry' && v.seekThenPlay() && Math.abs(v.time() - target) > SEEK_DRIFT) v.seek(target)
+        v.play()
+        // Браузер не дал включить видео без нажатия: после трёх сверок подряд просим нажать самому.
+        if (mode === 'watch' && ++stalled.current >= 3) setBlocked(true)
+        return
+      }
+      stalled.current = 0
+      setBlocked(false)
       const drift = v.time() - target
       const now = Date.now()
-      if (mode !== 'retry' && Math.abs(drift) > (coarse ? COARSE_SEEK_DRIFT : SEEK_DRIFT) && (mode === 'event' || now - lastSeek.current > SEEK_COOLDOWN)) {
-        v.seek(target)
-        lastSeek.current = now
-        v.rate(1)
-      } else {
-        // Отстаём или спешим чуть-чуть: на 5% быстрее или медленнее, без рывка (только своё видео).
-        v.rate(Math.abs(drift) > 0.4 ? (drift > 0 ? 0.95 : 1.05) : 1)
+      // Прошлая перемотка: насколько видео всё равно отстало, на столько в следующий раз перематываем дальше.
+      // Неправдоподобно большую потерю (реклама, первая загрузка) за потерю на перемотке не считаем.
+      if (leadPending.current && now - lastSeek.current > LEAD_CHECK_MS) {
+        leadPending.current = false
+        if (Math.abs(drift) < MAX_LEAD) seekLead.current = Math.max(0, Math.min(MAX_LEAD, seekLead.current - drift))
+        console.debug(`[комната] после перемотки расхождение ${drift.toFixed(2)} с, поправка ${seekLead.current.toFixed(2)} с`)
       }
-      if (v.paused()) {
-        v.play()
-        // Браузер не дал включить видео без нажатия: после двух сверок подряд просим нажать самому.
-        if (mode === 'watch' && ++stalled.current >= 2) setBlocked(true)
-      } else {
-        stalled.current = 0
-        setBlocked(false)
+      const far = Math.abs(drift) > (v.smooth() ? SEEK_DRIFT : SEEK_DRIFT_NO_RATE)
+      if (mode !== 'retry' && far && (mode === 'event' || now - lastSeek.current > SEEK_COOLDOWN)) {
+        v.rate(1)
+        // Видно в консоли браузера на уровне Verbose: так проще разбирать жалобы «у друга отстаёт».
+        console.debug(`[комната] ${mode}: расхождение ${drift.toFixed(2)} с, перемотка на ${(target + seekLead.current).toFixed(2)}`)
+        v.seek(target + seekLead.current)
+        lastSeek.current = now
+        leadPending.current = true
+      } else if (now - lastSeek.current > 1500) {
+        // Сразу после перемотки плеер ещё грузится: скорость не трогаем, пока не пойдёт.
+        v.rate(catchUpRate(drift))
       }
     },
     [joined, ready],
@@ -215,10 +253,11 @@ export default function Together() {
     const r = roomRef.current
     if (!r) return
     // Сразу показываем у себя, не дожидаясь сервера: так управление не «тормозит».
-    // Точное время сервера придёт вместе с обновлённой комнатой через Realtime.
-    setRoom({ ...r, ...state, at: serverNow(), actor: user?.name })
+    // Момент нажатия по общим часам уходит на сервер: от него все считают позицию видео.
+    const at = serverNow()
+    setRoom({ ...r, ...state, at, actor: user?.name })
     try {
-      await controlRoom(r.$id, state)
+      await controlRoom(r.$id, { ...state, at })
     } catch (e) {
       toast(errorText(e))
       void loadRoom(r.$id).then((fresh) => fresh && setRoom(fresh))
@@ -229,14 +268,16 @@ export default function Together() {
     const r = roomRef.current
     if (!r) return
     // Плеер сообщил то же, что и так в комнате (догрузка, эхо команды): никому ничего не шлём.
-    const tolerance = video.current?.coarse() ? COARSE_SEEK_DRIFT : 1.5
-    if (state.playing === r.playing && Math.abs(state.position - roomPosition(r)) < tolerance) return
+    if (state.playing === r.playing && Math.abs(state.position - roomPosition(r)) < 1.5 + seekLead.current) return
     if (!canControl) {
       toast(user ? 'Управляет ведущий комнаты' : 'Войдите, чтобы управлять просмотром')
       align('event')
       return
     }
     setBlocked(false)
+    // Зритель сам перемотал: плеер сейчас догружается, его не перематываем следом, догоним скоростью.
+    lastSeek.current = Date.now()
+    leadPending.current = false
     void send(state)
   }
 

@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { CloseIcon, MenuIcon, UserIcon } from './Icons'
+import { useInboxCount } from '../data/inbox'
 import SearchBox from './SearchBox'
 import BottomNav from './BottomNav'
 import Toasts from './Toasts'
@@ -11,6 +12,7 @@ import { useViewTransitions } from './morph'
 import { useScrollRestore } from './scrollRestore'
 import { useCanonical } from '../data/pageMeta'
 import { trackPage } from '../data/analytics'
+import { useAmbientSrc } from './ambient'
 
 // Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
 const InstallBanner = lazy(() => import('./InstallBanner'))
@@ -30,14 +32,28 @@ export function Logo() {
   )
 }
 
+/** Свет постера под всей страницей (см. ambient.ts). Новый постер проявляется поверх старого. */
+function Ambient() {
+  const src = useAmbientSrc()
+  return <div className="ambient" aria-hidden="true">{src && <img key={src} src={src} alt="" decoding="async" />}</div>
+}
+
+/** «Смотрю» в меню шапки: красная точка, если у тайтлов из «Смотрю» вышли новые серии. */
+function WatchingLink() {
+  const fresh = useInboxCount()
+  return (
+    <NavLink to="/watching" className={fresh ? 'has-fresh' : undefined} aria-label={fresh ? `Смотрю: новых серий ${fresh}` : undefined}>
+      Смотрю
+    </NavLink>
+  )
+}
+
 export default function Layout() {
   const location = useLocation()
   const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   // Меню закрывается с анимацией: пока она идёт, оно ещё на экране.
   const [menuClosing, setMenuClosing] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-  const [hidden, setHidden] = useState(false)
   const header = useRef<HTMLElement>(null)
   const [hoverCards, setHoverCards] = useState(false)
 
@@ -80,16 +96,23 @@ export default function Layout() {
   }, [publicProfile])
 
   // Оформление из настроек (тема, акцент) и шапка, которая становится полупрозрачной при прокрутке.
-  // Как на AniLife, при прокрутке вниз шапка уезжает и возвращается, стоит прокрутить чуть вверх.
+  // Как на AniLife, при прокрутке вниз шапка и нижнее меню уезжают и возвращаются, стоит прокрутить чуть вверх.
+  // Классы ставим прямо на элементы, без состояния React: иначе каждая смена направления прокрутки
+  // перерисовывала бы шапку, меню и подвал посреди жеста, и на слабых телефонах прокрутка дёргалась.
   useEffect(() => {
     applyAppearance()
     let last = window.scrollY
+    let hidden = false
     const onScroll = () => {
       const y = window.scrollY
-      setScrolled(y > 8)
+      header.current?.classList.toggle('site-header--scrolled', y > 8)
       if (Math.abs(y - last) < 8) return
-      setHidden(y > last && y > 240)
+      const hide = y > last && y > 240
       last = y
+      if (hide === hidden) return
+      hidden = hide
+      header.current?.classList.toggle('site-header--hidden', hide)
+      document.documentElement.classList.toggle('scroll-down', hide)
     }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -118,7 +141,7 @@ export default function Layout() {
         Главная
       </NavLink>
       <NavLink to="/catalog">Каталог</NavLink>
-      <NavLink to="/ongoing">Онгоинги</NavLink>
+      <WatchingLink />
       <NavLink to="/schedule">Расписание</NavLink>
       <NavLink to="/together">Вместе</NavLink>
       <NavLink to="/chat">Чат</NavLink>
@@ -128,7 +151,8 @@ export default function Layout() {
 
   return (
     <>
-      <header ref={header} className={`site-header${scrolled ? ' site-header--scrolled' : ''}${hidden && !menuOpen ? ' site-header--hidden' : ''}`}>
+      <Ambient />
+      <header ref={header} className="site-header">
         <div className="container site-header__inner">
           <Logo />
           <nav className="site-nav" aria-label="Основное меню">
