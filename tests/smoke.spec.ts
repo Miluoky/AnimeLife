@@ -86,7 +86,7 @@ test('«Забыли пароль?»: письмо со ссылкой на эт
   await expect(page.getByRole('status').filter({ hasText: 'Письмо отправлено на aya@example.com' })).toBeVisible()
   expect(requests[0]).toEqual({
     method: 'POST',
-    body: { email: 'aya@example.com', url: `http://localhost:${process.env.PW_PORT ?? 4173}/account/recovery` },
+    body: { email: 'aya@example.com', url: new URL('/account/recovery', test.info().project.use.baseURL).href },
   })
 
   await page.goto('/account/recovery?userId=u1&secret=s3cret')

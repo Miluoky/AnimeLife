@@ -272,7 +272,7 @@ test('две вкладки одной комнаты идут вровень: �
   let room: Record<string, unknown> = { ...baseRoom, source: 'trailer', videoId: 'pl-ax-29', playing: false, position: 0, at: Date.now() }
   const pushes: Array<(payload: Record<string, unknown>) => Promise<void>> = []
   const open = async (host: boolean, skew: number, delay: number) => {
-    const context = await browser.newContext({ baseURL: `http://localhost:${process.env.PW_PORT ?? 4173}`, serviceWorkers: 'block' })
+    const context = await browser.newContext({ baseURL: test.info().project.use.baseURL, serviceWorkers: 'block' })
     if (skew) await context.addInitScript((ms) => { const now = Date.now.bind(Date); Date.now = () => now() + ms }, skew)
     const page = await context.newPage()
     await mockServices(page)
