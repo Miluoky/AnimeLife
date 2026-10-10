@@ -165,6 +165,45 @@ function titles(n: number) {
   return `${n} ${word === 'one' ? 'тайтл' : word === 'few' ? 'тайтла' : 'тайтлов'}`
 }
 
+/** Что даёт аккаунт: экран видоискателя рядом с формой входа (на телефоне скрыт, чтобы форма была сразу под рукой). */
+function AccountPerks() {
+  const perks = [
+    ['Мой список', 'одинаковый на телефоне и компьютере'],
+    ['Смотрю', 'серия и минута, где вы остановились'],
+    ['Новые серии', 'уведомления о том, что вы смотрите'],
+    ['Профиль', 'достижения, оценки и статистика'],
+  ]
+  return (
+    <aside className="acc__screen frame-corners" aria-label="Что даёт аккаунт">
+      <span className="acc__hud acc__hud--tl" aria-hidden="true">
+        <i /> REC
+      </span>
+      <span className="acc__hud acc__hud--tr" aria-hidden="true">
+        SYNC
+      </span>
+      <p className="acc__screen-title">Ваше аниме — на всех экранах</p>
+      <ol className="acc__perks">
+        {perks.map(([title, text], i) => (
+          <li key={title}>
+            <span className="acc__tc" aria-hidden="true">
+              {`0${i + 1}`}
+            </span>
+            <span>
+              <b>{title}</b> {text}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <span className="acc__hud acc__hud--bl" aria-hidden="true">
+        00:24:00
+      </span>
+      <span className="acc__hud acc__hud--br" aria-hidden="true">
+        ★ 10.0
+      </span>
+    </aside>
+  )
+}
+
 function AuthForm() {
   // reset — «Забыли пароль?»: письмо со ссылкой на /account/recovery
   const [mode, setMode] = useState<'in' | 'up' | 'reset'>('in')
@@ -310,7 +349,13 @@ export default function Account() {
 
   return (
     <main className="container home">
-      <section className="stack auth-page">
+      <section className={`stack auth-page acc${user ? '' : ' acc--guest'}`}>
+        <p className="acc__rec" aria-hidden="true">
+          <i />
+          <b>REC</b>
+          <span>{user ? 'Профиль' : 'Вход'}</span>
+          <span>{user ? 'Синхронизация' : 'CAM 01'}</span>
+        </p>
         <h1 className="page-title">{user ? 'Профиль' : 'Вход'}</h1>
         {user ? (
           <div className="auth-card stack">
@@ -352,7 +397,10 @@ export default function Account() {
             </div>
           </div>
         ) : (
-          <AuthForm />
+          <div className="acc__grid">
+            <AuthForm />
+            <AccountPerks />
+          </div>
         )}
       </section>
       {user?.labels?.includes('admin') && (
