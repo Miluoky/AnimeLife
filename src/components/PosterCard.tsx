@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom'
 import type { SyntheticEvent } from 'react'
 import type { Anime, AnimeCard } from '../data/catalog'
 import { prefetchTitle } from '../api/prefetch'
-import { listStatuses, totalEpisodes, useMyListEntry } from '../data/myList'
+import { listStatuses, setListStatus, totalEpisodes, useMyListEntry } from '../data/myList'
+import { toast } from '../data/toast'
+import { PlusIcon } from './Icons'
 import { useHistoryEntry } from '../data/history'
 
 /** Картинка проявляется, когда догрузилась, а не появляется построчно. */
@@ -69,34 +71,54 @@ export default function PosterCard({
   const watched = entry?.status === 'completed' ? total : Math.max(entry?.watched ?? 0, seen ? seen.episode - 1 : 0)
   const mine = !hideMine && entry && listStatuses.find((s) => s.id === entry.status)?.title
 
+  // Быстрое «Буду смотреть» прямо с карточки, без перехода на страницу тайтла.
+  // Кнопка стоит рядом со ссылкой, а не внутри неё: кнопка внутри ссылки недопустима.
+  const quickAdd = !entry && (
+    <button
+      type="button"
+      className="poster-quick"
+      aria-label={`«${anime.title}»: добавить в «Буду смотреть»`}
+      title="Буду смотреть"
+      onClick={() => {
+        setListStatus(anime, 'planned')
+        toast(`${anime.title}: «Буду смотреть»`, { label: 'Отменить', onClick: () => setListStatus(anime, undefined) })
+      }}
+    >
+      <PlusIcon size={18} />
+    </button>
+  )
+
   return (
-    <Link to={to} className="poster-card" onMouseEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch}>
-      {/* data-morph: при переходе на страницу тайтла постер «перелетает» в её шапку (см. morph.ts) */}
-      <div className="poster-card__img" data-morph style={{ background: anime.posterFill }}>
-        <Poster anime={anime} priority={priority} />
-        {anime.ongoing && <span className="poster-card__badge">Онгоинг</span>}
-        {anime.score ? <span className="poster-card__score">★ {anime.score.toFixed(1)}</span> : null}
-        {tag ? (
-          <span className={`poster-card__tag${tag.accent ? ' poster-card__tag--accent' : ''}`}>{tag.text}</span>
-        ) : (
-          mine &&
-          entry && (
-            <span className={`poster-card__tag poster-card__mine poster-card__mine--${entry.status}`}>
-              {mine}
-              {entry.status === 'watching' && total > 1 && watched > 0 ? ` · ${watched}/${total}` : ''}
+    <div className="poster-card-wrap">
+      <Link to={to} className="poster-card" onMouseEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch}>
+        {/* data-morph: при переходе на страницу тайтла постер «перелетает» в её шапку (см. morph.ts) */}
+        <div className="poster-card__img" data-morph style={{ background: anime.posterFill }}>
+          <Poster anime={anime} priority={priority} />
+          {anime.ongoing && <span className="poster-card__badge">Онгоинг</span>}
+          {anime.score ? <span className="poster-card__score">★ {anime.score.toFixed(1)}</span> : null}
+          {tag ? (
+            <span className={`poster-card__tag${tag.accent ? ' poster-card__tag--accent' : ''}`}>{tag.text}</span>
+          ) : (
+            mine &&
+            entry && (
+              <span className={`poster-card__tag poster-card__mine poster-card__mine--${entry.status}`}>
+                {mine}
+                {entry.status === 'watching' && total > 1 && watched > 0 ? ` · ${watched}/${total}` : ''}
+              </span>
+            )
+          )}
+          {total > 1 && watched > 0 && watched < total && (
+            <span className="poster-card__progress" aria-hidden="true">
+              <span style={{ width: `${(watched / total) * 100}%` }} />
             </span>
-          )
-        )}
-        {total > 1 && watched > 0 && watched < total && (
-          <span className="poster-card__progress" aria-hidden="true">
-            <span style={{ width: `${(watched / total) * 100}%` }} />
-          </span>
-        )}
-      </div>
-      <div>
-        <div className="poster-card__title">{anime.title}</div>
-        <div className="poster-card__meta">{meta}</div>
-      </div>
-    </Link>
+          )}
+        </div>
+        <div>
+          <div className="poster-card__title">{anime.title}</div>
+          <div className="poster-card__meta">{meta}</div>
+        </div>
+      </Link>
+      {quickAdd}
+    </div>
   )
 }

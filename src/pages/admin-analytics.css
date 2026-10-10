@@ -20,7 +20,7 @@
   gap: 6px;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--surface);
 }
 
@@ -55,7 +55,7 @@
   margin: 24px 0 0;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--surface);
 }
 
@@ -149,7 +149,7 @@
   min-width: 0;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--surface);
 }
 

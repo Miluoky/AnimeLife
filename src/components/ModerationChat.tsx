@@ -1,3 +1,4 @@
+import './reviews.css'
 import { useEffect, useState } from 'react'
 import {
   loadCommunityChatModeration,

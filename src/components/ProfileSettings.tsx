@@ -1,3 +1,4 @@
+import './profile.css'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { setPublicProfile, useAuth } from '../data/auth'
 import { toast } from '../data/toast'

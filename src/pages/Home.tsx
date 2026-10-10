@@ -11,12 +11,14 @@ import { toast } from '../data/toast'
 import CatalogSection from '../components/CatalogSection'
 import { Poster } from '../components/PosterCard'
 import { PauseIcon, PlayIcon } from '../components/Icons'
+import { useAmbient } from '../components/ambient'
 
 // Рекомендации ниже первого экрана: отдельная часть, грузится следом.
 const Recommendations = lazy(() => import('../components/Recommendations'))
 // Полки «сезон», «скоро», «лучшее» тоже ниже баннера: своей частью, чтобы не утяжелять первый экран.
 const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.SeasonShelf })))
 const NewEpisodesShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.NewEpisodesShelf })))
+const HomeBento = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.HomeBento })))
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 
 // 3D-кольцо постеров есть только на широком экране: его стили грузим только там.
@@ -54,6 +56,8 @@ function Hero() {
     return () => clearTimeout(t)
   }, [next?.id, items.length])
   const shot = shots.value && !shots.loading ? shots.value : undefined
+  // Страница подсвечивается постером тайтла из баннера.
+  useAmbient(current?.posterSmall)
 
   useEffect(() => {
     if (items.length < 2 || paused) return
@@ -66,7 +70,13 @@ function Hero() {
     return <section className="hero skeleton hero--loading" aria-busy={list.loading} />
   }
 
-  const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} серий`, anime.studio].filter(Boolean)
+  const meta = [
+    anime.episodesAired ? `EP ${anime.episodesAired}${anime.episodes ? `/${anime.episodes}` : ''}` : anime.episodes && `${anime.episodes} серий`,
+    anime.score && `★ ${anime.score.toFixed(2)}`,
+    anime.year,
+    anime.kind,
+    anime.studio,
+  ].filter(Boolean)
 
   return (
     <section
@@ -88,6 +98,11 @@ function Hero() {
         >
           {paused ? <PlayIcon /> : <PauseIcon />}
         </button>
+      )}
+      {anime.japaneseTitle && /[\u3040-\u30ff\u4e00-\u9fff]/.test(anime.japaneseTitle) && (
+        <span key={`jp-${anime.id}`} className="hero__jp" lang="ja" aria-hidden="true">
+          {anime.japaneseTitle}
+        </span>
       )}
       <div className="hero__text" key={anime.id}>
         <div className="eyebrow">
@@ -247,6 +262,7 @@ export default function Home() {
       </div>
       <Hero />
       <Suspense fallback={null}>
+        <HomeBento />
         <SeasonShelf />
         <Recommendations />
         <MoreShelves />

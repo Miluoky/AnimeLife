@@ -6,25 +6,31 @@
 }
 .shelf__icon {
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 2px;
   display: grid;
   place-items: center;
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  /* «Кадр»: тонкая рамка вместо розовой плашки */
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .shelf__titles {
   flex: 1 1 auto;
   min-width: 0;
 }
 .shelf__titles h2 {
-  font-weight: 500;
+  font-weight: 700;
   font-size: 26px;
+  letter-spacing: -0.02em;
 }
+/* Подпись полки — служебная строка моноширинным, как пометка на плёнке. */
 .shelf__titles p {
-  margin: 2px 0 0;
-  font-size: 14px;
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .shelf__title-link {
   color: inherit;
@@ -39,10 +45,33 @@
   color: var(--accent);
 }
 .shelf__more {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
   white-space: nowrap;
-  font-size: 15px;
+  font-family: var(--font-mono);
+  font-size: 13px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+/* «Все» — заметная кнопка-пилюля со стрелкой, а не серый текст в углу. */
+.shelf__more::after {
+  content: '›';
+  color: var(--accent);
+  font-size: 18px;
+  line-height: 1;
+}
+.shelf__more:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .shelf__body {
   position: relative;
@@ -103,8 +132,7 @@
     font-size: 13px;
   }
   .shelf__icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
   }
 }

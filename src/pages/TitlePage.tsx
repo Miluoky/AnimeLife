@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { type CSSProperties, type FormEvent, type ReactNode, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
+import { useAmbient } from '../components/ambient'
 import { loadAnime, loadTitleExtras, useAsync } from '../api'
 import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeCount } from '../data/catalog'
@@ -150,6 +151,8 @@ export default function TitlePage() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadAnime(id), [id])
   const extras = useAsync(() => loadTitleExtras(id), [id])
+  // «Кадр»: страница подсвечена постером тайтла.
+  useAmbient(result.value?.data?.posterSmall ?? result.value?.data?.posterUrl)
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
   // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.
@@ -258,6 +261,11 @@ export default function TitlePage() {
         ) : (
           <span className="art-label">[Широкий баннер тайтла]</span>
         )}
+        {anime.japaneseTitle && /[\u3040-\u30ff\u4e00-\u9fff]/.test(anime.japaneseTitle) && (
+          <span className="banner__jp" lang="ja" aria-hidden="true">
+            {anime.japaneseTitle}
+          </span>
+        )}
       </div>
       <main className="container title-page">
         <section className="title-head" style={{ '--glow': anime.posterFill } as CSSProperties}>
@@ -265,7 +273,7 @@ export default function TitlePage() {
             <Poster anime={anime} alt={`Постер аниме «${anime.title}»`} />
           </div>
           <div className="title-head__info">
-            {anime.originalTitle && <div className="muted">{anime.originalTitle}</div>}
+            {anime.originalTitle && <div className="title-head__orig">{anime.originalTitle}</div>}
             <h1 className="title-head__title">{anime.title}</h1>
             <div className="chips">
               <span className="chip chip--accent">{anime.ongoing ? 'Онгоинг' : anime.upcoming ? 'Анонс' : 'Вышел'}</span>

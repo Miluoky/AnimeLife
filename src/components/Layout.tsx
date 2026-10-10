@@ -11,6 +11,7 @@ import { useViewTransitions } from './morph'
 import { useScrollRestore } from './scrollRestore'
 import { useCanonical } from '../data/pageMeta'
 import { trackPage } from '../data/analytics'
+import { useAmbientSrc } from './ambient'
 
 // Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
 const InstallBanner = lazy(() => import('./InstallBanner'))
@@ -28,6 +29,12 @@ export function Logo() {
       Anime <span>Life</span>
     </Link>
   )
+}
+
+/** Свет постера под всей страницей (см. ambient.ts). Новый постер проявляется поверх старого. */
+function Ambient() {
+  const src = useAmbientSrc()
+  return <div className="ambient" aria-hidden="true">{src && <img key={src} src={src} alt="" decoding="async" />}</div>
 }
 
 export default function Layout() {
@@ -128,6 +135,7 @@ export default function Layout() {
 
   return (
     <>
+      <Ambient />
       <header ref={header} className={`site-header${scrolled ? ' site-header--scrolled' : ''}${hidden && !menuOpen ? ' site-header--hidden' : ''}`}>
         <div className="container site-header__inner">
           <Logo />

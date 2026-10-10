@@ -1,0 +1,99 @@
+/* Трекинг: прогресс серий, импорт списка. Нужны только на страницах тайтла, списка и профиля. */
+.list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+.progress__bar {
+  flex: 1 1 120px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.progress__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.progress__text {
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.progress__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 34px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+}
+.progress__btn--plus {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--accent);
+}
+.progress__btn:active {
+  transform: scale(0.92);
+}
+.progress--compact {
+  gap: 6px;
+  font-size: 12px;
+}
+.progress--compact .progress__bar {
+  flex-basis: 100%;
+  order: -1;
+  height: 4px;
+}
+.progress--compact .progress__btn {
+  height: 26px;
+  margin-left: auto;
+}
+.title-head .progress {
+  max-width: 420px;
+  margin-top: 4px;
+}
+.list-tools {
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 14px 18px;
+}
+.list-tools summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.list-tools__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.list-tools__card {
+  gap: 8px;
+  padding: 14px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.list-tools__card .btn {
+  align-self: flex-start;
+}

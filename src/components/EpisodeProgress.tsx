@@ -1,3 +1,4 @@
+import './tracking.css'
 import { listStatuses, restoreEntry, setWatched, totalEpisodes, type ListEntry } from '../data/myList'
 import { toast } from '../data/toast'
 import { PlusIcon } from './Icons'

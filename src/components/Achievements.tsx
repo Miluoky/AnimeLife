@@ -1,3 +1,4 @@
+import './profile.css'
 import { achievements } from '../data/achievements'
 
 /** Сетка достижений: открытые цветные, закрытые приглушены и подсказывают, что сделать. */

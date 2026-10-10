@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { loadSchedule, useAsync, type ScheduleItem } from '../api'
+import Mascot from '../components/Mascot'
+import '../components/empty-card.css'
 import { Poster } from '../components/PosterCard'
 import { usePageMeta } from '../data/pageMeta'
 import { useMyList } from '../data/myList'
@@ -168,7 +170,19 @@ export default function Schedule() {
             })}
           </div>
         ) : (
-          <p className="muted">На этой неделе новых серий нет.</p>
+          <div className="empty-card">
+            <Mascot />
+            <h2>На этой неделе новых серий нет</h2>
+            <p className="muted">Онгоинги на перерыве. Загляните в каталог или посмотрите, что уже вышло целиком.</p>
+            <div className="actions">
+              <Link to="/catalog" className="btn btn--accent">
+                Открыть каталог
+              </Link>
+              <Link to="/random" className="btn btn--ghost">
+                Что посмотреть?
+              </Link>
+            </div>
+          </div>
         )}
       </section>
     </main>
