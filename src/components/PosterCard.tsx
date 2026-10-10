@@ -53,8 +53,11 @@ export default function PosterCard({
   priority,
   tag,
   hideMine,
+  href,
 }: {
   anime: AnimeCard
+  /** карточка ведёт не на аниме (например, на мангу): без быстрого добавления в список и без предзагрузки тайтла */
+  href?: string
   priority?: boolean
   /** плашка внизу постера, например отношение к тайтлу («Продолжение») */
   tag?: { text: string; accent?: boolean }
@@ -62,8 +65,8 @@ export default function PosterCard({
   hideMine?: boolean
 }) {
   const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} эп.`].filter(Boolean).join(' · ')
-  const prefetch = () => prefetchTitle(anime.id)
-  const to = `/anime/${anime.id}`
+  const prefetch = href ? undefined : () => prefetchTitle(anime.id)
+  const to = href ?? `/anime/${anime.id}`
   // Свой статус видно прямо на постере: что уже в списке и сколько серий осталось.
   const entry = useMyListEntry(anime.id)
   const seen = useHistoryEntry(anime.id)
@@ -73,7 +76,7 @@ export default function PosterCard({
 
   // Быстрое «Буду смотреть» прямо с карточки, без перехода на страницу тайтла.
   // Кнопка стоит рядом со ссылкой, а не внутри неё: кнопка внутри ссылки недопустима.
-  const quickAdd = !entry && (
+  const quickAdd = !entry && !href && (
     <button
       type="button"
       className="poster-quick"
