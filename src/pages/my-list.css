@@ -52,6 +52,12 @@
 .pick-for-me__start {
   justify-self: start;
   align-self: flex-start;
+  /* На телефоне длинная подпись переносится, а не уводит страницу вбок. */
+  max-width: 100%;
+  height: auto;
+  min-height: 52px;
+  padding-block: 10px;
+  white-space: normal;
 }
 .pick-for-me {
   display: flex;
