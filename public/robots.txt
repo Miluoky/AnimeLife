@@ -3,5 +3,6 @@ Allow: /
 Disallow: /account
 Disallow: /auth/
 Disallow: /moderation
+Disallow: /watching
 
 Sitemap: https://animelife.top/sitemap.xml

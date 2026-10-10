@@ -8,6 +8,7 @@ export const pageChunks = {
   landing: () => import('../pages/Landing'),
   schedule: () => import('../pages/Schedule'),
   myList: () => import('../pages/MyList'),
+  watching: () => import('../pages/Watching'),
   account: () => import('../pages/Account'),
   passwordRecovery: () => import('../pages/PasswordRecovery'),
   moderation: () => import('../pages/Moderation'),

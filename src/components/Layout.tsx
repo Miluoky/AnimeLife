@@ -43,8 +43,6 @@ export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
   // Меню закрывается с анимацией: пока она идёт, оно ещё на экране.
   const [menuClosing, setMenuClosing] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-  const [hidden, setHidden] = useState(false)
   const header = useRef<HTMLElement>(null)
   const [hoverCards, setHoverCards] = useState(false)
 
@@ -87,16 +85,23 @@ export default function Layout() {
   }, [publicProfile])
 
   // Оформление из настроек (тема, акцент) и шапка, которая становится полупрозрачной при прокрутке.
-  // Как на AniLife, при прокрутке вниз шапка уезжает и возвращается, стоит прокрутить чуть вверх.
+  // Как на AniLife, при прокрутке вниз шапка и нижнее меню уезжают и возвращаются, стоит прокрутить чуть вверх.
+  // Классы ставим прямо на элементы, без состояния React: иначе каждая смена направления прокрутки
+  // перерисовывала бы шапку, меню и подвал посреди жеста, и на слабых телефонах прокрутка дёргалась.
   useEffect(() => {
     applyAppearance()
     let last = window.scrollY
+    let hidden = false
     const onScroll = () => {
       const y = window.scrollY
-      setScrolled(y > 8)
+      header.current?.classList.toggle('site-header--scrolled', y > 8)
       if (Math.abs(y - last) < 8) return
-      setHidden(y > last && y > 240)
+      const hide = y > last && y > 240
       last = y
+      if (hide === hidden) return
+      hidden = hide
+      header.current?.classList.toggle('site-header--hidden', hide)
+      document.documentElement.classList.toggle('scroll-down', hide)
     }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -129,6 +134,7 @@ export default function Layout() {
       <NavLink to="/schedule">Расписание</NavLink>
       <NavLink to="/together">Вместе</NavLink>
       <NavLink to="/chat">Чат</NavLink>
+      <NavLink to="/watching">Смотрю</NavLink>
       <NavLink to="/my-list">Мой список</NavLink>
     </>
   )
@@ -136,7 +142,7 @@ export default function Layout() {
   return (
     <>
       <Ambient />
-      <header ref={header} className={`site-header${scrolled ? ' site-header--scrolled' : ''}${hidden && !menuOpen ? ' site-header--hidden' : ''}`}>
+      <header ref={header} className="site-header">
         <div className="container site-header__inner">
           <Logo />
           <nav className="site-nav" aria-label="Основное меню">
