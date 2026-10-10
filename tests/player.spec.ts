@@ -381,6 +381,14 @@ test('последняя серия: «Дальше по порядку» вед
   await expect(page.getByRole('complementary', { name: 'Следующая часть' })).toHaveCount(0)
 })
 
+test('серии с таким номером нет: сколько вышло и кнопка к последней серии', async ({ page }) => {
+  await page.goto('/watch/1/999')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Серия ещё не вышла')
+  await expect(page.locator('main')).toContainText('Всего серий: 26.')
+  await page.getByRole('link', { name: 'Последняя серия' }).click()
+  await expect(page).toHaveURL(/\/watch\/1\/26$/)
+})
+
 test('плеер: нет в AniLibria, но есть в AnimeVost — включается AnimeVost в 720p по https', async ({ page }) => {
   await mockAniLibria(page, search.slice(0, 1))
   const searches: string[] = []
