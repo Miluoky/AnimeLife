@@ -203,10 +203,9 @@ export default function TitlePage() {
   // Сколько времени займёт весь сериал (или вышедшие серии онгоинга) и сколько осталось от места, где остановились.
   const outNow = anime.ongoing ? (anime.episodesAired ?? 0) : (anime.episodes ?? 0)
   const left = Math.max(0, outNow - (progress ? progress.episode - 1 : 0))
-  const totalTime =
-    anime.episodeMinutes && outNow > 1
-      ? `≈ ${hoursLabel(outNow * anime.episodeMinutes)}${progress && left > 0 && left < outNow ? ` · осталось ${hoursLabel(left * anime.episodeMinutes)}` : ''}`
-      : ''
+  const totalTime = anime.episodeMinutes && outNow > 1 ? `≈ ${hoursLabel(outNow * anime.episodeMinutes)}` : ''
+  // «Осталось» — отдельной ячейкой: в одной строке с «≈ 48 мин» на телефоне выходило три строки.
+  const leftTime = totalTime && progress && left > 0 && left < outNow ? hoursLabel(left * anime.episodeMinutes!) : ''
   const facts = (
     [
       ['Тип', anime.kind],
@@ -220,6 +219,7 @@ export default function TitlePage() {
       ],
       ['Длительность', minutes],
       [anime.ongoing ? 'Вышло на' : 'Всего', totalTime],
+      ['Осталось', leftTime],
       [
         'Студия',
         anime.studio && anime.studioId ? <Link to={`/catalog?studio=${anime.studioId}`}>{anime.studio}</Link> : (anime.studio ?? ''),
@@ -315,7 +315,7 @@ export default function TitlePage() {
                 {progress ? `Продолжить: серия ${progress.episode}` : 'Смотреть'}
               </Link>
               <ListButton anime={anime} />
-              <WatchTogetherButton anime={anime} />
+              <WatchTogetherButton anime={anime} className="btn btn--ghost watch-together" />
               {(anime.ongoing || anime.upcoming) && <FollowButton animeId={anime.id} title={anime.title} />}
               <ShareButton title={anime.title} path={`/anime/${anime.id}`} className="btn btn--ghost title-share" />
             </div>

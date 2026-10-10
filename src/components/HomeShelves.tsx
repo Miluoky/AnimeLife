@@ -5,7 +5,6 @@ import Shelf from './Shelf'
 import PosterCard from './PosterCard'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
-import { SHIKIMORI_URL } from '../api/shikimori'
 import { CalendarIcon, ClockIcon, ListIcon, PlayIcon, SparkIcon, TrophyIcon } from './Icons'
 import { GENRES } from '../data/seo'
 import './genres.css'
@@ -271,20 +270,12 @@ export function MoreShelves() {
 }
 
 const TILE_GENRES = ['action', 'romance', 'comedy', 'fantasy', 'drama', 'sci-fi', 'mystery', 'slice-of-life', 'horror', 'sports', 'psychological', 'mecha']
-const GENRE_POSTERS: Record<string, number> = {
-  action: 40748,
-  romance: 32281,
-  comedy: 918,
-  fantasy: 52991,
-  drama: 33352,
-  'sci-fi': 1,
-  mystery: 235,
-  'slice-of-life': 5680,
-  horror: 11111,
-  sports: 20583,
-  psychological: 19,
-  mecha: 30,
-}
+// Кадр из узнаваемого тайтла жанра (Магическая битва, Твоё имя, Гинтама, Фрирен, Вайолет Эвергарден, Ковбой Бибоп,
+// Детектив Конан, K-On!, Иная, Волейбол!!, Тетрадь смерти, Евангелион). Лежат в сборке: свой кэш, не зависят от Shikimori.
+// Короче или с мягким переносом: длинное слово на узкой плитке переносится по слогу, а не по букве.
+const TILE_NAMES: Record<string, string> = { psychological: 'Психология', 'slice-of-life': 'Повседнев\u00adность' }
+const GENRE_IMAGES = import.meta.glob<string>('../assets/genres/*.webp', { eager: true, import: 'default' })
+const genreImage = (slug: string) => GENRE_IMAGES[`../assets/genres/${slug}.webp`]
 
 /** Плитки жанров на главной: у каждого свой цвет, ведут на посадочные /genre/:slug. */
 function GenreTiles() {
@@ -308,7 +299,9 @@ function GenreTiles() {
           <Link key={g.slug} to={`/genre/${g.slug}`} className="genre-tile" style={{ '--h': (i * 360) / tiles.length + 340 } as CSSProperties}>
             <img
               className="genre-tile__image"
-              src={`${SHIKIMORI_URL}/system/animes/preview/${GENRE_POSTERS[g.slug]}.jpg`}
+              src={genreImage(g.slug)}
+              width={560}
+              height={280}
               alt=""
               aria-hidden="true"
               loading="lazy"
@@ -317,7 +310,7 @@ function GenreTiles() {
                 event.currentTarget.style.opacity = '0'
               }}
             />
-            <span className="genre-tile__name">{g.slug === 'psychological' ? 'Психология' : g.name}</span>
+            <span className="genre-tile__name">{TILE_NAMES[g.slug] ?? g.name}</span>
           </Link>
         ))}
       </div>
