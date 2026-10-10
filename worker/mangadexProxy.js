@@ -3,8 +3,12 @@
  *
  * MangaDex не отдаёт CORS-заголовки чужим сайтам, поэтому браузер зрителя ходит к нему через Worker.
  * Пускаем только то, что нужно читалке: поиск манги, список глав и адреса страниц главы. Ответы лежат
- * в кэше Cloudflare, при сбое MangaDex отдаётся последняя копия. Сами картинки грузятся прямо с серверов
- * MangaDex@Home, через Worker они не идут.
+ * в кэше Cloudflare, при сбое MangaDex отдаётся последняя копия.
+ *
+ * Картинки страниц: /api/mangadex-img/<data|data-saver>/<hash>/<файл>?n=<адрес узла MangaDex@Home>. MangaDex
+ * заблокирован в России, поэтому страницы тоже идут через Worker. Узел берём из ответа at-home (основной сервер
+ * uploads.mangadex.org отвечает 403 запросам из дата-центров и служит только запасным). Файл главы с этим хэшем
+ * не меняется, поэтому ключ кэша без узла: каждая картинка скачивается у MangaDex один раз.
  */
 
 const UPSTREAM = 'https://api.mangadex.org'
@@ -13,6 +17,7 @@ const CACHE_ROOT = 'https://animelife.top/__mangadex/v1/'
 const MIN = 60
 const HOUR = 60 * MIN
 const STALE = 24 * HOUR
+const DAY_S = 24 * HOUR
 const BROWSER_TTL = 300
 const TIMEOUT = 10000
 const UA = 'AnimeLife/1.0 (+https://animelife.top)'
@@ -35,10 +40,47 @@ const json = (body, status, cache, maxAge = BROWSER_TTL) =>
     },
   })
 
-export const isMangadexProxy = (pathname) => pathname.startsWith(PREFIX)
+export const isMangadexProxy = (pathname) => pathname.startsWith(PREFIX) || pathname.startsWith(IMG_PREFIX)
+
+const IMG_PREFIX = '/api/mangadex-img/'
+const IMG_PATH = /^(data|data-saver)\/[0-9a-f]{32}\/[\w.-]{1,200}\.(?:png|jpe?g|gif|webp)$/
+const IMG_TTL = 30 * DAY_S
+// Только узлы сети MangaDex@Home: иначе Worker стал бы открытым прокси для любых картинок.
+const NODE = /^https:\/\/[a-z0-9-]{1,64}\.mangadex\.network(?::\d{2,5})?(?:\/[\w-]{1,128}){0,2}$/
+
+/** Картинка страницы главы через кэш Cloudflare. */
+async function mangadexImage(request, ctx, path, node) {
+  if (!IMG_PATH.test(path) || (request.method !== 'GET' && request.method !== 'HEAD')) return new Response('not found', { status: 404 })
+  const key = new Request(CACHE_ROOT + 'img/' + path)
+  const cached = await caches.default.match(key)
+  if (cached) return cached
+  let res
+  for (const base of [NODE.test(node ?? '') ? node : null, 'https://uploads.mangadex.org']) {
+    if (!base) continue
+    try {
+      res = await fetch(`${base}/${path}`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) })
+      if (res.ok && (res.headers.get('Content-Type') ?? '').startsWith('image/')) break
+    } catch {
+      res = undefined
+    }
+  }
+  if (!res?.ok || !(res.headers.get('Content-Type') ?? '').startsWith('image/')) {
+    return new Response('upstream error', { status: 502, headers: { 'Cache-Control': 'no-store' } })
+  }
+  const out = new Response(res.body, {
+    headers: {
+      'Content-Type': res.headers.get('Content-Type'),
+      'Cache-Control': `public, max-age=${IMG_TTL}, immutable`,
+      'X-Cache': 'MISS',
+    },
+  })
+  ctx.waitUntil(caches.default.put(key, out.clone()).catch(() => undefined))
+  return out
+}
 
 export async function mangadexProxy(request, ctx) {
   const url = new URL(request.url)
+  if (url.pathname.startsWith(IMG_PREFIX)) return mangadexImage(request, ctx, url.pathname.slice(IMG_PREFIX.length), url.searchParams.get('n'))
   const path = url.pathname.slice(PREFIX.length)
   const rule = PATHS.find(([re]) => re.test(path))
   if (!rule || url.search.length > 1500 || (request.method !== 'GET' && request.method !== 'HEAD')) {

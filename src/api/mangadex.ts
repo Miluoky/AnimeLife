@@ -1,8 +1,10 @@
-// Главы манги из MangaDex для читалки. На animelife.top запросы идут через Worker (worker/mangadexProxy.js):
-// сам MangaDex не пускает браузер с чужих сайтов. Картинки страниц грузятся прямо с серверов MangaDex@Home.
+// Главы манги из MangaDex для читалки. На animelife.top и запросы, и картинки страниц идут через Worker
+// (worker/mangadexProxy.js): MangaDex не пускает браузер с чужих сайтов и заблокирован в России.
 
 const host = globalThis.location?.hostname
-const API = host === 'animelife.top' || host === 'www.animelife.top' ? `${location.origin}/api/mangadex` : 'https://api.mangadex.org'
+const proxied = host === 'animelife.top' || host === 'www.animelife.top'
+const API = proxied ? `${location.origin}/api/mangadex` : 'https://api.mangadex.org'
+const IMAGES = proxied ? `${location.origin}/api/mangadex-img` : undefined
 
 /** Языки по-русски. Порядок здесь — порядок кнопок: свои языки сначала. */
 export const LANGS: Record<string, string> = {
@@ -156,8 +158,12 @@ export function fetchChapters(mdId: string, lang: string): Promise<Chapter[]> {
 export async function fetchPages(chapterId: string, saver: boolean): Promise<string[]> {
   const res = await api<{ baseUrl: string; chapter: { hash: string; data: string[]; dataSaver: string[] } }>(`at-home/server/${chapterId}`)
   const files = saver ? res.chapter.dataSaver : res.chapter.data
-  return files.map((f) => `${res.baseUrl}/${saver ? 'data-saver' : 'data'}/${res.chapter.hash}/${f}`)
+  const dir = `${saver ? 'data-saver' : 'data'}/${res.chapter.hash}`
+  return files.map((f) => (IMAGES ? `${IMAGES}/${dir}/${f}?n=${encodeURIComponent(res.baseUrl)}` : `${res.baseUrl}/${dir}/${f}`))
 }
+
+/** Запасной адрес картинки: напрямую с основного сервера MangaDex (вне России работает и без Worker). */
+export const fallbackPage = (src: string) => src.replace(/^.*?\/(data(?:-saver)?\/)/, 'https://uploads.mangadex.org/$1').replace(/\?.*$/, '')
 
 export const chapterLabel = (c: Pick<Chapter, 'num' | 'title'>) => (c.num ? `Глава ${c.num}` : c.title || 'Ваншот')
 

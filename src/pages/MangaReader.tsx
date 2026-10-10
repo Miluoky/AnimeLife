@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga } from '../api/manga'
-import { chapterLabel, fetchChapters, fetchPages, findMangadex, langName, preferredLang, saveProgress } from '../api/mangadex'
+import { chapterLabel, fallbackPage, fetchChapters, fetchPages, findMangadex, langName, preferredLang, saveProgress } from '../api/mangadex'
 import { usePageMeta } from '../data/pageMeta'
 import './manga-reader.css'
 
@@ -16,12 +16,12 @@ const loadSaver = () => {
 }
 
 /**
- * Страница главы. Узлы MangaDex@Home добровольные и иногда отвечают 404: тогда берём ту же картинку
+ * Страница главы. Если картинка не загрузилась (сбой Worker или узла MangaDex@Home), берём её напрямую
  * с основного сервера MangaDex, а если и он не ответил, даём повторить вручную.
  */
 function Page({ src, n }: { src: string; n: number }) {
   const [attempt, setAttempt] = useState(0)
-  const main = src.replace(/^https:\/\/[^/]+/, 'https://uploads.mangadex.org')
+  const main = fallbackPage(src)
   if (attempt > 1)
     return (
       <button type="button" className="reader__retry" onClick={() => setAttempt(0)}>
