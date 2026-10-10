@@ -128,7 +128,7 @@ test('вкладка «Вместе» на телефоне 390px: страни�
     client: document.documentElement.clientWidth,
   }))
   expect(scroll).toBeLessThanOrEqual(client)
-  if (isMobile) await expect(page.locator('.bottom-nav')).toBeInViewport()
+  if (isMobile) await expect(page.locator('.dock')).toBeInViewport()
 })
 
 test('комната: плей, пауза и перемотка ведущего доходят до гостя, чат и реакции живые', async ({ page }) => {

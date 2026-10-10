@@ -1,0 +1,65 @@
+/* Просмотр кадров и трейлеров во весь экран (Lightbox.tsx). */
+.lightbox {
+  animation: fade-in 0.25s both;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 56px 16px;
+  background: rgba(5, 5, 8, 0.92);
+}
+
+.lightbox__body {
+  width: min(1100px, 100%);
+  animation: rise 0.35s var(--ease) both;
+}
+
+.lightbox__img {
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 112px);
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.lightbox__video {
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+}
+
+.lightbox__video iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.lightbox__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lightbox__nav--prev {
+  left: 12px;
+}
+
+.lightbox__nav--next {
+  right: 12px;
+}
+
+@media (max-width: 720px) {
+  .lightbox__nav {
+    top: auto;
+    bottom: 12px;
+    transform: none;
+  }
+}

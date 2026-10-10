@@ -75,7 +75,7 @@ for (const width of [320, 390]) {
       cut.push(
         ...(await page.evaluate(() => {
           const out: string[] = []
-          const els = document.querySelectorAll('.bottom-nav__item span, .watch-actions .btn, .title-head .actions > *, .title-head .actions select, .seg__item, .poster-card__meta, .continue-card .poster-card__meta')
+          const els = document.querySelectorAll('.dock__item span, .watch-actions .btn, .title-head .actions > *, .title-head .actions select, .seg__item, .poster-card__meta, .continue-card .poster-card__meta')
           for (const el of els) {
             const r = el.getBoundingClientRect()
             if (r.width === 0) continue

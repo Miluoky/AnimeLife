@@ -1,4 +1,4 @@
-import { type CSSProperties, Suspense, lazy, useEffect, useState } from 'react'
+import { type CSSProperties, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { fetchScreenshots } from '../api/shikimori'
@@ -59,10 +59,14 @@ function Hero() {
   // Страница подсвечивается постером тайтла из баннера.
   useAmbient(current?.posterSmall)
 
+  // Пауза ставится сразу по нажатию: эффект снимет таймер только после отрисовки,
+  // а шаг, пришедший в этот промежуток, не должен перелистнуть баннер.
+  const pausedNow = useRef(paused)
+  pausedNow.current = paused
   useEffect(() => {
     if (items.length < 2 || paused) return
     // Во вкладке в фоне баннер не листается: не грузим кадры, которых никто не увидит.
-    const timer = setInterval(() => !document.hidden && setStep((s) => s + 1), HERO_INTERVAL)
+    const timer = setInterval(() => !document.hidden && !pausedNow.current && setStep((s) => s + 1), HERO_INTERVAL)
     return () => clearInterval(timer)
   }, [items.length, paused])
 
@@ -94,7 +98,10 @@ function Hero() {
           aria-label={paused ? 'Продолжить смену тайтлов' : 'Поставить смену тайтлов на паузу'}
           aria-pressed={paused}
           title={paused ? 'Продолжить смену тайтлов' : 'Поставить смену тайтлов на паузу'}
-          onClick={() => setPaused((value) => !value)}
+          onClick={() => {
+            pausedNow.current = !paused
+            setPaused(!paused)
+          }}
         >
           {paused ? <PlayIcon /> : <PauseIcon />}
         </button>

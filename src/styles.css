@@ -1399,18 +1399,6 @@ h3 {
   gap: 16px;
 }
 
-.character-card {
-  gap: 6px;
-  color: inherit;
-}
-
-.character-card__img {
-  aspect-ratio: 3 / 4;
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--surface-2);
-}
-
 .character-card__img img,
 .video-card__img img,
 .shot img {
@@ -1427,58 +1415,6 @@ h3 {
   transform: scale(1.04);
 }
 
-.character-card__name {
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.3;
-}
-
-.character-card__role {
-  font-size: 12px;
-}
-
-.video-card {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.video-card__img {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--surface-2);
-}
-
-.video-card__play {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 48px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #0d0e13;
-}
-
-.video-card__title {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.shots-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-}
-
 .shot {
   aspect-ratio: 16 / 9;
   padding: 0;
@@ -1489,68 +1425,7 @@ h3 {
   cursor: zoom-in;
 }
 
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 56px 16px;
-  background: rgba(5, 5, 8, 0.92);
-}
-
-.lightbox__body {
-  width: min(1100px, 100%);
-}
-
-.lightbox__img {
-  display: block;
-  width: 100%;
-  max-height: calc(100vh - 112px);
-  object-fit: contain;
-  border-radius: 6px;
-}
-
-.lightbox__video {
-  aspect-ratio: 16 / 9;
-  border-radius: 6px;
-  overflow: hidden;
-  background: #000;
-}
-
-.lightbox__video iframe {
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-.lightbox__close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-}
-
-.lightbox__nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.lightbox__nav--prev {
-  left: 12px;
-}
-
-.lightbox__nav--next {
-  right: 12px;
-}
-
 @media (max-width: 720px) {
-  .lightbox__nav {
-    top: auto;
-    bottom: 12px;
-    transform: none;
-  }
-
   .row-scroll--wide {
     grid-auto-columns: 220px;
   }
@@ -1696,9 +1571,9 @@ h3 {
   border-bottom-color: var(--glass-edge);
   backdrop-filter: blur(18px) saturate(145%);
   -webkit-backdrop-filter: blur(18px) saturate(145%);
-  transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s, transform 0.3s var(--ease);
+  transition: background 0.3s, border-color 0.3s, transform 0.3s var(--ease);
 }
-.site-header--hidden:not(:focus-within) {
+:root:not(.scroll-lock) .site-header--hidden:not(:focus-within) {
   transform: translateY(-100%);
 }
 .site-header--scrolled {
@@ -1810,8 +1685,23 @@ h3 {
   background: var(--accent);
   margin-right: 8px;
   vertical-align: middle;
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
-  animation: live-pulse 1.8s ease-out infinite;
+  position: relative;
+}
+/* Волна вокруг точки: transform и opacity считает видеокарта, тень на каждом кадре перерисовывалась. */
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  opacity: 0.6;
+  animation: live-wave 1.8s ease-out infinite;
+}
+@keyframes live-wave {
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
 }
 @keyframes live-pulse {
   to {
@@ -1901,79 +1791,147 @@ h3 {
   display: none;
 }
 
-/* Нижнее меню на телефоне. */
-.bottom-nav {
+/* «Смотрю» в меню шапки: точка о новых сериях. */
+.has-fresh {
+  position: relative;
+}
+.has-fresh::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: -8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Нижнее меню на телефоне: «остров» над краем экрана. Без backdrop-filter: размытие под меню
+   пересчитывалось на каждом кадре прокрутки и давало рывки на телефонах. */
+.dock {
   display: none;
 }
 @media (max-width: 900px) {
-  .bottom-nav {
+  .dock {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(8px + env(safe-area-inset-bottom));
     z-index: 40;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    max-width: 480px;
+    height: 60px;
+    margin: 0 auto;
+    padding: 0 4px;
     view-transition-name: bottom-nav;
-    background: color-mix(in srgb, var(--surface) 76%, transparent);
-    backdrop-filter: blur(22px) saturate(150%);
-    -webkit-backdrop-filter: blur(22px) saturate(150%);
-    border-top: 1px solid var(--glass-edge);
-    box-shadow: 0 -12px 32px rgb(0 0 0 / 0.22), inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent);
+    background: var(--surface);
+    border: 1px solid var(--glass-edge);
+    border-radius: 20px;
+    box-shadow: 0 14px 34px rgb(0 0 0 / 0.5), inset 0 1px 0 color-mix(in srgb, var(--text) 8%, transparent);
+    transition: transform 0.3s var(--ease);
   }
-  .bottom-nav__item {
+  /* Листаем вниз — меню уезжает и не закрывает контент; чуть вверх — возвращается. */
+  :root.scroll-down:not(.scroll-lock) .dock:not(:focus-within) {
+    transform: translateY(calc(100% + 16px + env(safe-area-inset-bottom)));
+  }
+  .dock__item {
     position: relative;
     min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 3px;
-    padding: 7px 2px 5px;
-    border-radius: 6px;
+    border: 0;
+    background: none;
     color: var(--muted);
-    font-size: 10.5px;
-    font-weight: 600;
+    font: 600 10.5px/1.1 var(--font-body);
+    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: color 0.25s, transform 0.15s;
+    transition: color 0.2s, transform 0.15s;
   }
-  .bottom-nav__item span {
+  .dock__item > span:last-child {
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .bottom-nav__item:active {
+  .dock__item:active {
     transform: scale(0.9);
   }
-  .bottom-nav__item.active {
-    color: var(--accent);
+  .dock__item.active,
+  .dock__item[aria-expanded='true'] {
+    color: var(--text);
   }
-  /* Значок активного раздела подпрыгивает */
-  .bottom-nav__item.active svg {
+  .dock__item.active svg {
+    color: var(--accent);
     animation: nav-bounce 0.5s var(--ease);
   }
-  /* Подложка под активным пунктом переезжает между разделами */
-  .bottom-nav__glider {
+  /* «Смотрю» в центре: значок в кружке, красный счётчик новых серий. */
+  .dock__icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 26px;
+  }
+  .dock__item--main .dock__icon {
+    width: 34px;
+    height: 26px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent);
+  }
+  .dock__item--main.active .dock__icon {
+    background: var(--accent);
+  }
+  .dock__item--main.active svg {
+    color: #fff;
+  }
+  .dock__badge {
+    position: absolute;
+    top: -7px;
+    right: -9px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    border: 2px solid var(--surface);
+    background: var(--accent);
+    color: #fff;
+    font: 700 10px/14px var(--font-mono);
+    text-align: center;
+    animation: pop 0.4s var(--ease);
+  }
+  /* «Кадр»: активный раздел ловят уголки видоискателя, они и переезжают между пунктами. */
+  .dock__glider {
     position: absolute;
     top: 6px;
     left: 4px;
-    width: calc((100% - 8px) / 6);
-    height: 50px;
-    /* «Кадр»: активный раздел ловят уголки видоискателя, они и переезжают между пунктами */
-    border: 2px solid var(--accent);
-    -webkit-mask: conic-gradient(at 10px 10px, #0000 75%, #000 0) 0 0 / calc(100% - 10px) calc(100% - 10px);
-    mask: conic-gradient(at 10px 10px, #0000 75%, #000 0) 0 0 / calc(100% - 10px) calc(100% - 10px);
+    width: calc((100% - 8px) / 5);
+    height: 46px;
+    border: 1.5px solid var(--accent);
+    -webkit-mask: conic-gradient(at 8px 8px, #0000 75%, #000 0) 0 0 / calc(100% - 8px) calc(100% - 8px);
+    mask: conic-gradient(at 8px 8px, #0000 75%, #000 0) 0 0 / calc(100% - 8px) calc(100% - 8px);
     transform: translateX(calc(var(--i) * 100%));
     transition: transform 0.45s cubic-bezier(0.3, 1.3, 0.5, 1);
     pointer-events: none;
-    animation: fade-in 0.3s;
   }
   body {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
   .site-footer {
     margin-top: 48px;
+  }
+  /* Шапка на телефоне без размытия фона: непрозрачная подложка не стоит ничего при прокрутке. */
+  .site-header,
+  .site-header--scrolled {
+    background: color-mix(in srgb, var(--bg) 96%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@keyframes pop {
+  from {
+    transform: scale(0.4);
   }
 }
 
@@ -2397,12 +2355,6 @@ input[type='radio'] {
 }
 
 /* Плавно раскрывающиеся окна и уведомления (подсказки поиска — в search.css). */
-.lightbox {
-  animation: fade-in 0.25s both;
-}
-.lightbox__body {
-  animation: rise 0.35s var(--ease) both;
-}
 /* Уведомление само уходит вниз перед исчезновением (живёт 4 секунды, см. toast.ts). */
 .toast {
   animation: toast-in 0.35s var(--ease), toast-out 0.3s ease-in 3.7s forwards;
@@ -2830,6 +2782,12 @@ input[type='radio'] {
 :root[data-lite='1'] .hero__backdrop img {
   animation: none;
 }
+/* Телефон: медленный зум баннера под размытием перерисовывал большую картинку на каждом кадре прокрутки. */
+@media (max-width: 900px) {
+  .hero__backdrop img {
+    animation: none;
+  }
+}
 
 /* «Кадр»: свет постера. Размытая копия постера открытого тайтла подсвечивает страницу сверху,
    как экран с подсветкой стены. Под ней — неподвижное плёночное зерно. См. components/ambient.ts. */
@@ -2869,22 +2827,25 @@ input[type='radio'] {
   .site-header__inner {
     height: 52px;
   }
-  .bottom-nav {
-    padding: 2px max(4px, env(safe-area-inset-right)) calc(2px + env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+  .dock {
+    height: 40px;
+    bottom: calc(4px + env(safe-area-inset-bottom));
+    border-radius: 14px;
   }
-  .bottom-nav__item {
+  .dock__item {
     flex-direction: row;
-    justify-content: center;
     gap: 6px;
-    padding: 6px 2px;
     font-size: 11px;
   }
-  .bottom-nav__glider {
-    top: 2px;
-    height: 34px;
+  .dock__item--main .dock__icon {
+    height: 24px;
+  }
+  .dock__glider {
+    top: 3px;
+    height: 32px;
   }
   body {
-    padding-bottom: calc(44px + env(safe-area-inset-bottom));
+    padding-bottom: calc(52px + env(safe-area-inset-bottom));
   }
 }
 

@@ -398,7 +398,8 @@ async function notify(api, log) {
       const payload = JSON.stringify({
         title: `Новая серия: ${title}`,
         body: `Вышла ${e.next_episode}-я серия. Тайтл в вашем списке «Смотрю».`,
-        url: `${sub.site}anime/${e.anime.id}`,
+        // Клик ведёт сразу на вышедшую серию.
+        url: `${sub.site}watch/${e.anime.id}/${e.next_episode}`,
         tag: `anime-${e.anime.id}`,
       })
       try {

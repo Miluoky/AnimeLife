@@ -11,6 +11,7 @@ const Catalog = lazy(pageChunks.catalog)
 const Landing = lazy(pageChunks.landing)
 const Schedule = lazy(pageChunks.schedule)
 const MyList = lazy(pageChunks.myList)
+const Watching = lazy(pageChunks.watching)
 const Account = lazy(pageChunks.account)
 const PasswordRecovery = lazy(pageChunks.passwordRecovery)
 const Moderation = lazy(pageChunks.moderation)
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="auth/callback" element={<AuthCallback />} />
           <Route path="auth/vk" element={<AuthCallback />} />
           <Route path="my-list" element={<MyList />} />
+          <Route path="watching" element={<Watching />} />
           <Route path="moderation" element={<Moderation />} />
           <Route path="admin/analytics" element={<AdminAnalytics />} />
           {/* Служебные страницы: тексты в src/data/legal.ts, у двух первых форма обращения. */}

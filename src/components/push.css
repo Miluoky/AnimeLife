@@ -1,0 +1,33 @@
+/* Уведомления о сериях */
+.push-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.push-card__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.push-card h3 {
+  font-size: 18px;
+}
+
+.push-card p {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .push-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

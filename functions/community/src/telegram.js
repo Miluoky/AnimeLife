@@ -94,7 +94,7 @@ export async function tgSendEpisode(sub, e) {
     chat_id: chatId,
     parse_mode: 'HTML',
     text: `🎬 <b>Новая серия: ${escapeHtml(title)}</b>\nВышла ${Number(e.next_episode)}-я серия.`,
-    reply_markup: { inline_keyboard: [[{ text: '▶️ Смотреть', url: `${publicSite(sub.site)}anime/${e.anime.id}` }]] },
+    reply_markup: { inline_keyboard: [[{ text: '▶️ Смотреть', url: `${publicSite(sub.site)}watch/${e.anime.id}/${e.next_episode}` }]] },
   })
   if (res.ok) return 'sent'
   if (res.status === 403 || /chat not found/i.test(res.description)) return 'gone'
