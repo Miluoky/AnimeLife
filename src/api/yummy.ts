@@ -7,6 +7,9 @@
  */
 
 import type { SkipSpan } from './anilibria'
+import { voiceKey } from './voiceKey'
+
+export { voiceKey }
 
 const API = 'https://api.yani.tv'
 const host = globalThis.location?.hostname
@@ -63,21 +66,6 @@ function skipsOf(v: VideoItem): YummySkips | null {
     if (s && Number.isFinite(s.time) && s.length >= 5) spans.push({ kind, start: s.time, stop: s.time + s.length })
   }
   return spans.length && v.duration && v.duration > 0 ? { spans, duration: v.duration } : null
-}
-
-const ALIASES: Record<string, string> = { cr: 'crunchyroll' }
-
-/**
- * Ключ для сверки студий между источниками: «Studio Band» и «StudioBand», «ТО Дубляжная» и «Дубляжная»,
- * «Freedub Studio» и «Freedub» — одна студия.
- */
-export function voiceKey(title: string): string {
-  const key = title
-    .toLowerCase()
-    .replace(/^то\s+/, '')
-    .replace(/studio|студия|project/g, '')
-    .replace(/[^a-zа-яё0-9]/g, '')
-  return ALIASES[key] ?? (key || title.toLowerCase())
 }
 
 async function get<T>(url: string): Promise<T> {

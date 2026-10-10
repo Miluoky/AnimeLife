@@ -22,7 +22,10 @@ async function asProduction(page: Page, handler?: (path: string) => { status: nu
       if (special) return route.fulfill({ status: special.status, json: { error: 'busy' } })
       return route.fulfill({ json: shikimoriFixture(path, url.searchParams), headers: { 'X-Cache': 'HIT' } })
     }
-    const res = await route.fetch({ url: `http://localhost:4173${url.pathname}${url.search}` })
+    const local = new URL(url.pathname + url.search, test.info().project.use.baseURL).href
+    // Под нагрузкой preview изредка рвёт соединение, которое клиент успел взять из keep-alive
+    // («socket hang up»). Запрос за статикой безопасно повторить один раз.
+    const res = await route.fetch({ url: local }).catch(() => route.fetch({ url: local }))
     return route.fulfill({ response: res })
   })
   return proxied
@@ -38,6 +41,14 @@ const directApi = (page: Page) => {
 
 test.beforeEach(async ({ page }) => {
   await mockServices(page)
+})
+
+// Проверки заканчиваются раньше, чем страница догрузит всё: в простое она тянет код соседних страниц
+// (prefetchNavigation), и route.fetch в asProduction ещё ждёт preview, когда Playwright закрывает
+// контекст. Такой обработчик падал с «Target page, context or browser has been closed» — примерно
+// раз из шести под нагрузкой. Снимаем подмены до закрытия, недоделанные запросы уже не важны.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
 })
 
 test('на animelife.top данные идут через /api/shiki, картинки — прямо с Shikimori', async ({ page }) => {
