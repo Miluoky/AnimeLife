@@ -21,6 +21,10 @@ test('главная: смену тайтлов в баннере можно о�
   await expect(title).not.toHaveAttribute('aria-label', initialTitle ?? '')
 
   await page.getByRole('button', { name: 'Поставить смену тайтлов на паузу' }).click()
+  // Preact снимает таймер в эффекте после отрисовки (rAF или setTimeout), а часы в тесте ненастоящие:
+  // чуть прокручиваем их, чтобы пауза точно вступила в силу до следующей смены через 8 с.
+  await expect(page.getByRole('button', { name: 'Продолжить смену тайтлов' })).toBeVisible()
+  await page.clock.runFor(200)
   const pausedTitle = await title.getAttribute('aria-label')
   await page.clock.fastForward(16000)
   await expect(title).toHaveAttribute('aria-label', pausedTitle ?? '')

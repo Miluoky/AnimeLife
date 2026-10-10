@@ -96,6 +96,9 @@ test('«Буду смотреть»: «выбрать за меня» предл
     )
   })
   await page.goto('/my-list')
+  // Длинная подпись кнопки на телефоне переносится, а не уводит страницу вбок.
+  await expect(page.getByRole('button', { name: /выбрать за меня/ })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await page.getByRole('button', { name: /выбрать за меня/ }).click()
   const title = page.locator('.pick-for-me__title')
   await expect(title).toHaveText(/Альфа|Бета|Гамма/)

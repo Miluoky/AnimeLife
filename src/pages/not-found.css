@@ -1,0 +1,155 @@
+/* «Кадр потерян»: страница 404 как экран видоискателя без сигнала. */
+.lost {
+  padding-top: 56px;
+}
+.lost__screen {
+  --fc-inset: 10px;
+  --fc-color: color-mix(in srgb, var(--text) 70%, transparent);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 560px);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 2px;
+  isolation: isolate;
+  /* приглушённые настроечные полосы */
+  background: linear-gradient(
+    90deg,
+    #8a8a8a 0 14.28%,
+    #8a8a2e 0 28.56%,
+    #2e8a8a 0 42.84%,
+    #2e8a2e 0 57.12%,
+    #8a2e8a 0 71.4%,
+    #8a2e2e 0 85.68%,
+    #2e2e8a 0
+  );
+}
+/* развёртка, затемнение к краям и свет акцента снизу */
+.lost__screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.28) 0 2px, transparent 2px 4px),
+    radial-gradient(70% 80% at 50% 50%, rgb(10 10 12 / 0.55), rgb(10 10 12 / 0.92)),
+    radial-gradient(60% 40% at 50% 110%, color-mix(in srgb, var(--accent) 45%, transparent), transparent);
+}
+.lost__screen > * {
+  position: relative;
+  z-index: 1;
+}
+.lost__center {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+.lost__center .mascot {
+  margin: 0;
+}
+.lost__signal,
+.lost__hud,
+.lost__code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.lost__signal {
+  padding: 3px 10px;
+  background: rgb(10 10 12 / 0.75);
+  color: var(--text);
+  font-size: 12px;
+  animation: lost-flicker 3.2s steps(1, end) infinite;
+}
+.lost__hud {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, var(--text) 85%, transparent);
+  font-size: 11px;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.8);
+}
+.lost__hud--tl {
+  top: 22px;
+  left: 26px;
+  color: var(--accent-soft);
+}
+.lost__hud--tl i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: lost-rec 1.2s steps(2, jump-none) infinite;
+}
+.lost__hud--tr {
+  top: 22px;
+  right: 26px;
+}
+.lost__hud--bl {
+  bottom: 22px;
+  left: 26px;
+}
+.lost__hud--br {
+  bottom: 22px;
+  right: 26px;
+}
+.lost__code {
+  margin: 8px 0 -6px;
+  color: var(--accent);
+  font-size: 12px;
+}
+.lost h1 {
+  margin: 0;
+}
+@keyframes lost-rec {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes lost-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  52% {
+    opacity: 0.7;
+  }
+}
+@media (max-width: 420px) {
+  .lost {
+    padding-top: 32px;
+  }
+  .lost__hud {
+    font-size: 10px;
+  }
+  .lost__hud--tl,
+  .lost__hud--tr {
+    top: 18px;
+  }
+  .lost__hud--bl,
+  .lost__hud--br {
+    bottom: 18px;
+  }
+  .lost__hud--tl,
+  .lost__hud--bl {
+    left: 20px;
+  }
+  .lost__hud--tr,
+  .lost__hud--br {
+    right: 20px;
+  }
+  .lost__center .mascot {
+    width: 84px;
+    height: 84px;
+  }
+}

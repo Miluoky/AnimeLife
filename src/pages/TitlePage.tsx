@@ -1,10 +1,10 @@
 import '../components/profile-stats.css'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { type CSSProperties, type FormEvent, type ReactNode, useState } from 'react'
+import { type CSSProperties, type FormEvent, type ReactNode, Suspense, lazy, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { useAmbient } from '../components/ambient'
-import { loadAnime, loadTitleExtras, useAsync } from '../api'
+import { loadAnime, loadScreenshots, loadTitleExtras, useAsync } from '../api'
 import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeCount } from '../data/catalog'
 import { useHistory } from '../data/history'
@@ -16,7 +16,6 @@ import ShareButton from '../components/ShareButton'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { useMyList } from '../data/myList'
-import Reviews from '../components/Reviews'
 import Shelf from '../components/Shelf'
 import { PlayIcon } from '../components/Icons'
 import NextEpisode from '../components/NextEpisode'
@@ -27,6 +26,9 @@ import { findAnixart, type AnixartVoice } from '../api/anixart'
 import VoiceLogo from '../components/VoiceLogo'
 import NotFound from './NotFound'
 import './title.css'
+
+// Отзывы ниже первого экрана: их код (с формой и модерацией) грузится отдельно и не задерживает страницу.
+const Reviews = lazy(() => import('../components/Reviews'))
 
 const MAX_SHOTS = 8
 
@@ -151,6 +153,7 @@ export default function TitlePage() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadAnime(id), [id])
   const extras = useAsync(() => loadTitleExtras(id), [id])
+  const screenshots = useAsync(() => loadScreenshots(id), [id])
   // «Кадр»: страница подсвечена постером тайтла.
   useAmbient(result.value?.data?.posterSmall ?? result.value?.data?.posterUrl)
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
@@ -228,7 +231,7 @@ export default function TitlePage() {
     ] as [string, ReactNode][]
   ).filter((f) => f[1] !== '' && f[1] !== undefined)
 
-  const shots = extras.value?.screenshots ?? []
+  const shots = screenshots.value ?? []
   const related = extras.value?.related ?? []
   const similar = extras.value?.similar ?? []
   const watchLinks = extras.value?.watchLinks ?? []
@@ -558,7 +561,9 @@ export default function TitlePage() {
 
         {!result.value?.demo && <WatchOrder animeId={anime.id} />}
 
-        <Reviews animeId={anime.id} />
+        <Suspense fallback={null}>
+          <Reviews animeId={anime.id} />
+        </Suspense>
 
         {related.length > 0 && (
           <Shelf title="Связанное" subtitle="Сначала то, что смотрят по порядку, потом остальные части">

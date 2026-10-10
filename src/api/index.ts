@@ -126,6 +126,14 @@ export interface TitleExtras {
   subbers?: string[]
 }
 
+/**
+ * Кадры тайтла отдельно от остальных дополнений: первый кадр — фон баннера и самая крупная картинка страницы,
+ * ему незачем ждать самый медленный запрос (персонажи, подробности). Запрос общий с loadTitleExtras (кэш get).
+ */
+export function loadScreenshots(id: string): Promise<string[]> {
+  return isDemoId(id) ? Promise.resolve([]) : fetchScreenshots(id).catch(() => [])
+}
+
 /** Дополнения к странице тайтла. Каждое грузится отдельно: если одно упало, остальные всё равно покажем. */
 export async function loadTitleExtras(id: string): Promise<TitleExtras> {
   if (isDemoId(id)) return { related: [], similar: [], screenshots: [], watchLinks: [], characters: [], videos: [] }

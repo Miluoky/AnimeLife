@@ -137,7 +137,19 @@ export default function Player() {
       </main>
     )
   }
-  if (requested > total) return <NotFound title="Серия ещё не вышла" />
+  if (requested > total) {
+    return (
+      <NotFound
+        title="Серия ещё не вышла"
+        text={anime.ongoing ? `Пока вышло серий: ${total}. Новые появляются здесь сразу после выхода.` : `Всего серий: ${total}.`}
+        action={
+          <Link to={`/watch/${anime.id}/${total}`} className="btn btn--accent">
+            Последняя серия
+          </Link>
+        }
+      />
+    )
+  }
 
   const goTo = (n: number) => navigate(`/watch/${anime.id}/${n}`)
   // Вперёд на одну серию с включённым пропуском — через все филлеры подряд.

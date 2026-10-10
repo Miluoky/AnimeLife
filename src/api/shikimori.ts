@@ -98,16 +98,24 @@ export interface CatalogQuery {
   search?: string
 }
 
-// Запросы идут не чаще одного в 250 мс, чтобы не упираться в лимит 5 в секунду.
-const gap = 250
-let nextSlot = 0
+// Лимит Shikimori — 5 запросов в секунду: не больше пяти запросов в любом окне чуть длиннее секунды.
+// Первые пять уходят сразу, а не по одному раз в 250 мс: баннер и первая полка не ждут в очереди.
+const LIMIT = 5
+const WINDOW = 1100
+let starts: number[] = []
 
 function slot() {
   const now = Date.now()
-  const at = Math.max(now, nextSlot)
-  nextSlot = at + gap
-  return new Promise((resolve) => setTimeout(resolve, at - now))
+  const at = starts.length >= LIMIT ? Math.max(now, starts[starts.length - LIMIT] + WINDOW) : now
+  starts.push(at)
+  if (starts.length > LIMIT) starts = starts.slice(-LIMIT)
+  return at > now ? new Promise((resolve) => setTimeout(resolve, at - now)) : Promise.resolve()
 }
+
+// Свой прокси (/api/shiki) отвечает из кэша Cloudflare и сам бережёт лимит Shikimori (при 429 повторяет
+// или отдаёт сохранённую копию), поэтому запросы к нему не ждут очереди: иначе 15 запросов главной
+// растягивались почти на 4 секунды. Прямые запросы к Shikimori (зеркала, /users) по-прежнему идут через slot().
+const throttled = (url: URL) => !url.href.startsWith(`${globalThis.location?.origin}/api/shiki/`)
 
 // Одинаковые запросы (например, двойной рендер в StrictMode) делят один ответ.
 const cache = new Map<string, Promise<unknown>>()
@@ -139,7 +147,7 @@ function takePreloaded<T>(key: string): Promise<T> | undefined {
 }
 
 async function request<T>(url: URL, init: RequestInit = {}, attempt = 0): Promise<T> {
-  await slot()
+  if (throttled(url)) await slot()
   const res = await fetch(url, { ...init, headers: { Accept: 'application/json', ...init.headers } })
   if (res.status === 429 && attempt < 3) {
     await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))

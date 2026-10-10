@@ -8,7 +8,6 @@ import { useMyList } from '../data/myList'
 import { getPosition } from '../data/positions'
 import { formatTime } from '../components/together/time'
 import { toast } from '../data/toast'
-import CatalogSection from '../components/CatalogSection'
 import { Poster } from '../components/PosterCard'
 import { PauseIcon, PlayIcon } from '../components/Icons'
 import { useAmbient } from '../components/ambient'
@@ -20,6 +19,9 @@ const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => (
 const NewEpisodesShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.NewEpisodesShelf })))
 const HomeBento = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.HomeBento })))
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
+// «Популярное» — в самом низу и в той же границе Suspense, что и полки выше: раньше оно отрисовывалось сразу
+// под баннером, а потом догруженные полки вставали над ним и сдвигали страницу (CLS на телефоне до 0,3).
+const CatalogSection = lazy(() => import('../components/CatalogSection'))
 
 // 3D-кольцо постеров есть только на широком экране: его стили грузим только там.
 if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
@@ -273,8 +275,8 @@ export default function Home() {
         <SeasonShelf />
         <Recommendations />
         <MoreShelves />
+        <CatalogSection title="Популярное" moreLink="/catalog" />
       </Suspense>
-      <CatalogSection title="Популярное" moreLink="/catalog" />
     </main>
   )
 }

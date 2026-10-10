@@ -1,8 +1,8 @@
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { loadCatalog, loadSchedule, useAsync, type CatalogQuery } from '../api'
+import { loadCatalog, loadSchedule, useAsync, type CatalogQuery, type ScheduleItem } from '../api'
 import Shelf from './Shelf'
-import PosterCard from './PosterCard'
+import PosterCard, { Poster } from './PosterCard'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
 import { CalendarIcon, ClockIcon, ListIcon, PlayIcon, SparkIcon, TrophyIcon } from './Icons'
@@ -131,6 +131,60 @@ function UpcomingShelf() {
   )
 }
 
+const FILM_FRAMES = 10
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/**
+ * «Сегодня в эфире» киноплёнкой: кадр на серию с таймкодом выхода, сверху и снизу перфорация.
+ * Вышедшие серии чуть приглушены, ближайшая отмечена «REC». Плёнка листается вбок и на телефоне, и на ПК.
+ */
+function FilmStrip({ items }: { items: ScheduleItem[] }) {
+  const now = Date.now()
+  const next = items.find((i) => i.at.getTime() > now)
+  const rest = items.length - FILM_FRAMES
+  const strip = useRef<HTMLDivElement>(null)
+  // Утром плёнка начинается с первой серии, вечером — с ближайшей: вышедшие остаются слева.
+  useEffect(() => {
+    const el = strip.current
+    const frame = el?.querySelector<HTMLElement>('.film__frame--next')
+    if (el && frame) el.scrollLeft = Math.max(0, frame.offsetLeft - 48)
+  }, [])
+  return (
+    <div ref={strip} className="film" role="region" tabIndex={0} aria-label="Серии сегодня, листается вбок">
+      <ol className="film__frames">
+        {items.slice(0, FILM_FRAMES).map((i, n) => {
+          const aired = i.at.getTime() <= now
+          return (
+            <li key={`${i.anime.id}-${i.episode}`} className={`film__frame${aired ? ' film__frame--aired' : ''}${i === next ? ' film__frame--next' : ''}`}>
+              <Link to={`/anime/${i.anime.id}`} title={i.anime.title}>
+                <span className="film__shot" style={{ background: i.anime.posterFill }}>
+                  <Poster anime={i.anime} />
+                  <span className="film__badge">{i === next ? 'REC' : aired ? 'Вышла' : `#${pad(n + 1)}`}</span>
+                  <time className="film__tc" dateTime={i.at.toISOString()}>
+                    {hhmm(i.at)}
+                  </time>
+                </span>
+                <span className="film__name">{i.anime.title}</span>
+                <span className="film__ep">EP {pad(i.episode)}</span>
+              </Link>
+            </li>
+          )
+        })}
+        {rest > 0 && (
+          <li className="film__frame film__frame--more">
+            <Link to="/schedule">
+              <span className="film__shot">
+                <b>+{rest}</b>
+                <span>в графике</span>
+              </span>
+            </Link>
+          </li>
+        )}
+      </ol>
+    </div>
+  )
+}
+
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
 const hhmm = (d: Date) => d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
@@ -153,7 +207,10 @@ export function HomeBento() {
           <span className="shelf__icon" aria-hidden="true">
             <CalendarIcon size={18} />
           </span>
-          <h2>Сегодня выходят</h2>
+          <div className="bento__titles">
+            <h2>Сегодня в эфире</h2>
+            {items.length > 0 && <span className="film__count">{pad(items.length)} сер.</span>}
+          </div>
           <Link to="/schedule" className="shelf__more">
             График
           </Link>
@@ -161,24 +218,7 @@ export function HomeBento() {
         {schedule.loading && !schedule.value ? (
           <div className="bento__skeleton skeleton" aria-busy="true" />
         ) : items.length ? (
-          <ul className="bento__today">
-            {items.slice(0, 4).map((i) => (
-              <li key={i.anime.id}>
-                <Link to={`/anime/${i.anime.id}`}>
-                  <time className="bento__time" dateTime={i.at.toISOString()}>
-                    {hhmm(i.at)}
-                  </time>
-                  <span className="bento__name">{i.anime.title}</span>
-                  <span className="bento__ep">{i.episode} сер.</span>
-                </Link>
-              </li>
-            ))}
-            {items.length > 4 && (
-              <li className="bento__rest">
-                <Link to="/schedule">И ещё {items.length - 4} в графике</Link>
-              </li>
-            )}
-          </ul>
+          <FilmStrip items={items} />
         ) : (
           <p className="muted bento__empty">Сегодня новых серий нет. Загляните в график на неделю.</p>
         )}
