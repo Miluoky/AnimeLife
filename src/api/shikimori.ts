@@ -432,13 +432,36 @@ export interface Related {
   relation: string
   /** предыстория или продолжение: то, что смотрят по порядку */
   chain: boolean
+  /** для манги и ранобэ карточка в том же виде, что у аниме, но id с приставкой manga-, чтобы не путать со списком */
   anime: Anime
+  /** куда ведёт карточка, если это не аниме (страница манги) */
+  href?: string
 }
+
+/** Манга и ранобэ в ответах Shikimori: те же поля, что у аниме, только тома и главы вместо серий. */
+export type ShikiMangaShort = Omit<ShikiAnimeShort, 'episodes' | 'episodes_aired'> & { volumes: number; chapters: number }
 
 interface ShikiRelated {
   relation_russian: string | null
   relation: string
   anime: ShikiAnimeShort | null
+  manga: ShikiMangaShort | null
+}
+
+export const mangaKinds: Record<string, string> = {
+  manga: 'Манга',
+  manhwa: 'Манхва',
+  manhua: 'Маньхуа',
+  one_shot: 'Ваншот',
+  doujin: 'Додзинси',
+  light_novel: 'Ранобэ',
+  novel: 'Новелла',
+}
+
+/** Манга как карточка каталога: постер, название, год, вид. Ссылка ведёт на /manga/:id. */
+export function fromMangaShort(m: ShikiMangaShort): Anime {
+  const card = fromShort({ ...m, kind: null, episodes: 0, episodes_aired: 0 })
+  return { ...card, id: `manga-${m.id}`, kind: (m.kind && mangaKinds[m.kind]) || 'Манга' }
 }
 
 // Сначала то, что смотрят по порядку (предыстория, продолжение), в конце тайтлы с общими персонажами из других франшиз.
@@ -447,6 +470,7 @@ const relationOrder = [
   'Sequel',
   'Parent Story',
   'Full Story',
+  'Adaptation',
   'Side Story',
   'Alternative Version',
   'Alternative Setting',
@@ -460,20 +484,20 @@ const relationRank = (relation: string) => {
   return i === -1 ? relationOrder.length - 1 : i
 }
 
-/** Сезоны, фильмы и спин-оффы той же франшизы. */
-export async function fetchRelated(id: string): Promise<Related[]> {
-  const list = (await get<ShikiRelated[]>(`/animes/${encodeURIComponent(id)}/related`))
-    .filter((r): r is ShikiRelated & { anime: ShikiAnimeShort } => Boolean(r.anime))
-    .sort(
-      (a, b) =>
-        relationRank(a.relation) - relationRank(b.relation) ||
-        (a.anime.aired_on ?? '9999').localeCompare(b.anime.aired_on ?? '9999'),
-    )
-  const animes = await withPosters(list.map((r) => r.anime))
-  return list.map((r, n) => ({
+/** Сезоны, фильмы и спин-оффы той же франшизы, а также манга и ранобэ (оригинал, по которому сняли аниме). */
+export async function fetchRelated(id: string, from: 'animes' | 'mangas' = 'animes'): Promise<Related[]> {
+  const raw = await get<ShikiRelated[]>(`/${from}/${encodeURIComponent(id)}/related`)
+  const date = (r: ShikiRelated) => (r.anime ?? r.manga)?.aired_on ?? '9999'
+  const list = raw
+    .filter((r) => r.anime || r.manga)
+    // Аниме раньше манги с тем же отношением: на странице аниме главное — что смотреть дальше.
+    .sort((a, b) => relationRank(a.relation) - relationRank(b.relation) || Number(!a.anime) - Number(!b.anime) || date(a).localeCompare(date(b)))
+  const animes = await withPosters(list.flatMap((r) => (r.anime ? [r.anime] : [])))
+  let n = 0
+  return list.map((r) => ({
     relation: r.relation_russian || r.relation,
     chain: r.relation === 'Prequel' || r.relation === 'Sequel',
-    anime: fromShort(animes[n]),
+    ...(r.anime ? { anime: fromShort(animes[n++]) } : { anime: fromMangaShort(r.manga!), href: `/manga/${r.manga!.id}` }),
   }))
 }
 

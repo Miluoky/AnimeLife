@@ -20,6 +20,7 @@ export const pageChunks = {
   publicProfile: () => import('../pages/PublicProfile'),
   legal: () => import('../pages/Legal'),
   character: () => import('../pages/CharacterPage'),
+  manga: () => import('../pages/MangaPage'),
   random: () => import('../pages/Random'),
   top: () => import('../pages/Top'),
   changelog: () => import('../pages/Changelog'),

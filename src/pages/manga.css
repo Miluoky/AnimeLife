@@ -1,0 +1,24 @@
+/* Страница манги: шапка и описание берут классы страницы персонажа (character.css). */
+.manga__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.manga__facts li {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.manga__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

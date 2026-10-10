@@ -566,10 +566,10 @@ export default function TitlePage() {
         </Suspense>
 
         {related.length > 0 && (
-          <Shelf title="Связанное" subtitle="Сначала то, что смотрят по порядку, потом остальные части">
+          <Shelf title="Связанное" subtitle="Сначала то, что смотрят по порядку, потом остальные части, манга и ранобэ">
             {related.map((r) => (
               <div key={r.anime.id} className="row-scroll__item">
-                <PosterCard anime={r.anime} tag={{ text: r.relation, accent: r.chain }} />
+                <PosterCard anime={r.anime} href={r.href} tag={{ text: r.href ? r.anime.kind : r.relation, accent: r.chain }} />
               </div>
             ))}
           </Shelf>

@@ -50,7 +50,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|manga\/\d{1,10}|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -511,6 +511,36 @@ async function characterPage(id) {
   }
 }
 
+/** Манга или ранобэ: название, описание без спойлеров и аниме-экранизации. Данные те же, что берёт приложение. */
+async function mangaPage(id) {
+  const gaps = {}
+  const [m, related] = await Promise.all([
+    json(`${SHIKIMORI}/api/mangas/${id}`, undefined, DAY),
+    optional(json(`${SHIKIMORI}/api/mangas/${id}/related`, undefined, DAY), [], gaps),
+  ])
+  const name = m.russian || m.name
+  const kind = m.kind === 'light_novel' || m.kind === 'novel' ? 'ранобэ' : 'манга'
+  const text = cut((m.description ?? '').replace(/\[spoiler(?:=[^\]]*)?\][\s\S]*?\[\/spoiler\]/gi, ''), 1500)
+  const animes = related.filter((r) => r.anime).slice(0, 20)
+  const crumbs = breadcrumbs([[name, `/manga/${m.id}`]])
+  const description = text ? cut(text, 200) : `${name}: ${kind}. Описание, тома и главы, аниме-экранизации.`
+  return {
+    ...gaps,
+    title: `${name}${m.russian && m.name ? ` (${m.name})` : ''}: ${kind} | ${SITE}`,
+    description,
+    image: absolute(m.image?.original),
+    type: 'book',
+    body:
+      crumbs.html +
+      `<h1>${escapeHtml(name)}</h1>` +
+      (m.name && m.russian ? `<p>${escapeHtml(m.name)}</p>` : '') +
+      (text ? `<p>${escapeHtml(text)}</p>` : '') +
+      (animes.length ? `<h2>Аниме</h2><ul>${animes.map((r) => `<li>${link(`/anime/${r.anime.id}`, r.anime.russian || r.anime.name)}</li>`).join('')}</ul>` : '') +
+      siteNav(),
+    jsonLd: graph(crumbs.ld, { '@type': 'Book', name, description, url: `${ORIGIN}/manga/${m.id}` }),
+  }
+}
+
 /** Что показать в превью ссылки и в тексте страницы для данного адреса. */
 async function metaFor(path, params) {
   const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
@@ -569,6 +599,8 @@ async function metaFor(path, params) {
   if (m) return watchPage(m[1], Math.max(1, Number(m[2])))
   m = path.match(/^\/character\/(\d{1,10})$/)
   if (m) return characterPage(m[1])
+  m = path.match(/^\/manga\/(\d{1,10})$/)
+  if (m) return mangaPage(m[1])
   m = path.match(/^\/together\/([A-Za-z0-9]{6})$/)
   if (m) {
     const r = await appwriteRow('rooms', m[1].toUpperCase())
