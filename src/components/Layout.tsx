@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { CloseIcon, MenuIcon, UserIcon } from './Icons'
+import { useInboxCount } from '../data/inbox'
 import SearchBox from './SearchBox'
 import BottomNav from './BottomNav'
 import Toasts from './Toasts'
@@ -35,6 +36,16 @@ export function Logo() {
 function Ambient() {
   const src = useAmbientSrc()
   return <div className="ambient" aria-hidden="true">{src && <img key={src} src={src} alt="" decoding="async" />}</div>
+}
+
+/** «Смотрю» в меню шапки: красная точка, если у тайтлов из «Смотрю» вышли новые серии. */
+function WatchingLink() {
+  const fresh = useInboxCount()
+  return (
+    <NavLink to="/watching" className={fresh ? 'has-fresh' : undefined} aria-label={fresh ? `Смотрю: новых серий ${fresh}` : undefined}>
+      Смотрю
+    </NavLink>
+  )
 }
 
 export default function Layout() {
@@ -130,11 +141,10 @@ export default function Layout() {
         Главная
       </NavLink>
       <NavLink to="/catalog">Каталог</NavLink>
-      <NavLink to="/ongoing">Онгоинги</NavLink>
+      <WatchingLink />
       <NavLink to="/schedule">Расписание</NavLink>
       <NavLink to="/together">Вместе</NavLink>
       <NavLink to="/chat">Чат</NavLink>
-      <NavLink to="/watching">Смотрю</NavLink>
       <NavLink to="/my-list">Мой список</NavLink>
     </>
   )

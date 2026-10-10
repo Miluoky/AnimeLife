@@ -1791,6 +1791,21 @@ h3 {
   display: none;
 }
 
+/* «Смотрю» в меню шапки: точка о новых сериях. */
+.has-fresh {
+  position: relative;
+}
+.has-fresh::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: -8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
 /* Нижнее меню на телефоне: «остров» над краем экрана. Без backdrop-filter: размытие под меню
    пересчитывалось на каждом кадре прокрутки и давало рывки на телефонах. */
 .dock {
