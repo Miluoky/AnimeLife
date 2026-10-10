@@ -32,6 +32,14 @@ const Changelog = lazy(pageChunks.changelog)
 const Collections = lazy(pageChunks.collections)
 const Quiz = lazy(pageChunks.quiz)
 const AdminAnalytics = lazy(() => import('./pages/AdminAnalytics'))
+const Community = lazy(pageChunks.community)
+const ClubPage = lazy(pageChunks.club)
+const UserCollectionPage = lazy(() => pageChunks.userCollections().then((m) => ({ default: m.UserCollectionPage })))
+const MyCollections = lazy(() => pageChunks.userCollections().then((m) => ({ default: m.MyCollections })))
+const CollectionEditor = lazy(() => pageChunks.userCollections().then((m) => ({ default: m.CollectionEditor })))
+const Recap = lazy(pageChunks.recap)
+const SceneSearch = lazy(pageChunks.scene)
+const News = lazy(pageChunks.news)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -78,10 +86,20 @@ export default function App() {
           <Route path="changelog" element={<Changelog />} />
           <Route path="collections" element={<Collections />} />
           <Route path="quiz" element={<Quiz />} />
+          <Route path="community" element={<Community />} />
+          <Route path="club/:id" element={<ClubPage />} />
+          <Route path="c/:id" element={<UserCollectionPage />} />
+          <Route path="c/:id/edit" element={<CollectionEditor />} />
+          <Route path="collections/my" element={<MyCollections />} />
+          <Route path="collections/new" element={<CollectionEditor />} />
+          <Route path="recap" element={<Recap />} />
+          <Route path="scene" element={<SceneSearch />} />
+          <Route path="news" element={<News />} />
           <Route path="account" element={<Account />} />
           <Route path="account/recovery" element={<PasswordRecovery />} />
           <Route path="auth/callback" element={<AuthCallback />} />
           <Route path="auth/vk" element={<AuthCallback />} />
+          <Route path="auth/shikimori" element={<AuthCallback />} />
           <Route path="my-list" element={<MyList />} />
           <Route path="watching" element={<Watching />} />
           <Route path="moderation" element={<Moderation />} />

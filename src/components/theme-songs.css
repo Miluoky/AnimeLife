@@ -1,0 +1,73 @@
+.theme-songs__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.theme-song {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.06);
+}
+.theme-song.is-playing {
+  border-color: var(--accent);
+}
+.theme-song__play {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.theme-song__kind {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.theme-song__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.theme-song__link {
+  font-size: 13px;
+  color: var(--muted, #aaa);
+  white-space: nowrap;
+}
+.theme-song__link:hover {
+  color: var(--accent);
+}
+.theme-songs__src {
+  font-size: 12px;
+}
+@media (max-width: 560px) {
+  .theme-song {
+    grid-template-columns: auto 1fr auto;
+  }
+  .theme-song__kind {
+    display: none;
+  }
+  .theme-song__eps {
+    display: none;
+  }
+}
+.best-episodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.best-episodes__item b {
+  color: #ffc94d;
+}

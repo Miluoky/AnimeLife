@@ -7,6 +7,8 @@ import { flagsStore } from '../data/flags'
 import Achievements from './Achievements'
 import { unlocked } from '../data/achievements'
 import { ShareIcon } from './Icons'
+import { LevelCard, ProfileStyleEditor, ShikimoriSync } from './ProfileExtras'
+import { profileStyleStore } from '../data/profileStyle'
 
 /** Открытый профиль и достижения в «Профиле». */
 export default function ProfileSettings() {
@@ -26,6 +28,8 @@ export default function ProfileSettings() {
     void import('../data/profile').then(async (m) => {
       const p = await m.loadProfile(user.$id)
       if (p?.about) setAbout(p.about)
+      // Оформление настраивали на другом устройстве: забираем его из открытого профиля.
+      if (p?.summary.style && !Object.keys(profileStyleStore.get()).length) profileStyleStore.set(p.summary.style)
     })
   }, [user, isPublic])
 
@@ -60,6 +64,7 @@ export default function ProfileSettings() {
 
   return (
     <>
+      <LevelCard />
       <Achievements unlocked={unlocked(list, flags)} />
       {user && (
         <section className="stack profile-settings">
@@ -98,6 +103,8 @@ export default function ProfileSettings() {
           )}
         </section>
       )}
+      {user && isPublic && <ProfileStyleEditor />}
+      {user && <ShikimoriSync />}
     </>
   )
 }

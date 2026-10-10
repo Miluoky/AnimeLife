@@ -119,11 +119,24 @@
   .watch-actions .btn {
     padding: 0 16px;
   }
-  /* Первая строка: «назад» + «следующая серия», вторая: шторка света + «Смотреть вместе».
-     Кнопка «Широкий экран» на телефоне скрыта. */
+  /* Первая строка: «назад» + «следующая серия», вторая: шторка света + «Смотреть вместе»,
+     третья: «Поделиться моментом» во всю ширину. Кнопка «Широкий экран» на телефоне скрыта. */
   .watch-lights,
   .watch-together {
     order: 1;
+  }
+  .watch-moment {
+    order: 2;
+    grid-column: 1 / -1;
+  }
+  .watch-moment .sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    clip: auto;
+    overflow: visible;
+    white-space: nowrap;
   }
   .watch-prev__text {
     display: none;

@@ -10,6 +10,9 @@ import PosterCard from '../components/PosterCard'
 import Achievements from '../components/Achievements'
 import Mascot from '../components/Mascot'
 import { usePageMeta } from '../data/pageMeta'
+import { COVERS } from '../data/profileStyle'
+import { Compatibility, FollowBlock } from '../components/ProfileExtras'
+import { Avatar, LevelBadge } from '../components/socialUi'
 
 /** Открытый профиль зрителя: что смотрит, любимое, оценки, достижения. */
 export default function PublicProfile() {
@@ -40,13 +43,14 @@ export default function PublicProfile() {
 
   return (
     <main className="container stack public-profile">
+      {s.style?.cover && <div className="pf-cover" style={{ background: COVERS.find((c) => c.id === s.style!.cover)?.css }} aria-hidden="true" />}
       <section className="profile-hero">
-        <span className="profile-hero__avatar" aria-hidden="true">
-          {p.name.slice(0, 1).toUpperCase()}
-        </span>
+        <Avatar name={p.name} frame={s.style?.frame} size={84} />
         <div className="stack" style={{ gap: 6 }}>
           <h1>{p.name}</h1>
+          <LevelBadge xp={s.xp} />
           {p.about && <p className="muted">{p.about}</p>}
+          <FollowBlock userId={p.$id} />
           <span className="muted" style={{ fontSize: 13 }}>
             Обновлено {new Date(p.updatedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
           </span>
@@ -62,6 +66,14 @@ export default function PublicProfile() {
         ))}
       </dl>
 
+      {!!s.showcase?.length && (
+        <Shelf title="Витрина">
+          {s.showcase.map((a) => (
+            <PosterCard key={a.id} anime={a} />
+          ))}
+        </Shelf>
+      )}
+      <Compatibility summary={s} userId={p.$id} />
       {s.watching.length > 0 && (
         <Shelf title="Смотрит сейчас">
           {s.watching.map((a) => (

@@ -1,0 +1,47 @@
+.episode-rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--surface, rgb(255 255 255 / 0.04));
+  border: 1px solid rgb(255 255 255 / 0.06);
+}
+.episode-rating__label {
+  font-weight: 600;
+}
+.episode-rating__stars {
+  display: inline-flex;
+}
+.episode-rating__stars button {
+  border: 0;
+  background: none;
+  padding: 2px 3px;
+  font-size: 24px;
+  line-height: 1;
+  color: rgb(255 255 255 / 0.22);
+  cursor: pointer;
+  transition: color 0.15s, transform 0.15s;
+}
+.episode-rating__stars button.is-on {
+  color: #ffc94d;
+}
+.episode-rating__stars button:not(:disabled):hover {
+  transform: scale(1.15);
+}
+.episode-rating__stars button:disabled {
+  cursor: default;
+}
+.episode-rating__word {
+  font-size: 14px;
+  color: #ffc94d;
+}
+.episode-rating__avg {
+  font-size: 14px;
+  margin-left: auto;
+}
+.episode-rating__login {
+  font-size: 14px;
+  color: var(--accent);
+}

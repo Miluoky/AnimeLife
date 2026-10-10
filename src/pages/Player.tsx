@@ -1,9 +1,12 @@
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { type CSSProperties, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { useAmbient } from '../components/ambient'
 import { loadAnime, useAsync } from '../api'
 import { episodeCount } from '../data/catalog'
 import { saveProgress } from '../data/history'
+import { savePosition } from '../data/positions'
+import { logEpisode } from '../data/watchLog'
+import { playerTime } from '../data/playerTime'
 import { getEntry, setWatched, useMyList } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
@@ -20,7 +23,7 @@ import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
-import { BackIcon, BulbIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
+import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
 import VoiceLogo from '../components/VoiceLogo'
 import NextEpisode from '../components/NextEpisode'
@@ -33,10 +36,17 @@ const wideStore = createLocalStore('anime.widescreen.v1', false)
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
 const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
 const NextPart = lazy(() => import('../components/NextPart'))
+const EpisodeRating = lazy(() => import('../components/EpisodeRating'))
 
 export default function Player() {
   const { id = '', episode = '1' } = useParams()
   const navigate = useNavigate()
+  // Ссылка на момент (?t=секунды): кладём его как место, где остановились, и плеер начнёт оттуда.
+  const [params] = useSearchParams()
+  const startAt = Number(params.get('t'))
+  useMemo(() => {
+    if (startAt > 0) savePosition(id, Math.max(1, Number(episode) || 1), startAt)
+  }, [id, episode, startAt])
   const result = useAsync(() => loadAnime(id), [id])
   const anime = result.value?.data
   // «Кадр»: вокруг плеера свет постера.
@@ -94,6 +104,9 @@ export default function Player() {
   const [voiceKey, setVoiceKey] = useState(savedVoice)
   // Со страницы тайтла приходит ключ по названию студии (playerVoiceKey): источник там неизвестен.
   const voice = voices.find((v) => v.key === voiceKey || playerVoiceKey(v) === voiceKey) ?? voices[0]
+  // Озвучка для «Итогов года»: журнал читает её из ref, чтобы смена озвучки не считалась новым просмотром.
+  const voiceTitle = useRef<string | undefined>(undefined)
+  voiceTitle.current = voice?.title
   const chooseVoice = (key: string) => {
     saveVoice(key)
     setVoiceKey(key)
@@ -112,12 +125,18 @@ export default function Player() {
   useEffect(() => {
     if (!anime || isScheduled) return
     saveProgress(anime, current, total)
+    logEpisode(anime, current, voiceTitle.current)
     // Открыли серию N: предыдущие считаем просмотренными, если тайтл в списке.
     const entry = getEntry(anime.id)
     if (entry && (entry.watched ?? 0) < current - 1) setWatched(anime.id, current - 1)
     const hour = new Date().getHours()
     if (hour < 5) markFlag('nightOwl')
   }, [anime, current, total, isScheduled])
+
+  // Озвучка стала известна позже серии: дописываем её в журнал той же записью.
+  useEffect(() => {
+    if (anime && voice?.title && !isScheduled) logEpisode(anime, current, voice.title)
+  }, [voice?.title])
 
   const [lightsOff, setLightsOff] = useLightsOff()
   const miniPlayer = useMiniPlayer(!!anime && !isScheduled && !lightsOff)
@@ -257,6 +276,15 @@ export default function Player() {
             <BulbIcon />
             <span className="sr-only">Шторка света</span>
           </button>
+          <button
+            type="button"
+            className="btn btn--ghost watch-moment"
+            title="Поделиться моментом: ссылка откроет серию с этого места"
+            onClick={() => shareMoment(anime.title, anime.id, current)}
+          >
+            <ClockIcon size={18} />
+            <span className="sr-only">Поделиться моментом</span>
+          </button>
           <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
           <button
             type="button"
@@ -290,10 +318,28 @@ export default function Player() {
 
       <Suspense fallback={null}>
         {current >= total && !anime.ongoing && !anime.upcoming && <NextPart animeId={anime.id} />}
+        <EpisodeRating animeId={anime.id} episode={current} />
         <EpisodeComments animeId={anime.id} episode={current} />
       </Suspense>
     </main>
   )
+}
+
+const two = (n: number) => String(Math.floor(n)).padStart(2, '0')
+const stamp = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}:${two((s % 3600) / 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`)
+
+/** Ссылка на серию с текущего места: на телефоне системное меню, на компьютере копируем. */
+async function shareMoment(title: string, animeId: string, episode: number) {
+  const t = Math.floor(playerTime())
+  const url = `${location.origin}${import.meta.env.BASE_URL}watch/${animeId}/${episode}${t > 0 ? `?t=${t}` : ''}`
+  const text = `${title}, серия ${episode}${t > 0 ? `, с ${stamp(t)}` : ''}`
+  if (navigator.share) return void (await navigator.share({ title: text, url }).catch(() => undefined))
+  try {
+    await navigator.clipboard.writeText(url)
+    toast(t > 0 ? `Ссылка на момент ${stamp(t)} скопирована` : 'Ссылка на серию скопирована')
+  } catch {
+    toast('Не удалось скопировать ссылку')
+  }
 }
 
 const RANGE = 100

@@ -53,9 +53,9 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
-const PRIVATE = /^\/(?:together\/|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
+const PRIVATE = /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
 const PAGED = /^\/(?:catalog$|genre\/|type\/|year\/)/
 
@@ -586,6 +586,30 @@ const SECTIONS = {
     h1: 'Угадай аниме по кадру',
     text: '<p>Кадр из популярного аниме и четыре варианта названия. Отвечайте, набирайте серию верных ответов и ставьте рекорд.</p>',
   },
+  '/community': {
+    title: 'Сообщество зрителей: лента, клубы и топ недели',
+    description: 'Сообщество Anime Life: что смотрят друзья, топ зрителей недели по опыту, клубы по интересам и открытые профили.',
+    h1: 'Сообщество',
+    text: '<p>Подписывайтесь на зрителей с похожим вкусом, следите, что они смотрят, вступайте в клубы и соревнуйтесь в топе недели.</p>',
+  },
+  '/news': {
+    title: 'Новости аниме: анонсы, премьеры, новые сезоны',
+    description: 'Свежие новости аниме: анонсы и даты премьер, новые сезоны и трейлеры. Из каждой новости можно сразу открыть тайтл.',
+    h1: 'Новости аниме',
+    text: '<p>Анонсы, даты премьер, новые сезоны и трейлеры. Тайтлы из новостей открываются на Anime Life.</p>',
+  },
+  '/scene': {
+    title: 'Найти аниме по кадру или скриншоту',
+    description: 'Загрузите скриншот, и Anime Life найдёт аниме, номер серии и минуту, а потом откроет серию с этого места.',
+    h1: 'Найти аниме по кадру',
+    text: '<p>Скриншот, мем или гифка: покажем, что это за аниме, какая серия и минута. Поиск работает на trace.moe.</p>',
+  },
+  '/recap': {
+    title: 'Мои итоги года в аниме',
+    description: 'Итоги года в аниме: часы, любимые тайтлы и жанры, озвучка и рекорды. Картинкой для соцсетей.',
+    h1: 'Мои итоги года',
+    text: '<p>Ваш год в аниме: сколько часов, какие тайтлы и жанры, любимая озвучка и рекорды.</p>',
+  },
   '/random': {
     title: 'Что посмотреть: случайное аниме по настроению',
     description: 'Не знаете, что посмотреть? Выберите настроение, формат и планку оценки, и Anime Life предложит случайное аниме.',
@@ -629,6 +653,24 @@ async function metaFor(path, params) {
       title: `Смотрим вместе: ${r.title || r.animeTitle} | ${SITE}`,
       description: `${r.hostName} зовёт посмотреть «${r.animeTitle}», серия ${r.episode}. Видео идёт у всех одновременно, рядом чат и голос.`,
       image: r.poster || undefined,
+    }
+  }
+  m = path.match(/^\/club\/([A-Za-z0-9_.-]{1,36})$/)
+  if (m) {
+    const c = await appwriteRow('clubs', m[1])
+    return {
+      title: `Клуб «${c.title}» | ${SITE}`,
+      description: c.about || `Клуб зрителей Anime Life: ${c.members} участников, обсуждения и советы.`,
+    }
+  }
+  m = path.match(/^\/c\/([A-Za-z0-9_.-]{1,36})$/)
+  if (m) {
+    const c = await appwriteRow('user_collections', m[1])
+    const items = JSON.parse(c.items || '[]')
+    return {
+      title: `${c.title}: подборка аниме | ${SITE}`,
+      description: c.about || `Подборка от ${c.ownerName}: ${items.slice(0, 5).map((i) => i.title).join(', ')}.`,
+      image: c.cover || undefined,
     }
   }
   m = path.match(/^\/u\/([A-Za-z0-9_.-]{1,36})$/)
@@ -756,7 +798,7 @@ async function render(env, url, status = 200, asset) {
 const PAGE_FRESH = 300
 const PAGE_KEEP = DAY
 // Комнаты и профили меняются сразу (закрыли комнату, скрыли профиль): их не храним.
-const UNCACHED = /^\/(?:together\/|u\/)/
+const UNCACHED = /^\/(?:together\/|u\/|club\/|c\/)/
 
 const pageKey = (url, version) => new Request(`${url.origin}/__page/${version}${url.pathname}${url.search}`)
 
@@ -824,7 +866,7 @@ function sitemapPages() {
   const day = today()
   const year = new Date().getFullYear()
   const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
-  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', ...landingPaths(), ...[...ABOUT_LINKS, ...LEGAL_LINKS].map(([, p]) => p)]
+  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', '/community', '/news', '/scene', ...landingPaths(), ...[...ABOUT_LINKS, ...LEGAL_LINKS].map(([, p]) => p)]
   return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
 }
 

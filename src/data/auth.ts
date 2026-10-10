@@ -250,7 +250,7 @@ const messages: Record<string, string> = {
 export function authErrorMessage(e: unknown): string {
   // AppwriteException несёт код ошибки в поле type; проверяем по форме, чтобы не тянуть сюда SDK.
   if (e instanceof Error && 'type' in e && typeof e.type === 'string') return messages[e.type] ?? e.message
-  if (e instanceof Error && e.name === 'SocialLoginError') return e.message
+  if (e instanceof Error && (e.name === 'SocialLoginError' || e.name === 'CommunityError')) return e.message
   return 'Не получилось связаться с сервером. Проверьте интернет и попробуйте ещё раз.'
 }
 

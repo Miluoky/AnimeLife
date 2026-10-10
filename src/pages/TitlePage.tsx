@@ -30,6 +30,8 @@ import './title.css'
 
 // Отзывы ниже первого экрана: их код (с формой и модерацией) грузится отдельно и не задерживает страницу.
 const Reviews = lazy(() => import('../components/Reviews'))
+const ThemeSongs = lazy(() => import('../components/ThemeSongs'))
+const BestEpisodes = lazy(() => import('../components/BestEpisodes'))
 
 const MAX_SHOTS = 8
 
@@ -376,6 +378,9 @@ export default function TitlePage() {
               <ListButton anime={anime} />
               <WatchTogetherButton anime={anime} className="btn btn--ghost watch-together" />
               {(anime.ongoing || anime.upcoming) && <FollowButton animeId={anime.id} title={anime.title} />}
+              <Link to={`/collections/my?add=${anime.id}`} className="btn btn--ghost title-to-collection" title="Добавить в свою подборку">
+                + В подборку
+              </Link>
               <ShareButton title={anime.title} path={`/anime/${anime.id}`} className="btn btn--ghost title-share" />
             </div>
             {facts.length > 0 && (
@@ -621,6 +626,13 @@ export default function TitlePage() {
         )}
 
         {!result.value?.demo && <WatchOrder animeId={anime.id} />}
+
+        {!result.value?.demo && (
+          <Suspense fallback={null}>
+            <BestEpisodes animeId={anime.id} />
+            <ThemeSongs animeId={anime.id} />
+          </Suspense>
+        )}
 
         <Suspense fallback={null}>
           <Reviews animeId={anime.id} />

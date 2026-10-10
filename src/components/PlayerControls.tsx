@@ -7,6 +7,7 @@ import { useEffect, useReducer, useRef, useState, type CSSProperties, type Point
 import { FullscreenIcon, PauseIcon, PlayIcon, SkipIcon, VolumeIcon } from './Icons'
 import type { AniLibriaQuality, SkipSpan } from '../api/anilibria'
 import { createLocalStore } from '../data/localStore'
+import { toast } from '../data/toast'
 
 interface Props {
   video: RefObject<HTMLVideoElement>
@@ -108,6 +109,7 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
   const fsEl = (document as FsDoc).fullscreenElement ?? (document as FsDoc).webkitFullscreenElement
   const fullscreen = !!fsEl && fsEl === frame.current
   const pip = typeof document !== 'undefined' && document.pictureInPictureEnabled
+  const cast = useCast(video)
 
   useEffect(() => {
     const el = video.current
@@ -638,6 +640,11 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
               </div>
             )}
           </div>
+          {cast && (
+            <button type="button" className="vp-btn vp-btn--cast" aria-label="Смотреть на телевизоре" title="На телевизор (Chromecast, AirPlay)" onClick={cast}>
+              <CastIcon />
+            </button>
+          )}
           {pip && (
             <button type="button" className="vp-btn vp-btn--pip" aria-label="Картинка в картинке" onClick={togglePip}>
               <PipIcon />
@@ -675,6 +682,55 @@ function GearIcon() {
       <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
       <circle cx="15" cy="7" r="2" />
       <circle cx="9" cy="17" r="2" />
+    </svg>
+  )
+}
+
+type CastVideo = HTMLVideoElement & {
+  remote?: {
+    watchAvailability(cb: (available: boolean) => void): Promise<number>
+    cancelWatchAvailability(id?: number): Promise<void>
+    prompt(): Promise<void>
+  }
+  webkitShowPlaybackTargetPicker?: () => void
+}
+
+/**
+ * Трансляция на телевизор: Remote Playback API (Chromecast в Chrome) или AirPlay в Safari.
+ * Возвращает обработчик кнопки, когда рядом есть устройство, иначе undefined. Поток hls.js (MSE) Chrome не транслирует.
+ */
+function useCast(video: RefObject<HTMLVideoElement>) {
+  const [available, setAvailable] = useState(false)
+  useEffect(() => {
+    const el = video.current as CastVideo | null
+    if (!el) return
+    if (el.webkitShowPlaybackTargetPicker) {
+      const onChange = (e: Event) => setAvailable((e as Event & { availability?: string }).availability === 'available')
+      el.addEventListener('webkitplaybacktargetavailabilitychanged', onChange)
+      return () => el.removeEventListener('webkitplaybacktargetavailabilitychanged', onChange)
+    }
+    if (!el.remote) return
+    let id: number | undefined
+    el.remote
+      .watchAvailability(setAvailable)
+      .then((x) => (id = x))
+      .catch(() => setAvailable(false))
+    return () => void el.remote?.cancelWatchAvailability(id).catch(() => undefined)
+  }, [video])
+  if (!available) return undefined
+  return () => {
+    const el = video.current as CastVideo | null
+    if (!el) return
+    if (el.webkitShowPlaybackTargetPicker) return el.webkitShowPlaybackTargetPicker()
+    el.remote?.prompt().catch(() => toast('Не получилось подключиться к телевизору'))
+  }
+}
+
+function CastIcon() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
+      <path d="M2 16a5 5 0 0 1 5 5M2 12a9 9 0 0 1 9 9M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
+      <circle cx="2.5" cy="20.5" r="0.5" fill="currentColor" />
     </svg>
   )
 }

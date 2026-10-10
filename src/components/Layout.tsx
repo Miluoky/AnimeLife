@@ -94,6 +94,14 @@ export default function Layout() {
   useEffect(() => {
     if (publicProfile) void import('../data/profile').then((m) => m.autoPublish())
   }, [publicProfile])
+  useEffect(() => {
+    // Список связан с Shikimori: изменения уходят туда сами.
+    try {
+      if (localStorage.getItem('anime.shiki.v1')?.startsWith('{')) void import('../data/shikiSync').then((m) => m.autoSync())
+    } catch {
+      // без хранилища связи нет
+    }
+  }, [])
 
   // Оформление из настроек (тема, акцент) и шапка, которая становится полупрозрачной при прокрутке.
   // Как на AniLife, при прокрутке вниз шапка и нижнее меню уезжают и возвращаются, стоит прокрутить чуть вверх.
@@ -144,7 +152,7 @@ export default function Layout() {
       <WatchingLink />
       <NavLink to="/schedule">Расписание</NavLink>
       <NavLink to="/together">Вместе</NavLink>
-      <NavLink to="/chat">Чат</NavLink>
+      <NavLink to="/community">Сообщество</NavLink>
       <NavLink to="/my-list">Мой список</NavLink>
     </>
   )
