@@ -291,6 +291,12 @@ test.describe('Worker: прокси Shikimori', () => {
       env.restore()
     }
   })
+
+  test('«О проекте» и «Приложение» есть в карте сайта', async () => {
+    const ctx = { waitUntil: () => undefined }
+    const xml = await (await worker.fetch(new Request('https://animelife.top/sitemap-pages.xml'), {}, ctx)).text()
+    for (const path of ['/about', '/app', '/catalog', '/rightholders']) expect(xml).toContain(`<loc>https://animelife.top${path}</loc>`)
+  })
 })
 
 test.describe('Worker: кэш готовых страниц', () => {

@@ -37,6 +37,14 @@ test('служебные страницы: заголовок, описание 
     // Длинные ссылки в тексте не раздвигают страницу на телефоне.
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   }
+  // «О проекте» и «Приложение» открываются из подвала.
+  await page.goto('/')
+  await footer.getByRole('link', { name: 'О проекте' }).click()
+  await expect(page).toHaveURL(/\/about$/)
+  await footer.getByRole('link', { name: 'Приложение' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Приложение Anime Life')
+  await expect(page.locator('.legal__install')).toBeVisible()
+  await page.goto('/terms')
   // Ссылка внутри текста ведёт на другую служебную страницу.
   await page.getByRole('main').getByRole('link', { name: 'Контакты' }).first().click()
   await expect(page).toHaveURL(/\/contacts$/)

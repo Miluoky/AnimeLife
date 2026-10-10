@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import ContactForm from '../components/ContactForm'
+import InstallButton from '../components/InstallButton'
 import { usePageMeta } from '../data/pageMeta'
 import { LEGAL, textParts } from '../data/legal'
 import { LEGAL_LINKS } from '../data/seo'
@@ -29,7 +30,7 @@ function Text({ text }: { text: string }) {
 }
 
 /**
- * Правообладателям, контакты, политика конфиденциальности и соглашение. Тексты общие с Worker (src/data/legal.ts),
+ * О проекте, приложение, правообладателям, контакты, политика конфиденциальности и соглашение. Тексты общие с Worker (src/data/legal.ts),
  * поэтому поисковик без JavaScript видит то же самое.
  */
 export default function Legal() {
@@ -65,7 +66,7 @@ export default function Legal() {
           )}
         </section>
       ))}
-      {page.form && <ContactForm kind={page.form} />}
+      {page.form === 'install' ? <InstallButton /> : page.form && <ContactForm kind={page.form} />}
       <nav className="chips legal__more" aria-label="Документы">
         {LEGAL_LINKS.filter(([, to]) => to !== path).map(([name, to]) => (
           <Link key={to} to={to} className="pill pill--link">

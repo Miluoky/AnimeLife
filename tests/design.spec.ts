@@ -91,7 +91,7 @@ test('у страницы тайтла свой заголовок вкладк�
   await expect(page).toHaveTitle('Ковбой Бибоп — смотреть аниме онлайн бесплатно все серии | Anime Life')
   await expect(page.getByRole('button', { name: 'Поделиться' })).toBeVisible()
   await page.goto('/catalog')
-  await expect(page).toHaveTitle('Каталог аниме — поиск по жанрам, годам и рейтингу | Anime Life')
+  await expect(page).toHaveTitle('Каталог аниме — смотреть онлайн бесплатно с озвучкой | Anime Life')
 })
 
 test('шапка уезжает при прокрутке вниз и возвращается при прокрутке вверх', async ({ page }) => {

@@ -16,11 +16,12 @@
  * Если внешний сервис не ответил, отдаётся обычный index.html: сайт работает как раньше.
  */
 import { CATALOG, landingFor, landingPaths } from '../src/data/landings.ts'
-import { LEGAL, textParts } from '../src/data/legal.ts'
+import { CONTACT_EMAIL, LEGAL, textParts } from '../src/data/legal.ts'
 import { isShikiProxy, shikiProxy } from './shikiProxy.js'
 import { isYummyProxy, yummyProxy } from './yummyProxy.js'
 import { isMangadexProxy, mangadexProxy } from './mangadexProxy.js'
 import {
+  ABOUT_LINKS,
   DISCLAIMER,
   GENRES,
   KINDS,
@@ -52,7 +53,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|character\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -139,7 +140,7 @@ function siteNav() {
       [`Аниме ${year} года`, `/year/${year}`],
       [`Аниме ${year - 1} года`, `/year/${year - 1}`],
     ])}</nav>` +
-    `<nav>${links(LEGAL_LINKS)}</nav><p>${escapeHtml(DISCLAIMER)}</p>`
+    `<nav>${links([...ABOUT_LINKS, ...LEGAL_LINKS])}</nav><p>${escapeHtml(DISCLAIMER)}</p>`
   )
 }
 
@@ -261,6 +262,8 @@ async function home() {
         '@type': 'WebSite',
         '@id': `${ORIGIN}/#website`,
         name: SITE,
+        // Другие написания названия: по ним Google узнаёт сайт и подписывает его в выдаче как «Anime Life».
+        alternateName: ['AnimeLife', 'animelife.top'],
         url: `${ORIGIN}/`,
         inLanguage: 'ru',
         publisher: { '@id': `${ORIGIN}/#organization` },
@@ -270,7 +273,14 @@ async function home() {
           'query-input': 'required name=search_term_string',
         },
       },
-      { '@type': 'Organization', '@id': `${ORIGIN}/#organization`, name: SITE, url: `${ORIGIN}/`, logo: `${ORIGIN}/icon-512.png` },
+      {
+        '@type': 'Organization',
+        '@id': `${ORIGIN}/#organization`,
+        name: SITE,
+        url: `${ORIGIN}/`,
+        logo: `${ORIGIN}/icon-512.png`,
+        email: CONTACT_EMAIL,
+      },
     ),
   }
 }
@@ -474,7 +484,7 @@ function legalPage(path, l) {
             (s.list ? `<ul>${s.list.map((li) => `<li>${legalText(li)}</li>`).join('')}</ul>` : ''),
         )
         .join('') +
-      (l.form ? '<p>Форма обращения открывается в браузере с включённым JavaScript.</p>' : '') +
+      (l.form === 'install' ? '' : l.form ? '<p>Форма обращения открывается в браузере с включённым JavaScript.</p>' : '') +
       siteNav(),
     jsonLd: graph(crumbs.ld),
   }
@@ -544,54 +554,63 @@ async function mangaPage(id) {
 }
 
 /** Что показать в превью ссылки и в тексте страницы для данного адреса. */
+/** Разделы, которые собирает приложение: для поисковика — заголовок, абзац о разделе, хлебные крошки и ссылки. */
+const SECTIONS = {
+  '/together': {
+    title: 'Смотреть аниме вместе с друзьями онлайн',
+    description: 'Комнаты совместного просмотра: видео идёт у всех одновременно, рядом чат, реакции и голос. Создайте комнату и позовите друзей по ссылке.',
+    h1: 'Смотреть аниме вместе',
+    text: '<p>Создайте комнату, позовите друзей по ссылке или коду и смотрите одну серию одновременно: пауза и перемотка у всех сразу, рядом чат и голосовая связь.</p>',
+  },
+  '/top': {
+    title: 'Топ-100 аниме: лучшие, популярные и онгоинги',
+    description: 'Рейтинг аниме по оценкам зрителей: лучшие за всё время, самые популярные, лучшие онгоинги и тайтлы этого сезона.',
+    h1: 'Топ-100 аниме',
+    text: '<p>Лучшие аниме по оценкам зрителей Shikimori, самые популярные тайтлы, лучшие онгоинги и рейтинг этого сезона.</p>',
+  },
+  '/collections': {
+    title: 'Подборки аниме: что посмотреть вечером',
+    description: 'Подборки аниме: с чего начать, лучшие фильмы, онгоинги, психологические триллеры, комедии, фэнтези, классика 90-х и 2000-х.',
+    h1: 'Подборки аниме',
+    text: '<p>Готовые списки на вечер: с чего начать знакомство с аниме, шедевры в полном метре, лучшие онгоинги, психологические триллеры, комедии без романтики, фэнтези-приключения, сэйнэн, классика 90-х и лучшее из нулевых.</p>',
+  },
+  '/changelog': {
+    title: 'Что нового на сайте',
+    description: 'Обновления Anime Life: новые разделы, функции плеера, улучшения и исправления.',
+    h1: 'Что нового',
+    text: '<p>Лента обновлений Anime Life: что появилось на сайте за последнее время, новые сверху.</p>',
+  },
+  '/quiz': {
+    title: 'Угадай аниме по кадру: мини-игра',
+    description: 'Мини-игра Anime Life: по кадру из популярного аниме угадайте название из четырёх вариантов. Сколько получится подряд?',
+    h1: 'Угадай аниме по кадру',
+    text: '<p>Кадр из популярного аниме и четыре варианта названия. Отвечайте, набирайте серию верных ответов и ставьте рекорд.</p>',
+  },
+  '/random': {
+    title: 'Что посмотреть: случайное аниме по настроению',
+    description: 'Не знаете, что посмотреть? Выберите настроение, формат и планку оценки, и Anime Life предложит случайное аниме.',
+    h1: 'Что посмотреть?',
+    text: '<p>Выберите настроение: посмеяться, уютное, про любовь, драйв или загадка. Сайт покрутит барабан и предложит один тайтл из каталога.</p>',
+  },
+}
+
+function sectionPage(path, s) {
+  const crumbs = breadcrumbs([[s.h1, path]])
+  return {
+    title: `${s.title} | ${SITE}`,
+    description: s.description,
+    body: crumbs.html + `<h1>${escapeHtml(s.h1)}</h1>` + s.text + siteNav(),
+    jsonLd: graph(crumbs.ld),
+  }
+}
+
 async function metaFor(path, params) {
   const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
   if (path === '/') return home()
   if (path === '/catalog') return listing(CATALOG, page)
   if (path === '/schedule') return schedule()
   if (LEGAL[path]) return legalPage(path, LEGAL[path])
-  if (path === '/together') {
-    return {
-      title: `Смотреть аниме вместе с друзьями онлайн | ${SITE}`,
-      description: 'Комнаты совместного просмотра: видео идёт у всех одновременно, рядом чат, реакции и голос. Создайте комнату и позовите друзей по ссылке.',
-      body: '<h1>Смотреть аниме вместе</h1><p>Создайте комнату, позовите друзей по ссылке или коду и смотрите одну серию одновременно: пауза и перемотка у всех сразу, рядом чат и голосовая связь.</p>' + siteNav(),
-    }
-  }
-  if (path === '/top') {
-    return {
-      title: `Топ-100 аниме: лучшие, популярные и онгоинги | ${SITE}`,
-      description: 'Рейтинг аниме по оценкам зрителей: лучшие за всё время, самые популярные, лучшие онгоинги и тайтлы этого сезона.',
-      body: '<h1>Топ-100 аниме</h1><p>Лучшие аниме по оценкам зрителей Shikimori, самые популярные тайтлы, лучшие онгоинги и рейтинг этого сезона.</p>' + siteNav(),
-    }
-  }
-  if (path === '/collections') {
-    return {
-      title: `Подборки аниме: что посмотреть вечером | ${SITE}`,
-      description: 'Подборки аниме: с чего начать, лучшие фильмы, онгоинги, психологические триллеры, комедии, фэнтези, классика 90-х и 2000-х.',
-      body: '<h1>Подборки аниме</h1><p>Готовые списки на вечер: с чего начать знакомство с аниме, шедевры в полном метре, лучшие онгоинги, психологические триллеры, комедии без романтики, фэнтези-приключения, сэйнэн, классика 90-х и лучшее из нулевых.</p>' + siteNav(),
-    }
-  }
-  if (path === '/changelog') {
-    return {
-      title: `Что нового на сайте | ${SITE}`,
-      description: 'Обновления Anime Life: новые разделы, функции плеера, улучшения и исправления.',
-      body: '<h1>Что нового</h1><p>Лента обновлений Anime Life: что появилось на сайте за последнее время, новые сверху.</p>' + siteNav(),
-    }
-  }
-  if (path === '/quiz') {
-    return {
-      title: `Угадай аниме по кадру: мини-игра | ${SITE}`,
-      description: 'Мини-игра Anime Life: по кадру из популярного аниме угадайте название из четырёх вариантов. Сколько получится подряд?',
-      body: '<h1>Угадай аниме по кадру</h1><p>Кадр из популярного аниме и четыре варианта названия. Отвечайте, набирайте серию верных ответов и ставьте рекорд.</p>' + siteNav(),
-    }
-  }
-  if (path === '/random') {
-    return {
-      title: `Что посмотреть: случайное аниме по настроению | ${SITE}`,
-      description: 'Не знаете, что посмотреть? Выберите настроение, формат и планку оценки, и Anime Life предложит случайное аниме.',
-      body: '<h1>Что посмотреть?</h1><p>Выберите настроение: посмеяться, уютное, про любовь, драйв или загадка. Сайт покрутит барабан и предложит один тайтл из каталога.</p>' + siteNav(),
-    }
-  }
+  if (SECTIONS[path]) return sectionPage(path, SECTIONS[path])
   const landing = landingFor(path)
   if (landing) return listing(landing, page)
   if (/^\/(?:genre|type|year)\//.test(path)) throw notFound()
@@ -805,7 +824,7 @@ function sitemapPages() {
   const day = today()
   const year = new Date().getFullYear()
   const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
-  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', ...landingPaths(), ...LEGAL_LINKS.map(([, p]) => p)]
+  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', ...landingPaths(), ...[...ABOUT_LINKS, ...LEGAL_LINKS].map(([, p]) => p)]
   return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
 }
 
