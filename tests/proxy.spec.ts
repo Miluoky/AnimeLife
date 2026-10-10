@@ -22,7 +22,7 @@ async function asProduction(page: Page, handler?: (path: string) => { status: nu
       if (special) return route.fulfill({ status: special.status, json: { error: 'busy' } })
       return route.fulfill({ json: shikimoriFixture(path, url.searchParams), headers: { 'X-Cache': 'HIT' } })
     }
-    const res = await route.fetch({ url: `http://localhost:4173${url.pathname}${url.search}` })
+    const res = await route.fetch({ url: `http://localhost:${process.env.PW_PORT ?? 4173}${url.pathname}${url.search}` })
     return route.fulfill({ response: res })
   })
   return proxied
