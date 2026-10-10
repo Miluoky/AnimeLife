@@ -297,7 +297,7 @@ test.describe('Worker: кэш готовых страниц', () => {
         return new Response(res.body, res)
       }
     }
-    const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { ETag: version } }) }
+    const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { ETag: version, 'Content-Type': 'text/html' } }) }
     return {
       deploy: (v: string) => (version = v),
       async open(path: string, init?: RequestInit) {
@@ -330,6 +330,18 @@ test.describe('Worker: кэш готовых страниц', () => {
       expect(stale.cache).toBe('STALE')
       expect(stale.upstream).toBeGreaterThan(0)
       expect(await s.open('/anime/1')).toMatchObject({ cache: 'HIT', upstream: 0 })
+    } finally {
+      env.restore()
+    }
+  })
+
+  test('все страницы приложения отвечают 200, неизвестный адрес — 404', async () => {
+    const env = fakeEnv()
+    try {
+      env.respond(fixture())
+      const s = site(env)
+      for (const path of ['/quiz', '/chat', '/admin/analytics', '/top', '/collections']) expect((await s.open(path)).status, path).toBe(200)
+      expect((await s.open('/no-such-page')).status).toBe(404)
     } finally {
       env.restore()
     }
