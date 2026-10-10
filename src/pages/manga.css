@@ -22,3 +22,7 @@
   flex-wrap: wrap;
   gap: 10px;
 }
+
+.manga__links .btn {
+  border: 1px solid var(--line);
+}
