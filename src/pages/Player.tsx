@@ -14,6 +14,7 @@ import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
 import { findYummy, voiceKey, type YummyPlayer, type YummyVoice } from '../api/yummy'
+import { playerVoiceKey } from '../api/voiceKey'
 import { markFlag } from '../data/flags'
 import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
@@ -91,7 +92,8 @@ export default function Player() {
   const skipFillers = skipFillersStore.use()
   const wide = wideStore.use()
   const [voiceKey, setVoiceKey] = useState(savedVoice)
-  const voice = voices.find((v) => v.key === voiceKey) ?? voices[0]
+  // Со страницы тайтла приходит ключ по названию студии (playerVoiceKey): источник там неизвестен.
+  const voice = voices.find((v) => v.key === voiceKey || playerVoiceKey(v) === voiceKey) ?? voices[0]
   const chooseVoice = (key: string) => {
     saveVoice(key)
     setVoiceKey(key)

@@ -22,7 +22,8 @@ import NextEpisode from '../components/NextEpisode'
 import FollowButton from '../components/FollowButton'
 import WatchOrder from '../components/WatchOrder'
 import { fetchStaff } from '../api/staff'
-import { findAnixart, type AnixartVoice } from '../api/anixart'
+import { findAnixart } from '../api/anixart'
+import { choosePlayerVoice, voiceKey } from '../api/voiceKey'
 import VoiceLogo from '../components/VoiceLogo'
 import NotFound from './NotFound'
 import './title.css'
@@ -72,28 +73,75 @@ function Voices({ title, names = [] }: { title: string; names?: string[] }) {
   )
 }
 
+interface SiteVoice {
+  title: string
+  kind: 'voice' | 'subtitles'
+  episodes: number
+  icon?: string
+}
+
+/**
+ * Студии из Kodik и YummyAnime, которых нет в Anixart: плеер показывает и их. На странице тайтла
+ * их не грузим заранее (YummyAnime — поиск и большой список серий), только по «Ещё». Ответы
+ * запоминаются на сеанс, и плеер потом берёт их же без новых запросов.
+ */
+async function loadMoreVoices(anime: { id: string; titles: (string | undefined)[] }, known: SiteVoice[]): Promise<SiteVoice[]> {
+  const [{ fetchKodikTranslations }, { findYummy }] = await Promise.all([import('../api/kodik'), import('../api/yummy')])
+  const [kodik, yummy] = await Promise.all([
+    fetchKodikTranslations(anime.id).catch(() => []),
+    findYummy(anime.id, anime.titles).catch(() => null),
+  ])
+  // Сверка такая же, как в плеере (buildVoices): Kodik — по названию, YummyAnime — по ключу студии.
+  const list = [...known]
+  const extra: SiteVoice[] = []
+  const titles = new Set(list.map((v) => v.title.toLowerCase()))
+  for (const t of [...kodik].sort((a, b) => b.episodes - a.episodes)) {
+    if (titles.has(t.title.toLowerCase())) continue
+    titles.add(t.title.toLowerCase())
+    extra.push(t)
+    list.push(t)
+  }
+  for (const y of yummy ?? []) {
+    if (list.some((v) => v.kind === y.kind && voiceKey(v.title) === voiceKey(y.title))) continue
+    extra.push(y)
+    list.push(y)
+  }
+  return extra
+}
+
 /** Озвучки, которые есть прямо в плеере сайта: по клику плеер открывается сразу в выбранной. */
-function SiteVoices({ voices, href, total }: { voices: AnixartVoice[]; href: string; total: number }) {
+function SiteVoices({
+  voices,
+  href,
+  total,
+  anime,
+}: {
+  voices: SiteVoice[]
+  href: string
+  total: number
+  anime: { id: string; titles: (string | undefined)[] }
+}) {
   const [all, setAll] = useState(false)
-  const shown = all ? voices : voices.slice(0, VOICES_SHOWN * 2)
-  // Тот же ключ, что у списка озвучек в плеере (Player.tsx): у своих плееров AniLibria и AnimeVost ключ — имя источника.
-  const choose = (v: AnixartVoice) => {
-    const own = v.title.toLowerCase()
-    try {
-      sessionStorage.setItem('player-voice', own === 'anilibria' || own === 'animevost' ? own : `anixart:${v.type}`)
-    } catch {
-      // Без хранилища плеер откроется в озвучке по умолчанию.
-    }
+  const [more, setMore] = useState<SiteVoice[] | 'loading'>()
+  const extra = Array.isArray(more) ? more : []
+  const list = all ? [...voices, ...extra] : voices.slice(0, VOICES_SHOWN * 2)
+  const hidden = voices.length + extra.length - list.length
+  const expand = () => {
+    setAll(true)
+    if (more) return
+    setMore('loading')
+    loadMoreVoices(anime, voices).then(setMore, () => setMore([]))
   }
   return (
     <div className="stack voices" style={{ gap: 10 }}>
       <h2 style={{ fontSize: 18, fontWeight: 500 }}>
-        Озвучки на сайте <span className="muted voices__count">{voices.length}</span>
+        Озвучки на сайте <span className="muted voices__count">{voices.length + extra.length}</span>
       </h2>
-      <ul className="voices__list">
-        {shown.map((v) => (
-          <li key={v.type} className="voices__site">
-            <Link to={href} onClick={() => choose(v)} title={`Смотреть в озвучке ${v.title}`}>
+      <ul className="voices__list" aria-busy={more === 'loading'}>
+        {list.map((v) => (
+          <li key={`${v.kind}:${v.title}`} className="voices__site">
+            {/* Плеер узнаёт студию по названию: она могла прийти к нему из другого источника (playerVoiceKey). */}
+            <Link to={href} onClick={() => choosePlayerVoice(v)} title={`Смотреть в озвучке ${v.title}`}>
               <VoiceLogo title={v.title} kind={v.kind} icon={v.icon} size={36} />
               <span className="voices__site-text">
                 <strong>{v.title}</strong>
@@ -105,13 +153,21 @@ function SiteVoices({ voices, href, total }: { voices: AnixartVoice[]; href: str
             </Link>
           </li>
         ))}
-        {voices.length > shown.length || all ? (
-          <li>
-            <button type="button" className="voices__more" aria-expanded={all} onClick={() => setAll(!all)}>
-              {all ? 'Свернуть' : `Ещё ${voices.length - shown.length}`}
+        <li>
+          {more === 'loading' ? (
+            <span className="muted voices__more">Ищем в других плеерах…</span>
+          ) : all ? (
+            voices.length + extra.length > VOICES_SHOWN * 2 && (
+              <button type="button" className="voices__more" aria-expanded onClick={() => setAll(false)}>
+                Свернуть
+              </button>
+            )
+          ) : (
+            <button type="button" className="voices__more" aria-expanded={false} onClick={expand}>
+              {hidden > 0 ? `Ещё ${hidden}` : 'Все плееры'}
             </button>
-          </li>
-        ) : null}
+          )}
+        </li>
       </ul>
     </div>
   )
@@ -450,7 +506,12 @@ export default function TitlePage() {
               </div>
             )}
             {anixart.value?.voices.length ? (
-              <SiteVoices voices={anixart.value.voices} href={`/watch/${anime.id}/${progress?.episode ?? 1}`} total={total} />
+              <SiteVoices
+                voices={anixart.value.voices}
+                href={`/watch/${anime.id}/${progress?.episode ?? 1}`}
+                total={total}
+                anime={{ id: anime.id, titles: [anime.title, anime.originalTitle, anime.englishTitle] }}
+              />
             ) : (
               <Voices title="Озвучка" names={extras.value?.dubbers} />
             )}
