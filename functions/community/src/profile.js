@@ -1,4 +1,5 @@
 import { DB, UserError, hash, listRows, query } from './util.js'
+import { notify } from './notifications.js'
 
 /**
  * Списки и профили.
@@ -106,6 +107,12 @@ export async function commentSave(api, req, body) {
     { method: 'limit', values: [COMMENTS_PER_10MIN] },
   ])
   if (recent.length >= COMMENTS_PER_10MIN) throw new UserError('Слишком много комментариев подряд, передохните пару минут.')
+  // Ответ на комментарий той же серии: запоминаем, кому, и сообщаем автору в колокольчик.
+  let parent
+  if (body.replyTo) {
+    parent = await getComment(api, body.replyTo)
+    if (parent.animeId !== String(body.animeId) || parent.episode !== episode || parent.hidden) throw new UserError('Комментарий, на который вы отвечаете, не найден.')
+  }
   const row = await api('POST', `${DB}/comments/rows`, {
     rowId: 'unique()',
     data: {
@@ -117,8 +124,19 @@ export async function commentSave(api, req, body) {
       spoiler: Boolean(body.spoiler),
       hidden: false,
       at: now,
+      ...(parent && { replyTo: parent.$id, replyName: parent.name }),
     },
   })
+  if (parent) {
+    await notify(api, {
+      userId: parent.userId,
+      kind: 'reply',
+      actor: user,
+      text,
+      link: `/watch/${parent.animeId}/${episode}#c-${row.json.$id}`,
+      key: row.json.$id,
+    })
+  }
   return { comment: row.json }
 }
 

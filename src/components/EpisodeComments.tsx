@@ -51,6 +51,27 @@ function WithTimecodes({ text }: { text: string }) {
   return <>{out}</>
 }
 
+/**
+ * Ветки обсуждения: комментарии верхнего уровня (свежие сверху), под каждым ответы по порядку.
+ * Ответ на ответ встаёт в ту же ветку; если исходный комментарий убрали, ответ показывается сам по себе.
+ */
+function threads(items: EpisodeComment[]) {
+  const byId = new Map(items.map((c) => [c.$id, c]))
+  const rootOf = (c: EpisodeComment) => {
+    let cur = c
+    for (let i = 0; i < 20 && cur.replyTo && byId.has(cur.replyTo); i++) cur = byId.get(cur.replyTo)!
+    return cur
+  }
+  const replies = new Map<string, EpisodeComment[]>()
+  const roots: EpisodeComment[] = []
+  for (const c of items) {
+    const root = rootOf(c)
+    if (root === c) roots.push(c)
+    else replies.set(root.$id, [...(replies.get(root.$id) ?? []), c])
+  }
+  return roots.map((comment) => ({ comment, replies: (replies.get(comment.$id) ?? []).sort((a, b) => a.at - b.at) }))
+}
+
 /** Обсуждение конкретной серии под плеером. Спойлеры скрыты, пока не нажмёшь. */
 export default function EpisodeComments({ animeId, episode }: { animeId: string; episode: number }) {
   const { user } = useAuth()
@@ -62,6 +83,8 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
   const [reported, setReported] = useState<Set<string>>(new Set())
   const field = useRef<HTMLTextAreaElement>(null)
   const isAdmin = !!user?.labels?.includes('admin')
+  // На какой комментарий отвечаем: ответ встанет под ним, а автор получит уведомление.
+  const [replyTo, setReplyTo] = useState<EpisodeComment | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -74,14 +97,30 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
     }
   }, [animeId, episode])
 
+  // Ссылка из уведомления (#c-<id>): прокручиваем к комментарию и подсвечиваем его.
+  useEffect(() => {
+    const id = location.hash.startsWith('#c-') ? location.hash.slice(3) : ''
+    if (!items || !id) return
+    const el = document.getElementById(`c-${id}`)
+    if (!el) return
+    el.classList.add('comment--target')
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [items])
+
+  const startReply = (c: EpisodeComment) => {
+    setReplyTo(c)
+    requestAnimationFrame(() => field.current?.focus())
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
     try {
-      const c = await saveComment(animeId, episode, text, spoiler)
+      const c = await saveComment(animeId, episode, text, spoiler, replyTo?.$id)
       setItems((list) => [c, ...(list ?? [])])
       setText('')
       setSpoiler(false)
+      setReplyTo(null)
       markFlag('commented')
     } catch (err) {
       toast(err instanceof CommunityError ? err.message : 'Не удалось отправить')
@@ -127,6 +166,44 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
     }
   }
 
+  function renderComment(c: EpisodeComment) {
+    const hidden = c.spoiler && !shown.has(c.$id)
+    return (
+      <div id={`c-${c.$id}`} className="comment">
+        <div className="comment__head">
+          <strong>{c.name}</strong>
+          {c.replyName && <span className="muted comment__to">ответ для {c.replyName}</span>}
+          <span className="muted">{ago(c.at)}</span>
+          {c.spoiler && <span className="comment__tag">спойлер</span>}
+          {user && c.userId !== user.$id && (
+            <button type="button" className="comment__delete" onClick={() => startReply(c)}>
+              Ответить
+            </button>
+          )}
+          {(c.userId === user?.$id || isAdmin) && (
+            <button type="button" className="comment__delete" onClick={() => void remove(c.$id)}>
+              Убрать
+            </button>
+          )}
+          {user && c.userId !== user.$id && !isAdmin && (
+            <button type="button" className="comment__delete" disabled={reported.has(c.$id)} onClick={() => void report(c.$id)}>
+              {reported.has(c.$id) ? 'Жалоба отправлена' : 'Пожаловаться'}
+            </button>
+          )}
+        </div>
+        {hidden ? (
+          <button type="button" className="comment__spoiler" onClick={() => setShown((s) => new Set(s).add(c.$id))}>
+            Показать спойлер
+          </button>
+        ) : (
+          <p>
+            <WithTimecodes text={c.text} />
+          </p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <section className="stack comments" aria-label={`Обсуждение серии ${episode}`}>
       <div className="section-head">
@@ -135,6 +212,14 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
       </div>
       {user ? (
         <form className="stack comments__form" onSubmit={submit}>
+          {replyTo && (
+            <p className="comments__reply-to">
+              Ответ для <strong>{replyTo.name}</strong>
+              <button type="button" className="link-btn" onClick={() => setReplyTo(null)}>
+                Отменить
+              </button>
+            </p>
+          )}
           <textarea
             ref={field}
             value={text}
@@ -142,7 +227,7 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
             maxLength={1000}
             rows={2}
             placeholder="Что думаете о серии? Время вроде 12:34 станет ссылкой на момент"
-            aria-label="Комментарий к серии"
+            aria-label={replyTo ? `Ответ для ${replyTo.name}` : 'Комментарий к серии'}
           />
           <div className="actions" style={{ justifyContent: 'space-between' }}>
             <div className="comments__tools">
@@ -173,46 +258,12 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
         <p className="muted">Пока никто не написал. Будьте первым!</p>
       ) : (
         <ul className="comments__list">
-          {items.map((c) => {
-            const hidden = c.spoiler && !shown.has(c.$id)
-            return (
-              <li key={c.$id} className="comment">
-                <div className="comment__head">
-                  <strong>{c.name}</strong>
-                  <span className="muted">{ago(c.at)}</span>
-                  {c.spoiler && <span className="comment__tag">спойлер</span>}
-                  {(c.userId === user?.$id || isAdmin) && (
-                    <button type="button" className="comment__delete" onClick={() => void remove(c.$id)}>
-                      Убрать
-                    </button>
-                  )}
-                  {user && c.userId !== user.$id && !isAdmin && (
-                    <button
-                      type="button"
-                      className="comment__delete"
-                      disabled={reported.has(c.$id)}
-                      onClick={() => void report(c.$id)}
-                    >
-                      {reported.has(c.$id) ? 'Жалоба отправлена' : 'Пожаловаться'}
-                    </button>
-                  )}
-                </div>
-                {hidden ? (
-                  <button
-                    type="button"
-                    className="comment__spoiler"
-                    onClick={() => setShown((s) => new Set(s).add(c.$id))}
-                  >
-                    Показать спойлер
-                  </button>
-                ) : (
-                  <p>
-                    <WithTimecodes text={c.text} />
-                  </p>
-                )}
-              </li>
-            )
-          })}
+          {threads(items).map(({ comment, replies }) => (
+            <li key={comment.$id} className="comment-thread">
+              {renderComment(comment)}
+              {replies.length > 0 && <ul className="comments__replies">{replies.map((r) => <li key={r.$id}>{renderComment(r)}</li>)}</ul>}
+            </li>
+          ))}
         </ul>
       )}
     </section>
