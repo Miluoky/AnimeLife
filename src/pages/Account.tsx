@@ -9,6 +9,7 @@ import PushSettings from '../components/PushSettings'
 import TelegramNotifySettings from '../components/TelegramNotifySettings'
 import ProfileSettings from '../components/ProfileSettings'
 import AppearanceSettings from '../components/AppearanceSettings'
+import AccountData from '../components/AccountData'
 import { SOCIAL_LOGIN } from '../api/appwrite'
 import {
   signInWithOAuth,
@@ -413,6 +414,7 @@ export default function Account() {
       <TelegramNotifySettings />
       {(user || list.length > 0) && <ProfileStats />}
       <ProfileSettings />
+      {user && <AccountData />}
     </main>
   )
 }

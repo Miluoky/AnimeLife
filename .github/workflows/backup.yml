@@ -1,0 +1,53 @@
+name: Копия базы
+
+# Раз в сутки сохраняет всю базу Appwrite (таблицы базы anime и аккаунты с настройками) — scripts/backup-appwrite.mjs.
+# Копия шифруется (AES-256, ключ — секрет APPWRITE_API_KEY: у кого он есть, тот и так видит всю базу)
+# и хранится артефактом этого запуска 30 дней. Файлы в хранилищах (страницы манги) сюда не входят.
+#
+# Расшифровать скачанный артефакт:
+#   openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in animelife-backup.tar.gz.enc -pass env:APPWRITE_API_KEY | tar xz
+# Внутри по файлу на таблицу (table-<id>.jsonl.gz, строка = JSON), users.jsonl.gz и summary.json.
+on:
+  schedule:
+    - cron: '41 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+    steps:
+      - name: Проверить ключ
+        run: |
+          if [ -z "$APPWRITE_API_KEY" ]; then
+            echo "::error::Нет секрета APPWRITE_API_KEY: копию базы сделать нечем."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Выгрузить базу
+        run: node scripts/backup-appwrite.mjs backup
+      - name: Зашифровать
+        run: |
+          tar czf - backup | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:APPWRITE_API_KEY -out animelife-backup.tar.gz.enc
+          rm -rf backup
+          ls -lh animelife-backup.tar.gz.enc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: animelife-backup-${{ github.run_id }}
+          path: animelife-backup.tar.gz.enc
+          retention-days: 30
+          compression-level: 0
