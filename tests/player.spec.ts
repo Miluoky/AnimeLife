@@ -18,9 +18,11 @@ test.beforeEach(async ({ page }) => {
   await mockServices(page)
 })
 
-test('плеер: AniLibria берёт релиз с тем же id Shikimori и играет нужную серию', async ({ page }) => {
+test('плеер: AniLibria берёт релиз с тем же id Shikimori и играет нужную серию', async ({ page, isMobile }) => {
   await mockAniLibria(page, search)
-  const stream = page.waitForRequest(/cache\.libria\.fun\/videos\/media\/ts\/8443\/2\/1080\/.*\.m3u8/)
+  // На узком экране видео стартует в 720p, на компьютере в 1080p (src/data/saver.ts).
+  const quality = isMobile ? 720 : 1080
+  const stream = page.waitForRequest(new RegExp(`cache\\.libria\\.fun/videos/media/ts/8443/2/${quality}/.*\\.m3u8`))
   await page.goto('/watch/1/2')
   await stream
   await expect(page.locator('video.player-video')).toBeAttached()
@@ -62,7 +64,7 @@ test('плеер: поиск по одному названию не ответ�
   await page.route(/anilibria\.top\/api\/v1\/app\/search\/releases/, (route) =>
     ++searches === 1 ? route.fulfill({ status: 503, body: '' }) : route.fallback(),
   )
-  const stream = page.waitForRequest(/cache\.libria\.fun\/videos\/media\/ts\/8443\/1\/1080\/.*\.m3u8/)
+  const stream = page.waitForRequest(/cache\.libria\.fun\/videos\/media\/ts\/8443\/1\/(1080|720)\/.*\.m3u8/)
   await page.goto('/watch/1/1')
   await stream
   expect(searches).toBe(2)

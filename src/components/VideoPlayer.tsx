@@ -14,6 +14,7 @@
  * Если ни один источник не может показать серию, вместо пустого экрана — трейлер с Shikimori.
  */
 
+import { rememberQuality, startQuality } from '../data/saver'
 import { useState, useEffect, useRef, useCallback, lazy, Suspense, type CSSProperties } from 'react'
 import {
   findRelease,
@@ -164,7 +165,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   // ─── AniLibria state ───
   const [alRelease, setAlRelease] = useState<AniLibriaRelease | null>(null)
-  const [alQuality, setAlQuality] = useState<AniLibriaQuality>('1080')
+  // Стартовое качество по сети или прошлому выбору зрителя (src/data/saver.ts).
+  const [alQuality, setAlQuality] = useState<AniLibriaQuality>(() => startQuality() as AniLibriaQuality)
   const [alSearching, setAlSearching] = useState(false)
   // Ошибка воспроизведения текущего потока (сбрасывается при смене потока).
   const [streamError, setStreamError] = useState<string | null>(null)
@@ -668,7 +670,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             loading={loading}
             qualities={provider === 'animevost' ? avAvailable : alAvailable}
             quality={stream.quality}
-            onQuality={setAlQuality}
+            onQuality={(q) => {
+              rememberQuality(q)
+              setAlQuality(q)
+            }}
             onNext={hasNext ? () => onEpisodeChange?.(episode + 1) : undefined}
             nextLabel={`${episode + 1} серия`}
             skips={ownSkips.length ? ownSkips : props.skips?.spans}

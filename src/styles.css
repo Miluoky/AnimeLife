@@ -2782,6 +2782,18 @@ input[type='radio'] {
 :root[data-lite='1'] .hero__backdrop img {
   animation: none;
 }
+/* Телефон: кнопка «Смотреть» видна на первом экране, над нижним меню. */
+@media (max-width: 640px) {
+  .hero {
+    padding-top: 168px;
+  }
+  .hero__backdrop {
+    height: 250px;
+  }
+  .hero__desc {
+    -webkit-line-clamp: 2;
+  }
+}
 /* Телефон: медленный зум баннера под размытием перерисовывал большую картинку на каждом кадре прокрутки. */
 @media (max-width: 900px) {
   .hero__backdrop img {

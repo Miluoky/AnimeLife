@@ -147,14 +147,14 @@ test('главная: тайтл можно убрать из «Продолжи
   await expect(cards.first()).toContainText('Первый')
 })
 
-test('главная: заголовок полки сезона ведёт на страницу только этого сезона', async ({ page }) => {
+test('главная: заголовок полки сезона ведёт в сезонный чарт', async ({ page }) => {
   await page.goto('/')
   const link = page.locator('.shelf__title-link', { hasText: /^(Зима|Весна|Лето|Осень) \d{4}$/ })
   await link.scrollIntoViewIfNeeded()
-  await expect(link).toHaveAttribute('href', /^\/year\/\d{4}\/(winter|spring|summer|fall)$/)
+  await expect(link).toHaveAttribute('href', '/season')
   await link.click()
-  await expect(page).toHaveURL(/\/year\/\d{4}\/(winter|spring|summer|fall)$/)
-  await expect(page.locator('h1')).toContainText(/Аниме (зимы|весны|лета|осени) \d{4}/i)
+  await expect(page).toHaveURL(/\/season$/)
+  await expect(page.locator('h1')).toHaveText(/^(Зима|Весна|Лето|Осень) \d{4}$/)
 })
 
 test('«назад» со страницы тайтла возвращает на то же место главной', async ({ page }) => {
