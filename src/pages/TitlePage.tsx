@@ -5,6 +5,8 @@ import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { useAmbient } from '../components/ambient'
 import { loadAnime, loadScreenshots, loadTitleExtras, useAsync } from '../api'
+import { shotPreview } from '../api/shikimori'
+import { slowNetwork } from '../data/saver'
 import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeCount } from '../data/catalog'
 import { useHistory } from '../data/history'
@@ -344,7 +346,7 @@ export default function TitlePage() {
     <>
       <div className="banner" style={{ background: anime.posterFill }}>
         {shots.length ? (
-          <img className="banner__img banner__img--shot" src={shots[0]} alt="" />
+          <img className="banner__img banner__img--shot" src={innerWidth <= 640 || slowNetwork() ? shotPreview(shots[0]) : shots[0]} alt="" />
         ) : anime.posterUrl ? (
           <img className="banner__img" src={anime.posterUrl} alt="" />
         ) : (
@@ -504,7 +506,7 @@ export default function TitlePage() {
                         />
                       ) : (
                         shots.length > 0 && (
-                          <img className="poster-img episode-card__shot" src={shots[(n - 1) % shots.length]} alt="" loading="lazy" />
+                          <img className="poster-img episode-card__shot" src={shotPreview(shots[(n - 1) % shots.length])} alt="" loading="lazy" />
                         )
                       )}
                       <span className="episode-card__num">{n}</span>
@@ -642,7 +644,7 @@ export default function TitlePage() {
             <div className="shots-grid">
               {gallery.map((src, i) => (
                 <button key={src} type="button" className="shot" onClick={() => setShotOpen(i)} aria-label={`Кадр ${i + 1}`}>
-                  <img src={src} alt="" loading="lazy" />
+                  <img src={shotPreview(src)} alt="" loading="lazy" />
                 </button>
               ))}
             </div>

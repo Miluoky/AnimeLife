@@ -70,3 +70,16 @@ test('главная: «Топ-10 онгоингов» с цифрами мес�
   await expect(shelf.locator('.top-ten')).toHaveCount(animes.length)
   await expect(shelf.locator('.top-ten__n').first()).toHaveText('1')
 })
+
+test('кадры: миниатюры лёгкие, фон баннера лёгкий на телефоне и оригинальный на компьютере', async ({ page }) => {
+  await page.route(/shikimori\.(io|one)\/api\/animes\/\d+\/screenshots/, (route) =>
+    route.fulfill({
+      json: ['a', 'b', 'c'].map((id) => ({ original: `/system/screenshots/original/${id}.jpg`, preview: `/system/screenshots/x332/${id}.jpg` })),
+    }),
+  )
+  await page.goto('/anime/1')
+  const banner = page.locator('.banner__img--shot')
+  const phone = test.info().project.name === 'phone'
+  await expect(banner).toHaveAttribute('src', phone ? /\/x332\/a\.jpg/ : /\/original\/a\.jpg/)
+  await expect(page.locator('.shots-grid img').first()).toHaveAttribute('src', /\/x332\//)
+})
