@@ -34,6 +34,8 @@ export const pageChunks = {
   recap: () => import('../pages/Recap'),
   scene: () => import('../pages/SceneSearch'),
   news: () => import('../pages/News'),
+  season: () => import('../pages/Season'),
+  person: () => import('../pages/PersonPage'),
 }
 
 const prefetched = new Set<string>()

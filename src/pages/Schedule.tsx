@@ -73,7 +73,7 @@ export default function Schedule() {
       <section className="stack">
         <div className="section-head">
           <h1 className="page-title">Расписание выхода серий</h1>
-          <span className="muted">Новые серии онгоингов на неделю, время ваше местное</span>
+          <span className="muted">Новые серии онгоингов на неделю, время ваше местное · <Link to="/season">весь сезон</Link></span>
         </div>
 
         {mineCount > 0 && (

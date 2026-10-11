@@ -1,0 +1,348 @@
+/* Сезонный чарт (/season): шапка-кадр с сезоном, большие карточки с описанием и отсчётом до серии. */
+.season-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  padding-top: 28px;
+  padding-bottom: 56px;
+}
+
+.season-head {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 34px 20px 26px;
+  text-align: center;
+  background:
+    radial-gradient(120% 140% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
+    var(--surface);
+  --fc-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.season-head__kicker {
+  margin: 0;
+  font: 600 12px/1 var(--font-mono);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+}
+.season-head__row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.season-head__title {
+  margin: 0;
+  font: 700 clamp(30px, 6vw, 54px) / 1.05 var(--font-display);
+  letter-spacing: -0.02em;
+}
+/* Цвет сезона: зима холодная, весна сакура, лето солнце, осень клён. */
+.season-head__name {
+  background: linear-gradient(100deg, var(--sc1), var(--sc2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.season-head__name--winter {
+  --sc1: #9fd8ff;
+  --sc2: #e6f4ff;
+}
+.season-head__name--spring {
+  --sc1: #ff9cc0;
+  --sc2: #ffe0ec;
+}
+.season-head__name--summer {
+  --sc1: #ffc857;
+  --sc2: #fff1c2;
+}
+.season-head__name--fall {
+  --sc1: #ff7a45;
+  --sc2: #ffc39a;
+}
+.season-arrow {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: 400 28px/1 var(--font-body);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.season-arrow:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+.season-quick {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.season-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+.season-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.season-count {
+  margin-left: 6px;
+  font: 600 12px/1 var(--font-mono);
+  opacity: 0.8;
+}
+.season-select select {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.season-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+  gap: 16px;
+  transition: opacity 0.2s;
+}
+.season-grid.is-loading {
+  opacity: 0.55;
+}
+.season-skeleton {
+  height: 240px;
+}
+
+.season-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  min-height: 225px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  transition: border-color 0.2s, transform 0.2s var(--ease);
+}
+.season-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  transform: translateY(-2px);
+}
+.season-card__poster {
+  position: relative;
+  display: block;
+  min-height: 100%;
+}
+.season-card__poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.season-card__rank {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font: 700 12px/1 var(--font-mono);
+  color: #fff;
+  background: rgb(10 10 12 / 0.72);
+}
+.season-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px 12px;
+}
+.season-card__air {
+  margin: 0;
+  font: 600 12px/1.3 var(--font-mono);
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.season-card__air.is-hot {
+  color: var(--accent-soft);
+}
+.season-card__air.is-hot::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+  animation: season-pulse 1.6s ease-in-out infinite;
+}
+@keyframes season-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.season-card__title {
+  margin: 0;
+  font: 600 17px/1.25 var(--font-display);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.season-card__title a {
+  color: var(--text);
+}
+.season-card__title a:hover {
+  color: var(--accent-soft);
+}
+.season-card__meta {
+  margin: 0;
+  font-size: 13px;
+}
+.season-card__score {
+  margin-left: 8px;
+  color: #ffc857;
+  font-weight: 600;
+}
+.season-card__text {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.season-card__foot {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.season-card__genres {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.season-card__genres button {
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font: 500 12px/1.3 var(--font-body);
+  cursor: pointer;
+}
+.season-card__genres button:hover,
+.season-card__genres button[aria-pressed='true'] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
+}
+.season-card__add {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font: 600 12px/1.2 var(--font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.season-card__add:hover {
+  border-color: var(--accent);
+}
+.season-card__add.is-in {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent-soft);
+}
+
+.season-empty {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-soft);
+}
+
+@media (max-width: 640px) {
+  .season-page {
+    padding-top: 16px;
+  }
+  .season-head {
+    padding: 26px 14px 20px;
+  }
+  .season-head__row {
+    gap: 10px;
+  }
+  .season-arrow {
+    width: 38px;
+    height: 38px;
+  }
+  .season-controls > .chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .season-controls > .chips .pill {
+    flex: 0 0 auto;
+  }
+  .season-filters {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .season-filters .season-select select {
+    width: 100%;
+    min-width: 0;
+  }
+  .season-filters > .pill {
+    grid-column: 1 / -1;
+  }
+  .season-card {
+    grid-template-columns: 112px minmax(0, 1fr);
+    min-height: 168px;
+  }
+  .season-card__body {
+    padding: 10px 12px;
+  }
+  .season-card__title {
+    font-size: 15px;
+  }
+  .season-card__text {
+    -webkit-line-clamp: 3;
+    font-size: 13px;
+  }
+  .season-card__foot {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .season-card,
+  .season-card__air.is-hot::before {
+    transition: none;
+    animation: none;
+  }
+}

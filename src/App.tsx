@@ -40,6 +40,8 @@ const CollectionEditor = lazy(() => pageChunks.userCollections().then((m) => ({ 
 const Recap = lazy(pageChunks.recap)
 const SceneSearch = lazy(pageChunks.scene)
 const News = lazy(pageChunks.news)
+const Season = lazy(pageChunks.season)
+const PersonPage = lazy(pageChunks.person)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -95,6 +97,8 @@ export default function App() {
           <Route path="recap" element={<Recap />} />
           <Route path="scene" element={<SceneSearch />} />
           <Route path="news" element={<News />} />
+          <Route path="season" element={<Season />} />
+          <Route path="person/:id" element={<PersonPage />} />
           <Route path="account" element={<Account />} />
           <Route path="account/recovery" element={<PasswordRecovery />} />
           <Route path="auth/callback" element={<AuthCallback />} />

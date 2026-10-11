@@ -1,0 +1,86 @@
+/* Карта активности за год в профиле: 53 недели по 7 дней. */
+.heatmap {
+  --hm-cell: 12px;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.heatmap__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.heatmap__head h3 {
+  margin: 0;
+}
+.heatmap__sum {
+  margin: 0;
+  font-size: 13.5px;
+}
+.heatmap__scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 4px;
+}
+.heatmap__grid {
+  display: grid;
+  grid-template-rows: 14px repeat(7, var(--hm-cell));
+  gap: 3px;
+  width: max-content;
+}
+.heatmap__month {
+  grid-row: 1;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.heatmap__cell {
+  display: block;
+  width: var(--hm-cell);
+  height: var(--hm-cell);
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+.heatmap__cell--none {
+  background: transparent;
+}
+.heatmap__cell--1 {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+}
+.heatmap__cell--2 {
+  background: color-mix(in srgb, var(--accent) 52%, var(--surface-2));
+}
+.heatmap__cell--3 {
+  background: color-mix(in srgb, var(--accent) 76%, var(--surface-2));
+}
+.heatmap__cell--4 {
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.heatmap__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.heatmap__legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.heatmap__legend .heatmap__cell {
+  --hm-cell: 10px;
+}
+@media (max-width: 640px) {
+  .heatmap {
+    --hm-cell: 11px;
+    padding: 12px;
+  }
+}

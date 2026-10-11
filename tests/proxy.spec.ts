@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mockServices, shikimoriFixture } from './mocks'
 import { shikiProxy } from '../worker/shikiProxy.js'
+import { seasonQuery } from '../src/api/seasonQuery'
 import { yummyProxy } from '../worker/yummyProxy.js'
 import worker from '../worker/index.js'
 
@@ -249,6 +250,23 @@ test.describe('Worker: прокси Shikimori', () => {
       const failed = await post('{ animes(ids: "7", limit: 1) { id poster { originalUrl mainUrl main2xUrl } } }')
       expect(failed.res.status).toBe(502)
       expect(env.calls).toHaveLength(3)
+    } finally {
+      env.restore()
+    }
+  })
+
+  test('GraphQL сезонного чарта: ровно запрос seasonQuery, другие поля — 404', async () => {
+    const env = fakeEnv()
+    try {
+      env.respond(() => Response.json({ data: { animes: [] } }))
+      const post = (q: string) =>
+        env.call('/api/shiki/api/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) })
+      expect((await post(seasonQuery('fall_2026', 'tv', 1))).res.status).toBe(200)
+      expect((await post(seasonQuery('winter_2027', 'ova,ona,special,tv_special', 2))).res.status).toBe(200)
+      expect((await post(seasonQuery('fall_2026', 'tv', 1).replace('description', 'description users { id }'))).res.status).toBe(404)
+      expect((await post(seasonQuery('fall_2026', 'music', 1))).res.status).toBe(404)
+      expect(env.calls).toHaveLength(2)
+      expect((await env.call('/api/shiki/api/people/5')).res.status).toBe(200)
     } finally {
       env.restore()
     }

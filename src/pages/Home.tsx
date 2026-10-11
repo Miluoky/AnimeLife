@@ -90,7 +90,17 @@ function Hero() {
       style={{ '--glow': anime.posterFill, '--hero-ms': `${HERO_INTERVAL}ms` } as CSSProperties}
     >
       <div className="hero__backdrop" aria-hidden="true">
-        {anime.posterUrl && <img key={`bg-${anime.id}`} className="hero__blur" src={anime.posterSmall2x ?? anime.posterUrl} alt="" />}
+        {/* Фон размыт на 30 px: хватает лёгкого постера 1x, а он — самая крупная картинка экрана (LCP) и грузится первым. */}
+        {anime.posterUrl && (
+          <img
+            key={`bg-${anime.id}`}
+            className="hero__blur"
+            src={anime.posterSmall ?? anime.posterUrl}
+            alt=""
+            // @ts-expect-error fetchpriority ещё нет в типах React 18
+            fetchpriority="high"
+          />
+        )}
         {shot && <img key={shot} className="hero__shot" src={shot} alt="" onLoad={(e) => e.currentTarget.classList.add('is-on')} />}
       </div>
       {items.length > 1 && (

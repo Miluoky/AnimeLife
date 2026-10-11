@@ -5,6 +5,7 @@ import { loadStatsInfo, useAsync, type StatsInfo } from '../api'
 import { useHistory, type HistoryEntry } from '../data/history'
 import { listStatuses, useMyList, type ListEntry } from '../data/myList'
 import { ratingTitles } from './ListButton'
+import ActivityHeatmap from './ActivityHeatmap'
 
 const DEFAULT_MINUTES = 24
 const TOP_GENRES = 8
@@ -133,6 +134,8 @@ export default function ProfileStats() {
           </Link>
         ))}
       </div>
+
+      <ActivityHeatmap />
 
       <div className="profile-columns">
         <div className="stack profile-panel">

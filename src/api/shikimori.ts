@@ -172,6 +172,21 @@ export function get<T>(path: string, params: Record<string, string | number | un
   return pending
 }
 
+/** Запрос к GraphQL Shikimori. Прокси на animelife.top пропускает только известные запросы (worker/shikiProxy.js). */
+export function graphql<T>(query: string): Promise<T> {
+  let pending = cache.get(`graphql:${query}`) as Promise<T> | undefined
+  if (!pending) {
+    pending = request<T>(new URL(`${API_URL}/api/graphql`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    })
+    pending.catch(() => cache.delete(`graphql:${query}`))
+    cache.set(`graphql:${query}`, pending)
+  }
+  return pending
+}
+
 // Постеры по id. Одинаковые пачки (например, двойной рендер в StrictMode) делят один запрос.
 interface PosterSet {
   original?: string

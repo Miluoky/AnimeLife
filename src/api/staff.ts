@@ -5,7 +5,7 @@ import { SHIKIMORI_URL, get } from './shikimori'
 
 export interface StaffEntry {
   role: string
-  names: { name: string; url: string }[]
+  names: { id: number; name: string; url: string }[]
 }
 
 interface ShikiPersonRole {
@@ -30,6 +30,6 @@ export async function fetchStaff(id: string): Promise<StaffEntry[]> {
     names: list
       .filter((r) => r.person && r.roles.includes(key))
       .slice(0, MAX_NAMES)
-      .map((r) => ({ name: r.person!.russian || r.person!.name, url: new URL(r.person!.url, SHIKIMORI_URL).toString() })),
+      .map((r) => ({ id: r.person!.id, name: r.person!.russian || r.person!.name, url: new URL(r.person!.url, SHIKIMORI_URL).toString() })),
   })).filter((s) => s.names.length > 0)
 }

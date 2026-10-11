@@ -16,6 +16,7 @@ import ShareButton from '../components/ShareButton'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { useMyList } from '../data/myList'
+import { noSpoilersStore, useNoSpoilers } from '../data/spoilers'
 import Shelf from '../components/Shelf'
 import { PlayIcon } from '../components/Icons'
 import NextEpisode from '../components/NextEpisode'
@@ -216,6 +217,7 @@ export default function TitlePage() {
   useAmbient(result.value?.data?.posterSmall ?? result.value?.data?.posterUrl)
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
+  const noSpoilers = useNoSpoilers()
   // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.
   const [pageWanted, setPage] = useState(() => {
     const episode = history.find((h) => h.animeId === id)?.episode ?? 1
@@ -403,6 +405,15 @@ export default function TitlePage() {
             <div className="section-head" style={{ alignItems: 'center' }}>
               <h2>Серии</h2>
               <div className="episode-tools">
+                <button
+                  type="button"
+                  className={`pill spoiler-toggle${noSpoilers ? ' active' : ''}`}
+                  aria-pressed={noSpoilers}
+                  title="Размыть кадры и скрыть названия серий, до которых вы ещё не дошли"
+                  onClick={() => noSpoilersStore.set(!noSpoilers)}
+                >
+                  Без спойлеров
+                </button>
                 {pages > 1 && pages <= MAX_PILLS && (
                   <div className="chips">
                     {Array.from({ length: pages }, (_, i) => (
@@ -439,8 +450,15 @@ export default function TitlePage() {
                 const watched = progress ? n < progress.episode : false
                 const ep = alEpisodes.find((e) => e.ordinal === n)
                 const frame = ep && episodeFrame(ep)
+                // «Без спойлеров»: всё дальше серии, на которой остановились, — без кадра и названия.
+                const hidden = noSpoilers && n > (progress?.episode ?? 1)
                 return (
-                  <Link key={n} to={`/watch/${anime.id}/${n}`} className="episode-card" title={ep?.name ? `Серия ${n}: ${ep.name}` : undefined}>
+                  <Link
+                    key={n}
+                    to={`/watch/${anime.id}/${n}`}
+                    className={`episode-card${hidden ? ' episode-card--hidden' : ''}`}
+                    title={ep?.name && !hidden ? `Серия ${n}: ${ep.name}` : undefined}
+                  >
                     <div className="episode-card__img" style={{ background: anime.posterFill }}>
                       {frame ? (
                         <img
@@ -468,7 +486,7 @@ export default function TitlePage() {
                       <span>Серия {n}</span>
                       <span className="muted">{episodeLabel(n)}</span>
                     </div>
-                    {ep?.name && <div className="episode-card__name muted">{ep.name}</div>}
+                    {ep?.name && <div className="episode-card__name muted">{hidden ? 'Название скрыто' : ep.name}</div>}
                   </Link>
                 )
               })}
@@ -499,9 +517,7 @@ export default function TitlePage() {
                         {s.names.map((p, i) => (
                           <span key={p.url}>
                             {i > 0 && ', '}
-                            <a href={p.url} target="_blank" rel="noreferrer">
-                              {p.name}
-                            </a>
+                            <Link to={`/person/${p.id}`}>{p.name}</Link>
                           </span>
                         ))}
                       </dd>
