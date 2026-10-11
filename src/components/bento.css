@@ -285,3 +285,56 @@
     font-size: 18px;
   }
 }
+
+/* «Топ-10 онгоингов»: огромная цифра места слева от постера, постер чуть заходит на неё, как на Netflix. */
+.row-scroll:has(> .top-ten) {
+  grid-auto-columns: minmax(220px, 250px);
+}
+.top-ten {
+  --tt-pad: 72px;
+  position: relative;
+  padding-left: var(--tt-pad);
+  container-type: inline-size;
+}
+.top-ten > .poster-card-wrap {
+  position: relative;
+  z-index: 1;
+}
+.top-ten__n {
+  position: absolute;
+  left: 0;
+  /* нижний край цифры на уровне низа постера: постер 2:3, 100cqw — ширина постера (без отступа) */
+  top: calc(100cqw * 1.5 - 0.88em);
+  font: 800 150px/1 var(--font-display);
+  letter-spacing: -0.08em;
+  color: var(--bg);
+  -webkit-text-stroke: 3px color-mix(in srgb, var(--accent) 80%, #fff);
+  paint-order: stroke fill;
+  pointer-events: none;
+  user-select: none;
+}
+.top-ten:nth-child(n + 10) {
+  --tt-pad: 96px;
+}
+.top-ten:nth-child(n + 10) .top-ten__n {
+  font-size: 120px;
+  letter-spacing: -0.12em;
+}
+@media (max-width: 640px) {
+  .row-scroll:has(> .top-ten) {
+    grid-auto-columns: 190px;
+  }
+  .top-ten {
+    --tt-pad: 56px;
+  }
+  .top-ten__n {
+    font-size: 116px;
+    -webkit-text-stroke-width: 2px;
+  }
+  .top-ten:nth-child(n + 10) {
+    --tt-pad: 74px;
+  }
+  .top-ten:nth-child(n + 10) .top-ten__n {
+    font-size: 92px;
+  }
+}

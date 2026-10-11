@@ -12,6 +12,7 @@ import PosterCard, { Poster } from '../components/PosterCard'
 import ListButton from '../components/ListButton'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import EpisodeProgress from '../components/EpisodeProgress'
+import MyEntry from '../components/MyEntry'
 import ShareButton from '../components/ShareButton'
 import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
@@ -709,10 +710,16 @@ export default function TitlePage() {
   )
 }
 
-/** Прогресс по сериям, если тайтл в списке. */
+/** Прогресс по сериям и «Моя запись», если тайтл в списке. */
 function TitleProgress({ animeId }: { animeId: string }) {
   const entry = useMyList().find((e) => e.anime.id === animeId)
-  return entry ? <EpisodeProgress entry={entry} /> : null
+  if (!entry) return null
+  return (
+    <>
+      <EpisodeProgress entry={entry} />
+      <MyEntry entry={entry} />
+    </>
+  )
 }
 
 const ABOUT_LIMIT = 320

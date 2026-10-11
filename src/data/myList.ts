@@ -26,6 +26,25 @@ export interface ListEntry {
   ratedAt?: number
   /** сколько серий просмотрено */
   watched?: number
+  /** личная заметка, видна только владельцу (как в AniList и MAL) */
+  note?: string
+  /** сколько раз пересматривали целиком */
+  rewatches?: number
+  /** когда начали и закончили смотреть, ГГГГ-ММ-ДД */
+  startedOn?: string
+  finishedOn?: string
+}
+
+/** Сегодняшняя дата по местному времени в виде ГГГГ-ММ-ДД. */
+export const todayIso = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** Даты начала и конца ставятся сами, когда тайтл впервые попадает в «Смотрю» или «Просмотрено». */
+function autoDates(e: Pick<ListEntry, 'startedOn' | 'finishedOn'>, status: ListStatus) {
+  const out: Pick<ListEntry, 'startedOn' | 'finishedOn'> = {}
+  if (status === 'watching' && !e.startedOn) out.startedOn = todayIso()
+  if (status === 'completed' && !e.finishedOn) out.finishedOn = todayIso()
+  return out
 }
 
 const store = createLocalStore<ListEntry[]>('anime.mylist.v1', [])
@@ -62,6 +81,7 @@ export function setListStatus(anime: AnimeCard, status: ListStatus | undefined) 
       ...prev,
       anime: { id, title, year, kind, episodes, ongoing, score, posterUrl, posterSmall, posterSmall2x, posterFill },
       status,
+      ...(status !== prev?.status ? autoDates(prev ?? {}, status) : {}),
       addedAt: prev?.addedAt ?? Date.now(),
       updatedAt: Date.now(),
     },
@@ -99,10 +119,25 @@ export function setWatched(animeId: string, watched: number): ListStatus | undef
       if (total && n >= total && !e.anime.ongoing && status !== 'completed') status = 'completed'
       else if (n > 0 && status === 'planned') status = 'watching'
       if (status !== e.status) changed = status
-      return { ...e, watched: n, status, updatedAt: now }
+      return { ...e, ...(changed ? autoDates(e, status) : {}), watched: n, status, updatedAt: now }
     }),
   )
   return changed
+}
+
+type EntryDetails = Pick<ListEntry, 'note' | 'rewatches' | 'startedOn' | 'finishedOn'>
+
+/** Заметка, пересмотры и даты из «Моей записи» на странице тайтла. Пустые поля убираем совсем. */
+export function setEntryDetails(animeId: string, patch: EntryDetails) {
+  const now = Date.now()
+  store.set(
+    store.get().map((e) => {
+      if (e.anime.id !== animeId) return e
+      const next: ListEntry = { ...e, ...patch, updatedAt: now }
+      for (const k of Object.keys(patch) as (keyof EntryDetails)[]) if (!next[k]) delete next[k]
+      return next
+    }),
+  )
 }
 
 export const getEntry = (animeId: string) => store.get().find((e) => e.anime.id === animeId)

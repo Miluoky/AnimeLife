@@ -17,3 +17,32 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* «Не интересно»: крестик рядом с подписью «Похоже на…», не спорит со значками на постере. */
+.rec-card__foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.rec-card__foot .rec-card__because {
+  flex: 1;
+  min-width: 0;
+}
+.rec-card__hide {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px -4px 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: 400 20px/1 var(--font-body);
+  cursor: pointer;
+}
+.rec-card__hide:hover,
+.rec-card__hide:focus-visible {
+  color: var(--text);
+  background: var(--surface-2);
+}
