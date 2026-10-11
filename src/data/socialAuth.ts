@@ -155,3 +155,10 @@ export async function waitForTelegram(login: TelegramLogin, signal: AbortSignal)
     })
   }
 }
+
+// --- Telegram Mini App: вход без кнопок ---
+// Telegram подписывает данные запуска токеном бота, функция проверяет подпись и выдаёт токен (src/data/telegramMiniApp.ts).
+
+export async function signInWithTelegramApp(initData: string) {
+  await finishWith(await runFunction({ provider: 'telegram-webapp', initData }))
+}

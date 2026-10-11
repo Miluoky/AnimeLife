@@ -1,11 +1,11 @@
 name: Функции Appwrite
 
-# Выкладывает серверную функцию community (отзывы, комментарии, жалобы, совместный просмотр) в Appwrite,
-# когда её код меняется в main. Ключ Appwrite берётся только из секрета APPWRITE_API_KEY и в сайт не попадает.
+# Выкладывает серверные функции community (отзывы, комментарии, жалобы, совместный просмотр) и social-login
+# (вход через VK и Telegram, Telegram Mini App) в Appwrite, когда их код меняется в main. Ключ Appwrite берётся только из секрета APPWRITE_API_KEY и в сайт не попадает.
 on:
   push:
     branches: [main]
-    paths: ['functions/community/**', 'scripts/deploy-function.mjs', 'scripts/set-function-var.mjs', 'scripts/telegram-test.mjs', '.github/workflows/appwrite.yml']
+    paths: ['functions/community/**', 'functions/social-login/**', 'scripts/telegram-menu.mjs', 'scripts/deploy-function.mjs', 'scripts/set-function-var.mjs', 'scripts/telegram-test.mjs', '.github/workflows/appwrite.yml']
   workflow_dispatch:
     inputs:
       telegram_test_chat:
@@ -84,6 +84,16 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Выложить функцию community
         run: node scripts/deploy-function.mjs community
+      - if: steps.keys.outputs.ok == 'true'
+        name: Выложить функцию входа social-login
+        run: node scripts/deploy-function.mjs social-login
+      # Кнопка «Смотреть» у бота открывает сайт как Telegram Mini App.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Кнопка Mini App у бота
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: node scripts/telegram-menu.mjs
       - if: steps.keys.outputs.ok == 'true' && inputs.telegram_test_chat != ''
         name: Тестовое уведомление в Telegram
         env:

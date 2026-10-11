@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 
 /**
  * Вход через VK ID и бота Telegram. У Appwrite нет готовых провайдеров для них, поэтому функция
@@ -10,6 +10,9 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
  *   2. бот получает /start <код> через вебхук и спрашивает «Подтвердить вход?»;
  *   3. после нажатия «Подтвердить» сайт, который опрашивает функцию (telegram-poll), получает токен.
  * Пока вход не завершён, его состояние лежит во временном заблокированном пользователе tgl_<код>.
+ *
+ * Внутри Telegram Mini App (кнопка «Смотреть» у бота) вход без кнопок: сайт присылает данные запуска
+ * (telegram-webapp, initData), функция проверяет их подпись токеном бота и выдаёт токен для того же tg_<id>.
  *
  * Переменные функции: VK_APP_ID, TELEGRAM_BOT_TOKEN (секрет), TELEGRAM_WEBHOOK_SECRET (секрет),
  * TELEGRAM_BOT_USERNAME, SITE_URL. Ключ Appwrite не хранится: функция получает временный ключ
@@ -147,6 +150,39 @@ async function telegramPoll(api, { code, pollKey }) {
   return issueToken(api, { userId: `tg_${login.tgId}`, name: login.name ?? '' })
 }
 
+// --- Telegram Mini App ---
+
+const WEBAPP_TTL = 24 * 3600
+
+/** Проверка данных запуска Mini App: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app */
+export function verifyWebAppData(initData, botToken, now = Date.now()) {
+  if (!botToken) throw new LoginError('Вход через Telegram ещё не настроен.')
+  const params = new URLSearchParams(String(initData ?? ''))
+  const hash = params.get('hash')
+  if (!hash) throw new LoginError('Telegram прислал неполные данные.')
+  params.delete('hash')
+  const check = [...params.entries()]
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join('\n')
+  const secret = createHmac('sha256', 'WebAppData').update(botToken).digest()
+  const expected = createHmac('sha256', secret).update(check).digest('hex')
+  if (!sameText(expected, hash)) throw new LoginError('Подпись Telegram не сошлась.')
+  const authDate = Number(params.get('auth_date'))
+  if (!authDate || now / 1000 - authDate > WEBAPP_TTL) throw new LoginError('Данные Telegram устарели. Откройте приложение заново.')
+  let user
+  try {
+    user = JSON.parse(params.get('user') ?? '')
+  } catch {
+    user = null
+  }
+  if (!user?.id) throw new LoginError('Telegram не передал пользователя.')
+  return { userId: `tg_${user.id}`, name: fullName(user) }
+}
+
+/** Кнопка, которая открывает сайт внутри Telegram (работает в личном чате с ботом). */
+const watchButton = (path = '') => ({ text: '▶️ Смотреть в Telegram', web_app: { url: `${siteUrl()}${path}` } })
+
 const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || ''
 
 async function telegramUpdate(api, update) {
@@ -159,8 +195,12 @@ async function telegramUpdate(api, update) {
         chat_id: message.chat.id,
         text: code
           ? 'Ссылка для входа устарела. Нажмите кнопку Telegram на сайте ещё раз.'
-          : `Привет! Через этого бота можно войти на ${siteName()}: нажмите там кнопку Telegram.`,
-        reply_markup: { inline_keyboard: [[{ text: `Открыть ${siteName()}`, url: `${siteUrl()}/account` }]] },
+          : `Привет! Здесь можно смотреть аниме с ${siteName()} прямо в Telegram: нажмите кнопку ниже. Аккаунт Telegram подключится сам, список и история будут те же, что на сайте.`,
+        reply_markup: {
+          inline_keyboard: code
+            ? [[{ text: `Открыть ${siteName()}`, url: `${siteUrl()}/account` }]]
+            : [[watchButton()], [{ text: `Открыть ${siteName()} в браузере`, url: siteUrl() }]],
+        },
       })
       return
     }
@@ -236,6 +276,9 @@ export default async ({ req, res, error }) => {
     if (body.provider === 'vk') return res.json(await issueToken(api, await verifyVk(body, process.env.VK_APP_ID)))
     if (body.provider === 'telegram-start') return res.json(await telegramStart(api))
     if (body.provider === 'telegram-poll') return res.json(await telegramPoll(api, body))
+    if (body.provider === 'telegram-webapp') {
+      return res.json(await issueToken(api, verifyWebAppData(body.initData, process.env.TELEGRAM_BOT_TOKEN)))
+    }
     return res.json({ error: 'Неизвестный способ входа.' }, 400)
   } catch (e) {
     if (e instanceof LoginError) return res.json({ error: e.message }, 400)
