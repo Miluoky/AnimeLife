@@ -1,4 +1,5 @@
 import { loadAnime } from './index'
+import { saverOn } from '../data/saver'
 
 // Код страниц, которые грузятся отдельными частями (см. App.tsx). Повторный вызов import() ничего не стоит.
 export const pageChunks = {
@@ -45,7 +46,7 @@ const prefetched = new Set<string>()
  * к моменту клика всё уже в кэше, и страница открывается без ожидания.
  */
 export function prefetchTitle(id: string) {
-  if (prefetched.has(id)) return
+  if (prefetched.has(id) || saverOn()) return
   prefetched.add(id)
   void pageChunks.title()
   void loadAnime(id).catch(() => undefined)
@@ -53,6 +54,7 @@ export function prefetchTitle(id: string) {
 
 /** Код соседних страниц догружаем, когда браузер свободен, чтобы переходы по меню были мгновенными. */
 export function prefetchNavigation() {
+  if (saverOn()) return
   const run = () => {
     void pageChunks.catalog()
     void pageChunks.schedule()

@@ -1,5 +1,12 @@
 import { accents, setAppearance, themes, useAppearance } from '../data/theme'
 import { CheckIcon } from './Icons'
+import { slowNetwork } from '../data/saver'
+
+const SAVER = [
+  { id: 'auto', title: 'Авто' },
+  { id: 'on', title: 'Всегда' },
+  { id: 'off', title: 'Выключена' },
+] as const
 
 /** Тема, цвет акцента и режим без анимаций. Сохраняется в браузере, вход не нужен. */
 export default function AppearanceSettings() {
@@ -43,6 +50,26 @@ export default function AppearanceSettings() {
           ))}
         </div>
       </div>
+      <div className="appearance__row">
+        <span className="muted">Экономия трафика</span>
+        <div className="chips" role="group" aria-label="Экономия трафика">
+          {SAVER.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`chip-btn${(a.saver ?? 'auto') === s.id ? ' chip-btn--on' : ''}`}
+              aria-pressed={(a.saver ?? 'auto') === s.id}
+              onClick={() => setAppearance({ saver: s.id })}
+            >
+              {s.title}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="muted appearance__hint">
+        Лёгкие постеры, без кадров в баннере, предзагрузки и тяжёлых эффектов. «Авто» включает экономию на медленной сети
+        {(a.saver ?? 'auto') === 'auto' ? (slowNetwork() ? ': сейчас она включена.' : ': сейчас сеть быстрая.') : '.'}
+      </p>
       <label className="appearance__row appearance__toggle">
         <input type="checkbox" checked={a.calm} onChange={(e) => setAppearance({ calm: e.target.checked })} />
         <span>Без анимаций</span>

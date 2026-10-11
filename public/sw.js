@@ -1,6 +1,6 @@
 // Service worker Anime Life: сайт открывается мгновенно и работает без сети на уже открытых страницах.
 // Меняйте VERSION, если меняется логика кэша: старые кэши удалятся при активации.
-const VERSION = 'v2'
+const VERSION = 'v3'
 const SHELL = `shell-${VERSION}`
 const STATIC = `static-${VERSION}`
 const DATA = `data-${VERSION}`
@@ -48,18 +48,51 @@ async function put(name, request, response) {
   }
 }
 
+// Сколько ждать сеть, прежде чем показать сохранённое. Ответ сети всё равно ляжет в кэш, когда придёт.
+const PAGE_WAIT = 3500
+const DATA_WAIT = 4500
+
 // Сначала сеть, без неё берём из кэша: так данные свежие, а офлайн показывается последнее увиденное.
-async function networkFirst(request, name) {
-  try {
-    const response = await fetch(request)
+// На медленной связи сеть ждём не дольше wait: если в кэше есть копия, отдаём её, а свежий ответ сохраняем на следующий раз.
+async function networkFirst(request, name, wait = DATA_WAIT) {
+  const network = fetch(request).then((response) => {
     put(name, request, response.clone())
     return response
-  } catch (e) {
-    const cached = await caches.match(request)
-    if (cached) return cached
-    throw e
+  })
+  const cached = caches.match(request)
+  const timeout = new Promise((resolve) => setTimeout(resolve, wait))
+  const first = await Promise.race([network.catch(() => undefined), timeout])
+  if (first) return first
+  const copy = await cached
+  if (copy) {
+    network.catch(() => undefined)
+    return copy
+  }
+  return network
+}
+
+// Код страниц сайта, чтобы они открывались без сети, даже если ещё ни разу не открывались. Список кладёт
+// в сборку плагин в vite.config.ts (precache.json); страница просит скачать его, только когда сеть быстрая.
+async function precache() {
+  try {
+    const res = await fetch(new URL('precache.json', scope), { cache: 'no-store' })
+    if (!res.ok) return
+    const files = await res.json()
+    const cache = await caches.open(STATIC)
+    for (const file of files) {
+      const url = new URL(file, scope).toString()
+      if (await cache.match(url)) continue
+      const response = await fetch(url)
+      if (response.ok) await cache.put(url, response)
+    }
+  } catch {
+    // Сеть пропала посреди загрузки: докачаем в следующий раз.
   }
 }
+
+self.addEventListener('message', (event) => {
+  if (event.data === 'precache') event.waitUntil(precache())
+})
 
 // Сначала кэш: для файлов, которые не меняются (сборка с хэшем в имени, шрифты, картинки).
 async function cacheFirst(request, name) {
@@ -77,13 +110,15 @@ self.addEventListener('fetch', (event) => {
 
   // Переходы по страницам: свежий index.html, без сети — сохранённый.
   if (request.mode === 'navigate') {
+    // На медленной связи через PAGE_WAIT открываем сохранённую оболочку: данные страница догрузит сама.
+    const network = fetch(request).then((response) => {
+      if (response.ok) caches.open(SHELL).then((c) => c.put(indexUrl, response.clone()))
+      return response
+    })
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) caches.open(SHELL).then((c) => c.put(indexUrl, response.clone()))
-          return response
-        })
-        .catch(() => caches.match(indexUrl)),
+      Promise.race([network.catch(() => undefined), new Promise((resolve) => setTimeout(resolve, PAGE_WAIT))]).then(
+        async (first) => first || (await caches.match(indexUrl)) || network,
+      ),
     )
     return
   }

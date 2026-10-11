@@ -1,4 +1,5 @@
 import { StrictMode } from 'react'
+import { saverOn } from './data/saver'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
@@ -48,6 +49,13 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register(`${import.meta.env.BASE_URL}sw.js`)
+      .then(() => navigator.serviceWorker.ready)
+      .then((reg) => {
+        // На быстрой сети service worker докачивает код остальных страниц: потом они откроются и без интернета.
+        // Около 450 КБ, поэтому только на 4G или Wi-Fi и без экономии трафика.
+        const type = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType
+        if (!saverOn() && (!type || type === '4g')) setTimeout(() => reg.active?.postMessage('precache'), 8000)
+      })
       .catch(() => undefined)
       .finally(() => void initPush())
   })

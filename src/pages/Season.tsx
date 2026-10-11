@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { srcset2x } from '../data/saver'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import {
@@ -247,7 +248,7 @@ export default function Season() {
                     <img
                       className="poster-img poster-img--fade"
                       src={a.poster}
-                      srcSet={a.poster2x ? `${a.poster} 1x, ${a.poster2x} 2x` : undefined}
+                      srcSet={srcset2x(a.poster, a.poster2x)}
                       alt=""
                       width={150}
                       height={225}

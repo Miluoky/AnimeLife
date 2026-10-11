@@ -12,6 +12,8 @@ export interface Appearance {
   accent: Accent
   /** без анимаций, даже если в системе они включены */
   calm: boolean
+  /** экономия трафика: сама на медленной сети, всегда или никогда (src/data/saver.ts) */
+  saver?: 'auto' | 'on' | 'off'
 }
 
 export const themes: { id: Theme; title: string; hint: string }[] = [
@@ -37,6 +39,11 @@ export function applyAppearance(a: Appearance = appearanceStore.get()) {
   root.dataset.theme = a.theme
   root.dataset.accent = a.accent
   root.dataset.calm = a.calm ? '1' : ''
+  // Облегчённый режим: экономия трафика или слабый телефон (как стартовый скрипт в index.html).
+  const c = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string }; deviceMemory?: number })
+  const slow = Boolean(c.connection && (c.connection.saveData || /(^|-)2g$/.test(c.connection.effectiveType ?? '')))
+  const weak = Boolean(c.deviceMemory && c.deviceMemory <= 2)
+  root.dataset.lite = a.saver === 'on' || (a.saver !== 'off' && (slow || weak)) ? '1' : ''
   const color = a.theme === 'oled' ? '#000000' : '#0a0a0c'
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
 }

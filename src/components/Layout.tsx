@@ -5,6 +5,7 @@ import { useInboxCount } from '../data/inbox'
 import SearchBox from './SearchBox'
 import BottomNav from './BottomNav'
 import Toasts from './Toasts'
+import NetworkStatus from './NetworkStatus'
 import PageErrorBoundary from './PageErrorBoundary'
 import { useAuth } from '../data/auth'
 import { applyAppearance } from '../data/theme'
@@ -220,6 +221,7 @@ export default function Layout() {
         {hoverCards && <HoverCards />}
       </Suspense>
       <Toasts />
+      <NetworkStatus />
       {/* В плеере и комнатах своя прокрутка и свои кнопки в углу. */}
       {!/^\/(watch|together)\//.test(location.pathname) && (
         <Suspense fallback={null}>

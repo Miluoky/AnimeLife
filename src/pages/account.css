@@ -304,3 +304,11 @@
   }
 }
 
+
+/* Подпись к «Экономии трафика» в «Оформлении». */
+.appearance__hint {
+  margin: -6px 0 0;
+  max-width: 640px;
+  font-size: 13px;
+  line-height: 1.5;
+}

@@ -1,4 +1,5 @@
 import { type CSSProperties, Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { saverOn } from '../data/saver'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
 import { fetchScreenshots } from '../api/shikimori'
@@ -44,7 +45,8 @@ function Hero() {
   // Пока грузятся подробности нового тайтла, показываем его из списка, а не прошлый тайтл.
   const anime = (details.value?.of === current?.id && details.value?.data) || current
   // Кадр из аниме на фон. Кадр следующего тайтла запрашиваем заранее, чтобы смена была без пустого фона.
-  const shots = useAsync(async () => (current ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined), [current?.id])
+  // В экономии трафика баннер без кадра из серии: хватает постера.
+  const shots = useAsync(async () => (current && !saverOn() ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined), [current?.id])
   const next = items[(index + 1) % items.length]
   useEffect(() => {
     if (!next || items.length < 2) return
@@ -160,7 +162,7 @@ function Hero() {
         <img
           key={`poster-${anime.id}`}
           className="hero__art-poster"
-          src={anime.posterSmall2x ?? anime.posterUrl}
+          src={(saverOn() ? anime.posterSmall : anime.posterSmall2x) ?? anime.posterUrl}
           alt={`Постер: ${anime.title}`}
           // @ts-expect-error fetchpriority ещё нет в типах React 18
           fetchpriority="high"
@@ -189,7 +191,7 @@ function Hero() {
               {a.posterSmall && (
                 <img
                   src={a.posterSmall}
-                  srcSet={a.posterSmall2x ? `${a.posterSmall} 225w, ${a.posterSmall2x} 450w` : undefined}
+                  srcSet={a.posterSmall2x && !saverOn() ? `${a.posterSmall} 225w, ${a.posterSmall2x} 450w` : undefined}
                   sizes="(min-width: 1101px) 132px, 44px"
                   alt=""
                   decoding="async"

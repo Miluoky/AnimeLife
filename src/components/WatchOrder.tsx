@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { srcset2x } from '../data/saver'
 import { Link } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchFranchise } from '../api/franchise'
@@ -81,7 +82,7 @@ export default function WatchOrder({ animeId }: { animeId: string }) {
           <>
             <span className="order-card__img">
               {e.poster ? (
-                <img src={e.poster} srcSet={e.poster2x ? `${e.poster} 1x, ${e.poster2x} 2x` : undefined} alt="" loading="lazy" />
+                <img src={e.poster} srcSet={srcset2x(e.poster, e.poster2x)} alt="" loading="lazy" />
               ) : null}
               <span className="order-card__num" aria-hidden="true">
                 {st === 'completed' ? <CheckIcon size={14} /> : i + 1}

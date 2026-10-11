@@ -41,7 +41,9 @@
         d.calm = a.calm ? '1' : ''
         // Слабый телефон или экономия трафика: без тяжёлых эффектов (размытый свет постера, плавающий фон).
         var n = navigator
-        if ((n.connection && n.connection.saveData) || (n.deviceMemory && n.deviceMemory <= 2)) d.lite = '1'
+        // «Экономия трафика» в профиле: всегда, никогда или сама на медленной сети (см. src/data/saver.ts).
+        var slow = n.connection && (n.connection.saveData || /(^|-)2g$/.test(n.connection.effectiveType || ''))
+        if (a.saver === 'on' || (a.saver !== 'off' && (slow || (n.deviceMemory && n.deviceMemory <= 2)))) d.lite = '1'
         if (a.theme === 'oled') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000000')
       } catch (e) {}
     </script>

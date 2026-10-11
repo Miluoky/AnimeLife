@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { srcset2x } from '../data/saver'
 import { useAsync } from '../api'
 import { fetchFranchise } from '../api/franchise'
 import { PlayIcon } from './Icons'
@@ -16,7 +17,7 @@ export default function NextPart({ animeId }: { animeId: string }) {
   return (
     <aside className="next-part" aria-label="Следующая часть">
       <Link to={`/anime/${next.id}`} className="next-part__poster">
-        {next.poster && <img src={next.poster} srcSet={next.poster2x ? `${next.poster} 1x, ${next.poster2x} 2x` : undefined} alt="" loading="lazy" />}
+        {next.poster && <img src={next.poster} srcSet={srcset2x(next.poster, next.poster2x)} alt="" loading="lazy" />}
       </Link>
       <div className="next-part__text">
         <span className="next-part__eyebrow">Это последняя серия. Дальше по порядку</span>
