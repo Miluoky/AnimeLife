@@ -31,11 +31,23 @@ export default class PageErrorBoundary extends Component<{ children: ReactNode }
   }
 
   componentDidCatch(error: unknown) {
-    if (isChunkError(error)) reloadOnce()
+    // Без сети перезагрузка не поможет: ждём, пока сеть вернётся, и тогда загружаем страницу заново.
+    if (!navigator.onLine) window.addEventListener('online', () => window.location.reload(), { once: true })
+    else if (isChunkError(error)) reloadOnce()
   }
 
   render() {
     if (!this.state.failed) return this.props.children
+    if (!navigator.onLine)
+      return (
+        <main className="container empty-page" role="alert">
+          <h1>Нет интернета</h1>
+          <p className="muted">Этот раздел ещё не сохранился на устройстве. Страница откроется сама, когда сеть вернётся, а пока можно открыть то, что уже смотрели.</p>
+          <a href="/my-list" className="btn btn--accent">
+            Мой список
+          </a>
+        </main>
+      )
     return (
       <main className="container empty-page" role="alert">
         <h1>Не получилось открыть страницу</h1>

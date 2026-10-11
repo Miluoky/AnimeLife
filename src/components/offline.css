@@ -1,0 +1,41 @@
+/* Плашка «Нет сети»: по центру внизу, над нижним меню телефона. */
+.offline-notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+  color: var(--text);
+  font-size: 14px;
+  transform: translateX(-50%);
+  animation: offline-in 0.3s var(--ease) both;
+}
+.offline-notice__dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffb020;
+}
+.offline-notice--back .offline-notice__dot {
+  background: #3ddc84;
+}
+@keyframes offline-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+@media (min-width: 900px) {
+  .offline-notice {
+    bottom: 24px;
+  }
+}

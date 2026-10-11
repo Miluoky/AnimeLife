@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom'
+import { srcset2x } from '../data/saver'
 import { loadCatalog, useAsync, type CatalogQuery } from '../api'
 import type { Anime } from '../data/catalog'
 import { useMyList, listStatuses } from '../data/myList'
@@ -149,7 +150,7 @@ export default function Top() {
                   <Link to={`/anime/${a.id}`} className="top-row" onPointerEnter={() => prefetchTitle(a.id)}>
                     <span className="top-row__place">{i + 4}</span>
                     <span className="top-row__poster" style={{ background: a.posterFill }}>
-                      {a.posterSmall && <img src={a.posterSmall} srcSet={a.posterSmall2x ? `${a.posterSmall} 1x, ${a.posterSmall2x} 2x` : undefined} alt="" loading="lazy" />}
+                      {a.posterSmall && <img src={a.posterSmall} srcSet={srcset2x(a.posterSmall, a.posterSmall2x)} alt="" loading="lazy" />}
                     </span>
                     <span className="top-row__body">
                       <span className="top-row__title">{a.title}</span>

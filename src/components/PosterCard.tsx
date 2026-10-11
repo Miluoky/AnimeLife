@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { srcset2x } from '../data/saver'
 import type { SyntheticEvent } from 'react'
 import type { Anime, AnimeCard } from '../data/catalog'
 import { prefetchTitle } from '../api/prefetch'
@@ -36,7 +37,7 @@ export function Poster({
       className={`poster-img poster-img--fade ${className ?? ''}`}
       onLoad={fadeIn}
       src={src}
-      srcSet={anime.posterSmall && anime.posterSmall2x ? `${anime.posterSmall} 1x, ${anime.posterSmall2x} 2x` : undefined}
+      srcSet={srcset2x(anime.posterSmall, anime.posterSmall2x)}
       alt={alt}
       width={225}
       height={338}
