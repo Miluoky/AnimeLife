@@ -1,6 +1,7 @@
 # Заголовки безопасности для Cloudflare Pages (GitHub Pages этот файл игнорирует).
 /*
-  X-Frame-Options: DENY
+  # Чужим сайтам встраивать нас нельзя; можно только веб-версии Telegram (Mini App открывается там во фрейме).
+  Content-Security-Policy: frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(self), geolocation=(), payment=()

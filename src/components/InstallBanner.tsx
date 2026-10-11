@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CloseIcon } from './Icons'
+import { inTelegramApp } from '../data/tgApp'
 import { type InstallPromptEvent, isIosSafari, isStandalone } from './install'
 import './install.css'
 
@@ -28,7 +29,8 @@ export default function InstallBanner() {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    if (isStandalone() || hiddenByUser()) return
+    // Внутри Telegram Mini App установка не нужна: сайт и так открыт как приложение.
+    if (isStandalone() || hiddenByUser() || inTelegramApp) return
     const onPrompt = (e: Event) => {
       e.preventDefault()
       setPrompt(e as InstallPromptEvent)
