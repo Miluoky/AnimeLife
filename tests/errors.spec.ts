@@ -63,5 +63,5 @@ test('ошибки у посетителей: администратор вид�
   await expect(card.locator('pre')).toHaveText('at play (Player.js:1:2)')
   await card.getByRole('button', { name: 'Исправлено, убрать' }).click()
   await expect(card).toContainText('Ошибок нет')
-  expect(sent).toContainEqual({ action: 'error-clear', id: 'e1' })
+  await expect.poll(() => sent.some((b) => b.action === 'error-clear' && b.id === 'e1')).toBe(true)
 })
