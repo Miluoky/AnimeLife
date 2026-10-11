@@ -599,3 +599,59 @@
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
 }
+
+/* Телефон: полоска «Смотреть» внизу, когда основная кнопка уехала вверх. Над нижним меню, а когда меню
+   спряталось при прокрутке вниз, опускается к краю экрана. */
+.sticky-watch {
+  display: none;
+}
+@media (max-width: 900px) {
+  .sticky-watch {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 8px 8px 16px;
+    border: 1px solid var(--glass-edge);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: 0 12px 30px rgb(0 0 0 / 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px);
+    transition:
+      opacity 0.25s var(--ease),
+      transform 0.3s var(--ease),
+      bottom 0.3s var(--ease);
+  }
+  .sticky-watch.is-shown {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+  :root.scroll-down:not(.scroll-lock) .sticky-watch {
+    bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+  .sticky-watch__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 600;
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Кнопка «Наверх» поднимается над полоской, а не закрывает её. */
+  body:has(.sticky-watch.is-shown) .back-to-top {
+    translate: 0 -66px;
+  }
+  .sticky-watch__btn {
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding: 0 16px;
+  }
+}

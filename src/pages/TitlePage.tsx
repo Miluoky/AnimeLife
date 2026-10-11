@@ -1,6 +1,6 @@
 import '../components/profile-stats.css'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { type CSSProperties, type FormEvent, type ReactNode, Suspense, lazy, useState } from 'react'
+import { type CSSProperties, type FormEvent, type ReactNode, type RefObject, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { useAmbient } from '../components/ambient'
@@ -208,6 +208,30 @@ function Scores({ stats }: { stats: ScoreStats }) {
 const PAGE_SIZE = 12
 const MAX_PILLS = 8
 
+/**
+ * Телефон: когда кнопка «Смотреть» уехала вверх, внизу появляется полоска с ней, как в приложениях
+ * Crunchyroll и Netflix. Список серий и описание длинные, и возвращаться наверх за кнопкой неудобно.
+ */
+function StickyWatch({ target, href, label, title }: { target: RefObject<HTMLElement>; href: string; label: string; title: string }) {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const el = target.current
+    if (!el || !('IntersectionObserver' in window)) return
+    const io = new IntersectionObserver(([e]) => setShown(!e.isIntersecting && e.boundingClientRect.top < 0))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [target, href])
+  return (
+    <div className={`sticky-watch${shown ? ' is-shown' : ''}`} aria-hidden={!shown}>
+      <span className="sticky-watch__title">{title}</span>
+      <Link to={href} className="btn btn--accent sticky-watch__btn" tabIndex={shown ? undefined : -1}>
+        <PlayIcon size={18} />
+        {label}
+      </Link>
+    </div>
+  )
+}
+
 export default function TitlePage() {
   const { id = '' } = useParams()
   const result = useAsync(() => loadAnime(id), [id])
@@ -218,6 +242,7 @@ export default function TitlePage() {
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
   const noSpoilers = useNoSpoilers()
+  const actions = useRef<HTMLDivElement>(null)
   // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.
   const [pageWanted, setPage] = useState(() => {
     const episode = history.find((h) => h.animeId === id)?.episode ?? 1
@@ -372,7 +397,7 @@ export default function TitlePage() {
                 href={`/watch/${anime.id}/${total + 1}`}
               />
             )}
-            <div className="actions">
+            <div className="actions" ref={actions}>
               <Link to={`/watch/${anime.id}/${progress?.episode ?? 1}`} className="btn btn--accent">
                 <PlayIcon />
                 {progress ? `Продолжить: серия ${progress.episode}` : 'Смотреть'}
@@ -385,6 +410,12 @@ export default function TitlePage() {
               </Link>
               <ShareButton title={anime.title} path={`/anime/${anime.id}`} className="btn btn--ghost title-share" />
             </div>
+            <StickyWatch
+              target={actions}
+              href={`/watch/${anime.id}/${progress?.episode ?? 1}`}
+              label={progress ? `Серия ${progress.episode}` : 'Смотреть'}
+              title={anime.title}
+            />
             {facts.length > 0 && (
               <dl className="fact-pills">
                 {facts.map(([label, value]) => (

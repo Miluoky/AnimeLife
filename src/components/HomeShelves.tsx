@@ -18,7 +18,7 @@ const SEASON_NAMES: Record<string, string> = { winter: 'Зима', spring: 'Ве
 export function currentSeason(now = new Date()) {
   const name = SEASONS[now.getMonth()]
   const year = now.getFullYear() + (now.getMonth() === 11 ? 1 : 0)
-  return { code: `${name}_${year}`, label: `${SEASON_NAMES[name]} ${year}`, path: `/year/${year}/${name}` }
+  return { code: `${name}_${year}`, label: `${SEASON_NAMES[name]} ${year}` }
 }
 
 /**
@@ -269,7 +269,7 @@ export function SeasonShelf() {
         subtitle="Премьеры и продолжения этого сезона"
         icon={<CalendarIcon size={18} />}
         query={{ season: season.code }}
-        more={season.path}
+        more="/season"
       />
     </>
   )
