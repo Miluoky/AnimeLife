@@ -24,6 +24,23 @@ async function api(method, path, body) {
 
 const tables = [
   {
+    // Ошибки JavaScript у посетителей: одна строка на одинаковую ошибку (src/errors.js).
+    id: 'client_errors',
+    name: 'Client Errors',
+    columns: [
+      ['string', { key: 'message', size: 500, required: true }],
+      ['string', { key: 'source', size: 300, required: false }],
+      ['string', { key: 'stack', size: 2000, required: false }],
+      ['string', { key: 'path', size: 300, required: false }],
+      ['string', { key: 'browser', size: 60, required: false }],
+      ['string', { key: 'release', size: 40, required: false }],
+      ['integer', { key: 'count', required: false, default: 0, min: 0 }],
+      ['integer', { key: 'first', required: true }],
+      ['integer', { key: 'last', required: true }],
+    ],
+    indexes: [{ key: 'last_desc', type: 'key', columns: ['last'], orders: ['DESC'] }],
+  },
+  {
     id: 'analytics',
     name: 'Analytics Sessions',
     columns: [

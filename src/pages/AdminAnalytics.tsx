@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../data/auth'
 import { usePageMeta } from '../data/pageMeta'
 import { loadAnalyticsStats, type AnalyticsPoint, type AnalyticsStats } from '../data/analytics'
+import { callCommunity } from '../data/community'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -116,6 +117,69 @@ export function AnalyticsSummary({ stats }: { stats: AnalyticsStats }) {
   )
 }
 
+interface ClientError {
+  $id: string
+  message: string
+  source?: string
+  stack?: string
+  path?: string
+  browser?: string
+  release?: string
+  count: number
+  first: number
+  last: number
+}
+
+/** Ошибки JavaScript у посетителей (functions/community/src/errors.js): свежие сверху. */
+function ClientErrors() {
+  const [errors, setErrors] = useState<ClientError[]>()
+  const [failed, setFailed] = useState('')
+  useEffect(() => {
+    callCommunity<{ errors: ClientError[] }>({ action: 'error-list' })
+      .then((r) => setErrors(r.errors))
+      .catch((cause) => setFailed(cause instanceof Error ? cause.message : 'Не удалось загрузить ошибки.'))
+  }, [])
+  const clear = (id: string) => {
+    setErrors((list) => list?.filter((e) => e.$id !== id))
+    void callCommunity({ action: 'error-clear', id }).catch(() => undefined)
+  }
+  return (
+    <section className="an-card an-errors" aria-labelledby="an-errors-title">
+      <h2 id="an-errors-title">Ошибки у посетителей{errors?.length ? ` (${errors.length})` : ''}</h2>
+      {failed ? (
+        <p className="muted">{failed}</p>
+      ) : !errors ? (
+        <p className="muted" aria-busy="true">Загружаю…</p>
+      ) : !errors.length ? (
+        <p className="muted">Ошибок нет. Если у кого-то сломается страница, она появится здесь.</p>
+      ) : (
+        <ul className="an-errors__list">
+          {errors.map((e) => (
+            <li key={e.$id}>
+              <details>
+                <summary>
+                  <strong>{e.message}</strong>
+                  <span className="muted">
+                    {e.count} раз · последний {new Date(e.last).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {e.path ? ` · ${e.path}` : ''}
+                    {e.browser ? ` · ${e.browser}` : ''}
+                  </span>
+                </summary>
+                {e.source && <p className="muted">Где: {e.source}</p>}
+                {e.stack && <pre>{e.stack}</pre>}
+                <p className="muted">Версия сайта: {e.release || 'неизвестно'} · впервые {new Date(e.first).toLocaleString('ru-RU')}</p>
+                <button type="button" className="btn btn--ghost btn--small" onClick={() => clear(e.$id)}>
+                  Исправлено, убрать
+                </button>
+              </details>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 export default function AdminAnalytics() {
   const { checking, user } = useAuth()
   const admin = !!user?.labels?.includes('admin')
@@ -198,6 +262,7 @@ export default function AdminAnalytics() {
           </p>
         </>
       )}
+      <ClientErrors />
     </main>
   )
 }

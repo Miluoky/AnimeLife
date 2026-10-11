@@ -227,3 +227,33 @@
     font-size: 1.4rem;
   }
 }
+
+.an-errors {
+  margin-top: 16px;
+}
+
+.an-errors__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.an-errors__list summary {
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.an-errors__list pre {
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

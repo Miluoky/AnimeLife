@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { reportError } from '../data/errors'
 
 const RELOAD_KEY = 'chunk-reload-at'
 
@@ -34,6 +35,7 @@ export default class PageErrorBoundary extends Component<{ children: ReactNode }
     // Без сети перезагрузка не поможет: ждём, пока сеть вернётся, и тогда загружаем страницу заново.
     if (!navigator.onLine) window.addEventListener('online', () => window.location.reload(), { once: true })
     else if (isChunkError(error)) reloadOnce()
+    else reportError(error, `страница ${location.pathname}`)
   }
 
   render() {

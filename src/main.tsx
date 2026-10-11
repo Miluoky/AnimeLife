@@ -4,6 +4,7 @@ import { inTelegramApp } from './data/tgApp'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
+import { installErrorReporting } from './data/errors'
 import './fonts.css'
 import './styles.css'
 
@@ -33,6 +34,9 @@ document.addEventListener(
 
 // Открыт внутри Telegram: цвета, кнопка «Назад» и вход через аккаунт Telegram (отдельная часть).
 if (inTelegramApp) void import('./data/telegramMiniApp').then((m) => m.initTelegramMiniApp())
+
+// Ошибки у посетителей — в статистику администратора (/admin/analytics).
+installErrorReporting()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
