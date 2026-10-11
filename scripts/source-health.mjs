@@ -18,9 +18,11 @@ const STATE_FILE = '.health/state.json'
 const TIMEOUT = 15_000
 
 /** Что проверяем: имя для сообщения и запрос, который должен вернуть 2xx и ожидаемое содержимое. */
+// Свой сайт за Cloudflare: серверам GitHub он отвечает проверкой на робота или блокировкой (403 от Cloudflare).
+// Это значит, что Cloudflare и Worker живы, поэтому такой ответ считаем рабочим.
 const CHECKS = [
-  { name: 'Сайт animelife.top', url: `${SITE}/`, expect: (t) => t.includes('id="root"') },
-  { name: 'Каталог (прокси Shikimori)', url: `${SITE}/api/shiki/api/animes/1`, expect: (t) => t.includes('"id":1') },
+  { name: 'Сайт animelife.top', url: `${SITE}/`, expect: (t) => t.includes('id="root"'), challengeOk: true },
+  { name: 'Каталог (прокси Shikimori)', url: `${SITE}/api/shiki/api/animes/1`, expect: (t) => t.includes('"id":1'), challengeOk: true },
   { name: 'AniLibria', url: 'https://anilibria.top/api/v1/anime/releases/latest?limit=1', mirror: 'https://aniliberty.top/api/v1/anime/releases/latest?limit=1' },
   { name: 'AnimeVost', url: 'https://api.animevost.org/v1/search', init: { method: 'POST', body: new URLSearchParams({ name: 'Наруто' }) }, expect: (t) => t.includes('"data"') },
   {
@@ -59,6 +61,7 @@ async function check(c) {
     try {
       const r = await probe(url, c.init)
       if (r.ok && (!c.expect || c.expect(r.text))) return { up: true, ms: r.ms }
+      if (c.challengeOk && r.status === 403 && /challenge-platform|cf-chl|Just a moment|cloudflare/i.test(r.text)) return { up: true, ms: r.ms, challenged: true }
       last = r.ok ? 'неожиданный ответ' : `HTTP ${r.status}`
     } catch (e) {
       last = e?.name === 'TimeoutError' ? `нет ответа за ${TIMEOUT / 1000} с` : 'не подключается'
@@ -116,7 +119,7 @@ async function notify(text) {
 }
 
 const results = await Promise.all(CHECKS.map(async (c) => ({ name: c.name, ...(await check(c)) })))
-for (const r of results) console.log(`${r.up ? '✅' : '❌'} ${r.name}${r.up ? ` — ${r.ms} мс` : ` — ${r.reason}`}`)
+for (const r of results) console.log(`${r.up ? '✅' : '❌'} ${r.name}${r.up ? ` — ${r.ms} мс${r.challenged ? ' (Cloudflare не пустил сервер GitHub, но отвечает)' : ''}` : ` — ${r.reason}`}`)
 
 const before = existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, 'utf8')) : {}
 const down = results.filter((r) => !r.up && before[r.name] !== false)
