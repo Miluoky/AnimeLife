@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchCharacter, type CharacterPage as Character } from '../api/character'
 import PosterCard from '../components/PosterCard'
@@ -89,10 +89,10 @@ export default function CharacterPage() {
           <ul className="character__voices">
             {c.voices.map((v) => (
               <li key={v.id}>
-                <a href={v.url} target="_blank" rel="noopener noreferrer" className="character__voice">
+                <Link to={`/person/${v.id}`} className="character__voice">
                   <span className="character__voice-img">{v.image && <img src={v.image} alt="" loading="lazy" />}</span>
                   <span>{v.name}</span>
-                </a>
+                </Link>
               </li>
             ))}
           </ul>

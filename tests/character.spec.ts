@@ -45,7 +45,7 @@ test('персонаж: своя страница с описанием, спо�
   await page.getByText('Спойлер', { exact: true }).click()
   await expect(page.getByText('Погибает в финале.')).toBeVisible()
 
-  await expect(page.getByRole('link', { name: /Коити Ямадэра/ })).toHaveAttribute('href', 'https://shikimori.io/people/5')
+  await expect(page.getByRole('link', { name: /Коити Ямадэра/ })).toHaveAttribute('href', '/person/5')
   // Сначала тайтлы, где персонаж в главной роли.
   const cards = page.locator('.poster-card')
   await expect(cards.first()).toContainText('Главная роль')

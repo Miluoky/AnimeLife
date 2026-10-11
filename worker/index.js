@@ -53,7 +53,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -245,8 +245,9 @@ async function home() {
   return {
     ...gaps,
     preload,
-    // Постер баннера — самая крупная картинка первого экрана: браузер начинает качать его сразу с HTML.
-    lcpImage: heroPoster?.main2xUrl,
+    // Размытый фон баннера — самая крупная картинка первого экрана: браузер начинает качать её сразу с HTML.
+    // Фон размыт, поэтому хватает лёгкого постера 1x (тот же адрес берёт Hero в src/pages/Home.tsx).
+    lcpImage: heroPoster?.mainUrl,
     title: `Смотреть аниме онлайн бесплатно с русской озвучкой | ${SITE}`,
     description: `Аниме онлайн бесплатно с русской озвучкой: онгоинги ${year}, каталог по жанрам и годам, расписание новых серий и «Мой список» с синхронизацией.`,
     body:
@@ -598,6 +599,12 @@ const SECTIONS = {
     h1: 'Новости аниме',
     text: '<p>Анонсы, даты премьер, новые сезоны и трейлеры. Тайтлы из новостей открываются на Anime Life.</p>',
   },
+  '/season': {
+    title: 'Аниме сезона: сезонный чарт с датами выхода серий',
+    description: 'Все аниме текущего и следующих сезонов: сериалы, фильмы и OVA с описанием, студией, жанрами и обратным отсчётом до новой серии.',
+    h1: 'Сезонный чарт',
+    text: '<p>Все тайтлы сезона на одной странице: что уже выходит, когда следующая серия и что стартует скоро. Сезоны листаются стрелками.</p>',
+  },
   '/scene': {
     title: 'Найти аниме по кадру или скриншоту',
     description: 'Загрузите скриншот, и Anime Life найдёт аниме, номер серии и минуту, а потом откроет серию с этого места.',
@@ -866,7 +873,7 @@ function sitemapPages() {
   const day = today()
   const year = new Date().getFullYear()
   const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
-  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', '/community', '/news', '/scene', ...landingPaths(), ...[...ABOUT_LINKS, ...LEGAL_LINKS].map(([, p]) => p)]
+  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', '/community', '/news', '/season', '/scene', ...landingPaths(), ...[...ABOUT_LINKS, ...LEGAL_LINKS].map(([, p]) => p)]
   return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
 }
 

@@ -37,6 +37,8 @@ const PATHS = [
   [/^\/api\/genres$/, () => 7 * DAY, []],
   [/^\/api\/studios$/, () => 7 * DAY, []],
   [new RegExp(`^/api/characters/${ID}$`), () => DAY, []],
+  // Страница сэйю или автора (/person/:id).
+  [new RegExp(`^/api/people/${ID}$`), () => DAY, []],
   [new RegExp(`^/api/mangas/${ID}(?:/related|/external_links)?$`), () => 12 * HOUR, []],
   // Новости аниме (/news): форум новостей Shikimori.
   [/^\/api\/topics$/, () => 15 * MIN, ['forum', 'limit', 'page', 'linked_id', 'linked_type']],
@@ -44,6 +46,11 @@ const PATHS = [
 // GraphQL пропускаем только в виде, который шлёт withPosters: постеры пачки тайтлов (до 50).
 const GRAPHQL = /^\{ animes\(ids: "\d{1,10}(?:,\d{1,10}){0,49}", limit: \d{1,2}\) \{ id poster \{ originalUrl mainUrl main2xUrl \} \} \}$/
 const GRAPHQL_TTL = DAY
+// Сезонный чарт (/season): ровно запрос seasonQuery из src/api/season.ts, поля менять вместе.
+const SEASON_FIELDS =
+  'id name russian kind score status episodes episodesAired airedOn { date } nextEpisodeAt duration poster { mainUrl main2xUrl } genres { russian kind } studios { name } description'
+const SEASON = /^\{ animes\(season: "(?:winter|spring|summer|fall)_\d{4}", kind: "(?:tv|movie|ova,ona,special,tv_special)", order: popularity, censored: true, limit: 50, page: [1-3]\) \{ (.*) \} \}$/
+const SEASON_TTL = 3 * HOUR
 
 const jsonError = (status, error) =>
   new Response(JSON.stringify({ error }), {
@@ -69,9 +76,11 @@ async function route(request, url) {
     } catch {
       return null
     }
-    if (typeof query !== 'string' || !GRAPHQL.test(query)) return null
+    if (typeof query !== 'string') return null
+    const season = query.match(SEASON)
+    if (!GRAPHQL.test(query) && season?.[1] !== SEASON_FIELDS) return null
     const body = JSON.stringify({ query })
-    return { target: UPSTREAM + path, key: `${CACHE_ROOT}${path}?sha256=${await sha256(body)}`, ttl: GRAPHQL_TTL, body }
+    return { target: UPSTREAM + path, key: `${CACHE_ROOT}${path}?sha256=${await sha256(body)}`, ttl: season ? SEASON_TTL : GRAPHQL_TTL, body }
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') return null
   const rule = PATHS.find(([re]) => re.test(path))

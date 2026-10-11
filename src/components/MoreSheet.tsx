@@ -15,6 +15,7 @@ const Svg = ({ d }: { d: string }) => (
 const LINKS = [
   { to: '/schedule', title: 'График', hint: 'Когда серии', icon: <CalendarIcon /> },
   { to: '/together', title: 'Вместе', hint: 'Смотреть с друзьями', icon: <PeopleIcon /> },
+  { to: '/season', title: 'Сезон', hint: 'Чарт сезона', icon: <Svg d="M12 3v2M12 19v2M5 12H3M21 12h-2M7 7 5.6 5.6M18.4 18.4 17 17M7 17l-1.4 1.4M18.4 5.6 17 7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8" /> },
   { to: '/ongoing', title: 'Онгоинги', hint: 'Выходят сейчас', icon: <ClockIcon size={22} /> },
   { to: '/top', title: 'Топ', hint: 'Лучшие тайтлы', icon: <TrophyIcon size={22} /> },
   { to: '/random', title: 'Случайное', hint: 'Испытать удачу', icon: <Svg d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /> },

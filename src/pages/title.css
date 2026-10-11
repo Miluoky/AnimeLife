@@ -98,6 +98,19 @@
   white-space: nowrap;
 }
 
+/* «Без спойлеров»: кадр будущей серии размыт и затемнён, название скрыто. */
+.episode-card--hidden .episode-card__shot {
+  filter: blur(14px) saturate(0.6) brightness(0.6);
+  transform: scale(1.15);
+}
+.episode-card--hidden .episode-card__name {
+  font-style: italic;
+  opacity: 0.7;
+}
+.spoiler-toggle {
+  flex: 0 0 auto;
+}
+
 /* На телефоне диапазоны серий листаются вбок внутри своей строки, а не раздвигают страницу. */
 @media (max-width: 640px) {
   .episode-tools {

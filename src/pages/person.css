@@ -1,0 +1,118 @@
+/* Страница сэйю или автора: шапка как у персонажа (character.css), роли плиткой «персонаж + тайтл». */
+.person__job {
+  margin: 0;
+  font: 600 12px/1 var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+}
+.person__site {
+  width: fit-content;
+  font-size: 14px;
+}
+.person__jobs {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.person__jobs li {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.person__jobs b {
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.person__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.person__bar h2 .muted {
+  font: 500 15px var(--font-mono);
+}
+
+.person__roles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 10px;
+}
+.person-role {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  transition: border-color 0.2s;
+}
+.person-role:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+.person-role--mine {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+.person-role__img {
+  display: block;
+  width: 64px;
+  aspect-ratio: 9 / 14;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.person-role__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.person-role__text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.person-role__name {
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-role__anime {
+  font-size: 14px;
+  color: var(--text-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.person-role__name:hover,
+.person-role__anime:hover {
+  color: var(--accent-soft);
+}
+.person-role__meta {
+  font-size: 12.5px;
+}
+.person-role__badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}

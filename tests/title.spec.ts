@@ -132,7 +132,7 @@ test('тайтл: блок «Над аниме работали» из роле�
   await page.goto('/anime/1')
   const staff = page.locator('.staff-list')
   await expect(staff.locator('dt')).toHaveText(['Режиссёр', 'Музыка'])
-  await expect(staff.getByRole('link', { name: 'Ёко Канно' })).toHaveAttribute('href', /\/people\/2$/)
+  await expect(staff.getByRole('link', { name: 'Ёко Канно' })).toHaveAttribute("href", /\/person\/2$/)
 })
 
 test('тайтл: озвучки и субтитры, длинный список раскрывается кнопкой', async ({ page }) => {
