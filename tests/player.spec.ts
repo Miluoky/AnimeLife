@@ -730,3 +730,24 @@ test('плеер: «Чётче» рисует видео через фильтр
   await expect(canvas).toHaveCount(0)
   expect(await page.evaluate(() => localStorage.getItem('anime.enhance.v1'))).toBe('false')
 })
+
+test('плеер: источник не может показать серию — сам включаем запасной плеер той же озвучки', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  // В Kodik у Anixart второй серии нет, а в CVH у той же студии есть.
+  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [{ position: 1, url: 'https://kodikplayer.com/seria/1/hash/720p', iframe: true }] } }),
+  )
+  await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
+  await mockYummy(page, [['Озвучка StudioBand', 'CVH', [1, 2]]])
+  await page.goto('/watch/1/2')
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', /^https:\/\/cvh\.example\/.*StudioBand\/2$/, { timeout: 15000 })
+  await expect(page.getByText('Плеер Kodik не грузится, включили CVH')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Плеер' }).getByRole('button', { name: 'CVH' })).toHaveAttribute('aria-pressed', 'true')
+})
