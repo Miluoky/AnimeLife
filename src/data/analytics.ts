@@ -17,13 +17,13 @@ function sessionId() {
 }
 
 /** Считаем только настоящий сайт: локальная сборка и тесты статистику не портят. */
-const live = () => typeof location !== 'undefined' && /(^|\.)animelife\.top$/.test(location.hostname)
+export const live = () => typeof location !== 'undefined' && /(^|\.)animelife\.top$/.test(location.hostname)
 
 /**
  * Отметка просмотра — обычный запрос к функции, без SDK Appwrite: SDK тяжёлый,
  * а гостю на первом экране он не нужен (см. tests/smoke.spec.ts).
  */
-function beacon(body: object) {
+export function beacon(body: object) {
   void fetch(`${APPWRITE_ENDPOINT}/functions/${COMMUNITY_FUNCTION}/executions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Appwrite-Project': APPWRITE_PROJECT },

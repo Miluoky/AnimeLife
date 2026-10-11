@@ -31,6 +31,7 @@ import {
 import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
 import { TG_PREFIX, telegramReady, tgSendEpisode, tgStatus, tgSubscribe, tgUnsubscribe } from './telegram.js'
 import { analyticsStats, analyticsTrack } from './analytics.js'
+import { errorClear, errorList, errorReport } from './errors.js'
 import { socialActions } from './social.js'
 import { notificationActions, notify } from './notifications.js'
 
@@ -534,6 +535,13 @@ export default async ({ req, res, log, error }) => {
         return res.json(await analyticsTrack(api, body))
       case 'analytics-stats':
         return res.json(await analyticsStats(api, req))
+      // Ошибки JavaScript у посетителей (errors.js): присылает любой, читает и убирает администратор.
+      case 'error-report':
+        return res.json(await errorReport(api, body))
+      case 'error-list':
+        return res.json(await errorList(api, req))
+      case 'error-clear':
+        return res.json(await errorClear(api, req, body))
       default:
         // Подписки, лента, подборки, клубы, оценки серий и Shikimori: см. social.js.
         if (Object.hasOwn(socialActions, body.action)) return res.json(await socialActions[body.action](api, req, body))
