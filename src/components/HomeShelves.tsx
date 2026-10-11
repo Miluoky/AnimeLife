@@ -48,25 +48,37 @@ function LoadedShelf({
   icon,
   query,
   more,
+  ranked,
 }: {
   title: string
   subtitle: string
   icon: ReactNode
   query: Omit<CatalogQuery, 'page' | 'limit'>
   more?: string
+  /** большие цифры мест перед постерами, как «Топ-10» на Netflix */
+  ranked?: number
 }) {
-  const list = useAsync(() => loadCatalog({ ...query, limit: SHELF_SIZE }), [])
+  const list = useAsync(() => loadCatalog({ ...query, limit: ranked ?? SHELF_SIZE }), [])
   const items = list.value?.data ?? []
   if (!list.loading && !items.length) return null
   return (
     <Shelf title={title} subtitle={subtitle} icon={icon} more={more ? { to: more } : undefined}>
       {list.loading && !items.length
         ? Array.from({ length: 6 }, (_, i) => <div key={i} className="row-scroll__item poster-card__img skeleton" aria-hidden="true" />)
-        : items.map((a) => (
-            <div key={a.id} className="row-scroll__item">
-              <PosterCard anime={a} />
-            </div>
-          ))}
+        : items.map((a, i) =>
+            ranked ? (
+              <div key={a.id} className="row-scroll__item top-ten">
+                <span className="top-ten__n" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <PosterCard anime={a} />
+              </div>
+            ) : (
+              <div key={a.id} className="row-scroll__item">
+                <PosterCard anime={a} />
+              </div>
+            ),
+          )}
     </Shelf>
   )
 }
@@ -264,6 +276,14 @@ export function SeasonShelf() {
   return (
     <>
       <UpcomingShelf />
+      <CatalogShelf
+        title="Топ-10 онгоингов"
+        subtitle="Что смотрят больше всего прямо сейчас"
+        icon={<TrophyIcon />}
+        query={{ status: 'ongoing', order: 'popularity' }}
+        more="/catalog?status=ongoing"
+        ranked={10}
+      />
       <CatalogShelf
         title={season.label}
         subtitle="Премьеры и продолжения этого сезона"

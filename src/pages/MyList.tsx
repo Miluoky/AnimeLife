@@ -95,6 +95,11 @@ export default function MyList() {
               <div key={e.anime.id} className="list-item">
                 <PosterCard anime={e.anime} hideMine />
                 {(e.status === 'watching' || (e.watched ?? 0) > 0) && <EpisodeProgress entry={e} compact />}
+                {e.note && (
+                  <p className="list-item__note" title={e.note}>
+                    {e.note}
+                  </p>
+                )}
               </div>
             ))}
           </div>

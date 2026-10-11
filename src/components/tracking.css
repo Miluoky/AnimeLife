@@ -97,3 +97,84 @@
 .list-tools__card .btn {
   align-self: flex-start;
 }
+
+/* «Моя запись» на странице тайтла: заметка, даты, пересмотры. */
+.my-entry {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 14px;
+}
+.my-entry > summary {
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.my-entry > summary .muted {
+  font-weight: 400;
+}
+.my-entry__body {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+.my-entry label,
+.my-entry__rewatch {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+.my-entry textarea,
+.my-entry input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  color-scheme: dark;
+}
+.my-entry textarea {
+  resize: vertical;
+}
+.my-entry__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.my-entry__rewatch > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.my-entry__rewatch output {
+  min-width: 52px;
+  text-align: center;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.my-entry .progress__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.list-item__note {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
