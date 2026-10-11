@@ -1,4 +1,4 @@
-// Таблицы социальной части (social.js): подписки и лента, подборки зрителей, клубы, оценки серий, связь с Shikimori,
+// Таблицы социальной части (social.js): подписки и лента, уведомления (notifications.js), ответы в комментариях, подборки зрителей, клубы, оценки серий, связь с Shikimori,
 // и колонки опыта в профилях для топа зрителей. Скрипт пропускает то, что уже есть.
 // Запуск: APPWRITE_API_KEY=... node functions/community/setup-social.mjs
 
@@ -179,6 +179,23 @@ const TABLES = [
     indexes: [idx('anime_episode', ['animeId', 'episode']), idx('anime_avg', ['animeId', 'avg'], ['ASC', 'DESC'])],
   },
   {
+    // Колокольчик на сайте (src/notifications.js): читается только через функцию.
+    id: 'notifications',
+    name: 'Notifications',
+    permissions: [],
+    columns: [
+      str('userId', 36),
+      str('kind', 16),
+      str('actorId', 36),
+      str('actorName', 64),
+      str('text', 200, false),
+      str('link', 300),
+      int('at'),
+      bool('read'),
+    ],
+    indexes: [idx('user_at', ['userId', 'at'], ['ASC', 'DESC']), idx('user_read', ['userId', 'read'])],
+  },
+  {
     id: 'shiki_links',
     name: 'Shikimori Links',
     permissions: [],
@@ -197,6 +214,8 @@ async function main() {
   const profiles = `/tablesdb/${DATABASE}/tables/profiles`
   await ensureColumns(profiles, [int('xp', false), int('weekXp', false), int('weekKey', false)])
   await ensureIndexes(profiles, [idx('xp_desc', ['xp'], ['DESC']), idx('week_xp', ['weekKey', 'weekXp'], ['ASC', 'DESC'])])
+  // Ответы в обсуждении серий: на какой комментарий и чьё имя показать.
+  await ensureColumns(`/tablesdb/${DATABASE}/tables/comments`, [str('replyTo', 36, false), str('replyName', 64, false)])
   console.log('Готово.')
 }
 

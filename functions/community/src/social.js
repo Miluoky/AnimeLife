@@ -1,4 +1,5 @@
 import { DB, UserError, hash, listRows, query } from './util.js'
+import { notify } from './notifications.js'
 
 /**
  * Социальная часть: подписки на людей и лента, подборки зрителей, клубы, оценки серий, синхронизация с Shikimori.
@@ -83,6 +84,7 @@ export async function follow(api, req, body) {
   await api('PUT', `${DB}/follows/rows/f${hash(`${user.$id}:${target}`)}`, {
     data: { followerId: user.$id, followeeId: target, at: Date.now() },
   })
+  await notify(api, { userId: target, kind: 'follow', actor: user, link: `/u/${user.$id}`, key: `${user.$id}:${target}` })
   return { ok: true, followers: await count(api, 'follows', [eq('followeeId', target)]) }
 }
 
@@ -205,6 +207,7 @@ export async function collectionLike(api, req, body) {
   else await api('PUT', `${DB}/collection_likes/rows/${likeId}`, { data: { collectionId: col.$id, userId: user.$id, at: Date.now() } })
   const likes = await count(api, 'collection_likes', [eq('collectionId', col.$id)])
   await api('PATCH', `${DB}/user_collections/rows/${col.$id}`, { data: { likes } })
+  if (!had) await notify(api, { userId: col.ownerId, kind: 'ucol-like', actor: user, text: col.title, link: `/c/${col.$id}`, key: `${col.$id}:${user.$id}` })
   return { liked: !had, likes }
 }
 

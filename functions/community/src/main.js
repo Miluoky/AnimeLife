@@ -32,6 +32,7 @@ import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
 import { TG_PREFIX, telegramReady, tgSendEpisode, tgStatus, tgSubscribe, tgUnsubscribe } from './telegram.js'
 import { analyticsStats, analyticsTrack } from './analytics.js'
 import { socialActions } from './social.js'
+import { notificationActions, notify } from './notifications.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -218,6 +219,9 @@ async function reviewLike(api, req, body) {
   // Пересчитываем, а не прибавляем: так счётчик не собьётся от одновременных нажатий.
   const likes = await countVotes(api, review.$id, 'like')
   await api('PATCH', `${DB}/reviews/rows/${review.$id}`, { data: { likes } })
+  if (liked) {
+    await notify(api, { userId: review.userId, kind: 'review-like', actor: user, link: `/anime/${review.animeId}#reviews`, key: `${review.$id}:${user.$id}` })
+  }
   return { liked, likes }
 }
 
@@ -533,6 +537,8 @@ export default async ({ req, res, log, error }) => {
       default:
         // Подписки, лента, подборки, клубы, оценки серий и Shikimori: см. social.js.
         if (Object.hasOwn(socialActions, body.action)) return res.json(await socialActions[body.action](api, req, body))
+        // Колокольчик: список уведомлений и «прочитано», см. notifications.js.
+        if (Object.hasOwn(notificationActions, body.action)) return res.json(await notificationActions[body.action](api, req, body))
         return res.json({ error: 'Неизвестное действие.' }, 400)
     }
   } catch (e) {

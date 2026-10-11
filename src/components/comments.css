@@ -88,3 +88,29 @@
   flex-wrap: wrap;
   gap: 16px;
 }
+/* Ответы: под комментарием, со сдвигом и линией слева */
+.comment-thread {
+  display: grid;
+  gap: 8px;
+}
+.comments__replies {
+  list-style: none;
+  margin: 0 0 0 18px;
+  padding: 0 0 0 12px;
+  border-left: 2px solid var(--line);
+  display: grid;
+  gap: 8px;
+}
+.comment__to {
+  font-size: 13px;
+}
+.comment--target {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.comments__reply-to {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0;
+  font-size: 14px;
+}

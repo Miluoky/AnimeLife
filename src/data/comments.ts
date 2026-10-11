@@ -14,6 +14,9 @@ export interface EpisodeComment {
   at: number
   reports?: number
   hidden?: boolean
+  /** ответ на комментарий: его id и имя автора */
+  replyTo?: string | null
+  replyName?: string | null
 }
 
 export async function loadComments(animeId: string, episode: number): Promise<EpisodeComment[]> {
@@ -31,8 +34,8 @@ export async function loadComments(animeId: string, episode: number): Promise<Ep
   return res.rows as unknown as EpisodeComment[]
 }
 
-export const saveComment = (animeId: string, episode: number, text: string, spoiler: boolean) =>
-  callCommunity<{ comment: EpisodeComment }>({ action: 'comment-save', animeId, episode, text, spoiler }).then(
+export const saveComment = (animeId: string, episode: number, text: string, spoiler: boolean, replyTo?: string) =>
+  callCommunity<{ comment: EpisodeComment }>({ action: 'comment-save', animeId, episode, text, spoiler, replyTo }).then(
     (r) => r.comment,
   )
 

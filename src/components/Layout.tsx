@@ -23,6 +23,8 @@ const FooterLinks = lazy(() => import('./FooterLinks'))
 const BackToTop = lazy(() => import('./BackToTop'))
 // Карточки при наведении на постер нужны только мыши: грузим, когда браузер свободен.
 const HoverCards = lazy(() => import('./HoverCards'))
+// Колокольчик уведомлений: только для вошедших, отдельной частью вместе с запросами к функции.
+const NotificationBell = lazy(() => import('./NotificationBell'))
 
 export function Logo() {
   return (
@@ -169,6 +171,11 @@ export default function Layout() {
           </nav>
           <div style={{ flexGrow: 1 }} />
           <SearchBox className="search" />
+          {user && (
+            <Suspense fallback={<span className="icon-btn" aria-hidden="true" />}>
+              <NotificationBell />
+            </Suspense>
+          )}
           <Link
             to="/account"
             className={`icon-btn${user ? ' icon-btn--active' : ''}`}
