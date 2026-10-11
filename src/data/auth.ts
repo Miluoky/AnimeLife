@@ -301,6 +301,24 @@ export async function signOut() {
   }
 }
 
+/**
+ * Аккаунт удалён на сервере (AccountData): забываем вход, ничего не отправляя. Если функции не хватило
+ * прав удалить сам аккаунт, отключаем его от имени пользователя — войти в него больше нельзя.
+ */
+export async function forgetDeletedAccount(accountDeleted: boolean) {
+  clearTimeout(pushTimer)
+  try {
+    const { account } = await sdk()
+    if (!accountDeleted) await account.updateStatus()
+    else await account.deleteSession({ sessionId: 'current' }).catch(() => undefined)
+  } finally {
+    remoteListLoaded = false
+    rememberGuest(true)
+    telegramOnStore.set(false)
+    setState({ user: null, syncError: undefined })
+  }
+}
+
 /** Включить или выключить открытый профиль: флаг хранится в настройках аккаунта. */
 export async function setPublicProfile(on: boolean) {
   if (!state.user) return

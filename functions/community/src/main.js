@@ -34,6 +34,7 @@ import { analyticsStats, analyticsTrack } from './analytics.js'
 import { errorClear, errorList, errorReport } from './errors.js'
 import { socialActions } from './social.js'
 import { notificationActions, notify } from './notifications.js'
+import { accountActions } from './account.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -547,6 +548,8 @@ export default async ({ req, res, log, error }) => {
         if (Object.hasOwn(socialActions, body.action)) return res.json(await socialActions[body.action](api, req, body))
         // Колокольчик: список уведомлений и «прочитано», см. notifications.js.
         if (Object.hasOwn(notificationActions, body.action)) return res.json(await notificationActions[body.action](api, req, body))
+        // Выгрузка своих данных и удаление аккаунта, см. account.js.
+        if (Object.hasOwn(accountActions, body.action)) return res.json(await accountActions[body.action](api, req, body))
         return res.json({ error: 'Неизвестное действие.' }, 400)
     }
   } catch (e) {

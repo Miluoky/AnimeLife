@@ -312,3 +312,15 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* «Мои данные»: удаление аккаунта красным, чтобы его не нажали случайно вместо выгрузки */
+.btn--danger {
+  color: #ff6b81;
+  border-color: color-mix(in srgb, #ff6b81 45%, transparent);
+}
+
+.btn.btn--danger:not(.btn--ghost) {
+  background: #c62f48;
+  color: #fff;
+  border-color: transparent;
+}
