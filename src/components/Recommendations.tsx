@@ -2,6 +2,7 @@ import { loadRecommendations, useAsync, type RecommendationSeed } from '../api'
 import { useMyList, type ListEntry } from '../data/myList'
 import { notInterestedStore, setNotInterested, useNotInterested } from '../data/notInterested'
 import { toast } from '../data/toast'
+import { tasteStore } from '../data/taste'
 import PosterCard from './PosterCard'
 import './recs.css'
 
@@ -27,7 +28,10 @@ function pickSeeds(list: ListEntry[]): RecommendationSeed[] {
 
 export default function Recommendations() {
   const list = useMyList()
-  const seeds = pickSeeds(list)
+  const taste = tasteStore.use()
+  // Список пока пуст: берём тайтлы, отмеченные при знакомстве (Onboarding).
+  const fromList = pickSeeds(list)
+  const seeds = fromList.length ? fromList : taste.liked.slice(0, MAX_SEEDS).map((t) => ({ ...t, weight: 2 }))
   const key = seeds.map((s) => `${s.id}:${s.weight}`).join(',')
   const hidden = useNotInterested()
   const inList = new Set(list.map((e) => e.anime.id))
@@ -43,12 +47,12 @@ export default function Recommendations() {
   const titles = used.slice(0, 3).map((s) => `«${s.title}»`)
 
   return (
-    <section className="stack">
+    <section className="stack" id="recs">
       <div className="section-head">
         <h2>Вам понравится</h2>
       </div>
       <p className="muted section-note">
-        Подобрали по тому, что вы высоко оценили и смотрите: {titles.join(', ')}
+        {fromList.length ? 'Подобрали по тому, что вы высоко оценили и смотрите' : 'Подобрали по тому, что вы отметили'}: {titles.join(', ')}
         {used.length > 3 ? ' и другим' : ''}.
         {Object.keys(hidden).length > 0 && (
           <>

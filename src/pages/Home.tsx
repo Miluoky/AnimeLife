@@ -18,6 +18,7 @@ import { useAmbient } from '../components/ambient'
 const shotSrc = (url: string) => (innerWidth <= 640 || slowNetwork() ? shotPreview(url) : url)
 
 const Recommendations = lazy(() => import('../components/Recommendations'))
+const Onboarding = lazy(() => import('../components/Onboarding'))
 // Полки «сезон», «скоро», «лучшее» тоже ниже баннера: своей частью, чтобы не утяжелять первый экран.
 const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.SeasonShelf })))
 const NewEpisodesShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.NewEpisodesShelf })))
@@ -288,6 +289,9 @@ export default function Home() {
         )}
       </div>
       <Hero />
+      <Suspense fallback={null}>
+        <Onboarding />
+      </Suspense>
       <Suspense fallback={null}>
         <HomeBento />
         <SeasonShelf />

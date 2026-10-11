@@ -148,6 +148,8 @@ test('главная: тайтл можно убрать из «Продолжи
 })
 
 test('главная: заголовок полки сезона ведёт в сезонный чарт', async ({ page }) => {
+  // Постоянный зритель: карточка знакомства не сдвигает полки ниже.
+  await page.addInitScript(() => localStorage.setItem('anime.taste.v1', JSON.stringify({ genres: [], liked: [], done: true })))
   await page.goto('/')
   const link = page.locator('.shelf__title-link', { hasText: /^(Зима|Весна|Лето|Осень) \d{4}$/ })
   await link.scrollIntoViewIfNeeded()

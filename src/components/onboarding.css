@@ -1,0 +1,166 @@
+.onboard-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 20px 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface));
+}
+
+.onboard-card h2 {
+  margin: 0 0 6px;
+}
+
+.onboard-card p {
+  margin: 0;
+  max-width: 560px;
+}
+
+.onboard-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.onboard-open {
+  overflow: hidden;
+}
+
+.onboard {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.6);
+}
+
+.onboard__box {
+  width: min(860px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  outline: none;
+}
+
+.onboard__box > p {
+  margin: 14px 0 8px;
+}
+
+.onboard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboard__head h2 {
+  margin: 0;
+}
+
+.onboard__genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.onboard__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+.onboard__title {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.onboard__title img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  outline: 3px solid transparent;
+  outline-offset: -3px;
+  transition: outline-color 0.15s, opacity 0.15s;
+}
+
+.onboard__title span {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.onboard__title--on img {
+  outline-color: var(--accent);
+  opacity: 0.85;
+}
+
+.onboard__title--on span::before {
+  content: '✓ ';
+  color: var(--accent);
+}
+
+.onboard__foot {
+  position: sticky;
+  bottom: -20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px -20px -20px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+/* Телефон: жанры одной прокручиваемой строкой, тайтлы по три в ряд, окно на весь экран */
+@media (max-width: 600px) {
+  .onboard {
+    padding: 0;
+  }
+
+  .onboard__box {
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .onboard__genres {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -20px;
+    padding: 0 20px 4px;
+    scrollbar-width: none;
+  }
+
+  .onboard__genres .pill {
+    flex-shrink: 0;
+  }
+
+  .onboard__grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}
