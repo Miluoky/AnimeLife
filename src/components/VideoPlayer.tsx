@@ -81,6 +81,8 @@ export interface VideoPlayerProps {
    */
   provider?: Provider
   onProviderChange?: (provider: Provider) => void
+  /** Источник не может показать серию (ошибка, таймаут, серии нет): страница может сама включить запасной. */
+  onUnavailable?: (reason: string) => void
   /** Источники, в которых страница точно знает этот тайтл: на них предлагаем переключиться. */
   available?: Provider[]
   /** Выбранная озвучка Kodik: ссылка на её плеер из API. Без неё Kodik ищет тайтл сам. */
@@ -615,6 +617,14 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }
 
   const unavailable = unavailableReason()
+  // Сообщаем странице, что источник не справился, но не сразу: короткие промежуточные состояния не в счёт.
+  const onUnavailable = useRef(props.onUnavailable)
+  onUnavailable.current = props.onUnavailable
+  useEffect(() => {
+    if (!unavailable) return
+    const timer = window.setTimeout(() => onUnavailable.current?.(unavailable), 1200)
+    return () => window.clearTimeout(timer)
+  }, [unavailable])
   // Кнопка смены источника — только когда переключаться есть куда.
   const other = tabs.find((t) => t.available && t.id !== provider && (!props.available || props.available.includes(t.id)))
   const switchButton = other && (

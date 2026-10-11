@@ -1,0 +1,136 @@
+// Проверка сайта и источников видео (workflow source-health.yml, раз в час).
+// Каждый сервис опрашивается так же, как это делает сайт; не ответил дважды подряд — считаем упавшим.
+// Состояние прошлой проверки лежит в .health/state.json (кэш GitHub Actions): в Telegram пишем только
+// когда что-то упало или поднялось, а не каждый час.
+// Кому писать: TELEGRAM_ADMIN_CHAT_ID, иначе администраторам сайта (метка admin в Appwrite),
+// вошедшим через Telegram. Токен бота — TELEGRAM_BOT_TOKEN или переменная функции входа (APPWRITE_API_KEY).
+// Запуск у себя: node scripts/source-health.mjs (без токенов только печатает результат).
+import { execFile } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { promisify } from 'node:util'
+
+const run = promisify(execFile)
+
+const SITE = process.env.SITE_URL || 'https://animelife.top'
+const APPWRITE = 'https://fra.cloud.appwrite.io/v1'
+const PROJECT = '6abf65850016889f9b1b'
+const STATE_FILE = '.health/state.json'
+const TIMEOUT = 15_000
+
+/** Что проверяем: имя для сообщения и запрос, который должен вернуть 2xx и ожидаемое содержимое. */
+const CHECKS = [
+  { name: 'Сайт animelife.top', url: `${SITE}/`, expect: (t) => t.includes('id="root"') },
+  { name: 'Каталог (прокси Shikimori)', url: `${SITE}/api/shiki/api/animes/1`, expect: (t) => t.includes('"id":1') },
+  { name: 'AniLibria', url: 'https://anilibria.top/api/v1/anime/releases/latest?limit=1', mirror: 'https://aniliberty.top/api/v1/anime/releases/latest?limit=1' },
+  { name: 'AnimeVost', url: 'https://api.animevost.org/v1/search', init: { method: 'POST', body: new URLSearchParams({ name: 'Наруто' }) }, expect: (t) => t.includes('"data"') },
+  {
+    name: 'Anixart',
+    url: 'https://api.anixart.tv/search/releases/0',
+    init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'Наруто', searchBy: 0 }) },
+    expect: (t) => t.includes('"content"'),
+  },
+  { name: 'YummyAnime', url: 'https://api.yani.tv/search?q=naruto&limit=1', expect: (t) => t.includes('"response"') },
+  { name: 'Appwrite (аккаунты, списки, комментарии)', url: `${APPWRITE}/health/version`, expect: (t) => t.includes('version') },
+]
+if (process.env.KODIK_TOKEN) {
+  CHECKS.push({ name: 'Kodik', url: `https://kodik-api.com/search?token=${process.env.KODIK_TOKEN}&shikimori_id=1`, expect: (t) => t.includes('"results"'), secret: true })
+}
+
+// Запросы через curl: AniLibria (DDoS-Guard) отвечает 403 на fetch из Node, а curl пускает.
+async function probe(url, init) {
+  const args = ['-sS', '-L', '--max-time', String(TIMEOUT / 1000), '-o', '-', '-w', '\n%{http_code} %{time_total}', '-A', 'Mozilla/5.0']
+  if (init?.method) args.push('-X', init.method)
+  for (const [k, v] of Object.entries(init?.headers ?? {})) args.push('-H', `${k}: ${v}`)
+  if (init?.body) args.push('--data-raw', String(init.body))
+  args.push(url)
+  try {
+    const { stdout } = await run('curl', args, { maxBuffer: 20 * 1024 * 1024 })
+    const cut = stdout.lastIndexOf('\n')
+    const [status, time] = stdout.slice(cut + 1).split(' ')
+    return { ok: +status >= 200 && +status < 300, status: +status, text: stdout.slice(0, cut), ms: Math.round(+time * 1000) }
+  } catch (e) {
+    throw Object.assign(new Error('curl'), { name: e?.code === 28 ? 'TimeoutError' : 'NetworkError' })
+  }
+}
+
+async function check(c) {
+  let last = ''
+  for (const url of [c.url, c.url, c.mirror].filter(Boolean)) {
+    try {
+      const r = await probe(url, c.init)
+      if (r.ok && (!c.expect || c.expect(r.text))) return { up: true, ms: r.ms }
+      last = r.ok ? 'неожиданный ответ' : `HTTP ${r.status}`
+    } catch (e) {
+      last = e?.name === 'TimeoutError' ? `нет ответа за ${TIMEOUT / 1000} с` : 'не подключается'
+    }
+  }
+  return { up: false, reason: last }
+}
+
+async function botToken() {
+  if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN
+  const key = process.env.APPWRITE_API_KEY
+  if (!key) return ''
+  const res = await fetch(`${APPWRITE}/functions/social-login/variables`, { headers: { 'X-Appwrite-Project': PROJECT, 'X-Appwrite-Key': key } }).catch(() => undefined)
+  const json = res?.ok ? await res.json().catch(() => ({})) : {}
+  const token = (json.variables ?? []).find((v) => v.key === 'TELEGRAM_BOT_TOKEN')?.value ?? ''
+  if (token && process.env.GITHUB_ACTIONS) console.log(`::add-mask::${token}`)
+  return token
+}
+
+/** Администраторы сайта, вошедшие через Telegram: id аккаунта tg_<chat id>. */
+async function adminChats() {
+  if (process.env.TELEGRAM_ADMIN_CHAT_ID) return process.env.TELEGRAM_ADMIN_CHAT_ID.split(',').map((s) => s.trim()).filter(Boolean)
+  const key = process.env.APPWRITE_API_KEY
+  if (!key) return []
+  const chats = []
+  for (let offset = 0; offset < 5000; offset += 100) {
+    const q = [{ method: 'limit', values: [100] }, { method: 'offset', values: [offset] }].map((x) => `queries[]=${encodeURIComponent(JSON.stringify(x))}`).join('&')
+    const res = await fetch(`${APPWRITE}/users?${q}`, { headers: { 'X-Appwrite-Project': PROJECT, 'X-Appwrite-Key': key } }).catch(() => undefined)
+    const json = res?.ok ? await res.json().catch(() => ({})) : {}
+    const users = json.users ?? []
+    for (const u of users) {
+      const m = /^tg_(\d{1,20})$/.exec(u.$id)
+      if (m && (u.labels ?? []).includes('admin')) chats.push(m[1])
+    }
+    if (users.length < 100) break
+  }
+  return chats
+}
+
+async function notify(text) {
+  const token = await botToken()
+  const chats = token ? await adminChats() : []
+  if (!token || !chats.length) {
+    console.log('::notice::Сообщение в Telegram не отправлено: нет токена бота или чата администратора.')
+    return
+  }
+  for (const chat_id of chats) {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id, text, disable_web_page_preview: true }),
+    }).catch(() => undefined)
+    if (!res?.ok) console.log(`::warning::Telegram не принял сообщение (${res?.status ?? 'сеть'}).`)
+  }
+}
+
+const results = await Promise.all(CHECKS.map(async (c) => ({ name: c.name, ...(await check(c)) })))
+for (const r of results) console.log(`${r.up ? '✅' : '❌'} ${r.name}${r.up ? ` — ${r.ms} мс` : ` — ${r.reason}`}`)
+
+const before = existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, 'utf8')) : {}
+const down = results.filter((r) => !r.up && before[r.name] !== false)
+const back = results.filter((r) => r.up && before[r.name] === false)
+const lines = [
+  ...down.map((r) => `❌ ${r.name}: ${r.reason}`),
+  ...back.map((r) => `✅ ${r.name} снова работает`),
+]
+if (lines.length) {
+  const still = results.filter((r) => !r.up).length
+  await notify(`Anime Life, проверка источников\n\n${lines.join('\n')}${still ? `\n\nСейчас не работает: ${still} из ${results.length}. Плеер сам переключается на рабочие источники.` : ''}\n${SITE}`)
+}
+mkdirSync('.health', { recursive: true })
+writeFileSync(STATE_FILE, JSON.stringify(Object.fromEntries(results.map((r) => [r.name, r.up]))))
+
+// Сам сайт или каталог лёг — job красный, GitHub тоже пришлёт письмо.
+if (!results[0].up || !results[1].up) process.exit(1)

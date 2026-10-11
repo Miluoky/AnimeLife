@@ -107,7 +107,11 @@ export default function Player() {
   // Озвучка для «Итогов года»: журнал читает её из ref, чтобы смена озвучки не считалась новым просмотром.
   const voiceTitle = useRef<string | undefined>(undefined)
   voiceTitle.current = voice?.title
+  // Автопереключение: какие пары «озвучка + плеер» на этой серии уже не справились, и выбирал ли зритель сам.
+  const tried = useRef(new Set<string>())
+  const manual = useRef(false)
   const chooseVoice = (key: string) => {
+    manual.current = true
     saveVoice(key)
     setVoiceKey(key)
   }
@@ -115,11 +119,31 @@ export default function Player() {
   const hosts = voice ? hostsOf(voice) : []
   const host = hosts.find((h) => h.id === hostId) ?? hosts[0]
   const chooseHost = (id: string) => {
+    manual.current = true
     saveHost(id)
     setHostId(id)
   }
   const requested = Math.max(1, Number(episode) || 1)
   const current = Math.min(requested, total)
+  useEffect(() => {
+    tried.current = new Set()
+    manual.current = false
+  }, [anime?.id, current])
+  // Источник не грузится или серии в нём нет: сами включаем следующий, а не просим зрителя перебирать плееры.
+  // Если зритель выбрал источник сам, оставляем его выбор и пояснение под видео.
+  const fallBack = () => {
+    if (manual.current || !voice || tried.current.size >= MAX_AUTO_SWITCHES) return
+    tried.current.add(sourceSlot(voice, host))
+    const next = nextSource(voices, voice, current, tried.current)
+    if (!next) return
+    setVoiceKey(next.voice.key)
+    setHostId(next.host.id)
+    toast(
+      next.voice.key === voice.key
+        ? `Плеер ${host?.label ?? voice.title} не грузится, включили ${next.host.label}`
+        : `${voice.title} не грузится, включили озвучку ${next.voice.title}`,
+    )
+  }
   const isScheduled = !!anime?.ongoing && !!anime.nextEpisodeAt && requested === total + 1
 
   useEffect(() => {
@@ -228,6 +252,7 @@ export default function Player() {
         skips={voice?.yummy?.map((p) => p.skips.get(current)).find(Boolean)}
         kodikSkips={voice?.yummy?.find((p) => /kodik/i.test(p.name))?.skips.get(current)}
         embed={host?.player && voice ? { url: host.player.urls.get(current), player: host.player.name, voice: voice.title } : undefined}
+        onUnavailable={fallBack}
         onProviderChange={(p) => {
           const next = voices.find((v) => v.provider === p)
           if (next) chooseVoice(next.key)
@@ -567,6 +592,31 @@ function hostsOf(voice: Voice): Host[] {
     list.push({ id: p.name, label: p.name, player: p })
   }
   return list
+}
+
+/** Больше стольких автоматических переключений на одной серии не делаем: дальше выбирает зритель. */
+const MAX_AUTO_SWITCHES = 8
+
+function sourceSlot(voice: Voice, host?: Host) {
+  return `${voice.key}|${host?.id ?? ''}`
+}
+
+/**
+ * Запасной источник для серии: сначала другие плееры той же озвучки, потом другие озвучки
+ * того же вида (озвучка или субтитры), потом остальные. Пропускаем то, что уже пробовали,
+ * и то, где этой серии заведомо нет.
+ */
+function nextSource(voices: Voice[], from: Voice, episode: number, tried: Set<string>): { voice: Voice; host: Host } | undefined {
+  const order = [from, ...voices.filter((v) => v !== from && v.kind === from.kind), ...voices.filter((v) => v !== from && v.kind !== from.kind)]
+  for (const voice of order) {
+    if (voice.episodes !== undefined && voice.episodes < episode) continue
+    const hosts = hostsOf(voice)
+    for (const host of hosts.length ? hosts : [{ id: '', label: voice.title }]) {
+      if (tried.has(sourceSlot(voice, host))) continue
+      if (host.player && !host.player.urls.get(episode)) continue
+      return { voice, host }
+    }
+  }
 }
 
 const HOST_KEY = 'player-host'
