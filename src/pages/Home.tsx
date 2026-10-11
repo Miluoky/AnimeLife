@@ -1,8 +1,8 @@
 import { type CSSProperties, Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { saverOn } from '../data/saver'
+import { saverOn, slowNetwork } from '../data/saver'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
-import { fetchScreenshots } from '../api/shikimori'
+import { fetchScreenshots, shotPreview } from '../api/shikimori'
 import { removeProgress, useHistory } from '../data/history'
 import type { HistoryEntry } from '../data/history'
 import { useMyList } from '../data/myList'
@@ -14,6 +14,9 @@ import { PauseIcon, PlayIcon } from '../components/Icons'
 import { useAmbient } from '../components/ambient'
 
 // Рекомендации ниже первого экрана: отдельная часть, грузится следом.
+// На телефоне и медленной сети кадр в фоне баннера уменьшенный: оригинал весит до 700 КБ и становился LCP на 11 с.
+const shotSrc = (url: string) => (innerWidth <= 640 || slowNetwork() ? shotPreview(url) : url)
+
 const Recommendations = lazy(() => import('../components/Recommendations'))
 // Полки «сезон», «скоро», «лучшее» тоже ниже баннера: своей частью, чтобы не утяжелять первый экран.
 const SeasonShelf = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.SeasonShelf })))
@@ -46,14 +49,17 @@ function Hero() {
   const anime = (details.value?.of === current?.id && details.value?.data) || current
   // Кадр из аниме на фон. Кадр следующего тайтла запрашиваем заранее, чтобы смена была без пустого фона.
   // В экономии трафика баннер без кадра из серии: хватает постера.
-  const shots = useAsync(async () => (current && !saverOn() ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined), [current?.id])
+  const shots = useAsync(
+    async () => (current && !saverOn() ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined),
+    [current?.id],
+  )
   const next = items[(index + 1) % items.length]
   useEffect(() => {
-    if (!next || items.length < 2) return
+    if (!next || items.length < 2 || saverOn()) return
     const t = setTimeout(() => {
       void fetchScreenshots(next.id)
         .then((list) => {
-          if (list[0]) new Image().src = list[0]
+          if (list[0]) new Image().src = shotSrc(list[0])
         })
         .catch(() => undefined)
     }, 2000)
@@ -103,7 +109,7 @@ function Hero() {
             fetchpriority="high"
           />
         )}
-        {shot && <img key={shot} className="hero__shot" src={shot} alt="" onLoad={(e) => e.currentTarget.classList.add('is-on')} />}
+        {shot && <img key={shot} className="hero__shot" src={shotSrc(shot)} alt="" onLoad={(e) => e.currentTarget.classList.add('is-on')} />}
       </div>
       {items.length > 1 && (
         <button

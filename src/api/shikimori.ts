@@ -522,6 +522,12 @@ export async function fetchSimilar(id: string): Promise<Anime[]> {
 }
 
 /** Кадры из аниме, для баннера и превью серий. */
+/**
+ * Уменьшенная копия кадра (высота 332 px, в 10–15 раз легче оригинала): для миниатюр серий, сетки кадров
+ * и фона баннера на телефоне. Оригинал остаётся для просмотра кадра на весь экран и фона на компьютере.
+ */
+export const shotPreview = (url: string) => url.replace('/screenshots/original/', '/screenshots/x332/')
+
 export async function fetchScreenshots(id: string): Promise<string[]> {
   const list = await get<{ original: string; preview: string }[]>(`/animes/${encodeURIComponent(id)}/screenshots`)
   return list.map((s) => absolute(s.original)).filter((u): u is string => Boolean(u))
