@@ -435,3 +435,78 @@ test('ведущий выбирает озвучку карточкой: вкл�
   const sent = JSON.parse(JSON.parse((await control).postData()!).body)
   expect(sent).toMatchObject({ action: 'room-control', videoId: 'pl-ax-29', playing: false, position: 0 })
 })
+
+test('гость в комнате «управляют все» меняет озвучку посреди серии: время и плей сохраняются', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'u2', name: 'Аня', email: 'a@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  const room = { ...baseRoom, controlAll: true, source: 'trailer', videoId: 'pl-av-0', playing: true, position: 3, at: Date.now() }
+  await mockRoom(page, room)
+  await mockAnimeVost(page)
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.goto(`/together/${CODE}`)
+  const picker = page.getByRole('region', { name: 'Плеер и озвучка' })
+  await expect(picker.getByRole('button', { name: /AnimeVost/ })).toHaveAttribute('aria-pressed', 'true')
+
+  const control = page.waitForRequest((r) => r.url().includes('/functions/community/executions') && (r.postData() ?? '').includes('room-control'))
+  await picker.getByRole('button', { name: /Studio Band/ }).click()
+  const sent = JSON.parse(JSON.parse((await control).postData()!).body)
+  expect(sent).toMatchObject({ action: 'room-control', videoId: 'pl-ax-29', playing: true })
+  expect(sent.position).toBeGreaterThan(2.5)
+})
+
+test('гость без права управлять не видит выбор озвучки', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'u2', name: 'Аня', email: 'a@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  await mockRoom(page, { ...baseRoom, source: 'trailer', videoId: 'pl-av-0' })
+  await mockAnimeVost(page)
+  await page.goto(`/together/${CODE}`)
+  await expect(page.getByText(/Ведущий: Ведущий · AnimeVost/)).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Плеер и озвучка' })).toHaveCount(0)
+})
+
+test('шумоподавление выбирается до входа, сильное собирает RNNoise и шумовые ворота', async ({ page }) => {
+  // Микрофон — тихий синус из Web Audio: настоящего устройства в браузере тестов нет.
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => {
+      const ctx = new AudioContext()
+      const osc = ctx.createOscillator()
+      const out = ctx.createMediaStreamDestination()
+      osc.connect(out)
+      osc.start()
+      return out.stream
+    }
+    // Запоминаем модули AudioWorklet, которые загрузились без ошибки.
+    const w = window as unknown as { worklets: string[] }
+    w.worklets = []
+    const add = AudioWorklet.prototype.addModule
+    AudioWorklet.prototype.addModule = async function (url, options) {
+      await add.call(this, url, options)
+      w.worklets.push(String(url))
+    }
+  })
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  await mockRoom(page, baseRoom)
+  await page.goto(`/together/${CODE}`)
+  const people = page.getByRole('region', { name: 'Кто в комнате' })
+  const noise = people.getByLabel('Шумоподавление микрофона')
+  // До входа в голос режим уже виден и запоминается.
+  await expect(noise).toHaveValue('strong')
+  await noise.selectOption('browser')
+  await noise.selectOption('strong')
+  await people.getByRole('button', { name: 'Голосовой чат' }).click()
+  await expect(people.getByRole('button', { name: 'Выйти из голоса' })).toBeVisible()
+  // Нейросеть и ворота — два отдельных модуля AudioWorklet, оба загрузились.
+  const worklets = () => page.evaluate(() => new Set((window as unknown as { worklets: string[] }).worklets).size)
+  await expect.poll(worklets).toBe(2)
+  await expect(noise).toHaveValue('strong')
+  await expect(page.getByText('Сильное шумоподавление не запустилось')).toHaveCount(0)
+})

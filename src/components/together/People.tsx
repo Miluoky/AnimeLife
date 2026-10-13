@@ -44,7 +44,11 @@ export default function People({
       setMyLevel(level)
     })
     try {
-      await v.join(members, noise)
+      const applied = await v.join(members, noise)
+      if (applied !== noise) {
+        noiseStore.set(applied)
+        toast('Сильное шумоподавление не запустилось в этом браузере, включили обычное')
+      }
       voice.current = v
       setInVoice(true)
       setMuted(false)
@@ -78,6 +82,23 @@ export default function People({
       toast('Сильное шумоподавление не запустилось в этом браузере, включили обычное')
     }
   }
+
+  // Шумоподавление можно выбрать и до входа в голос: микрофон сразу включится с ним.
+  const noiseSelect = (
+    <select
+      className="people__noise"
+      value={noise}
+      onChange={(e) => void chooseNoise(e.target.value as NoiseMode)}
+      aria-label="Шумоподавление микрофона"
+      title="Сильное — нейросеть RNNoise прямо в браузере: убирает клавиатуру, вентилятор и улицу, а в паузах глушит остаток шума"
+    >
+      {(Object.keys(NOISE_LABEL) as NoiseMode[]).map((m) => (
+        <option key={m} value={m}>
+          {NOISE_LABEL[m]}
+        </option>
+      ))}
+    </select>
+  )
 
   const sorted = [...members].sort((a, b) => Number(b.voice) - Number(a.voice) || a.name.localeCompare(b.name))
 
@@ -126,28 +147,19 @@ export default function People({
             >
               <MicIcon size={16} off={muted} />
             </button>
-            <select
-              className="people__noise"
-              value={noise}
-              onChange={(e) => void chooseNoise(e.target.value as NoiseMode)}
-              aria-label="Шумоподавление микрофона"
-              title="Сильное — нейросеть RNNoise прямо в браузере: убирает клавиатуру, вентилятор и улицу"
-            >
-              {(Object.keys(NOISE_LABEL) as NoiseMode[]).map((m) => (
-                <option key={m} value={m}>
-                  {NOISE_LABEL[m]}
-                </option>
-              ))}
-            </select>
+            {noiseSelect}
             <button type="button" className="btn btn--ghost btn--small" onClick={leave}>
               Выйти из голоса
             </button>
           </div>
         ) : (
-          <button type="button" className="btn btn--ghost btn--small people__join" onClick={join} disabled={busy}>
-            <MicIcon size={16} />
-            {busy ? 'Подключаем…' : 'Голосовой чат'}
-          </button>
+          <div className="actions people__actions">
+            <button type="button" className="btn btn--ghost btn--small people__join" onClick={join} disabled={busy}>
+              <MicIcon size={16} />
+              {busy ? 'Подключаем…' : 'Голосовой чат'}
+            </button>
+            {noiseSelect}
+          </div>
         ))}
     </section>
   )
