@@ -150,7 +150,7 @@ test('тайтл: озвучки и субтитры, длинный списо�
 test('тайтл: сколько времени займёт весь сериал и сколько осталось', async ({ page }) => {
   await page.goto('/anime/1')
   const facts = page.locator('.fact-pills')
-  await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин')
+  await expect(facts.locator('div', { hasText: 'Общая длительность' })).toContainText('~10 ч 24 мин')
   await page.evaluate(() =>
     localStorage.setItem(
       'anime.history.v1',
@@ -158,7 +158,7 @@ test('тайтл: сколько времени займёт весь сериа
     ),
   )
   await page.reload()
-  await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин')
+  await expect(facts.locator('div', { hasText: 'Общая длительность' })).toContainText('~10 ч 24 мин')
   await expect(facts.locator('div', { hasText: 'Осталось' })).toContainText('8 ч 24 мин')
 })
 
