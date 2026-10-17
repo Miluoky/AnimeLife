@@ -339,7 +339,7 @@ test.describe('Worker: кэш готовых страниц', () => {
         const before = env.calls.length
         const res = await worker.fetch(new Request(`https://animelife.top${path}`, init), { ASSETS: assets }, env.ctx)
         await env.settle()
-        return { status: res.status, cache: res.headers.get('X-Page-Cache'), upstream: env.calls.length - before }
+        return { status: res.status, cache: res.headers.get('X-Page-Cache'), upstream: env.calls.length - before, location: res.headers.get('Location') }
       },
     }
   }
@@ -355,16 +355,32 @@ test.describe('Worker: кэш готовых страниц', () => {
     try {
       env.respond(fixture())
       const s = site(env)
-      const first = await s.open('/anime/1')
+      const first = await s.open('/anime/1-cowboy-bebop')
       expect([first.status, first.cache]).toEqual([200, 'MISS'])
       expect(first.upstream).toBeGreaterThan(0)
-      expect(await s.open('/anime/1')).toMatchObject({ cache: 'HIT', upstream: 0 })
+      expect(await s.open('/anime/1-cowboy-bebop')).toMatchObject({ cache: 'HIT', upstream: 0 })
       env.clock.now += 6 * 60_000
-      const stale = await s.open('/anime/1')
+      const stale = await s.open('/anime/1-cowboy-bebop')
       // Зритель получил старую копию, а Worker в фоне собрал свежую.
       expect(stale.cache).toBe('STALE')
       expect(stale.upstream).toBeGreaterThan(0)
-      expect(await s.open('/anime/1')).toMatchObject({ cache: 'HIT', upstream: 0 })
+      expect(await s.open('/anime/1-cowboy-bebop')).toMatchObject({ cache: 'HIT', upstream: 0 })
+    } finally {
+      env.restore()
+    }
+  })
+
+  test('адрес тайтла с названием: старый /anime/1 и неверное название ведут на /anime/1-cowboy-bebop (301)', async () => {
+    const env = fakeEnv()
+    try {
+      env.respond(fixture())
+      const s = site(env)
+      const to = 'https://animelife.top/anime/1-cowboy-bebop'
+      expect(await s.open('/anime/1')).toMatchObject({ status: 301, location: to })
+      expect(await s.open('/anime/1/')).toMatchObject({ status: 301, location: to })
+      expect(await s.open('/anime/1-old-name')).toMatchObject({ status: 301, location: to })
+      expect(await s.open('/anime/1?ref=tg')).toMatchObject({ status: 301, location: `${to}?ref=tg` })
+      expect((await s.open('/anime/1-cowboy-bebop')).status).toBe(200)
     } finally {
       env.restore()
     }
@@ -388,15 +404,15 @@ test.describe('Worker: кэш готовых страниц', () => {
       // Похожие не ответили: страница отдаётся без них, но не сохраняется.
       env.respond(fixture(/\/similar$/))
       const s = site(env)
-      expect((await s.open('/anime/1')).cache).toBe('MISS')
-      expect((await s.open('/anime/1')).cache).toBe('MISS')
+      expect((await s.open('/anime/1-cowboy-bebop')).cache).toBe('MISS')
+      expect((await s.open('/anime/1-cowboy-bebop')).cache).toBe('MISS')
       env.respond(fixture())
-      await s.open('/anime/1')
-      expect((await s.open('/anime/1')).cache).toBe('HIT')
+      await s.open('/anime/1-cowboy-bebop')
+      expect((await s.open('/anime/1-cowboy-bebop')).cache).toBe('HIT')
       s.deploy('"v2"')
-      expect((await s.open('/anime/1')).cache).toBe('MISS')
+      expect((await s.open('/anime/1-cowboy-bebop')).cache).toBe('MISS')
       expect((await s.open('/together/ABC123')).cache).toBeNull()
-      expect((await s.open('/anime/1', { method: 'HEAD' })).cache).toBeNull()
+      expect((await s.open('/anime/1-cowboy-bebop', { method: 'HEAD' })).cache).toBeNull()
       // Тайтла нет: 404 тоже хранится.
       env.respond((url: string) => (url.includes('/animes/999') ? new Response('', { status: 404 }) : fixture()(url)))
       expect(await s.open('/anime/999')).toMatchObject({ status: 404, cache: 'MISS' })

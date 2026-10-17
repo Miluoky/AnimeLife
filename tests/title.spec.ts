@@ -269,3 +269,14 @@ test('тайтл: Anixart находит релиз по английскому 
   // Год в скобках в запрос не попадает.
   expect(queries[0]).toBe('Ковбой Бибоп')
 })
+
+test('адрес тайтла с названием: /anime/1 меняется на /anime/1-cowboy-bebop, постер подписан', async ({ page }) => {
+  await page.goto('/anime/1#reviews')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
+  await expect(page).toHaveURL(/\/anime\/1-cowboy-bebop#reviews$/)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://animelife.top/anime/1-cowboy-bebop')
+  await expect(page.getByAltText('Постер аниме «Ковбой Бибоп»').first()).toBeAttached()
+  // Назад ведёт туда, откуда пришли, а не на старый адрес: замена без новой записи в истории.
+  await page.goto('/anime/1-cowboy-bebop')
+  await expect(page).toHaveURL(/\/anime\/1-cowboy-bebop$/)
+})

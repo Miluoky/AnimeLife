@@ -24,7 +24,8 @@ test('главная: подборка недели, онгоинги, карт�
 test('страница тайтла открывается по клику и показывает серии', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('link', { name: /Ван-Пис/ }).first().click()
-  await expect(page).toHaveURL(/\/anime\/21$/)
+  // Карточка ведёт сразу на адрес с латинским названием, без перенаправления.
+  await expect(page).toHaveURL(/\/anime\/21-one-piece$/)
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
   await expect(page.getByRole('heading', { name: /Отзывы/ })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Серии/ })).toBeVisible()

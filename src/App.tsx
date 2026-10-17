@@ -3,6 +3,7 @@ import { Route, Routes, useParams } from 'react-router-dom'
 import Layout from './components/Layout'
 import Home from './pages/Home'
 import { pageChunks, prefetchNavigation } from './api/prefetch'
+import { animeIdFromParam } from './data/seo'
 
 // Главная входит в основную сборку, остальные страницы грузятся отдельными частями при первом открытии.
 const TitlePage = lazy(pageChunks.title)
@@ -46,7 +47,7 @@ const PersonPage = lazy(pageChunks.person)
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
   const { id } = useParams()
-  return <TitlePage key={id} />
+  return <TitlePage key={animeIdFromParam(id ?? '')} />
 }
 
 function TogetherRoute() {

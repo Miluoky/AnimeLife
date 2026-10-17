@@ -31,6 +31,7 @@ import {
   PAGE_SIZE,
   SITE,
   ageLabel,
+  animePath,
   cut,
   episodesLabel,
   genrePath,
@@ -53,7 +54,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -169,7 +170,7 @@ function item(a) {
   const facts = [KIND_NAMES[a.kind], a.aired_on?.slice(0, 4), a.kind !== 'movie' && a.episodes ? `${a.episodes} эп.` : '']
     .filter(Boolean)
     .join(', ')
-  return `<li>${link(`/anime/${a.id}`, a.russian || a.name)}${facts ? ` — ${escapeHtml(facts)}` : ''}</li>`
+  return `<li>${link(animePath(a.id, a.name), a.russian || a.name)}${facts ? ` — ${escapeHtml(facts)}` : ''}</li>`
 }
 
 /** Ссылки «Назад» и «Дальше» и номера соседних страниц, все обычными <a href>. */
@@ -214,7 +215,7 @@ async function listing(l, page) {
       itemListElement: items.map((a, i) => ({
         '@type': 'ListItem',
         position: offset + i + 1,
-        url: `${ORIGIN}/anime/${a.id}`,
+        url: ORIGIN + animePath(a.id, a.name),
         name: a.russian || a.name,
       })),
     }),
@@ -253,6 +254,7 @@ async function home() {
     body:
       `<h1>Смотреть аниме онлайн</h1>` +
       `<p>${SITE} — сайт для просмотра аниме онлайн: онгоинги и новые серии, каталог по жанрам, годам и сезонам, расписание выхода серий, «Мой список» и совместный просмотр с друзьями.</p>` +
+      (hero.length ? `<h2>Сейчас выходят</h2><ul>${hero.map(item).join('')}</ul>` : '') +
       (items.length ? `<h2>Популярное аниме</h2><ol>${items.map(item).join('')}</ol>` : '') +
       `<h2>Жанры</h2><p>${links(GENRES.map((g) => [g.name, `/genre/${g.slug}`]))}</p>` +
       `<h2>По годам</h2><p>${links(Array.from({ length: 8 }, (_, i) => [`Аниме ${year + 1 - i} года`, `/year/${year + 1 - i}`]))}</p>` +
@@ -301,7 +303,7 @@ async function schedule() {
     const day = dayFormat.format(at).replace(/^./, (c) => c.toUpperCase())
     if (!days.has(day)) days.set(day, [])
     days.get(day).push(
-      `<li>${timeFormat.format(at)} — ${link(`/anime/${i.anime.id}`, i.anime.russian || i.anime.name)}, ${i.next_episode} серия</li>`,
+      `<li>${timeFormat.format(at)} — ${link(animePath(i.anime.id, i.anime.name), i.anime.russian || i.anime.name)}, ${i.next_episode} серия</li>`,
     )
   }
   const crumbs = breadcrumbs([['Расписание серий', '/schedule']])
@@ -342,7 +344,10 @@ function episodeLinks(id, total) {
   return numbers.map((n, i) => (i && n - numbers[i - 1] > 1 ? '… ' : '') + `<a href="/watch/${id}/${n}">${n} серия</a>`).join(' ')
 }
 
-async function titlePage(id) {
+/** Постоянный редирект на правильный адрес страницы (ловится в render). */
+const redirectTo = (path) => Object.assign(new Error('moved'), { location: path })
+
+async function titlePage(id, path) {
   // Связанное и похожее меняются редко: кэш на сутки, и запросы идут параллельно с основным.
   const gaps = {}
   const [a, related, similar] = await Promise.all([
@@ -350,6 +355,9 @@ async function titlePage(id) {
     optional(json(`${SHIKIMORI}/api/animes/${id}/related`, undefined, DAY), [], gaps),
     optional(json(`${SHIKIMORI}/api/animes/${id}/similar`, undefined, DAY), [], gaps),
   ])
+  // Адрес с названием: /anime/6-trigun. Старый /anime/6 или адрес со старым названием ведут сюда (301).
+  const canonicalPath = animePath(a.id, a.name)
+  if (path && path !== canonicalPath) throw redirectTo(canonicalPath)
   const info = titleInfo(a)
   const movie = info.movie
   const description = titlePageDescription(info)
@@ -357,7 +365,7 @@ async function titlePage(id) {
   const count = available(a)
   const age = ageLabel(a.rating)
   const parent = kindPath(a.kind)
-  const crumbs = breadcrumbs([parent ? [KINDS[a.kind], parent] : ['Каталог', '/catalog'], [info.title, `/anime/${a.id}`]])
+  const crumbs = breadcrumbs([parent ? [KINDS[a.kind], parent] : ['Каталог', '/catalog'], [info.title, animePath(a.id, a.name)]])
   const facts = [
     KIND_NAMES[a.kind] && (parent ? link(parent, KIND_NAMES[a.kind]) : escapeHtml(KIND_NAMES[a.kind])),
     info.year && link(`/year/${info.year}`, `${info.year} год`),
@@ -398,7 +406,7 @@ async function titlePage(id) {
       (count ? `<p>${link(`/watch/${a.id}/1`, movie ? 'Смотреть фильм онлайн' : 'Смотреть 1 серию онлайн')}</p>` : '') +
       (count > 1 ? `<h2>Серии</h2><p>${episodeLinks(a.id, count)}</p>` : '') +
       (rel.length
-        ? `<h2>Связанное</h2><ul>${rel.map((r) => `<li>${escapeHtml(r.relation_russian || r.relation)}: ${link(`/anime/${r.anime.id}`, r.anime.russian || r.anime.name)}</li>`).join('')}</ul>`
+        ? `<h2>Связанное</h2><ul>${rel.map((r) => `<li>${escapeHtml(r.relation_russian || r.relation)}: ${link(animePath(r.anime.id, r.anime.name), r.anime.russian || r.anime.name)}</li>`).join('')}</ul>`
         : '') +
       (similar.length ? `<h2>Похожее аниме</h2><ul>${similar.slice(0, 12).map(item).join('')}</ul>` : '') +
       siteNav(),
@@ -408,7 +416,7 @@ async function titlePage(id) {
       alternateName: alternate.length ? [...new Set(alternate)] : undefined,
       description,
       image,
-      url: `${ORIGIN}/anime/${a.id}`,
+      url: ORIGIN + animePath(a.id, a.name),
       // У фильма нет серий и даты начала: у Movie это datePublished.
       numberOfEpisodes: (!movie && a.episodes) || undefined,
       [movie ? 'datePublished' : 'startDate']: a.aired_on || undefined,
@@ -429,7 +437,7 @@ async function watchPage(id, episode) {
   if (a.status !== 'anons' && episode > Math.max(count, 1)) throw notFound()
   const info = titleInfo(a)
   const movie = info.movie
-  const titleUrl = `/anime/${a.id}`
+  const titleUrl = animePath(a.id, a.name)
   const name = movie ? info.title : `${info.title}: ${episode} серия`
   const crumbs = breadcrumbs(movie ? [[info.title, titleUrl], ['Смотреть онлайн', `/watch/${a.id}/1`]] : [[info.title, titleUrl], [`${episode} серия`, `/watch/${a.id}/${episode}`]])
   const near = []
@@ -511,7 +519,7 @@ async function characterPage(id) {
       `<h1>${escapeHtml(name)}</h1>` +
       (c.name && c.russian ? `<p>${escapeHtml(c.name)}</p>` : '') +
       (text ? `<p>${escapeHtml(text)}</p>` : '') +
-      (animes.length ? `<h2>Аниме с персонажем</h2><ul>${animes.map((a) => `<li>${link(`/anime/${a.id}`, a.russian || a.name)}</li>`).join('')}</ul>` : '') +
+      (animes.length ? `<h2>Аниме с персонажем</h2><ul>${animes.map((a) => `<li>${link(animePath(a.id, a.name), a.russian || a.name)}</li>`).join('')}</ul>` : '') +
       siteNav(),
     jsonLd: graph(crumbs.ld, {
       '@type': 'Person',
@@ -548,7 +556,7 @@ async function mangaPage(id) {
       `<h1>${escapeHtml(name)}</h1>` +
       (m.name && m.russian ? `<p>${escapeHtml(m.name)}</p>` : '') +
       (text ? `<p>${escapeHtml(text)}</p>` : '') +
-      (animes.length ? `<h2>Аниме</h2><ul>${animes.map((r) => `<li>${link(`/anime/${r.anime.id}`, r.anime.russian || r.anime.name)}</li>`).join('')}</ul>` : '') +
+      (animes.length ? `<h2>Аниме</h2><ul>${animes.map((r) => `<li>${link(animePath(r.anime.id, r.anime.name), r.anime.russian || r.anime.name)}</li>`).join('')}</ul>` : '') +
       siteNav(),
     jsonLd: graph(crumbs.ld, { '@type': 'Book', name, description, url: `${ORIGIN}/manga/${m.id}` }),
   }
@@ -645,8 +653,8 @@ async function metaFor(path, params) {
   const landing = landingFor(path)
   if (landing) return listing(landing, page)
   if (/^\/(?:genre|type|year)\//.test(path)) throw notFound()
-  let m = path.match(/^\/anime\/(\d{1,10})$/)
-  if (m) return titlePage(m[1])
+  let m = path.match(/^\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
+  if (m) return titlePage(m[1], path)
   m = path.match(/^\/watch\/(\d{1,10})\/(\d{1,5})$/)
   if (m) return watchPage(m[1], Math.max(1, Number(m[2])))
   m = path.match(/^\/character\/(\d{1,10})$/)
@@ -740,6 +748,10 @@ async function render(env, url, status = 200, asset) {
       meta = await metaFor(path, url.searchParams)
       if (meta?.partial) complete = false
     } catch (e) {
+      if (e.location) {
+        const to = ORIGIN + e.location + url.search
+        return { res: new Response(null, { status: 301, headers: { Location: to, 'Cache-Control': 'public, max-age=3600' } }), complete: false }
+      }
       // Тайтла, комнаты или профиля нет — 404. Сервис не ответил — обычная страница, приложение само покажет ошибку.
       if (e.status === 404) status = 404
       else complete = false
@@ -899,7 +911,7 @@ async function sitemapTitles(ctx, which) {
   // Порядок постоянный (по id), у онгоингов дата изменения — сегодня: у них выходят новые серии.
   const day = today()
   const list = [...all.values()].sort((a, b) => a.id - b.id)
-  const titles = urlset(list.map((a) => [`/anime/${a.id}`, a.status === 'ongoing' ? day : '']))
+  const titles = urlset(list.map((a) => [animePath(a.id, a.name), a.status === 'ongoing' ? day : '']))
   // Серии онгоингов: последние 50 вышедших. Свежая серия получает сегодняшнюю дату.
   const episodes = urlset(
     list

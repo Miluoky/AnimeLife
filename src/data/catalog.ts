@@ -35,7 +35,7 @@ export interface Anime {
 /** Поля, которых хватает для карточки в сетке. */
 export type AnimeCard = Pick<
   Anime,
-  'id' | 'title' | 'year' | 'kind' | 'episodes' | 'ongoing' | 'score' | 'posterUrl' | 'posterSmall' | 'posterSmall2x' | 'posterFill'
+  'id' | 'title' | 'originalTitle' | 'year' | 'kind' | 'episodes' | 'ongoing' | 'score' | 'posterUrl' | 'posterSmall' | 'posterSmall2x' | 'posterFill'
 >
 
 /** Сколько серий можно выбрать в списке: для онгоинга только вышедшие. */
