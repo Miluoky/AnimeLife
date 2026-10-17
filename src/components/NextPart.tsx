@@ -17,7 +17,7 @@ export default function NextPart({ animeId }: { animeId: string }) {
   return (
     <aside className="next-part" aria-label="Следующая часть">
       <Link to={`/anime/${next.id}`} className="next-part__poster">
-        {next.poster && <img src={next.poster} srcSet={srcset2x(next.poster, next.poster2x)} alt="" loading="lazy" />}
+        {next.poster && <img src={next.poster} srcSet={srcset2x(next.poster, next.poster2x)} alt={`Постер аниме «${next.title}»`} loading="lazy" />}
       </Link>
       <div className="next-part__text">
         <span className="next-part__eyebrow">Это последняя серия. Дальше по порядку</span>

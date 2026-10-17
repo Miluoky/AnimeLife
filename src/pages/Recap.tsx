@@ -151,7 +151,7 @@ export default function RecapPage() {
                   {r.top.map((x, i) => (
                     <li key={x.id}>
                       <span className="recap__place">{i + 1}</span>
-                      {x.t.p && <img src={x.t.p} alt="" loading="lazy" />}
+                      {x.t.p && <img src={x.t.p} alt={`Постер аниме «${x.t.t}»`} loading="lazy" />}
                       <Link to={`/anime/${x.id}`}>{x.t.t}</Link>
                       <span className="muted">
                         {x.n} {plural(x.n, 'серия', 'серии', 'серий')}

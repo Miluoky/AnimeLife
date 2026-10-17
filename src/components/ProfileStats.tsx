@@ -199,7 +199,7 @@ export default function ProfileStats() {
               <li key={e.anime.id}>
                 <Link to={`/anime/${e.anime.id}`} className="rated-item">
                   {e.anime.posterUrl ? (
-                    <img src={e.anime.posterUrl} alt="" loading="lazy" />
+                    <img src={e.anime.posterUrl} alt={`Постер аниме «${e.anime.title}»`} loading="lazy" />
                   ) : (
                     <span className="rated-item__poster" style={{ background: e.anime.posterFill }} />
                   )}

@@ -249,7 +249,7 @@ export default function Season() {
                       className="poster-img poster-img--fade"
                       src={a.poster}
                       srcSet={srcset2x(a.poster, a.poster2x)}
-                      alt=""
+                      alt={`Постер аниме «${a.title}»`}
                       width={150}
                       height={225}
                       loading="lazy"

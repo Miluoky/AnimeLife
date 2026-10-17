@@ -7,6 +7,7 @@ import { listStatuses, setListStatus, totalEpisodes, useMyListEntry } from '../d
 import { toast } from '../data/toast'
 import { PlusIcon } from './Icons'
 import { useHistoryEntry } from '../data/history'
+import { animeHref } from '../data/seo'
 
 /** Картинка проявляется, когда догрузилась, а не появляется построчно. */
 export const fadeIn = (e: SyntheticEvent<HTMLImageElement>) => e.currentTarget.classList.add('is-loaded')
@@ -21,11 +22,11 @@ export function Poster({
   anime,
   className,
   priority,
-  alt = '',
+  alt,
 }: {
   anime: PosterAnime
   className?: string
-  /** в карточке название уже написано рядом, поэтому по умолчанию картинка без подписи */
+  /** подпись картинки для поиска по картинкам и экранных дикторов; по умолчанию «Постер аниме «Название»» */
   alt?: string
   /** первый постер на экране грузим сразу и с высоким приоритетом, остальные лениво */
   priority?: boolean
@@ -38,7 +39,7 @@ export function Poster({
       onLoad={fadeIn}
       src={src}
       srcSet={srcset2x(anime.posterSmall, anime.posterSmall2x)}
-      alt={alt}
+      alt={alt ?? `Постер аниме «${anime.title}»`}
       width={225}
       height={338}
       loading={priority ? 'eager' : 'lazy'}
@@ -67,7 +68,7 @@ export default function PosterCard({
 }) {
   const meta = [anime.year, anime.kind, anime.episodes && `${anime.episodes} эп.`].filter(Boolean).join(' · ')
   const prefetch = href ? undefined : () => prefetchTitle(anime.id)
-  const to = href ?? `/anime/${anime.id}`
+  const to = href ?? animeHref(anime)
   // Свой статус видно прямо на постере: что уже в списке и сколько серий осталось.
   const entry = useMyListEntry(anime.id)
   const seen = useHistoryEntry(anime.id)
