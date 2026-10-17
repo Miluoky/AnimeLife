@@ -1,6 +1,6 @@
 import '../components/profile-stats.css'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { type CSSProperties, type FormEvent, type ReactNode, type RefObject, Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { type CSSProperties, type ReactNode, type RefObject, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { useAmbient } from '../components/ambient'
@@ -208,8 +208,10 @@ function Scores({ stats }: { stats: ScoreStats }) {
   )
 }
 
-const PAGE_SIZE = 12
-const MAX_PILLS = 8
+// Диапазоны по сотне серий и поиск по номеру — как в плеере. Внутри диапазона карточки с кадрами
+// показываем порциями: сотня картинок сразу — тяжело для телефона.
+const RANGE = 100
+const CHUNK = 24
 
 /**
  * Телефон: когда кнопка «Смотреть» уехала вверх, внизу появляется полоска с ней, как в приложениях
@@ -246,11 +248,11 @@ export default function TitlePage() {
   const history = useHistory()
   const noSpoilers = useNoSpoilers()
   const actions = useRef<HTMLDivElement>(null)
-  // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая страница.
-  const [pageWanted, setPage] = useState(() => {
-    const episode = history.find((h) => h.animeId === id)?.episode ?? 1
-    return Math.floor((episode - 1) / PAGE_SIZE)
-  })
+  // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая сотня.
+  const startEpisode = history.find((h) => h.animeId === id)?.episode ?? 1
+  const [rangeWanted, setRange] = useState(() => Math.floor((startEpisode - 1) / RANGE))
+  const [limit, setLimit] = useState(() => Math.ceil((((startEpisode - 1) % RANGE) + 1) / CHUNK) * CHUNK)
+  const [query, setQuery] = useState('')
   const [shotOpen, setShotOpen] = useState<number>()
   const [videoOpen, setVideoOpen] = useState<number>()
   const [videoKind, setVideoKind] = useState('')
@@ -291,11 +293,16 @@ export default function TitlePage() {
   // Сколько серий можно посмотреть: больше всего у какого-нибудь источника. Счёт тот же, что в плеере.
   const available = Math.max(alEpisodes.length, ...(anixart.value?.voices.map((v) => v.episodes) ?? []), ...(kodik.value ?? []).map((t) => t.episodes), 0)
   const { total, next } = episodeTotals(anime, available)
-  const pages = Math.ceil(total / PAGE_SIZE)
-  const page = Math.min(pageWanted, pages - 1)
-  const from = page * PAGE_SIZE + 1
-  const to = Math.min(total, from + PAGE_SIZE - 1)
-  const episodes = Array.from({ length: to - from + 1 }, (_, i) => from + i)
+  const ranges = Math.ceil(total / RANGE)
+  const range = Math.min(rangeWanted, ranges - 1)
+  const from = range * RANGE + 1
+  const to = Math.min(total, from + RANGE - 1)
+  // Поиск по номеру ищет по всем сериям, а не только в открытом диапазоне.
+  const q = query.trim()
+  const matched = q
+    ? Array.from({ length: total }, (_, i) => i + 1).filter((n) => String(n).startsWith(q))
+    : Array.from({ length: to - from + 1 }, (_, i) => from + i)
+  const episodes = matched.slice(0, limit)
   const minutes = anime.episodeMinutes ? `${anime.episodeMinutes} мин` : ''
   // Сколько времени займёт весь сериал (или вышедшие серии онгоинга) и сколько осталось от места, где остановились.
   const outNow = anime.ongoing ? (anime.episodesAired ?? 0) : (anime.episodes ?? 0)
@@ -336,8 +343,8 @@ export default function TitlePage() {
   const gallery = shots.slice(0, MAX_SHOTS)
 
   function rangeLabel(i: number) {
-    const a = i * PAGE_SIZE + 1
-    return `${a}–${Math.min(total, a + PAGE_SIZE - 1)}`
+    const a = i * RANGE + 1
+    return `${a}–${Math.min(total, a + RANGE - 1)}`
   }
 
   function episodeLabel(n: number) {
@@ -454,37 +461,42 @@ export default function TitlePage() {
                 >
                   Без спойлеров
                 </button>
-                {pages > 1 && pages <= MAX_PILLS && (
-                  <div className="chips">
-                    {Array.from({ length: pages }, (_, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className={`pill${i === page ? ' active' : ''}`}
-                        aria-pressed={i === page}
-                        onClick={() => setPage(i)}
-                      >
-                        {rangeLabel(i)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {pages > MAX_PILLS && (
-                  // У длинных сериалов (Ван-Пис, Конан) сотня диапазонов: кнопками это стена, поэтому список.
-                  <label className="btn btn--ghost list-select">
-                    <span className="sr-only">Диапазон серий</span>
-                    <select value={page} onChange={(e) => setPage(Number(e.target.value))}>
-                      {Array.from({ length: pages }, (_, i) => (
-                        <option key={i} value={i}>
-                          Серии {rangeLabel(i)}
-                        </option>
-                      ))}
-                    </select>
+                {total > CHUNK && (
+                  <label className="episode-jump">
+                    <span className="sr-only">Найти серию</span>
+                    <input
+                      type="search"
+                      inputMode="numeric"
+                      placeholder={`Серия 1–${total}`}
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value.replace(/\D/g, ''))
+                        setLimit(CHUNK)
+                      }}
+                    />
                   </label>
                 )}
-                {total > PAGE_SIZE && <EpisodeJump animeId={anime.id} total={total} />}
               </div>
             </div>
+            {ranges > 1 && !q && (
+              <div className="title-ranges" role="group" aria-label="Диапазон серий">
+                {Array.from({ length: ranges }, (_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`pill${i === range ? ' active' : ''}`}
+                    aria-pressed={i === range}
+                    onClick={() => {
+                      setRange(i)
+                      setLimit(CHUNK)
+                    }}
+                  >
+                    {rangeLabel(i)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {matched.length === 0 && <p className="muted">Такой серии нет</p>}
             <div className="grid grid--episodes">
               {episodes.map((n) => {
                 const watched = progress ? n < progress.episode : false
@@ -531,6 +543,11 @@ export default function TitlePage() {
                 )
               })}
             </div>
+            {matched.length > episodes.length && (
+              <button type="button" className="btn btn--ghost episodes-more" onClick={() => setLimit(limit + CHUNK)}>
+                Показать ещё {Math.min(CHUNK, matched.length - episodes.length)} из {matched.length - episodes.length}
+              </button>
+            )}
           </div>
 
           <aside className="stack title-aside">
@@ -746,36 +763,5 @@ function About({ text }: { text: string }) {
         </button>
       )}
     </div>
-  )
-}
-
-/** Переход к серии по номеру: у длинных сериалов листать диапазоны долго. */
-function EpisodeJump({ animeId, total }: { animeId: string; total: number }) {
-  const navigate = useNavigate()
-  const [value, setValue] = useState('')
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    const n = Math.round(Number(value))
-    if (n >= 1 && n <= total) navigate(`/watch/${animeId}/${n}`)
-  }
-  return (
-    <form className="episode-jump" onSubmit={submit} role="search">
-      <label className="sr-only" htmlFor="episode-jump">
-        Номер серии
-      </label>
-      <input
-        id="episode-jump"
-        type="number"
-        inputMode="numeric"
-        min={1}
-        max={total}
-        placeholder={`Серия 1–${total}`}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-      />
-      <button type="submit" className="btn btn--ghost">
-        Перейти
-      </button>
-    </form>
   )
 }
