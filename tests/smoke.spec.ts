@@ -126,6 +126,25 @@ test('гостю при повторном заходе не грузим вхо
   await expect(page).toHaveTitle('Вход и регистрация | Anime Life')
 })
 
+test('новому гостю профиль не запрашиваем совсем: в консоли нет 401', async ({ browser, baseURL }) => {
+  // Отдельный контекст без cookieFallback: в этом браузере никто не входил.
+  const context = await browser.newContext({ serviceWorkers: 'block', baseURL })
+  const page = await context.newPage()
+  await page.route(/shikimori\.(io|one)\/.*/, (route) => route.fulfill({ json: [] }))
+  const account: string[] = []
+  page.on('request', (r) => {
+    if (/appwrite\.io\/v1\/account$/.test(r.url())) account.push(r.url())
+  })
+  await page.route(/cloud\.appwrite\.io\/.*/, (route) => route.fulfill({ status: 401, json: { message: 'guests' } }))
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Смотреть аниме онлайн' })).toBeVisible()
+  await page.goto('/account')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Вход')
+  await page.waitForTimeout(800)
+  expect(account).toEqual([])
+  await context.close()
+})
+
 test('у страницы 404 свой заголовок вкладки', async ({ page }) => {
   await page.goto('/nope-page')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Страница не найдена')

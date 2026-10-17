@@ -23,6 +23,11 @@ export function shikimoriFixture(path: string, params: URLSearchParams): unknown
  * любой тайтл — «Ковбоя Бибопа». Appwrite отвечает «не вошли», картинки — пустым ответом.
  */
 export async function mockServices(page: Page) {
+  // Как у того, кто уже входил на этом устройстве: SDK Appwrite хранит сессию в cookieFallback,
+  // и только тогда сайт спрашивает профиль. Новый гость без этой записи — отдельный тест в smoke.spec.ts.
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('cookieFallback')) localStorage.setItem('cookieFallback', '{"a_session_test":"x"}')
+  })
   await page.route(/shikimori\.(io|one)\/api\/.*/, async (route) => {
     const url = new URL(route.request().url())
     return route.fulfill({ json: shikimoriFixture(url.pathname.replace('/api', ''), url.searchParams) })
