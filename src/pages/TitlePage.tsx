@@ -300,7 +300,7 @@ export default function TitlePage() {
   // Сколько времени займёт весь сериал (или вышедшие серии онгоинга) и сколько осталось от места, где остановились.
   const outNow = anime.ongoing ? (anime.episodesAired ?? 0) : (anime.episodes ?? 0)
   const left = Math.max(0, outNow - (progress ? progress.episode - 1 : 0))
-  const totalTime = anime.episodeMinutes && outNow > 1 ? `≈ ${hoursLabel(outNow * anime.episodeMinutes)}` : ''
+  const totalTime = anime.episodeMinutes && outNow > 1 ? `~${hoursLabel(outNow * anime.episodeMinutes)}` : ''
   // «Осталось» — отдельной ячейкой: в одной строке с «≈ 48 мин» на телефоне выходило три строки.
   const leftTime = totalTime && progress && left > 0 && left < outNow ? hoursLabel(left * anime.episodeMinutes!) : ''
   const facts = (
@@ -312,7 +312,8 @@ export default function TitlePage() {
         anime.upcoming ? (anime.episodes ?? '?') : episodesLabel(anime, available),
       ],
       ['Длительность', minutes],
-      [anime.ongoing ? 'Вышло на' : 'Всего', totalTime],
+      // Было «Вышло на ≈ 472 ч»: непонятно, что это время всех вышедших серий подряд.
+      ['Общая длительность', totalTime],
       ['Осталось', leftTime],
       [
         'Студия',
