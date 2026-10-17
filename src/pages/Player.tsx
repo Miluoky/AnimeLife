@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { type CSSProperties, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { useAmbient } from '../components/ambient'
 import { loadAnime, useAsync } from '../api'
-import { episodeCount } from '../data/catalog'
+import { episodeTotals, episodesLabel } from '../data/catalog'
 import { saveProgress } from '../data/history'
 import { savePosition } from '../data/positions'
 import { logEpisode } from '../data/watchLog'
@@ -58,7 +58,6 @@ export default function Player() {
   const list = useMyList()
   const seen = (anime && list.find((e) => e.anime.id === anime.id)?.watched) || 0
 
-  const scheduledTotal = anime ? episodeCount(anime) : 1
   const kodik = useAsync(() => fetchKodikTranslations(id).catch(() => []), [id])
   // Где есть серии из бесплатных источников. Ответы запоминаются, плеер потом берёт их же без новых запросов.
   const free = useAsync(async () => {
@@ -87,9 +86,10 @@ export default function Player() {
       ),
     [kodik.value, names, free.value, yummy.value],
   )
-  const sourceTotal = Math.max(0, ...voices.map((v) => v.episodes ?? 0))
+  const available = Math.max(0, ...voices.map((v) => v.episodes ?? 0))
   // Источники могут знать больше серий, чем Shikimori, но меньше — не повод прятать вышедшие серии.
-  const total = Math.max(sourceTotal, scheduledTotal)
+  // Счёт общий со страницей тайтла (episodeTotals): номера серий и таймера там и тут совпадают.
+  const { total, next } = anime ? episodeTotals(anime, available) : { total: 1, next: 2 }
   // Своих источников нет: ждём YummyAnime, иначе сначала включится трейлер, а потом серия.
   const hasOwn = !!kodik.value?.length || !!free.value?.aniLibria || !!free.value?.animeVost || !!free.value?.anixart?.voices.length
   const waitYummy = yummy.loading && !hasOwn
@@ -144,7 +144,7 @@ export default function Player() {
         : `${voice.title} не грузится, включили озвучку ${next.voice.title}`,
     )
   }
-  const isScheduled = !!anime?.ongoing && !!anime.nextEpisodeAt && requested === total + 1
+  const isScheduled = !!anime?.ongoing && !!anime.nextEpisodeAt && requested === next
 
   useEffect(() => {
     if (!anime || isScheduled) return
@@ -333,6 +333,7 @@ export default function Player() {
         <EpisodePicker
           animeId={anime.id}
           total={total}
+          label={episodesLabel(anime, available)}
           current={current}
           seen={seen}
           names={voice?.provider === 'anilibria' ? names : {}}
@@ -376,6 +377,7 @@ const RANGE = 100
 function EpisodePicker({
   animeId,
   total,
+  label,
   current,
   seen,
   names,
@@ -384,6 +386,8 @@ function EpisodePicker({
 }: {
   animeId: string
   total: number
+  /** «1180 вышло · 1157 доступно» */
+  label: string
   current: number
   seen: number
   /** Серии, которые нашлись у источника (номер → название). Пусто — источник ещё не ответил. */
@@ -423,7 +427,7 @@ function EpisodePicker({
     <aside className="episodes">
       <div className="episodes__head">
         <h2>Серии</h2>
-        <span className="muted">{total}</span>
+        <span className="muted">{label}</span>
       </div>
       {voiced > 0 && voiced < total && (
         <p className="ep-voiced muted">
@@ -503,6 +507,8 @@ interface Voice {
   kind: 'voice' | 'subtitles'
   /** сколько серий в этой озвучке; неизвестно, пока источник не ответил */
   episodes?: number
+  /** с какой серии есть озвучка (у Kodik студии подхватывают длинные сериалы на середине) */
+  first?: number
   kodikLink?: string
   anixart?: { release: number; type: number; title: string }
   icon?: string
@@ -542,7 +548,7 @@ function buildVoices(
 ): Voice[] {
   const list: Voice[] = [...kodik]
     .sort((a, b) => b.episodes - a.episodes)
-    .map((t) => ({ key: `kodik:${t.id}`, provider: 'kodik', title: t.title, kind: t.kind, episodes: t.episodes, kodikLink: t.link }))
+    .map((t) => ({ key: `kodik:${t.id}`, provider: 'kodik', title: t.title, kind: t.kind, episodes: t.episodes, first: t.first, kodikLink: t.link }))
   if (isBalancerAvailable('alloha')) list.push({ key: 'alloha', provider: 'alloha', title: 'Alloha', kind: 'voice' })
   const others = animeVostEpisodes > 0 || !!anixart?.voices.length || !!yummy?.length
   const aniLibria: Voice = { key: 'anilibria', provider: 'anilibria', title: 'AniLibria', kind: 'voice', episodes: aniLibriaEpisodes || undefined }
@@ -609,7 +615,7 @@ function sourceSlot(voice: Voice, host?: Host) {
 function nextSource(voices: Voice[], from: Voice, episode: number, tried: Set<string>): { voice: Voice; host: Host } | undefined {
   const order = [from, ...voices.filter((v) => v !== from && v.kind === from.kind), ...voices.filter((v) => v !== from && v.kind !== from.kind)]
   for (const voice of order) {
-    if (voice.episodes !== undefined && voice.episodes < episode) continue
+    if (!hasEpisode(voice, episode)) continue
     const hosts = hostsOf(voice)
     for (const host of hosts.length ? hosts : [{ id: '', label: voice.title }]) {
       if (tried.has(sourceSlot(voice, host))) continue
@@ -617,6 +623,11 @@ function nextSource(voices: Voice[], from: Voice, episode: number, tried: Set<st
       return { voice, host }
     }
   }
+}
+
+/** Есть ли в озвучке эта серия (неизвестно, сколько серий, — считаем, что есть). */
+function hasEpisode(voice: Voice, episode: number) {
+  return (voice.first ?? 1) <= episode && (voice.episodes === undefined || voice.episodes >= episode)
 }
 
 const HOST_KEY = 'player-host'
@@ -739,7 +750,11 @@ function VoicePicker({ voices, current, total, onChoose }: { voices: Voice[]; cu
                   <span className="voice__title">{v.title}</span>
                   <span className="voice__kind">
                     {v.kind === 'subtitles' ? 'Субтитры' : 'Озвучка'} · {SOURCE_LABEL[v.provider]}
-                    {v.episodes ? ` · ${total > 1 && v.episodes < total ? `${v.episodes} из ${total}` : `${v.episodes} эп.`}` : ''}
+                    {v.first && v.first > 1 && v.episodes
+                      ? ` · серии ${v.first}–${v.episodes}`
+                      : v.episodes
+                        ? ` · ${total > 1 && v.episodes < total ? `${v.episodes} из ${total}` : `${v.episodes} эп.`}`
+                        : ''}
                   </span>
                   {share > 0 && (
                     <span className="voice__bar" aria-hidden="true">

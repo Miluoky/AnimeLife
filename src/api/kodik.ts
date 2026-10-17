@@ -14,8 +14,10 @@ export interface KodikTranslation {
   id: number
   title: string
   kind: 'voice' | 'subtitles'
-  /** сколько серий есть в этой озвучке (у фильмов 1) */
+  /** номер последней серии в этой озвучке (у фильмов 1) */
   episodes: number
+  /** с какой серии озвучка начинается: студии, подхватившие длинный сериал на середине, первых серий не имеют */
+  first?: number
   /** ссылка на плеер этой озвучки, без серии */
   link: string
 }
@@ -50,9 +52,13 @@ async function load(shikimoriId: string): Promise<KodikTranslation[]> {
   if (!res.ok) throw new Error(`Kodik ${res.status}`)
   const { results = [] } = (await res.json()) as { results?: KodikResult[] }
   // Одна озвучка может прийти несколькими записями (по сезонам): оставляем ту, где серий больше.
+  // episodes_count — сколько серий есть, last_episode — номер последней. У Ван-Пис студия Shachiburi
+  // начала с 1069-й: 112 серий, последняя 1180. Раньше брали 112, и сайт считал, что серий 1180 нет нигде.
   const byId = new Map<number, KodikTranslation>()
   for (const r of results) {
-    const episodes = r.episodes_count ?? r.last_episode ?? 1
+    const count = r.episodes_count ?? r.last_episode ?? 1
+    const episodes = Math.max(r.last_episode ?? 0, count)
+    const first = r.last_episode && count < r.last_episode ? r.last_episode - count + 1 : undefined
     const prev = byId.get(r.translation.id)
     if (prev && prev.episodes >= episodes) continue
     byId.set(r.translation.id, {
@@ -60,6 +66,7 @@ async function load(shikimoriId: string): Promise<KodikTranslation[]> {
       title: r.translation.title,
       kind: r.translation.type === 'subtitles' ? 'subtitles' : 'voice',
       episodes,
+      first,
       link: r.link.startsWith('//') ? `https:${r.link}` : r.link,
     })
   }

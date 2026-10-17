@@ -8,7 +8,7 @@ import { loadAnime, loadScreenshots, loadTitleExtras, useAsync } from '../api'
 import { shotPreview } from '../api/shikimori'
 import { slowNetwork } from '../data/saver'
 import { episodeFrame, findRelease } from '../api/anilibria'
-import { episodeCount } from '../data/catalog'
+import { episodeTotals, episodesLabel } from '../data/catalog'
 import { useHistory } from '../data/history'
 import PosterCard, { Poster } from '../components/PosterCard'
 import ListButton from '../components/ListButton'
@@ -272,6 +272,14 @@ export default function TitlePage() {
         : Promise.resolve(null),
     [id, loaded?.id],
   )
+  // Сколько серий у Kodik: плеер спросит то же самое и возьмёт ответ из кэша.
+  const kodik = useAsync(
+    () =>
+      loaded && loaded.id === id && !loaded.upcoming
+        ? import('../api/kodik').then((m) => m.fetchKodikTranslations(loaded.id)).catch(() => [])
+        : Promise.resolve([]),
+    [id, loaded?.id],
+  )
   usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info))
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
@@ -279,12 +287,10 @@ export default function TitlePage() {
   if (!anime) return <NotFound title="Тайтл не найден" />
 
   const progress = history.find((h) => h.animeId === anime.id)
-  const shikiTotal = episodeCount(anime)
   const alEpisodes = release.value && String(release.value.shikimori?.id) === anime.id ? release.value.episodes : []
-  const sourceEpisodes = Math.max(alEpisodes.length, ...(anixart.value?.voices.map((v) => v.episodes) ?? [0]))
-  // Shikimori can announce the next episode before a source has published its video.
-  // Once a source answered, its real episode count is the list shown to the viewer.
-  const total = sourceEpisodes > 0 ? sourceEpisodes : shikiTotal
+  // Сколько серий можно посмотреть: больше всего у какого-нибудь источника. Счёт тот же, что в плеере.
+  const available = Math.max(alEpisodes.length, ...(anixart.value?.voices.map((v) => v.episodes) ?? []), ...(kodik.value ?? []).map((t) => t.episodes), 0)
+  const { total, next } = episodeTotals(anime, available)
   const pages = Math.ceil(total / PAGE_SIZE)
   const page = Math.min(pageWanted, pages - 1)
   const from = page * PAGE_SIZE + 1
@@ -302,11 +308,8 @@ export default function TitlePage() {
       ['Тип', anime.kind],
       [
         'Серии',
-        anime.ongoing && anime.episodesAired
-          ? anime.episodes
-            ? `${anime.episodesAired} из ${anime.episodes}`
-            : `${anime.episodesAired} вышло`
-          : (anime.episodes ?? '?'),
+        // «1180 вышло · 1157 доступно»: вышедшие по Shikimori, доступные — у источников видео.
+        anime.upcoming ? (anime.episodes ?? '?') : episodesLabel(anime, available),
       ],
       ['Длительность', minutes],
       [anime.ongoing ? 'Вышло на' : 'Всего', totalTime],
@@ -339,6 +342,8 @@ export default function TitlePage() {
   function episodeLabel(n: number) {
     if (progress && n < progress.episode) return 'Просмотрено'
     if (progress && n === progress.episode) return 'Вы здесь'
+    // Shikimori уже отметил серию вышедшей, а видео у источников ещё нет.
+    if (available > 0 && n > available) return 'Видео скоро'
     return minutes
   }
 
@@ -396,8 +401,8 @@ export default function TitlePage() {
             {anime.nextEpisodeAt && anime.ongoing && (
               <NextEpisode
                 at={anime.nextEpisodeAt}
-                episode={total + 1}
-                href={`/watch/${anime.id}/${total + 1}`}
+                episode={next}
+                href={`/watch/${anime.id}/${next}`}
               />
             )}
             <div className="actions" ref={actions}>
