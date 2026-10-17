@@ -147,7 +147,7 @@ function SiteVoices({
         {list.map((v) => (
           <li key={`${v.kind}:${v.title}`} className="voices__site">
             {/* Плеер узнаёт студию по названию: она могла прийти к нему из другого источника (playerVoiceKey). */}
-            <Link to={href} onClick={() => choosePlayerVoice(v)} title={`Смотреть в озвучке ${v.title}`}>
+            <Link to={href} onClick={() => choosePlayerVoice(anime.id, v)} title={`Смотреть в озвучке ${v.title}`}>
               <VoiceLogo title={v.title} kind={v.kind} icon={v.icon} size={36} />
               <span className="voices__site-text">
                 <strong>{v.title}</strong>

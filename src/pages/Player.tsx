@@ -17,7 +17,7 @@ import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
 import { findYummy, voiceKey, type YummyPlayer, type YummyVoice } from '../api/yummy'
-import { playerVoiceKey } from '../api/voiceKey'
+import { playerVoiceKey, rememberVoice, savedVoice, voiceKey as studioKey } from '../api/voiceKey'
 import { markFlag } from '../data/flags'
 import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
@@ -101,9 +101,16 @@ export default function Player() {
   )
   const skipFillers = skipFillersStore.use()
   const wide = wideStore.use()
-  const [voiceKey, setVoiceKey] = useState(savedVoice)
+  // Выбор зрителя помнится для каждого тайтла (rememberVoice), автопереключение на запасной источник — только на эту серию.
+  const [picked, setPicked] = useState<{ id: string; key: string }>()
+  const setVoiceKey = (key: string) => setPicked({ id, key })
+  const voiceKey = picked?.id === id ? picked.key : savedVoice(id)
+  const requested = Math.max(1, Number(episode) || 1)
+  const current = Math.min(requested, total)
   // Со страницы тайтла приходит ключ по названию студии (playerVoiceKey): источник там неизвестен.
-  const voice = voices.find((v) => v.key === voiceKey || playerVoiceKey(v) === voiceKey) ?? voices[0]
+  const voice =
+    voices.find((v) => v.key === voiceKey || playerVoiceKey(v) === voiceKey) ??
+    defaultVoice(voices, current, (axRelease?.voices ?? []).filter((v) => v.kind === 'voice').map((v) => studioKey(v.title)))
   // Озвучка для «Итогов года»: журнал читает её из ref, чтобы смена озвучки не считалась новым просмотром.
   const voiceTitle = useRef<string | undefined>(undefined)
   voiceTitle.current = voice?.title
@@ -112,7 +119,7 @@ export default function Player() {
   const manual = useRef(false)
   const chooseVoice = (key: string) => {
     manual.current = true
-    saveVoice(key)
+    rememberVoice(id, key)
     setVoiceKey(key)
   }
   const [hostId, setHostId] = useState(savedHost)
@@ -123,8 +130,6 @@ export default function Player() {
     saveHost(id)
     setHostId(id)
   }
-  const requested = Math.max(1, Number(episode) || 1)
-  const current = Math.min(requested, total)
   useEffect(() => {
     tried.current = new Set()
     manual.current = false
@@ -516,22 +521,24 @@ interface Voice {
   yummy?: YummyPlayer[]
 }
 
-const VOICE_KEY = 'player-voice'
-
-function savedVoice() {
-  try {
-    return sessionStorage.getItem(VOICE_KEY) ?? undefined
-  } catch {
-    return undefined
+/**
+ * Озвучка по умолчанию, пока зритель не выбрал свою: русская озвучка, а не субтитры; из студий, у которых
+ * есть почти все серии (не меньше 90% от лидера), — самая популярная по Anixart (popular — ключи студий
+ * по убыванию популярности), при равенстве та, где серий больше. Раньше первой стояла дорожка с наибольшим
+ * числом серий, и у Ван-Пис это были субтитры.
+ */
+function defaultVoice(voices: Voice[], episode: number, popular: string[]): Voice | undefined {
+  const withEpisode = voices.filter((v) => hasEpisode(v, episode))
+  const dubbed = withEpisode.filter((v) => v.kind === 'voice')
+  if (!dubbed.length) return withEpisode[0] ?? voices[0]
+  const count = (v: Voice) => (v.episodes ?? 0) - (v.first ?? 1) + 1
+  const most = Math.max(...dubbed.map(count))
+  const full = most > 1 ? dubbed.filter((v) => count(v) >= most * 0.9) : dubbed
+  const rank = (v: Voice) => {
+    const i = popular.indexOf(studioKey(v.title))
+    return i < 0 ? popular.length : i
   }
-}
-
-function saveVoice(key: string) {
-  try {
-    sessionStorage.setItem(VOICE_KEY, key)
-  } catch {
-    // Без хранилища на следующей серии будет озвучка по умолчанию.
-  }
+  return [...full].sort((a, b) => rank(a) - rank(b) || count(b) - count(a))[0]
 }
 
 /**
