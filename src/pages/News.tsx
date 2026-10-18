@@ -82,8 +82,8 @@ export default function News() {
                     </button>
                   )}
                   {anime && (
-                    <Link to={`/anime/${anime.id}`} className="btn btn--accent btn--small">
-                      {anime.russian || anime.name}
+                    <Link to={`/anime/${anime.id}`} className="btn btn--accent btn--small news-item__anime" title={anime.russian || anime.name}>
+                      <span>{anime.russian || anime.name}</span>
                     </Link>
                   )}
                   {n.youtube && (
