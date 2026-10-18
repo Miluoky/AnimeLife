@@ -391,6 +391,39 @@ test.describe('Worker: кэш готовых страниц', () => {
     }
   })
 
+  test('каталог: список и постеры первой страницы приходят вместе с HTML, первый постер грузится сразу', async () => {
+    const env = fakeEnv()
+    const g = globalThis as Record<string, unknown>
+    const head: string[] = []
+    try {
+      env.respond(fixture())
+      // Подмена HTMLRewriter, которая запоминает, что Worker дописал в <head>.
+      g.HTMLRewriter = class {
+        handlers: [string, { element?: (el: unknown) => void }][] = []
+        on(selector: string, h: { element?: (el: unknown) => void }) {
+          this.handlers.push([selector, h])
+          return this
+        }
+        transform(res: Response) {
+          for (const [selector, h] of this.handlers)
+            if (selector === 'head') h.element?.({ append: (html: string) => head.push(html) })
+          return new Response(res.body, res)
+        }
+      }
+      const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { ETag: '"v1"', 'Content-Type': 'text/html' } }) }
+      const res = await worker.fetch(new Request('https://animelife.top/catalog'), { ASSETS: assets }, env.ctx)
+      await env.settle()
+      expect(res.status).toBe(200)
+      const html = head.join('')
+      const data = JSON.parse(html.match(/<script id="shiki-preload" type="application\/json">(.*?)<\/script>/)![1])
+      expect(Object.keys(data)).toContain('/animes?censored=true&limit=24&order=popularity&page=1')
+      expect(Object.keys(data).some((k) => k.startsWith('graphql:{ animes(ids: '))).toBe(true)
+      expect(html).toMatch(/<link rel="preload" as="image" href="[^"]+" imagesrcset="[^"]+ 1x, [^"]+ 2x" fetchpriority="high" \/>/)
+    } finally {
+      env.restore()
+    }
+  })
+
   test('неполная страница, новая сборка сайта, комнаты и HEAD мимо кэша', async () => {
     const env = fakeEnv()
     try {
