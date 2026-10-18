@@ -2,7 +2,7 @@ import { type CSSProperties, Suspense, lazy, useEffect, useRef, useState } from 
 import { saverOn, slowNetwork } from '../data/saver'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
-import { fetchScreenshots, shotPreview } from '../api/shikimori'
+import { SHIKIMORI_URL, fetchScreenshots, shotPreview } from '../api/shikimori'
 import { removeProgress, useHistory } from '../data/history'
 import type { HistoryEntry } from '../data/history'
 import { useMyList } from '../data/myList'
@@ -58,6 +58,7 @@ function Hero() {
   useEffect(() => {
     if (!next || items.length < 2 || saverOn()) return
     const t = setTimeout(() => {
+      new Image().src = `${SHIKIMORI_URL}/system/animes/x96/${next.id}.jpg`
       void fetchScreenshots(next.id)
         .then((list) => {
           if (list[0]) new Image().src = shotSrc(list[0])
@@ -103,8 +104,10 @@ function Hero() {
         {anime.posterUrl && (
           <img
             key={`bg-${anime.id}`}
-            className="hero__blur"
-            src={anime.posterSmall ?? anime.posterUrl}
+            // У следующих тайтлов под размытием хватает постера 96 px (~8 КБ). Он меньше первого, поэтому Chrome
+            // не считает его новой «самой крупной картинкой», и LCP главной не уезжает на 8-ю секунду, когда баннер листается.
+            className={`hero__blur${step > 0 ? ' hero__blur--next' : ''}`}
+            src={step > 0 ? `${SHIKIMORI_URL}/system/animes/x96/${anime.id}.jpg` : (anime.posterSmall ?? anime.posterUrl)}
             alt=""
             // @ts-expect-error fetchpriority ещё нет в типах React 18
             fetchpriority="high"
