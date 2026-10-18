@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Поиск по сайту из адресной строки браузера (Chrome, Яндекс Браузер, Firefox): запрос открывает каталог. -->
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
+  <ShortName>Anime Life</ShortName>
+  <Description>Поиск аниме на Anime Life</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Language>ru</Language>
+  <Image width="16" height="16" type="image/svg+xml">https://animelife.top/favicon.svg</Image>
+  <Image width="192" height="192" type="image/png">https://animelife.top/icon-192.png</Image>
+  <Url type="text/html" method="get" template="https://animelife.top/catalog?q={searchTerms}" />
+  <moz:SearchForm>https://animelife.top/catalog</moz:SearchForm>
+</OpenSearchDescription>

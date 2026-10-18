@@ -944,6 +944,11 @@ export default {
     if (MIRRORS.has(url.hostname)) return Response.redirect(ORIGIN + url.pathname + url.search, 301)
     const moved = url.pathname.match(/^\/genre\/([a-z-]+)\/?$/)?.[1]
     if (moved && MOVED_GENRES[moved]) return Response.redirect(`${ORIGIN}/genre/${MOVED_GENRES[moved]}${url.search}`, 301)
+    // Привычный адрес поиска /search?q=… (так его набирают руками и подставляют браузеры) ведёт в каталог с запросом.
+    if (/^\/search\/?$/.test(url.pathname)) {
+      const q = (url.searchParams.get('q') ?? url.searchParams.get('query') ?? '').trim().slice(0, 200)
+      return Response.redirect(q ? `${ORIGIN}/catalog?q=${encodeURIComponent(q)}` : `${ORIGIN}/catalog`, 301)
+    }
     // Данные Shikimori для приложения через кэш Cloudflare (worker/shikiProxy.js).
     if (isShikiProxy(url.pathname)) return shikiProxy(request, ctx)
     // Серии YummyAnime сжатыми и через кэш (worker/yummyProxy.js).

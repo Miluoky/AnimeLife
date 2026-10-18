@@ -12,6 +12,8 @@
   Cache-Control: no-cache
 /manifest.webmanifest
   Cache-Control: no-cache
+/opensearch.xml
+  Content-Type: application/opensearchdescription+xml; charset=utf-8
 
 # Файлы сборки с хэшем в имени не меняются: кэшируем надолго.
 /assets/*

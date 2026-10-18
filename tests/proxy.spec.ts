@@ -297,6 +297,15 @@ test.describe('Worker: прокси Shikimori', () => {
     expect(res.headers.get('Location')).toBe('https://animelife.top/genre/fantasy?page=2')
   })
 
+  test('/search?q= ведёт в каталог с запросом (301), пустой — просто в каталог', async () => {
+    const ctx = { waitUntil: () => undefined }
+    const res = await worker.fetch(new Request('https://animelife.top/search?q=%D0%BD%D0%B0%D1%80%D1%83%D1%82%D0%BE'), {}, ctx)
+    expect(res.status).toBe(301)
+    expect(res.headers.get('Location')).toBe('https://animelife.top/catalog?q=%D0%BD%D0%B0%D1%80%D1%83%D1%82%D0%BE')
+    const empty = await worker.fetch(new Request('https://animelife.top/search'), {}, ctx)
+    expect(empty.headers.get('Location')).toBe('https://animelife.top/catalog')
+  })
+
   test('Worker отдаёт /api/shiki через прокси, а robots.txt закрывает /api/', async () => {
     const env = fakeEnv()
     try {
