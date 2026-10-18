@@ -150,7 +150,8 @@ async function request<T>(url: URL, init: RequestInit = {}, attempt = 0): Promis
   if (throttled(url)) await slot()
   const res = await fetch(url, { ...init, headers: { Accept: 'application/json', ...init.headers } })
   if (res.status === 429 && attempt < 3) {
-    await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))
+    // Случайная добавка: шесть запросов страницы тайтла, получив 429 разом, не повторяются в одну и ту же миллисекунду.
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1) + Math.random() * 700))
     return request<T>(url, init, attempt + 1)
   }
   if (!res.ok) throw new Error(`Shikimori ${res.status}: ${url.pathname}`)

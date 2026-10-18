@@ -142,7 +142,8 @@ export async function shikiProxy(request, ctx) {
   let got = await upstream(r)
   // Shikimori просит подождать, а копии нет: один раз повторяем сами (до 1.5 с), чтобы зритель не видел ошибку.
   if (got.error === 429 && !cached) {
-    const wait = Math.min(1500, Number(got.retryAfter) * 1000 || 800)
+    // Со случайной добавкой: параллельные запросы одной страницы не повторяются разом и не ловят 429 снова.
+    const wait = Math.min(1500, Number(got.retryAfter) * 1000 || 500 + Math.random() * 900)
     await new Promise((resolve) => setTimeout(resolve, wait))
     got = await upstream(r)
   }

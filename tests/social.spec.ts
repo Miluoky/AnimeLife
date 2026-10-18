@@ -39,6 +39,30 @@ test('новости: заголовок, текст и переход к тай
   await expect(page.getByRole('link', { name: 'Ковбой Бибоп' })).toHaveAttribute('href', '/anime/1')
 })
 
+test('новости на телефоне: длинное название тайтла не раздвигает страницу вбок', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 })
+  const long = 'Я получил читерские способности в другом мире и стал непревзойдённым в реальном мире: повышение уровня меняет жизнь'
+  await page.route(/shikimori\.(io|one)\/api\/topics.*/, (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 2,
+          topic_title: 'Второй сезон',
+          html_body: 'Анонс.',
+          created_at: '2026-10-10T12:00:00+03:00',
+          comments_count: 0,
+          linked_type: 'Anime',
+          linked_id: 1,
+          linked: { id: 1, name: 'Long', russian: long },
+        },
+      ],
+    }),
+  )
+  await page.goto('/news')
+  await expect(page.getByRole('link', { name: long })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
+})
+
 test('поиск по кадру: результат ведёт на серию с нужной секунды', async ({ page }) => {
   await page.route(/api\.trace\.moe\/.*/, (route) =>
     route.fulfill({

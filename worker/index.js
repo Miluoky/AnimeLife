@@ -190,13 +190,26 @@ function pager(path, page, hasNext) {
  */
 async function listing(l, page) {
   const limit = l.paged ? PAGE_SIZE : 50
-  const items = await json(animes({ ...l.query, limit, page }), undefined, l.query.status ? 3600 : DAY)
+  const url = animes({ ...l.query, limit, page })
+  const items = await json(url, undefined, l.query.status ? 3600 : DAY)
   if (!items.length) throw notFound()
+  // Сетка страницы (CatalogGrid) просит ровно этот список по 24 и постеры к нему: отдаём их вместе с HTML,
+  // а первый постер браузер качает сразу. Без этого постеры ждали загрузки кода и двух запросов (~7 с на 4G).
+  const gaps = {}
+  const art = l.paged ? await optional(posters(items.map((a) => a.id)), null, gaps) : null
+  const first = art?.data?.data?.animes?.find((x) => String(x.id) === String(items[0].id))?.poster
   const hasNext = l.paged && items.length === limit && page < MAX_PAGES
   const suffix = page > 1 ? `, страница ${page}` : ''
   const crumbs = breadcrumbs([...l.crumbs, [l.h1, l.path]])
   const offset = (page - 1) * limit
   return {
+    ...gaps,
+    ...(art && {
+      preload: { [preloadKey(url)]: items, [art.key]: art.data },
+      // Тот же выбор 1x/2x, что у постера в сетке (Poster в src/components/PosterCard.tsx).
+      lcpImage: first?.mainUrl,
+      lcpSrcset: first?.mainUrl && first.main2xUrl ? `${first.mainUrl} 1x, ${first.main2xUrl} 2x` : undefined,
+    }),
     title: `${l.title}${suffix} | ${SITE}`,
     description: page > 1 ? cut(`Страница ${page}. ${l.description}`) : l.description,
     body:
@@ -785,7 +798,8 @@ async function render(env, url, status = 200, asset) {
     extra.push(`<script id="shiki-preload" type="application/json">${JSON.stringify(meta.preload).replace(/</g, '\\u003c')}</script>`)
   }
   if (meta?.lcpImage) {
-    extra.push(`<link rel="preload" as="image" href="${escapeHtml(meta.lcpImage)}" fetchpriority="high" />`)
+    const srcset = meta.lcpSrcset ? ` imagesrcset="${escapeHtml(meta.lcpSrcset)}"` : ''
+    extra.push(`<link rel="preload" as="image" href="${escapeHtml(meta.lcpImage)}"${srcset} fetchpriority="high" />`)
   }
   if (meta?.body) {
     const body = `<main class="container">${meta.body}</main>`
@@ -944,6 +958,11 @@ export default {
     if (MIRRORS.has(url.hostname)) return Response.redirect(ORIGIN + url.pathname + url.search, 301)
     const moved = url.pathname.match(/^\/genre\/([a-z-]+)\/?$/)?.[1]
     if (moved && MOVED_GENRES[moved]) return Response.redirect(`${ORIGIN}/genre/${MOVED_GENRES[moved]}${url.search}`, 301)
+    // Привычный адрес поиска /search?q=… (так его набирают руками и подставляют браузеры) ведёт в каталог с запросом.
+    if (/^\/search\/?$/.test(url.pathname)) {
+      const q = (url.searchParams.get('q') ?? url.searchParams.get('query') ?? '').trim().slice(0, 200)
+      return Response.redirect(q ? `${ORIGIN}/catalog?q=${encodeURIComponent(q)}` : `${ORIGIN}/catalog`, 301)
+    }
     // Данные Shikimori для приложения через кэш Cloudflare (worker/shikiProxy.js).
     if (isShikiProxy(url.pathname)) return shikiProxy(request, ctx)
     // Серии YummyAnime сжатыми и через кэш (worker/yummyProxy.js).
