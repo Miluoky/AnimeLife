@@ -404,7 +404,8 @@
 }
 .news-item {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  /* minmax(0, …): длинное название тайтла в кнопке не раздвигает колонку шире экрана */
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 18px;
   padding: 16px;
   border-radius: 14px;
@@ -432,8 +433,15 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.news-item__anime {
+  max-width: 100%;
+}
+.news-item__anime span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 @media (max-width: 640px) {
   .news-item {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

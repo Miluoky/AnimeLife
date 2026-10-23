@@ -199,6 +199,19 @@ function knownGuest() {
   }
 }
 
+/**
+ * Есть ли в браузере сессия Appwrite. Appwrite Cloud на каждый вход присылает X-Fallback-Cookies,
+ * и SDK кладёт их в localStorage (cookieFallback) — так у всех, кто когда-либо входил на этом устройстве.
+ * Нет записи — значит, не входили: account.get() ответил бы 401 (ошибка в консоли у каждого нового гостя).
+ */
+function maybeSignedIn() {
+  try {
+    return (localStorage.getItem('cookieFallback') ?? '').includes('a_session_')
+  } catch {
+    return true
+  }
+}
+
 async function refresh() {
   try {
     const { account } = await sdk()
@@ -213,7 +226,9 @@ async function refresh() {
 }
 
 if (typeof window !== 'undefined') {
-  if (knownGuest()) setState({ checking: false, user: null })
+  // Возврат после входа через VK/Яндекс/Google (/auth) проверяем всегда: сессия только что создана.
+  const authReturn = /^\/auth(\/|$)/.test(window.location.pathname)
+  if (!authReturn && (knownGuest() || !maybeSignedIn())) setState({ checking: false, user: null })
   else if (/^\/(account|my-list|moderation|chat|together|auth)(\/|$)/.test(window.location.pathname)) void refresh()
   else {
     // Public pages can render from local stores; keep the Appwrite SDK off their initial loading path.
@@ -235,6 +250,7 @@ if (typeof window !== 'undefined') {
 
 const messages: Record<string, string> = {
   user_invalid_credentials: 'Неверная почта или пароль.',
+  project_paused: 'Сервер аккаунтов временно выключен. Мы уже чиним, попробуйте позже.',
   user_already_exists: 'Аккаунт с этой почтой уже есть. Войдите в него.',
   user_password_mismatch: 'Пароли не совпадают.',
   password_recently_used: 'Этот пароль уже использовался, придумайте другой.',

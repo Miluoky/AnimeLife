@@ -27,4 +27,8 @@ export default defineConfig({
   base: process.env.BASE_PATH ?? '/',
   // Preact вместо React: тот же API через preact/compat, а основной бандл легче примерно на 35 КБ (gzip).
   plugins: [preact(), precacheList()],
+  build: {
+    // Модули AudioWorklet (шумоподавление) всегда отдельными файлами: data:-ссылку addModule берёт не везде.
+    assetsInlineLimit: (file) => (/worklet/i.test(file) ? false : undefined),
+  },
 })

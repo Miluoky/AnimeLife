@@ -118,6 +118,7 @@ export class VoiceChat {
   private stopNoise: (() => void) | null = null
   private ctx: AudioContext | null = null
   private localAnalyser: AnalyserNode | null = null
+  private localSource: MediaStreamAudioSourceNode | null = null
   private unsubscribe: (() => void) | null = null
   private meter: ReturnType<typeof setInterval> | undefined
   muted = false
@@ -132,13 +133,14 @@ export class VoiceChat {
     return !!this.stream
   }
 
-  async join(members: Member[], noise: NoiseMode = 'strong') {
+  /** Возвращает шумоподавление, которое на самом деле включилось. */
+  async join(members: Member[], noise: NoiseMode = 'strong'): Promise<NoiseMode> {
     this.mic = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: noise === 'browser', autoGainControl: true },
     })
     // RNNoise обучен на 48 кГц: так звук не пересчитывается лишний раз.
     this.ctx = new AudioContext({ sampleRate: 48000 })
-    await this.applyNoise(noise)
+    const applied = await this.applyNoise(noise)
     this.unsubscribe = client.subscribe<Signal>(`databases.${COMMUNITY_DB}.tables.signals.rows`, (e) => {
       const s = e.payload
       if (s.to === this.me && s.roomId === this.roomId && e.events.some((ev) => ev.endsWith('.create')))
@@ -153,6 +155,7 @@ export class VoiceChat {
     this.meter = setInterval(() => this.report(), 150)
     // Звоним всем, кто уже в голосовом чате.
     for (const m of members) if (m.voice && m.userId !== this.me) void this.call(m.userId)
+    return applied
   }
 
   leave(notify = true) {
@@ -210,7 +213,14 @@ export class VoiceChat {
     await track?.applyConstraints({ noiseSuppression: applied === 'browser' }).catch(() => undefined)
     if (applied !== 'strong') this.stream = mic
     this.stream?.getAudioTracks().forEach((t) => (t.enabled = !this.muted))
-    this.localAnalyser = this.analyse(this.stream!)
+    // Старый индикатор громкости отцепляем, иначе при каждой смене режима копились бы узлы.
+    this.localSource?.disconnect()
+    this.localSource = this.ctx?.createMediaStreamSource(this.stream!) ?? null
+    this.localAnalyser = this.ctx?.createAnalyser() ?? null
+    if (this.localSource && this.localAnalyser) {
+      this.localAnalyser.fftSize = 512
+      this.localSource.connect(this.localAnalyser)
+    }
     return applied
   }
 

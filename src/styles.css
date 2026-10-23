@@ -2561,6 +2561,11 @@ input[type='radio'] {
 .hero__blur {
   filter: blur(30px) brightness(0.55);
 }
+.hero__blur--next {
+  animation:
+    fade-in 0.6s var(--ease) both,
+    ken-burns 18s ease-in-out infinite alternate;
+}
 .hero__shot {
   opacity: 0;
   transition: opacity 0.8s var(--ease);

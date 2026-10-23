@@ -73,9 +73,19 @@ test('карточки серий: кадры и названия из AniLibria
 
 test('длинный сериал на телефоне: диапазоны серий не раздвигают страницу', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'только телефон')
-  await page.route(/\/api\/(shiki\/)?animes\/1(\?|$)/, (route) => route.fulfill({ json: { ...anime, episodes: 64, episodes_aired: 64 } }))
+  await page.route(/\/api\/(shiki\/)?animes\/1(\?|$)/, (route) => route.fulfill({ json: { ...anime, episodes: 1180, episodes_aired: 1180 } }))
   await page.goto('/anime/1')
-  await expect(page.getByRole('button', { name: '61–64' })).toBeAttached()
+  // Как в плеере: диапазоны по сотне, а не 97 кнопок по 12 серий.
+  const ranges = page.getByRole('group', { name: 'Диапазон серий' }).getByRole('button')
+  await expect(ranges).toHaveCount(12)
+  await expect(ranges.last()).toHaveText('1101–1180')
+  await expect(page.locator('.episode-card')).toHaveCount(24)
+  await page.getByRole('button', { name: /^Показать ещё 24/ }).click()
+  await expect(page.locator('.episode-card')).toHaveCount(48)
+  // Поиск по номеру ищет по всем сериям.
+  await page.getByPlaceholder('Серия 1–1180').fill('1157')
+  await expect(page.locator('.episode-card')).toHaveCount(1)
+  await expect(page.locator('.episode-card')).toContainText('Серия 1157')
   const [scroll, client] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
   expect(scroll).toBeLessThanOrEqual(client)
 })
@@ -150,7 +160,7 @@ test('тайтл: озвучки и субтитры, длинный списо�
 test('тайтл: сколько времени займёт весь сериал и сколько осталось', async ({ page }) => {
   await page.goto('/anime/1')
   const facts = page.locator('.fact-pills')
-  await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин')
+  await expect(facts.locator('div', { hasText: 'Общая длительность' })).toContainText('~10 ч 24 мин')
   await page.evaluate(() =>
     localStorage.setItem(
       'anime.history.v1',
@@ -158,7 +168,7 @@ test('тайтл: сколько времени займёт весь сериа
     ),
   )
   await page.reload()
-  await expect(facts.locator('div', { hasText: 'Всего' })).toContainText('≈ 10 ч 24 мин')
+  await expect(facts.locator('div', { hasText: 'Общая длительность' })).toContainText('~10 ч 24 мин')
   await expect(facts.locator('div', { hasText: 'Осталось' })).toContainText('8 ч 24 мин')
 })
 

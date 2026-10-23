@@ -35,6 +35,9 @@ const providers = [
 function TelegramButton({ disabled, onError }: { disabled: boolean; onError: (message: string) => void }) {
   const [login, setLogin] = useState<TelegramLogin>()
   const [waiting, setWaiting] = useState(false)
+  /** причина, почему код входа не получен; кнопка остаётся нажимаемой, чтобы попробовать ещё раз */
+  const [failure, setFailure] = useState('')
+  const [retry, setRetry] = useState(0)
   const wait = useRef<AbortController>()
 
   // Готовим код заранее и обновляем, когда он устаревает.
@@ -46,12 +49,16 @@ function TelegramButton({ disabled, onError }: { disabled: boolean; onError: (me
     }
     let cancelled = false
     startTelegram()
-      .then((next) => !cancelled && setLogin(next))
-      .catch(() => undefined)
+      .then((next) => {
+        if (cancelled) return
+        setFailure('')
+        setLogin(next)
+      })
+      .catch((err) => !cancelled && setFailure(authErrorMessage(err)))
     return () => {
       cancelled = true
     }
-  }, [login, waiting])
+  }, [login, waiting, retry])
 
   useEffect(() => () => wait.current?.abort(), [])
 
@@ -107,7 +114,16 @@ function TelegramButton({ disabled, onError }: { disabled: boolean; onError: (me
       Telegram
     </a>
   ) : (
-    <button type="button" className="btn social-btn social-btn--telegram" disabled>
+    <button
+      type="button"
+      className="btn social-btn social-btn--telegram"
+      disabled={disabled || !failure}
+      onClick={() => {
+        onError(failure)
+        setFailure('')
+        setRetry((n) => n + 1)
+      }}
+    >
       <span className="social-btn__mark" aria-hidden="true">
         TG
       </span>

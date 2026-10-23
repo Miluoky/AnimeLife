@@ -7,7 +7,7 @@ import { listStatuses, setListStatus, totalEpisodes, useMyListEntry } from '../d
 import { toast } from '../data/toast'
 import { PlusIcon } from './Icons'
 import { useHistoryEntry } from '../data/history'
-import { animeHref } from '../data/seo'
+import { animeHref } from '../data/animeUrl'
 
 /** Картинка проявляется, когда догрузилась, а не появляется построчно. */
 export const fadeIn = (e: SyntheticEvent<HTMLImageElement>) => e.currentTarget.classList.add('is-loaded')

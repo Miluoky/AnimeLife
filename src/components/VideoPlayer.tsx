@@ -15,7 +15,7 @@
  */
 
 import { rememberQuality, startQuality } from '../data/saver'
-import { useState, useEffect, useRef, useCallback, lazy, Suspense, type CSSProperties } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense, type CSSProperties, type RefObject } from 'react'
 import {
   findRelease,
   episodeStream,
@@ -28,6 +28,7 @@ import {
 import { findAnimeVost, type AnimeVostEpisode } from '../api/animevost'
 import type { YummySkips } from '../api/yummy'
 import { anixartEpisodes } from '../api/anixart'
+import { FullscreenIcon } from './Icons'
 import PlayerControls, { AutoNext, autoNextStore, enhanceStore, formatTime } from './PlayerControls'
 import { toast } from '../data/toast'
 import { getPosition, savePosition } from '../data/positions'
@@ -672,6 +673,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         {provider === 'alloha' && renderAlloha()}
         {provider === 'anixart' && renderAnixart()}
         {provider === 'embed' && renderEmbed()}
+        {provider === 'embed' && embed?.player === 'Aksor' && !unavailable && <AksorFullscreen frame={frameRef} />}
         {(provider === 'anilibria' || provider === 'animevost') && renderOwn()}
         {stream && !unavailable && (
           <PlayerControls
@@ -760,5 +762,42 @@ function Spinner() {
     <div className="vp-spinner" aria-label="Загрузка…">
       <div className="vp-spinner__ring" />
     </div>
+  )
+}
+
+type FsDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void }
+type FsEl = HTMLElement & { webkitRequestFullscreen?: () => void }
+
+/**
+ * У плеера Aksor перепутаны значки: в окне он рисует «выйти из полного экрана», а на весь экран — «развернуть».
+ * Его кнопки внутри чужого iframe не поправить, поэтому кладём поверх свою кнопку на то же место
+ * (правый нижний угол, 15 и 8 px от краёв) и разворачиваем весь блок плеера сами.
+ */
+function AksorFullscreen({ frame }: { frame: RefObject<HTMLDivElement> }) {
+  const [full, setFull] = useState(false)
+  useEffect(() => {
+    const doc = document as FsDoc
+    const sync = () => setFull(!!frame.current && (doc.fullscreenElement ?? doc.webkitFullscreenElement) === frame.current)
+    document.addEventListener('fullscreenchange', sync)
+    document.addEventListener('webkitfullscreenchange', sync)
+    return () => {
+      document.removeEventListener('fullscreenchange', sync)
+      document.removeEventListener('webkitfullscreenchange', sync)
+    }
+  }, [frame])
+  // iPhone не разворачивает элементы страницы: там остаётся родная кнопка плеера.
+  const el = frame.current as FsEl | null
+  if (el && !el.requestFullscreen && !el.webkitRequestFullscreen) return null
+  const toggle = () => {
+    const doc = document as FsDoc
+    const node = frame.current as FsEl | null
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) void (doc.exitFullscreen?.() ?? doc.webkitExitFullscreen?.())
+    else if (node?.requestFullscreen) void node.requestFullscreen().catch(() => undefined)
+    else node?.webkitRequestFullscreen?.()
+  }
+  return (
+    <button type="button" className="vp-btn vp-akfs" aria-label={full ? 'Выйти из полноэкранного режима' : 'На весь экран'} onClick={toggle}>
+      <FullscreenIcon exit={full} />
+    </button>
   )
 }

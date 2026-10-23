@@ -296,7 +296,22 @@
   color: var(--accent-soft);
 }
 
-/* Переход к серии по номеру. */
+/* Диапазоны по сотне серий, как в плеере: одна строка, на телефоне листается вбок. */
+.title-ranges {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+}
+.title-ranges .pill {
+  flex: 0 0 auto;
+}
+.episodes-more {
+  align-self: center;
+}
+
+/* Поиск серии по номеру. */
 .episode-jump {
   display: flex;
   gap: 8px;
