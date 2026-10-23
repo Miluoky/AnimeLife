@@ -751,3 +751,36 @@ test('плеер: источник не может показать серию �
   await expect(page.getByText('Плеер Kodik не грузится, включили CVH')).toBeVisible()
   await expect(page.getByRole('group', { name: 'Плеер' }).getByRole('button', { name: 'CVH' })).toHaveAttribute('aria-pressed', 'true')
 })
+
+test('плеер: по умолчанию популярная озвучка, а не субтитры; выбор помнится для тайтла', async ({ page }) => {
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({
+      json: {
+        code: 0,
+        types: [
+          // Субтитров больше всего и они первые, но по умолчанию включается озвучка.
+          { id: 46, name: 'Субтитры | CR', is_sub: true, episodes_count: 26 },
+          { id: 29, name: 'Studio Band', is_sub: false, episodes_count: 25 },
+          { id: 30, name: 'Persona99', is_sub: false, episodes_count: 26 },
+          { id: 31, name: 'Shachiburi', is_sub: false, episodes_count: 12 },
+        ],
+      },
+    }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/\d+$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/\d+\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [1, 2].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true })) } }),
+  )
+  await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
+  await page.goto('/watch/1/1')
+  // Studio Band популярнее по Anixart, и у неё почти все серии (25 из 26).
+  await expect(page.getByRole('button', { name: /^Studio Band/ })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: /^Persona99/ }).click()
+  await page.goto('/watch/1/2')
+  await expect(page.getByRole('button', { name: /^Persona99/ })).toHaveAttribute('aria-pressed', 'true')
+  // Над списком серий оба числа: сколько вышло по Shikimori и сколько есть у источников.
+  await expect(page.locator('.episodes__head', { hasText: 'Серии' })).toContainText('26 серий · 26 доступно')
+})

@@ -100,5 +100,5 @@ export async function roomStream(q: AnimeQuery, pick: PlayerPick, episode: numbe
     return url ? { type: 'kodik', url } : null
   }
   const t = (await fetchKodikTranslations(q.id)).find((x) => x.id === pick.voice)
-  return t && episode <= Math.max(t.episodes, 1) ? { type: 'kodik', url: kodikTranslationUrl(t.link, episode) } : null
+  return t && episode <= Math.max(t.episodes, 1) && episode >= (t.first ?? 1) ? { type: 'kodik', url: kodikTranslationUrl(t.link, episode) } : null
 }

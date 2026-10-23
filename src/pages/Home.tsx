@@ -34,8 +34,27 @@ if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
 const HERO_COUNT = 5
 const HERO_INTERVAL = 8000
 
+/** Серия выходит сегодня по местному времени. */
+function airsToday(at?: string) {
+  return !!at && new Date(at).toDateString() === new Date().toDateString()
+}
+
+/**
+ * Подпись над тайтлом баннера. Раньше там всегда было «Сейчас в эфире», а блок ниже мог сказать
+ * «Сегодня новых серий нет». Теперь подпись по дате следующей серии, как в графике.
+ */
+function heroLabel(at?: string) {
+  if (!at) return 'Онгоинг'
+  const when = new Date(at)
+  if (airsToday(at)) return `Новая серия сегодня в ${when.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  if (when.toDateString() === tomorrow.toDateString()) return 'Новая серия завтра'
+  return 'Онгоинг'
+}
+
 function Hero() {
-  // «Сейчас в эфире»: пять самых популярных онгоингов сменяют друг друга.
+  // Баннер: пять самых популярных онгоингов сменяют друг друга.
   const list = useAsync(() => loadCatalog({ status: 'ongoing', limit: HERO_COUNT }), [])
   // Шаг карусели растёт без сброса: так 3D-кольцо постеров всегда крутится вперёд, а не отматывается назад.
   const [step, setStep] = useState(0)
@@ -137,8 +156,8 @@ function Hero() {
       )}
       <div className="hero__text" key={anime.id}>
         <div className="eyebrow">
-          <span className="live-dot" aria-hidden="true" />
-          Сейчас в эфире
+          {airsToday(anime.nextEpisodeAt) && <span className="live-dot" aria-hidden="true" />}
+          {heroLabel(anime.nextEpisodeAt)}
         </div>
         <h2 className="hero__title">{anime.title}</h2>
         <div className="meta-line">

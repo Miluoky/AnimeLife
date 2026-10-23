@@ -77,9 +77,11 @@ test('добавление в список показывает уведомле
   await expect(page.getByLabel('Статус в моём списке')).toHaveValue('')
 })
 
-test('баннер «Сейчас в эфире» переключает тайтлы постерами', async ({ page }) => {
+test('баннер онгоингов переключает тайтлы постерами', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('Сейчас в эфире')).toBeVisible()
+  // Подпись по дате следующей серии, а не «Сейчас в эфире», которое спорило с блоком «Сегодня».
+  await expect(page.locator('.hero .eyebrow')).toHaveText(/^(Онгоинг|Новая серия (сегодня в \d\d:\d\d|завтра))$/)
+  await expect(page.getByText('Сейчас в эфире')).toHaveCount(0)
   const dots = page.getByRole('tab')
   await expect(dots).toHaveCount(5)
   await dots.nth(2).click()

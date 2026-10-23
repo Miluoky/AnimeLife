@@ -23,17 +23,19 @@ export function currentSeason(now = new Date()) {
 
 /**
  * Полок на главной много, а Shikimori пускает 5 запросов в секунду: полка грузится, только когда
- * до неё почти докрутили. До этого на её месте пустое место той же высоты, чтобы страница не прыгала.
+ * до неё осталось два экрана (не меньше 1200 px). Раньше было 800 px, и при быстрой прокрутке
+ * ряды успевали показаться пустыми плашками. До загрузки на месте полки пустое место той же высоты.
+ * Полки сразу под баннером (eager) грузятся вместе со страницей.
  */
-export function CatalogShelf(props: Parameters<typeof LoadedShelf>[0]) {
+export function CatalogShelf({ eager, ...props }: Parameters<typeof LoadedShelf>[0] & { eager?: boolean }) {
   const box = useRef<HTMLDivElement>(null)
-  const [near, setNear] = useState(false)
+  const [near, setNear] = useState(!!eager)
   useEffect(() => {
     const el = box.current
     if (!el || near) return
     if (!('IntersectionObserver' in window)) return setNear(true)
     const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), {
-      rootMargin: '800px 0px',
+      rootMargin: `${Math.max(1200, Math.round(innerHeight * 2))}px 0px`,
     })
     io.observe(el)
     return () => io.disconnect()
@@ -283,6 +285,7 @@ export function SeasonShelf() {
         query={{ status: 'ongoing', order: 'popularity' }}
         more="/catalog?status=ongoing"
         ranked={10}
+        eager
       />
       <CatalogShelf
         title={season.label}
@@ -290,6 +293,7 @@ export function SeasonShelf() {
         icon={<CalendarIcon size={18} />}
         query={{ season: season.code }}
         more="/season"
+        eager
       />
     </>
   )
