@@ -328,7 +328,11 @@ export default function Together() {
   const switchEpisode = (episode: number, play = false) => void send({ episode, playing: play, position: 0 })
   const switchSource = (source: Room['source']) =>
     void send({ source, videoId: source === 'trailer' ? (youtubeId(anime?.trailerUrl) ?? '') : room.videoId, playing: false, position: 0 })
-  const switchPlayer = (p: PlayerPick) => void send({ source: 'trailer', videoId: pickCode(p), playing: false, position: 0 })
+  // Другая озвучка той же серии: продолжаем с того же места и в том же состоянии (играет или пауза),
+  // новый плеер догонит комнату сам, как опоздавший зритель. Время берём комнатное, а не своего плеера:
+  // он мог ещё грузиться и стоять на нуле. С трейлера или своего файла начинаем серию сначала.
+  const switchPlayer = (p: PlayerPick) =>
+    void send({ source: 'trailer', videoId: pickCode(p), ...(pick ? { playing: room.playing, position: roomPosition(room) } : { playing: false, position: 0 }) })
   const voice = pick ? voices.value?.find((v) => samePick(v, pick)) : undefined
   const sync =
     playing?.type === 'player'
@@ -492,7 +496,7 @@ export default function Together() {
 
         {showInvite && <InviteCard code={room.$id} title={room.animeTitle} />}
 
-        {isHost && <RoomVoices voices={voices.value} loading={voices.loading} current={pick} onChoose={switchPlayer} />}
+        {canControl && <RoomVoices voices={voices.value} loading={voices.loading} current={pick} onChoose={switchPlayer} />}
 
         <Schedule
           room={room}
