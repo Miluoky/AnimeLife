@@ -8,18 +8,25 @@
  * посадочных страниц (жанры, годы, сезоны, типы) — список тайтлов со ссылками и страницами ?page=N,
  * у служебных страниц (правообладателям, контакты, политика, соглашение) — их текст из src/data/legal.ts.
  * Несуществующие страницы получают код 404, временные и личные — noindex. Старые адреса (www, workers.dev)
- * постоянно перенаправляются на animelife.top. Плюс карта сайта (/sitemap.xml — индекс из трёх частей), /robots.txt
+ * постоянно перенаправляются на animelife.top. Плюс карта сайта (/sitemap.xml — индекс из трёх частей)
  * и прокси к API Shikimori с кэшем для приложения (/api/shiki/*, worker/shikiProxy.js),
  * а также к списку серий YummyAnime (/api/yummy/videos/*, worker/yummyProxy.js) и к главам манги MangaDex
  * (/api/mangadex/*, worker/mangadexProxy.js).
  * Шаблоны заголовков и посадочные страницы общие с приложением: src/data/seo.ts и src/data/landings.ts.
  * Если внешний сервис не ответил, отдаётся обычный index.html: сайт работает как раньше.
+ *
+ * Лимит вызовов: Worker не запускается первым (run_worker_first: false в wrangler.animelife.jsonc), сначала ищется файл.
+ * Переходы людей по страницам (браузер шлёт Sec-Fetch-Mode: navigate) Cloudflare отдаёт статическим index.html
+ * без вызова Worker, канонический адрес и заголовки там ставит само приложение (src/data/pageMeta.ts).
+ * Сюда приходят поисковики и превью ссылок (они не шлют этот заголовок), запросы приложения к /api/* и карта сайта.
+ * robots.txt — обычный файл public/robots.txt. Подробности и правила Cloudflare: docs/worker-limit.md.
  */
 import { CATALOG, landingFor, landingPaths } from '../src/data/landings.ts'
 import { CONTACT_EMAIL, LEGAL, textParts } from '../src/data/legal.ts'
 import { isShikiProxy, shikiProxy } from './shikiProxy.js'
 import { isYummyProxy, yummyProxy } from './yummyProxy.js'
 import { isMangadexProxy, mangadexProxy } from './mangadexProxy.js'
+import { guard } from './guard.js'
 import {
   ABOUT_LINKS,
   DISCLAIMER,
@@ -858,6 +865,14 @@ async function cachedPage(request, env, ctx, url) {
   return out
 }
 
+/** index.html как есть, без сборки страницы. Неизвестный адрес всё равно 404. */
+async function plain(env, url) {
+  const res = await indexHtml(env, url)
+  const out = new Response(res.body, { status: ROUTES.test(url.pathname) ? 200 : 404, headers: res.headers })
+  out.headers.set('Cache-Control', 'no-store')
+  return out
+}
+
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const XML = 'application/xml; charset=utf-8'
@@ -934,21 +949,12 @@ async function sitemapTitles(ctx, which) {
   return responses[which]
 }
 
-function robots() {
-  const body =
-    // /api/ — прокси данных для приложения: обход роботами только тратил бы лимит Worker.
-    'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /account\nDisallow: /auth/\nDisallow: /moderation\n' +
-    // Яндекс склеивает адреса с метками рекламы и рассылок с основным адресом страницы.
-    'Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&yclid&gclid&fbclid\n\n' +
-    `Sitemap: ${ORIGIN}/sitemap.xml\n`
-  return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } })
-}
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
-    // robots.txt отдаём на любом адресе: и на зеркале он указывает на карту сайта основного домена.
-    if (url.pathname === '/robots.txt') return robots()
+    // Сканеры, сборщики для ИИ и поддельные браузеры отсеиваются до любой работы (worker/guard.js).
+    const verdict = guard(request, url)
+    if (verdict instanceof Response) return verdict
     // Точные часы для совместного просмотра: ответ с ближайшего узла Cloudflare приходит за миллисекунды,
     // поэтому все зрители комнаты считают позицию видео по одним и тем же часам (src/data/rooms.ts).
     if (url.pathname === '/api/time')
@@ -974,6 +980,8 @@ export default {
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')
     if (url.pathname === '/sitemap-episodes.xml') return sitemapTitles(ctx, 'episodes')
     if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request)
+    // Поддельный браузер получает обычный index.html: без запросов к Shikimori и без места в кэше.
+    if (verdict === 'plain' && (request.method === 'GET' || request.method === 'HEAD')) return plain(env, url)
     if (ROUTES.test(url.pathname)) return cachedPage(request, env, ctx, url)
     // Файлы сборки (и ключ IndexNow из public/) отдаём как есть. Вместо отсутствующего файла сервер ассетов
     // присылает index.html: это 404.

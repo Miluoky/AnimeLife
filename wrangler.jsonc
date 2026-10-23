@@ -1,5 +1,5 @@
 // Публикация на Cloudflare Workers (Workers Builds, подключён к GitHub): статические файлы сайта
-// и небольшой Worker (worker/index.js) для превью ссылок, sitemap.xml и robots.txt.
+// и небольшой Worker (worker/index.js) для превью ссылок, sitemap.xml и прокси данных.
 {
   "name": "anime",
   "compatibility_date": "2026-09-01",
@@ -12,9 +12,12 @@
     "binding": "ASSETS",
     // Маршруты React: на любой незнакомый адрес отдаём index.html.
     "not_found_handling": "single-page-application",
-    // Страницы сначала идут в Worker: он подставляет canonical, заголовок и картинку для превью ссылки, ставит 404
-    // и перенаправляет зеркала на animelife.top. Файлы сборки, картинки и service worker отдаются напрямую:
-    // такие запросы не тратят лимит Worker (100 тыс. в сутки на бесплатном тарифе).
-    "run_worker_first": ["/*", "!/assets/*", "!/*.png", "!/*.svg", "!/*.webmanifest", "!/sw.js"]
+    // Каждый вызов Worker идёт в лимит (100 тыс. в сутки на бесплатном тарифе), поэтому run_worker_first нет:
+    // сначала ищется файл сборки. Переход человека по странице (Sec-Fetch-Mode: navigate) Cloudflare сам отдаёт
+    // статическим index.html без Worker. Остальные запросы без файла (поисковики и превью ссылок, /api/* из
+    // приложения, карта сайта) попадают в Worker: canonical, заголовки, превью, 404. См. docs/worker-limit.md.
+    // Список путей в run_worker_first тут не подходит: с ним Cloudflare перестаёт различать переходы браузера,
+    // и поисковики получали бы голый index.html.
+    "run_worker_first": false
   }
 }

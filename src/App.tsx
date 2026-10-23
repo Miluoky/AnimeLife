@@ -1,8 +1,9 @@
 import { Suspense, lazy, useEffect } from 'react'
-import { Route, Routes, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import Layout from './components/Layout'
 import Home from './pages/Home'
 import { pageChunks, prefetchNavigation } from './api/prefetch'
+import { MOVED_GENRES } from './data/movedGenres'
 
 // Главная входит в основную сборку, остальные страницы грузятся отдельными частями при первом открытии.
 const TitlePage = lazy(pageChunks.title)
@@ -54,6 +55,21 @@ function TogetherRoute() {
   return <Together key={code} />
 }
 
+// Переходы людей по страницам отдаются без Worker (ради лимита вызовов), поэтому его постоянные редиректы
+// повторены здесь: /search?q= ведёт в каталог с запросом, убранный жанр — на тот, куда его перенесли.
+function SearchRedirect() {
+  const params = new URLSearchParams(useLocation().search)
+  const q = (params.get('q') ?? params.get('query') ?? '').trim().slice(0, 200)
+  return <Navigate replace to={q ? `/catalog?q=${encodeURIComponent(q)}` : '/catalog'} />
+}
+
+function GenreRoute() {
+  const { slug = '' } = useParams()
+  const { search } = useLocation()
+  const moved = MOVED_GENRES[slug]
+  return moved ? <Navigate replace to={`/genre/${moved}${search}`} /> : <Landing />
+}
+
 // Пока часть страницы едет по сети, место под неё уже занято: вёрстка не прыгает.
 const PageFallback = () => <main className="container page-fallback" aria-busy="true" />
 
@@ -69,7 +85,7 @@ export default function App() {
           <Route path="watch/:id/:episode" element={<Player />} />
           {/* Посадочные страницы для поиска: онгоинги, жанры, типы, годы и сезоны (src/data/seo.ts). */}
           <Route path="ongoing" element={<Landing />} />
-          <Route path="genre/:slug" element={<Landing />} />
+          <Route path="genre/:slug" element={<GenreRoute />} />
           <Route path="type/:kind" element={<Landing />} />
           <Route path="year/:year" element={<Landing />} />
           <Route path="year/:year/:season" element={<Landing />} />
@@ -82,6 +98,7 @@ export default function App() {
           <Route path="manga/:id/upload" element={<MangaUpload />} />
           <Route path="together/:code" element={<TogetherRoute />} />
           <Route path="catalog" element={<Catalog />} />
+          <Route path="search" element={<SearchRedirect />} />
           <Route path="schedule" element={<Schedule />} />
           <Route path="random" element={<Random />} />
           <Route path="top" element={<Top />} />

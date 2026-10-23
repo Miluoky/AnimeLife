@@ -4,9 +4,14 @@ import { shikiProxy } from '../worker/shikiProxy.js'
 import { seasonQuery } from '../src/api/seasonQuery'
 import { yummyProxy } from '../worker/yummyProxy.js'
 import worker from '../worker/index.js'
+import { guard } from '../worker/guard.js'
 
-// Прокси Shikimori (/api/shiki, worker/shikiProxy.js): приложение на animelife.top ходит через него,
-// остальные адреса — напрямую. Сам Worker проверяется без браузера, с подменёнными fetch и кэшем.
+/** Запрос к Worker, как его шлёт робот без браузера (curl): без Sec-Fetch-Mode, но с User-Agent. */
+const visit = (url: string, init: RequestInit = {}) =>
+  new Request(url, { ...init, headers: { 'User-Agent': 'curl/8.5.0', ...(init.headers as Record<string, string> | undefined) } })
+
+// Прокси Shikimori (/api/shiki, worker/shikiProxy.js): приложение на animelife.top ходит прямо к Shikimori,
+// а через прокси — только если напрямую не вышло (сеть, 429, сбой). Сам Worker проверяется без браузера, с подменёнными fetch и кэшем.
 
 /**
  * Открывает сборку под адресом http://animelife.top: страницы и файлы берутся с vite preview,
@@ -52,7 +57,7 @@ test.afterEach(async ({ page }) => {
   await page.unrouteAll({ behavior: 'ignoreErrors' })
 })
 
-test('на animelife.top данные идут через /api/shiki, картинки — прямо с Shikimori', async ({ page }) => {
+test('на animelife.top данные идут прямо в Shikimori, а не через Worker', async ({ page }) => {
   const direct = directApi(page)
   const proxied = await asProduction(page)
   await page.goto('http://animelife.top/')
@@ -60,17 +65,38 @@ test('на animelife.top данные идут через /api/shiki, карти
   await expect(page.getByRole('link', { name: /Ван-Пис/ }).first()).toBeVisible()
   const src = await page.locator('.poster-card img').first().getAttribute('src')
   expect(src).toMatch(/^https:\/\/shikimori\.io\/uploads\/.*main-.*\.webp$/)
-  expect(proxied).toContain('GET /animes')
-  expect(proxied).toContain('POST /graphql')
-  expect(direct).toEqual([])
+  expect(direct.some((u) => u.startsWith('https://shikimori.io/api/animes'))).toBe(true)
+  expect(direct.some((u) => u.startsWith('https://shikimori.io/api/graphql'))).toBe(true)
+  expect(proxied).toEqual([])
+})
+
+test('Shikimori напрямую отказал (429 или сеть): запрос уходит в прокси, дальше вкладка ходит через него', async ({ page }) => {
+  const proxied = await asProduction(page)
+  let refused = 0
+  await page.route('https://shikimori.io/api/animes/1', (route) => (refused++ ? route.abort('connectionrefused') : route.fulfill({ status: 429, body: '' })))
+  await page.goto('http://animelife.top/anime/1')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
+  expect(proxied).toContain('GET /animes/1')
+  expect(refused).toBe(1)
+  // Остальные запросы страницы после отказа тоже пошли через прокси.
+  expect(proxied.length).toBeGreaterThan(1)
+  expect(await page.evaluate(() => Number(sessionStorage.getItem('shiki.viaProxy')) > Date.now())).toBe(true)
 })
 
 test('через прокси работает повтор после 429', async ({ page }) => {
   let refused = 0
+  await page.addInitScript(() => sessionStorage.setItem('shiki.viaProxy', String(Date.now() + 600_000)))
   const proxied = await asProduction(page, (path) => (path === '/animes/1' && refused++ < 1 ? { status: 429 } : undefined))
   await page.goto('http://animelife.top/anime/1')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
   expect(proxied.filter((p) => p === 'GET /animes/1').length).toBeGreaterThanOrEqual(2)
+})
+
+test('переходы по старым адресам без Worker: /search?q= и убранный жанр ведут куда надо', async ({ page }) => {
+  await page.goto('/search?q=%D0%BD%D0%B0%D1%80%D1%83%D1%82%D0%BE')
+  await expect(page).toHaveURL(/\/catalog\?q=%D0%BD%D0%B0%D1%80%D1%83%D1%82%D0%BE$/)
+  await page.goto('/genre/magic?page=2')
+  await expect(page).toHaveURL(/\/genre\/fantasy\?page=2$/)
 })
 
 test('на других адресах (локально, зеркала) — прямо в Shikimori', async ({ page }) => {
@@ -292,28 +318,32 @@ test.describe('Worker: прокси Shikimori', () => {
 
   test('убранный жанр «Магия»: старый адрес ведёт на «Фэнтези» (301)', async () => {
     const ctx = { waitUntil: () => undefined }
-    const res = await worker.fetch(new Request('https://animelife.top/genre/magic?page=2'), {}, ctx)
+    const res = await worker.fetch(visit('https://animelife.top/genre/magic?page=2'), {}, ctx)
     expect(res.status).toBe(301)
     expect(res.headers.get('Location')).toBe('https://animelife.top/genre/fantasy?page=2')
   })
 
   test('/search?q= ведёт в каталог с запросом (301), пустой — просто в каталог', async () => {
     const ctx = { waitUntil: () => undefined }
-    const res = await worker.fetch(new Request('https://animelife.top/search?q=%D0%BD%D0%B0%D1%80%D1%83%D1%82%D0%BE'), {}, ctx)
+    const res = await worker.fetch(visit('https://animelife.top/search?q=%D0%BD%D0%B0%D1%80%D1%83%D1%82%D0%BE'), {}, ctx)
     expect(res.status).toBe(301)
     expect(res.headers.get('Location')).toBe('https://animelife.top/catalog?q=%D0%BD%D0%B0%D1%80%D1%83%D1%82%D0%BE')
-    const empty = await worker.fetch(new Request('https://animelife.top/search'), {}, ctx)
+    const empty = await worker.fetch(visit('https://animelife.top/search'), {}, ctx)
     expect(empty.headers.get('Location')).toBe('https://animelife.top/catalog')
   })
 
-  test('Worker отдаёт /api/shiki через прокси, а robots.txt закрывает /api/', async () => {
+  test('Worker отдаёт /api/shiki через прокси, а robots.txt (обычный файл) закрывает /api/', async () => {
     const env = fakeEnv()
     try {
       const ctx = { waitUntil: () => undefined }
-      const api = await worker.fetch(new Request('https://animelife.top/api/shiki/api/genres'), {}, ctx)
+      const api = await worker.fetch(visit('https://animelife.top/api/shiki/api/genres'), {}, ctx)
       expect(api.headers.get('X-Cache')).toBe('MISS')
-      const robots = await (await worker.fetch(new Request('https://animelife.top/robots.txt'), {}, ctx)).text()
-      expect(robots).toContain('Disallow: /api/\n')
+      const { readFileSync } = await import('node:fs')
+      const robots = readFileSync('public/robots.txt', 'utf8')
+      expect(robots).toContain('User-agent: *\nAllow: /\nDisallow: /api/\n')
+      expect(robots).toContain('User-agent: Amazonbot\n')
+      expect(robots).toContain('Sitemap: https://animelife.top/sitemap.xml')
+      expect(robots).not.toMatch(/User-agent: (?:Googlebot|Yandex|Bingbot)\b/)
     } finally {
       env.restore()
     }
@@ -321,7 +351,7 @@ test.describe('Worker: прокси Shikimori', () => {
 
   test('«О проекте» и «Приложение» есть в карте сайта', async () => {
     const ctx = { waitUntil: () => undefined }
-    const xml = await (await worker.fetch(new Request('https://animelife.top/sitemap-pages.xml'), {}, ctx)).text()
+    const xml = await (await worker.fetch(visit('https://animelife.top/sitemap-pages.xml'), {}, ctx)).text()
     for (const path of ['/about', '/app', '/catalog', '/rightholders']) expect(xml).toContain(`<loc>https://animelife.top${path}</loc>`)
   })
 })
@@ -346,7 +376,7 @@ test.describe('Worker: кэш готовых страниц', () => {
       deploy: (v: string) => (version = v),
       async open(path: string, init?: RequestInit) {
         const before = env.calls.length
-        const res = await worker.fetch(new Request(`https://animelife.top${path}`, init), { ASSETS: assets }, env.ctx)
+        const res = await worker.fetch(visit(`https://animelife.top${path}`, init), { ASSETS: assets }, env.ctx)
         await env.settle()
         return { status: res.status, cache: res.headers.get('X-Page-Cache'), upstream: env.calls.length - before }
       },
@@ -411,7 +441,7 @@ test.describe('Worker: кэш готовых страниц', () => {
         }
       }
       const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { ETag: '"v1"', 'Content-Type': 'text/html' } }) }
-      const res = await worker.fetch(new Request('https://animelife.top/catalog'), { ASSETS: assets }, env.ctx)
+      const res = await worker.fetch(visit('https://animelife.top/catalog'), { ASSETS: assets }, env.ctx)
       await env.settle()
       expect(res.status).toBe(200)
       const html = head.join('')
@@ -479,6 +509,73 @@ test.describe('Worker: прокси серий YummyAnime', () => {
       expect((await call(env, '/api/yummy/videos/abc')).res.status).toBe(404)
     } finally {
       env.restore()
+    }
+  })
+})
+
+test.describe('Worker: лимит вызовов и отсев роботов', () => {
+  test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'без браузера, достаточно одного прогона'))
+
+  const ua = {
+    googlebot: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/141.0.7390.122 Safari/537.36',
+    yandex: 'Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)',
+    bing: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/116.0.1938.76 Safari/537.36',
+    telegram: 'TelegramBot (like TwitterBot)',
+    vk: 'Mozilla/5.0 (compatible; vkShare; +http://vk.com/dev/Share)',
+    facebook: 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+    amazon: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Amazonbot/0.1; +https://developer.amazon.com/support/amazonbot) Chrome/119.0.6045.214 Safari/537.36',
+    meta: 'meta-externalagent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)',
+    semrush: 'Mozilla/5.0 (compatible; SemrushBot/7~bl; +http://www.semrush.com/bot.html)',
+    chrome: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+  }
+  const req = (path: string, agent: string, headers: Record<string, string> = {}) =>
+    new Request(`https://animelife.top${path}`, { headers: { 'User-Agent': agent, ...headers } })
+  const status = (v: ReturnType<typeof guard>) => (v instanceof Response ? v.status : v)
+
+  test('поисковики и превью ссылок проходят всегда, сборщики и мусор — сразу отказ', () => {
+    for (const agent of [ua.googlebot, ua.yandex, ua.bing, ua.telegram, ua.vk, ua.facebook]) {
+      expect(status(guard(req('/anime/1', agent), new URL('https://animelife.top/anime/1'))), agent).toBe('welcome')
+    }
+    for (const agent of [ua.amazon, ua.meta, ua.semrush, 'python-requests/2.32', '']) {
+      expect(status(guard(req('/anime/1', agent), new URL('https://animelife.top/anime/1'))), agent).toBe(403)
+    }
+    for (const path of ['/wp-login.php', '/.env', '/.git/config', '/xmlrpc.php', '/wp-content/x.js']) {
+      expect(status(guard(req(path, ua.googlebot), new URL(`https://animelife.top${path}`))), path).toBe(410)
+    }
+    // Настоящий Chrome шлёт Sec-Fetch-Mode: обычная обработка. Без него — программа под видом Chrome.
+    expect(guard(req('/anime/1', ua.chrome, { 'Sec-Fetch-Mode': 'cors' }), new URL('https://animelife.top/anime/1'))).toBeUndefined()
+    expect(guard(req('/anime/1', ua.chrome), new URL('https://animelife.top/anime/1'))).toBe('plain')
+    expect(status(guard(req('/api/shiki/api/genres', ua.chrome), new URL('https://animelife.top/api/shiki/api/genres')))).toBe(403)
+    // curl и обычные проверки владельца не задеваются.
+    expect(guard(req('/anime/1', 'curl/8.5.0'), new URL('https://animelife.top/anime/1'))).toBeUndefined()
+  })
+
+  test('поддельный Chrome получает простой index.html без запросов к Shikimori, сборщик — 403', async () => {
+    const env = fakeEnv()
+    try {
+      const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { ETag: '"v1"', 'Content-Type': 'text/html' } }) }
+      const plain = await worker.fetch(req('/anime/1', ua.chrome), { ASSETS: assets }, env.ctx)
+      expect(plain.status).toBe(200)
+      expect(await plain.text()).toContain('<div id="root">')
+      expect((await worker.fetch(req('/no-such-page', ua.chrome), { ASSETS: assets }, env.ctx)).status).toBe(404)
+      expect((await worker.fetch(req('/anime/1', ua.amazon), { ASSETS: assets }, env.ctx)).status).toBe(403)
+      await env.settle()
+      expect(env.calls).toHaveLength(0)
+      expect(env.store.size).toBe(0)
+    } finally {
+      env.restore()
+    }
+  })
+
+  test('Worker не запускается первым: переходы людей отдаются статикой, в обоих конфигах', async () => {
+    const { readFileSync } = await import('node:fs')
+    for (const file of ['wrangler.animelife.jsonc', 'wrangler.jsonc']) {
+      const text = readFileSync(file, 'utf8')
+      // Список путей выключил бы распознавание переходов (Sec-Fetch-Mode), и поисковики получали бы голый index.html.
+      expect(text.match(/"run_worker_first": ([^\n,]*)/)![1], file).toBe('false')
+      // Переходы людей отдаются без Worker только при этом режиме и дате совместимости не раньше 2025-04-01.
+      expect(text, file).toContain('"not_found_handling": "single-page-application"')
+      expect(text.match(/"compatibility_date": "(\d{4}-\d{2}-\d{2})"/)![1] >= '2025-04-01', file).toBe(true)
     }
   })
 })
