@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import Home from './pages/Home'
 import { pageChunks, prefetchNavigation } from './api/prefetch'
 import { MOVED_GENRES } from './data/movedGenres'
+import { animeIdFromParam } from './data/animeUrl'
 
 // Главная входит в основную сборку, остальные страницы грузятся отдельными частями при первом открытии.
 const TitlePage = lazy(pageChunks.title)
@@ -47,7 +48,7 @@ const PersonPage = lazy(pageChunks.person)
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
   const { id } = useParams()
-  return <TitlePage key={id} />
+  return <TitlePage key={animeIdFromParam(id ?? '')} />
 }
 
 function TogetherRoute() {

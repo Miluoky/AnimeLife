@@ -1,5 +1,5 @@
 import '../components/profile-stats.css'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { type CSSProperties, type ReactNode, type RefObject, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
@@ -17,7 +17,7 @@ import EpisodeProgress from '../components/EpisodeProgress'
 import MyEntry from '../components/MyEntry'
 import ShareButton from '../components/ShareButton'
 import { usePageMeta } from '../data/pageMeta'
-import { ageLabel, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
+import { ageLabel, animeHref, animeIdFromParam, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { useMyList } from '../data/myList'
 import { noSpoilersStore, useNoSpoilers } from '../data/spoilers'
 import Shelf from '../components/Shelf'
@@ -238,7 +238,9 @@ function StickyWatch({ target, href, label, title }: { target: RefObject<HTMLEle
 }
 
 export default function TitlePage() {
-  const { id = '' } = useParams()
+  const { id: param = '' } = useParams()
+  // В адресе после id идёт латинское название: /anime/6-trigun.
+  const id = animeIdFromParam(param)
   const result = useAsync(() => loadAnime(id), [id])
   const extras = useAsync(() => loadTitleExtras(id), [id])
   const screenshots = useAsync(() => loadScreenshots(id), [id])
@@ -283,6 +285,14 @@ export default function TitlePage() {
     [id, loaded?.id],
   )
   usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info))
+  // Старый адрес /anime/6 (или с прежним названием) меняется на /anime/6-trigun без новой записи в истории.
+  const navigate = useNavigate()
+  const location = useLocation()
+  useEffect(() => {
+    if (!loaded || loaded.id !== id) return
+    const want = animeHref(loaded)
+    if (location.pathname !== want) navigate(want + location.search + location.hash, { replace: true })
+  }, [loaded, id, location.pathname, location.search, location.hash, navigate])
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   const anime = result.value?.data

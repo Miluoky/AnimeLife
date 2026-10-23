@@ -210,3 +210,6 @@ export function pageParam(value: string | null | undefined) {
   const n = Number(value)
   return Number.isInteger(n) && n > 1 ? n : 1
 }
+
+// Адреса тайтлов живут в отдельном файле: основная сборка (карточки, App) не тянет весь seo.ts.
+export { animeHref, animeIdFromParam, animePath, animeSlug } from './animeUrl'
