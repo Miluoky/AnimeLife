@@ -84,6 +84,11 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Выложить функцию community
         run: node scripts/deploy-function.mjs community
+      # Тестовый вызов после выкладки: настройки функции и ошибки последних вызовов видны в журнале.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Проверить функцию community
+        continue-on-error: true
+        run: node scripts/function-status.mjs community
       - if: steps.keys.outputs.ok == 'true'
         name: Выложить функцию входа social-login
         run: node scripts/deploy-function.mjs social-login
