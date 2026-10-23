@@ -235,6 +235,7 @@ if (typeof window !== 'undefined') {
 
 const messages: Record<string, string> = {
   user_invalid_credentials: 'Неверная почта или пароль.',
+  project_paused: 'Сервер аккаунтов временно выключен. Мы уже чиним, попробуйте позже.',
   user_already_exists: 'Аккаунт с этой почтой уже есть. Войдите в него.',
   user_password_mismatch: 'Пароли не совпадают.',
   password_recently_used: 'Этот пароль уже использовался, придумайте другой.',
