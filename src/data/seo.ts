@@ -184,11 +184,8 @@ export const GENRES: { slug: string; id: number; name: string }[] = [
   { slug: 'josei', id: 43, name: 'Дзёсей' },
 ]
 
-/**
- * Жанры, которых больше нет: Shikimori убрал «Магию» (id 16) из жанров аниме, фильтр по ней пустой.
- * Старый адрес ведёт на ближайшую живую страницу (301), чтобы не терять ссылки из поиска.
- */
-export const MOVED_GENRES: Record<string, string> = { magic: 'fantasy' }
+// Отдельный крошечный модуль: его берёт и основная сборка приложения (src/App.tsx), без всего seo.ts.
+export { MOVED_GENRES } from './movedGenres'
 
 /** Адрес посадочной страницы жанра по русскому названию из Shikimori, если такая страница есть. */
 export const genrePath = (name: string) => {

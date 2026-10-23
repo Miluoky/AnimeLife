@@ -4,14 +4,17 @@ import type { Anime } from '../data/catalog'
 // Ключ не нужен, лимит 5 запросов в секунду и 90 в минуту.
 export const SHIKIMORI_URL = (import.meta.env.VITE_SHIKIMORI_URL as string | undefined) ?? 'https://shikimori.io'
 
-// На animelife.top данные идут через свой Worker (/api/shiki, worker/shikiProxy.js): он кэширует ответы для всех
-// зрителей и при сбое Shikimori отдаёт последнюю копию. Зеркала, локальный запуск и тесты ходят на Shikimori
-// напрямую (на сборке можно включить прокси флагом VITE_SHIKIMORI_PROXY=1). Картинки и ссылки — всегда с SHIKIMORI_URL.
+// Данные браузер берёт прямо у Shikimori (CORS открыт): такой запрос не тратит лимит вызовов нашего Worker
+// (100 тыс. в сутки), а лимит Shikimori (5 в секунду, 90 в минуту) считается на каждого зрителя отдельно.
+// На animelife.top есть запасной путь — свой прокси с кэшем (/api/shiki, worker/shikiProxy.js): если Shikimori
+// недоступен из сети зрителя, отвечает 429 или ошибкой, запрос уходит туда, и следующие 15 минут вкладка ходит
+// только через прокси. Флаг сборки VITE_SHIKIMORI_PROXY=1 включает прокси сразу и для всего. Картинки и ссылки — всегда с SHIKIMORI_URL.
 const host = globalThis.location?.hostname
-const API_URL =
+const PROXY =
   import.meta.env.VITE_SHIKIMORI_PROXY === '1' || host === 'animelife.top' || host === 'www.animelife.top'
     ? `${location.origin}/api/shiki`
-    : SHIKIMORI_URL
+    : undefined
+const API_URL = import.meta.env.VITE_SHIKIMORI_PROXY === '1' && PROXY ? PROXY : SHIKIMORI_URL
 
 export interface ShikiImage {
   original: string
@@ -113,9 +116,35 @@ function slot() {
 }
 
 // Свой прокси (/api/shiki) отвечает из кэша Cloudflare и сам бережёт лимит Shikimori (при 429 повторяет
-// или отдаёт сохранённую копию), поэтому запросы к нему не ждут очереди: иначе 15 запросов главной
-// растягивались почти на 4 секунды. Прямые запросы к Shikimori (зеркала, /users) по-прежнему идут через slot().
+// или отдаёт сохранённую копию), поэтому запросы к нему не ждут очереди. Прямые запросы к Shikimori идут через slot().
 const throttled = (url: URL) => !url.href.startsWith(`${globalThis.location?.origin}/api/shiki/`)
+
+// Что умеет прокси: данные каталога и постеры (worker/shikiProxy.js). Списки пользователей и статистика — только напрямую.
+const PROXIED = /^\/api\/(?:animes|calendar|genres|studios|characters|people|mangas|topics|graphql)(?:\/|$)/
+const FALLBACK_KEY = 'shiki.viaProxy'
+const FALLBACK_FOR = 15 * 60_000
+
+/** Адрес того же запроса через свой прокси, если он есть и умеет такой запрос. */
+function proxyFor(url: URL) {
+  if (!PROXY || url.origin !== new URL(SHIKIMORI_URL).origin || !PROXIED.test(url.pathname)) return undefined
+  return new URL(PROXY + url.pathname + url.search)
+}
+
+function proxyPreferred() {
+  try {
+    return Number(sessionStorage.getItem(FALLBACK_KEY)) > Date.now()
+  } catch {
+    return false
+  }
+}
+
+function preferProxy() {
+  try {
+    sessionStorage.setItem(FALLBACK_KEY, String(Date.now() + FALLBACK_FOR))
+  } catch {
+    // Хранилище недоступно (приватный режим): каждый запрос сначала попробует напрямую.
+  }
+}
 
 // Одинаковые запросы (например, двойной рендер в StrictMode) делят один ответ.
 const cache = new Map<string, Promise<unknown>>()
@@ -146,16 +175,34 @@ function takePreloaded<T>(key: string): Promise<T> | undefined {
   return Promise.resolve(data)
 }
 
-async function request<T>(url: URL, init: RequestInit = {}, attempt = 0): Promise<T> {
+/** timeout — сколько ждать ответа после выхода из очереди slot(), в миллисекундах. */
+async function load<T>(url: URL, init: RequestInit, retries: number, attempt = 0, timeout?: number): Promise<T> {
   if (throttled(url)) await slot()
-  const res = await fetch(url, { ...init, headers: { Accept: 'application/json', ...init.headers } })
-  if (res.status === 429 && attempt < 3) {
+  const signal = init.signal ?? (timeout ? AbortSignal.timeout?.(timeout) : undefined)
+  const res = await fetch(url, { ...init, signal, headers: { Accept: 'application/json', ...init.headers } })
+  if (res.status === 429 && attempt < retries) {
     // Случайная добавка: шесть запросов страницы тайтла, получив 429 разом, не повторяются в одну и ту же миллисекунду.
     await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1) + Math.random() * 700))
-    return request<T>(url, init, attempt + 1)
+    return load<T>(url, init, retries, attempt + 1, timeout)
   }
-  if (!res.ok) throw new Error(`Shikimori ${res.status}: ${url.pathname}`)
+  if (!res.ok) throw Object.assign(new Error(`Shikimori ${res.status}: ${url.pathname}`), { status: res.status })
   return res.json() as Promise<T>
+}
+
+async function request<T>(url: URL, init: RequestInit = {}): Promise<T> {
+  const proxy = proxyFor(url)
+  if (!proxy) return load<T>(url, init, 3)
+  if (proxyPreferred()) return load<T>(proxy, init, 3)
+  try {
+    // Напрямую без повторов на 429: у прокси есть кэш, и ответ оттуда придёт быстрее, чем через паузу.
+    // Если Shikimori в сети зрителя заблокирован, соединение может висеть: ждём не дольше 6 секунд.
+    return await load<T>(url, init, 0, 0, 6000)
+  } catch (e) {
+    // Тайтла нет — прокси скажет то же самое.
+    if ((e as { status?: number }).status === 404) throw e
+    preferProxy()
+    return load<T>(proxy, init, 3)
+  }
 }
 
 export function get<T>(path: string, params: Record<string, string | number | undefined> = {}, base = API_URL): Promise<T> {
@@ -691,11 +738,11 @@ export async function fetchStatsInfo(ids: string[]): Promise<Map<string, StatsIn
     const chunk = ids.slice(i, i + 50)
     const query = `{ animes(ids: "${chunk.join(',')}", limit: ${chunk.length}) { id episodes episodesAired duration kind genres { russian kind } } }`
     // Тоже напрямую: прокси пропускает только запросы постеров, а набор тайтлов здесь из личного списка.
-    const res = await request<GraphqlStats>(new URL('/api/graphql', SHIKIMORI_URL), {
+    const res = await load<GraphqlStats>(new URL('/api/graphql', SHIKIMORI_URL), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
-    })
+    }, 3)
     for (const a of res.data?.animes ?? []) {
       out.set(a.id, {
         episodes: a.episodes,

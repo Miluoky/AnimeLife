@@ -36,7 +36,7 @@ npm run size     # бюджет размера сборки после npm run b
 
 ## Данные
 
-Каталог, постеры, описания и трейлеры берутся из открытого API [Shikimori](https://shikimori.io/api/doc), ключ не нужен (`src/api/shikimori.ts`). На animelife.top запросы идут через кэширующий прокси в Worker (`/api/shiki`, см. «Хостинг»), на зеркалах и локально — прямо из браузера. Адрес можно поменять переменной `VITE_SHIKIMORI_URL`.
+Каталог, постеры, описания и трейлеры берутся из открытого API [Shikimori](https://shikimori.io/api/doc), ключ не нужен (`src/api/shikimori.ts`). Запросы идут прямо из браузера; на animelife.top есть запасной кэширующий прокси в Worker (`/api/shiki`, см. «Прокси Shikimori»). Адрес можно поменять переменной `VITE_SHIKIMORI_URL`.
 
 Если API недоступно, сайт показывает демо-данные из `src/data/catalog.ts`. История просмотра и «Мой список» хранятся в браузере (`localStorage`), а после входа синхронизируются через аккаунт.
 
@@ -151,9 +151,11 @@ STUN Cloudflare и Google). Предложение и ответ с адреса
 
 ## Превью ссылок и поиск
 
-`worker/index.js` работает перед статическими файлами на Cloudflare Workers (`wrangler.jsonc`, `run_worker_first`).
-Через него идут все страницы, а файлы сборки (`/assets/*`), картинки, манифест и `sw.js` отдаются напрямую и не
-тратят лимит Worker.
+`worker/index.js` работает рядом со статическими файлами на Cloudflare Workers (`wrangler.jsonc`, `run_worker_first: false`).
+Переход человека по странице Cloudflare отдаёт статическим `index.html` без Worker, файлы сборки, картинки и
+`robots.txt` — тоже. Worker получает запросы без файла и без `Sec-Fetch-Mode: navigate`: поисковики, превью ссылок,
+`/api/*` и карту сайта. Роботов-сборщиков он отсекает первой строкой (`worker/guard.js`). Лимит вызовов и правила
+Cloudflare для защиты от роботов: [docs/worker-limit.md](docs/worker-limit.md).
 
 - **Один адрес для поисковиков.** Основной сайт — `https://animelife.top` (`ORIGIN` в Worker). С `www.animelife.top`
   и `anime.artemdrr61f9.workers.dev` Worker отвечает постоянным редиректом 301 на тот же путь на animelife.top.
@@ -231,15 +233,16 @@ TXT-запись `google-site-verification=…` в DNS домена (Cloudflare 
 
 ### Прокси Shikimori
 
-На animelife.top (и `www`) приложение берёт данные не прямо с Shikimori, а через Worker: `/api/shiki/<путь API>`,
+Приложение берёт данные прямо с Shikimori. На animelife.top, если Shikimori недоступен из сети зрителя или отвечает
+429, запросы на 15 минут уходят в запасной прокси в Worker: `/api/shiki/<путь API>`,
 например `/api/shiki/api/animes?limit=1` (`worker/shikiProxy.js`). Ответы лежат в кэше Cloudflare, общем для всех
 зрителей: тайтл — 6 часов, связанное, похожее, кадры, персонажи и ссылки — 12 часов, списки — 30 минут (поиск — час),
 расписание — 15 минут, жанры — неделю, постеры из GraphQL — сутки. Если Shikimori тормозит дольше 8 секунд, отвечает
 429 или ошибкой, отдаётся последняя копия (хранится ещё неделю), заголовок `X-Cache: HIT | MISS | STALE` показывает,
 откуда ответ. Пропускаются только адреса, которые нужны приложению, остальное — 404; GraphQL — только запрос постеров.
 Списки пользователей Shikimori (импорт по нику) и статистика профиля идут напрямую, мимо прокси. Картинки всегда
-грузятся прямо с Shikimori. Каждый запрос к прокси тратит лимит Worker (100 тыс. в сутки), поэтому браузер держит
-ответы 5 минут, а `/api/` закрыт в robots.txt. Зеркала, локальный запуск и тесты ходят на Shikimori напрямую; включить
-прокси на другой сборке, где есть этот Worker: `VITE_SHIKIMORI_PROXY=1 npm run build`. Проверить локально:
+грузятся прямо с Shikimori. Каждый запрос к прокси тратит лимит Worker (100 тыс. в сутки), поэтому он только запасной,
+браузер держит ответы 5 минут, а `/api/` закрыт в robots.txt. Пустить все запросы через прокси, как раньше:
+`VITE_SHIKIMORI_PROXY=1 npm run build`. Проверить локально:
 `npm run build && npx wrangler@4 dev -c wrangler.animelife.jsonc`, затем дважды
 `curl -i localhost:8787/api/shiki/api/animes?limit=1` (`X-Cache: MISS`, потом `HIT`).
