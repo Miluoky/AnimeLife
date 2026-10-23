@@ -367,7 +367,7 @@ async function allSubscriptions(api) {
   }
 }
 
-async function notify(api, log) {
+async function notifyEpisodes(api, log) {
   const due = await freshEpisodes()
   if (!due.length) return { due: 0, sent: 0 }
 
@@ -439,7 +439,7 @@ export default async ({ req, res, log, error }) => {
     try {
       const cleaned = await cleanRooms(api)
       cleaned.communityChat = await cleanCommunityChat(api)
-      const result = { ...(await notify(api, log)), cleaned }
+      const result = { ...(await notifyEpisodes(api, log)), cleaned }
       log(JSON.stringify(result))
       return res.json(result)
     } catch (e) {
@@ -449,7 +449,11 @@ export default async ({ req, res, log, error }) => {
   }
 
   if (req.method !== 'POST') return res.json({ error: 'Нужен POST.' }, 405)
-  let body = req.bodyJson
+  // Геттер bodyJson в среде Appwrite сам бросает SyntaxError на пустом или битом теле, отсюда были 500.
+  let body = null
+  try {
+    body = req.bodyJson
+  } catch {}
   if (!body || typeof body !== 'object') {
     try {
       body = JSON.parse(req.bodyText || '{}')
