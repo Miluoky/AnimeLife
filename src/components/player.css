@@ -1672,3 +1672,33 @@
 :root[data-lite='1'] .video-slot::before {
   display: none;
 }
+
+/* Своя кнопка поверх перепутанного значка Aksor: тёмное пятно прячет его значок, клик ловим всегда */
+.vp-akfs {
+  position: absolute;
+  right: 15px;
+  bottom: 8px;
+  z-index: 3;
+  width: 37px;
+  height: 37px;
+  color: #b8b8b8;
+  background: radial-gradient(#000 13px, transparent 17px);
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+
+.player-frame:hover .vp-akfs,
+.vp-akfs:focus-visible {
+  opacity: 1;
+}
+
+.vp-akfs:hover {
+  color: #fff;
+  background: radial-gradient(#000 13px, transparent 17px);
+}
+
+@media (hover: none) {
+  .vp-akfs {
+    opacity: 1;
+  }
+}

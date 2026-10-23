@@ -656,7 +656,7 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
             aria-label={fullscreen ? 'Выйти из полноэкранного режима' : 'На весь экран'}
             onClick={toggleFullscreen}
           >
-            <FullscreenIcon />
+            <FullscreenIcon exit={fullscreen} />
           </button>
         </div>
       </div>
