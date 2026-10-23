@@ -449,7 +449,11 @@ export default async ({ req, res, log, error }) => {
   }
 
   if (req.method !== 'POST') return res.json({ error: 'Нужен POST.' }, 405)
-  let body = req.bodyJson
+  // Геттер bodyJson в среде Appwrite сам бросает SyntaxError на пустом или битом теле, отсюда были 500.
+  let body = null
+  try {
+    body = req.bodyJson
+  } catch {}
   if (!body || typeof body !== 'object') {
     try {
       body = JSON.parse(req.bodyText || '{}')
