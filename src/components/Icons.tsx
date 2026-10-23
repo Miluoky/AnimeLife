@@ -86,10 +86,11 @@ export function VolumeIcon({ size = 20 }: IconProps) {
   )
 }
 
-export function FullscreenIcon({ size = 20 }: IconProps) {
+/** Уголки наружу — развернуть; exit — уголки внутрь, выйти из полного экрана. */
+export function FullscreenIcon({ size = 20, exit = false }: IconProps & { exit?: boolean }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
-      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+      <path d={exit ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'} />
     </svg>
   )
 }
