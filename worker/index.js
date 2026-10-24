@@ -370,13 +370,95 @@ function episodeLinks(id, total) {
 /** Постоянный редирект на правильный адрес страницы (ловится в render). */
 const redirectTo = (path) => Object.assign(new Error('moved'), { location: path })
 
+/** Главные персонажи тайтла из /roles: ссылки на их страницы, по которым поисковик доходит до /character/. */
+const mainCharacters = (roles) => roles.filter((r) => r.character && r.roles?.includes('Main')).map((r) => r.character).slice(0, 12)
+
+// Ключевые люди, как «Над аниме работали» на странице тайтла (src/api/staff.ts): роль Shikimori и подпись.
+const STAFF_ROLES = [
+  ['Original Creator', 'Автор оригинала'],
+  ['Director', 'Режиссёр'],
+  ['Series Composition', 'Сценарий'],
+  ['Character Design', 'Дизайн персонажей'],
+  ['Music', 'Музыка'],
+]
+
+/** [подпись, люди] для ролей из STAFF_ROLES, по два человека на роль. */
+const staffOf = (roles) =>
+  STAFF_ROLES.map(([key, label]) => [label, roles.filter((r) => r.person && r.roles?.includes(key)).map((r) => r.person).slice(0, 2)]).filter(
+    ([, people]) => people.length,
+  )
+
+const staffLd = (staff, label) => {
+  const people = staff.find(([l]) => l === label)?.[1] ?? []
+  return people.length ? people.map((p) => ({ '@type': 'Person', name: p.russian || p.name, url: `${ORIGIN}/person/${p.id}` })) : undefined
+}
+
+const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+
+/** Сэйю или автор: роли (персонаж и тайтл), работы и дата рождения. Данные те же, что берёт src/api/person.ts. */
+async function personPage(id) {
+  const p = await json(`${SHIKIMORI}/api/people/${id}`, undefined, DAY)
+  const name = p.russian || p.name
+  const original = p.russian && p.name ? p.name : ''
+  const b = p.birth_on
+  const birthday = b?.day && b?.month ? `${b.day} ${MONTHS[b.month - 1]}${b.year ? ` ${b.year}` : ''}` : b?.year ? String(b.year) : ''
+  const birthDate = b?.year && b?.month && b?.day ? `${b.year}-${String(b.month).padStart(2, '0')}-${String(b.day).padStart(2, '0')}` : undefined
+  // Роль сэйю: персонаж и самый высоко оценённый тайтл с ним, как в приложении.
+  const roles = (p.roles ?? [])
+    .filter((r) => r.characters?.length && r.animes?.length)
+    .map((r) => ({ c: r.characters[0], a: [...r.animes].sort((x, y) => Number(y.score) - Number(x.score))[0] }))
+  const seen = new Set()
+  const works = (p.works ?? [])
+    .filter((w) => w.anime && !seen.has(w.anime.id) && seen.add(w.anime.id))
+    .sort((x, y) => (y.anime.aired_on ?? '').localeCompare(x.anime.aired_on ?? ''))
+  const job = p.job_title || (roles.length ? 'Сэйю' : '')
+  const crumbs = breadcrumbs([[name, `/person/${p.id}`]])
+  const top = roles.slice(0, 3).map(({ c, a }) => `${c.russian || c.name} («${a.russian || a.name}»)`)
+  const description = cut(
+    `${name}${original ? ` (${original})` : ''}${job ? ` — ${job.toLowerCase()}` : ''}.` +
+      (top.length ? ` Роли: ${top.join(', ')}${roles.length > 3 ? ` и ещё ${roles.length - 3}` : ''}.` : works.length ? ` Работы: ${works.length} аниме.` : '') +
+      ' Все роли и аниме на Anime Life.',
+    200,
+  )
+  return {
+    title: `${name}${original ? ` (${original})` : ''}: ${roles.length ? 'роли и аниме' : 'аниме'} | ${SITE}`,
+    description,
+    image: absolute(p.image?.original),
+    type: 'profile',
+    body:
+      crumbs.html +
+      `<h1>${escapeHtml(name)}</h1>` +
+      ([original, p.japanese].filter(Boolean).length ? `<p>${escapeHtml([original, p.japanese].filter(Boolean).join(' / '))}</p>` : '') +
+      ([job, birthday && `дата рождения ${birthday}`].filter(Boolean).length ? `<p>${escapeHtml([job, birthday && `дата рождения ${birthday}`].filter(Boolean).join(' · '))}</p>` : '') +
+      (roles.length
+        ? `<h2>Роли</h2><ul>${roles
+            .slice(0, 60)
+            .map(({ c, a }) => `<li>${link(`/character/${c.id}`, c.russian || c.name)} — ${link(animePath(a.id, a.name), a.russian || a.name)}</li>`)
+            .join('')}</ul>`
+        : '') +
+      (works.length ? `<h2>Работы</h2><ul>${works.slice(0, 40).map((w) => item(w.anime)).join('')}</ul>` : '') +
+      siteNav(),
+    jsonLd: graph(crumbs.ld, {
+      '@type': 'Person',
+      name,
+      alternateName: [original, p.japanese].filter(Boolean),
+      jobTitle: job || undefined,
+      birthDate,
+      image: absolute(p.image?.original),
+      url: `${ORIGIN}/person/${p.id}`,
+      sameAs: p.website && /^https?:\/\//.test(p.website) ? [p.website] : undefined,
+    }),
+  }
+}
+
 async function titlePage(id, path) {
   // Связанное и похожее меняются редко: кэш на сутки, и запросы идут параллельно с основным.
   const gaps = {}
-  const [a, related, similar] = await Promise.all([
+  const [a, related, similar, roles] = await Promise.all([
     json(`${SHIKIMORI}/api/animes/${id}`),
     optional(json(`${SHIKIMORI}/api/animes/${id}/related`, undefined, DAY), [], gaps),
     optional(json(`${SHIKIMORI}/api/animes/${id}/similar`, undefined, DAY), [], gaps),
+    optional(json(`${SHIKIMORI}/api/animes/${id}/roles`, undefined, DAY), [], gaps),
   ])
   // Адрес с названием: /anime/6-trigun. Старый /anime/6 или адрес со старым названием ведут сюда (301).
   const canonicalPath = animePath(a.id, a.name)
@@ -406,6 +488,8 @@ async function titlePage(id, path) {
     .sort((x, y) => relationRank(x.relation) - relationRank(y.relation))
     .slice(0, 20)
   const alternate = [a.name, ...(a.english ?? []), ...(a.japanese ?? [])].filter((n) => n && n !== info.title)
+  const cast = mainCharacters(roles)
+  const staff = staffOf(roles)
   return {
     ...gaps,
     preload: {
@@ -432,6 +516,8 @@ async function titlePage(id, path) {
       (rel.length
         ? `<h2>Связанное</h2><ul>${rel.map((r) => `<li>${escapeHtml(r.relation_russian || r.relation)}: ${link(animePath(r.anime.id, r.anime.name), r.anime.russian || r.anime.name)}</li>`).join('')}</ul>`
         : '') +
+      (cast.length ? `<h2>Главные персонажи</h2><ul>${cast.map((c) => `<li>${link(`/character/${c.id}`, c.russian || c.name)}</li>`).join('')}</ul>` : '') +
+      (staff.length ? `<h2>Над аниме работали</h2><ul>${staff.map(([role, people]) => `<li>${escapeHtml(role)}: ${people.map((p) => link(`/person/${p.id}`, p.russian || p.name)).join(', ')}</li>`).join('')}</ul>` : '') +
       (similar.length ? `<h2>Похожее аниме</h2><ul>${similar.slice(0, 12).map(item).join('')}</ul>` : '') +
       siteNav(),
     jsonLd: graph(crumbs.ld, {
@@ -447,6 +533,10 @@ async function titlePage(id, path) {
       endDate: (!movie && a.status === 'released' && a.released_on) || undefined,
       genre: info.genres,
       productionCompany: info.studio ? { '@type': 'Organization', name: info.studio } : undefined,
+      director: staffLd(staff, 'Режиссёр'),
+      creator: staffLd(staff, 'Автор оригинала'),
+      musicBy: staffLd(staff, 'Музыка'),
+      character: cast.length ? cast.map((c) => ({ '@type': 'Person', name: c.russian || c.name, url: `${ORIGIN}/character/${c.id}` })) : undefined,
       // Возрастная маркировка по рейтингу Shikimori: 0+, 6+, 12+, 16+, 18+.
       contentRating: age,
       // aggregateRating не ставим: оценки здесь от Shikimori, а Google запрещает размечать рейтинги с других сайтов.
@@ -530,6 +620,8 @@ async function characterPage(id) {
   // Спойлеры в превью и тексте страницы не показываем.
   const text = cut((c.description ?? '').replace(/\[spoiler(?:=[^\]]*)?\][\s\S]*?\[\/spoiler\]/gi, ''), 1500)
   const animes = (c.animes ?? []).slice(0, 30)
+  // Сэйю персонажа: ссылки на их страницы (/person/), там все остальные роли.
+  const seyu = (c.seyu ?? []).slice(0, 4)
   const crumbs = breadcrumbs([[name, `/character/${c.id}`]])
   const image = absolute(c.image?.original)
   const description = text ? cut(text, 200) : `${name}: персонаж аниме. Кто озвучивает и в каких аниме появляется.`
@@ -543,6 +635,7 @@ async function characterPage(id) {
       `<h1>${escapeHtml(name)}</h1>` +
       (c.name && c.russian ? `<p>${escapeHtml(c.name)}</p>` : '') +
       (text ? `<p>${escapeHtml(text)}</p>` : '') +
+      (seyu.length ? `<p>Озвучивает: ${seyu.map((p) => link(`/person/${p.id}`, p.russian || p.name)).join(', ')}</p>` : '') +
       (animes.length ? `<h2>Аниме с персонажем</h2><ul>${animes.map((a) => `<li>${link(animePath(a.id, a.name), a.russian || a.name)}</li>`).join('')}</ul>` : '') +
       siteNav(),
     jsonLd: graph(crumbs.ld, {
@@ -785,6 +878,8 @@ async function metaFor(path, params) {
   if (m) return watchPage(m[1], Math.max(1, Number(m[2])))
   m = path.match(/^\/character\/(\d{1,10})$/)
   if (m) return characterPage(m[1])
+  m = path.match(/^\/person\/(\d{1,10})$/)
+  if (m) return personPage(m[1])
   m = path.match(/^\/manga\/(\d{1,10})$/)
   if (m) return mangaPage(m[1])
   m = path.match(/^\/together\/([A-Za-z0-9]{6})$/)
