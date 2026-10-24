@@ -1,4 +1,4 @@
-// Таблицы социальной части (social.js): подписки и лента, уведомления (notifications.js), ответы в комментариях, подборки зрителей, клубы, оценки серий, связь с Shikimori,
+// Таблицы социальной части (social.js): подписки и лента, приглашения друзей (invites.js), уведомления (notifications.js), ответы в комментариях, подборки зрителей, клубы, оценки серий, связь с Shikimori,
 // и колонки опыта в профилях для топа зрителей. Скрипт пропускает то, что уже есть.
 // Запуск: APPWRITE_API_KEY=... node functions/community/setup-social.mjs
 
@@ -201,6 +201,14 @@ const TABLES = [
     permissions: [],
     columns: [int('shikiId'), str('nickname', 64, false), str('access', 200), str('refresh', 200), int('expiresAt')],
     indexes: [],
+  },
+  {
+    // «Позови друга» (invites.js): строка = ID приглашённого, читает только функция.
+    id: 'invites',
+    name: 'Invites',
+    permissions: [],
+    columns: [str('inviterId', 36), str('name', 64), int('at')],
+    indexes: [idx('inviter', ['inviterId'])],
   },
 ]
 

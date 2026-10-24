@@ -159,3 +159,25 @@
   height: 100%;
   background: var(--accent);
 }
+.pf-invite {
+  gap: 10px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.pf-invite__row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pf-invite__link {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}

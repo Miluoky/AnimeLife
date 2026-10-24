@@ -35,6 +35,7 @@ import { errorClear, errorList, errorReport } from './errors.js'
 import { socialActions } from './social.js'
 import { notificationActions, notify } from './notifications.js'
 import { accountActions } from './account.js'
+import { inviteActions } from './invites.js'
 
 /**
  * Отзывы и уведомления о новых сериях.
@@ -554,6 +555,8 @@ export default async ({ req, res, log, error }) => {
         if (Object.hasOwn(notificationActions, body.action)) return res.json(await notificationActions[body.action](api, req, body))
         // Выгрузка своих данных и удаление аккаунта, см. account.js.
         if (Object.hasOwn(accountActions, body.action)) return res.json(await accountActions[body.action](api, req, body))
+        // «Позови друга»: ссылка-приглашение и счётчик друзей, см. invites.js.
+        if (Object.hasOwn(inviteActions, body.action)) return res.json(await inviteActions[body.action](api, req, body))
         return res.json({ error: 'Неизвестное действие.' }, 400)
     }
   } catch (e) {

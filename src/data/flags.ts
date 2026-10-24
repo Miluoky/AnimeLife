@@ -4,7 +4,7 @@ import { createLocalStore } from './localStore'
  * Разовые события для достижений: «был в комнате», «смотрел ночью» и т. п. Время первого раза.
  * Синхронизируются с аккаунтом вместе со списком.
  */
-export type Flag = 'joinedRoom' | 'hostedRoom' | 'nightOwl' | 'wroteReview' | 'imported' | 'commented' | 'quizStreak'
+export type Flag = 'joinedRoom' | 'hostedRoom' | 'nightOwl' | 'wroteReview' | 'imported' | 'commented' | 'quizStreak' | 'invitedFriend'
 
 export const flagsStore = createLocalStore<Partial<Record<Flag, number>>>('anime.flags.v1', {})
 
