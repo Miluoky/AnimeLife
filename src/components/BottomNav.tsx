@@ -38,6 +38,11 @@ export default function BottomNav() {
   const [more, setMore] = useState(false)
   useInboxCheck()
   useEffect(() => setMore(false), [pathname])
+  // Установленное приложение: число тайтлов с новыми сериями — на значке на рабочем столе (Android, Windows, macOS).
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (n: number) => Promise<void> }
+    nav.setAppBadge?.(fresh).catch(() => {})
+  }, [fresh])
 
   const items = [
     { to: '/', title: 'Главная', icon: <HomeIcon />, end: true },

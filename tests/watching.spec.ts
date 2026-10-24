@@ -50,14 +50,23 @@ test('«Смотрю»: вышедшая серия открывается ср�
 test('счётчик новых серий на вкладке «Смотрю» в нижнем меню', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'нижнее меню только на телефоне')
   await seed(page)
+  // Значок установленного приложения: запоминаем, что сайт на него ставит.
+  await page.addInitScript(() => {
+    const w = window as unknown as { badges: number[] }
+    w.badges = []
+    Object.defineProperty(navigator, 'setAppBadge', { value: (n: number) => (w.badges.push(n), Promise.resolve()) })
+  })
   await page.goto('/catalog')
   const tab = page.getByRole('navigation', { name: 'Разделы сайта' }).getByRole('link', { name: /Смотрю/ })
   await expect(tab).toHaveAccessibleName('Смотрю: новых серий 1', { timeout: 10_000 })
+  await expect.poll(() => page.evaluate(() => (window as unknown as { badges: number[] }).badges.at(-1))).toBe(1)
   await tab.click()
   await expect(page).toHaveURL(/\/watching$/)
   // Открыли вкладку — новости прочитаны, кружок пропал, а подсветка карточки осталась.
   await expect(tab).toHaveAccessibleName('Смотрю')
   await expect(page.locator('.ep-card--fresh')).toHaveCount(1)
+  // Ноль убирает число со значка приложения.
+  await expect.poll(() => page.evaluate(() => (window as unknown as { badges: number[] }).badges.at(-1))).toBe(0)
 })
 
 test('пустая вкладка «Смотрю» подсказывает, что делать', async ({ page }) => {
