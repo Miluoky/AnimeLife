@@ -74,6 +74,10 @@ export default function AppearanceSettings() {
         <input type="checkbox" checked={a.calm} onChange={(e) => setAppearance({ calm: e.target.checked })} />
         <span>Без анимаций</span>
       </label>
+      <label className="appearance__row appearance__toggle">
+        <input type="checkbox" checked={a.glow !== false} onChange={(e) => setAppearance({ glow: e.target.checked })} />
+        <span>Подсветка вокруг плеера в цветах кадра</span>
+      </label>
     </section>
   )
 }

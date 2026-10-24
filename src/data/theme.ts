@@ -14,6 +14,8 @@ export interface Appearance {
   calm: boolean
   /** экономия трафика: сама на медленной сети, всегда или никогда (src/data/saver.ts) */
   saver?: 'auto' | 'on' | 'off'
+  /** подсветка вокруг плеера в цветах кадра (src/components/PlayerGlow.tsx); по умолчанию включена */
+  glow?: boolean
 }
 
 export const themes: { id: Theme; title: string; hint: string }[] = [
