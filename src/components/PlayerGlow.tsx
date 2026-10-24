@@ -15,8 +15,9 @@ import { SparkIcon } from './Icons'
  * показываем, так что CORS не нужен.
  * Kodik и другие плееры в iframe кадр не отдают. Тогда свет идёт от кадров тайтла с Shikimori: они медленно
  * сменяют друг друга по ходу серии (по времени Kodik, на паузе стоят), а до них — от постера.
- * Настоящий кадр Kodik на компьютере (Chrome, Edge): кнопка «Свет из кадра» просит показать эту вкладку
- * (getDisplayMedia), захват обрезается до экрана плеера (Region Capture, cropTo) и идёт 2 кадра в секунду.
+ * Настоящий кадр Kodik на компьютере (любой браузер): кнопка «Свет из кадра» просит показать эту вкладку
+ * (getDisplayMedia), 2 кадра в секунду. Chrome и Edge обрезают захват до плеера сами (cropTo), в Firefox и Safari
+ * плеер вырезается из окна или экрана по его координатам (см. cropFor).
  *
  * Выключается в «Оформлении», в экономии трафика и на слабых телефонах (data-lite), в мини-плеере.
  * При «Без анимаций» и prefers-reduced-motion свет неподвижный: только постер.
@@ -51,9 +52,40 @@ const useCapture = () =>
 
 type Cropped = MediaStreamTrack & { cropTo?: (target: unknown) => Promise<void> }
 const cropTargets = () => (window as unknown as { CropTarget?: { fromElement(el: Element): Promise<unknown> } }).CropTarget
-/** Chrome и Edge на компьютере: захват вкладки с обрезкой до элемента. На телефонах его нет. */
+/** Захват есть во всех браузерах на компьютере (Chrome, Edge, Яндекс, Opera, Firefox, Safari). На телефонах его нет. */
 export const canCaptureFrame = () =>
-  typeof window !== 'undefined' && !!cropTargets() && !!navigator.mediaDevices?.getDisplayMedia && !matchMedia('(pointer: coarse)').matches
+  typeof window !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && !matchMedia('(pointer: coarse)').matches
+
+/**
+ * Где на захваченной картинке экран плеера. Chrome и Edge обрезают захват сами (cropTo), тогда это весь кадр.
+ * Firefox и Safari отдают окно или весь экран: место плеера считаем по его положению в окне и окна на экране.
+ * Рамку окна угадываем (сверху вкладки и адресная строка), для свечения 32×18 точность в десяток пикселей не важна.
+ */
+let crop: ((w: number, h: number) => [number, number, number, number]) | null = null
+function cropFor(frame: Element, surface: string | undefined) {
+  return (w: number, h: number): [number, number, number, number] => {
+    const r = frame.getBoundingClientRect()
+    const side = Math.max(0, (outerWidth - innerWidth) / 2)
+    const top = Math.max(0, outerHeight - innerHeight - side)
+    let x = r.left
+    let y = r.top
+    let base = innerWidth
+    // Окно или экран: картинка шире видимой части страницы.
+    const kind = surface ?? (Math.abs(w / h - screen.width / screen.height) < 0.02 ? 'monitor' : 'window')
+    if (kind === 'window' || kind === 'monitor') {
+      x += side
+      y += top
+      base = outerWidth
+    }
+    if (kind === 'monitor') {
+      x += screenX - ((screen as Screen & { availLeft?: number }).availLeft ?? 0)
+      y += screenY - ((screen as Screen & { availTop?: number }).availTop ?? 0)
+      base = screen.width
+    }
+    const k = w / base
+    return [x * k, y * k, r.width * k, r.height * k]
+  }
+}
 
 async function startCapture(frame: Element) {
   let stream: MediaStream | undefined
@@ -64,16 +96,22 @@ async function startCapture(frame: Element) {
       preferCurrentTab: true,
       selfBrowserSurface: 'include',
       surfaceSwitching: 'exclude',
+      // Весь экран в Chrome не нужен: вкладку он обрежет до плеера сам. Firefox и Safari этот ключ не знают.
       monitorTypeSurfaces: 'exclude',
     } as DisplayMediaStreamOptions)
     const track = stream.getVideoTracks()[0] as Cropped
-    // cropTo работает только для этой же вкладки: другая вкладка или экран дадут ошибку.
-    await track.cropTo!(await cropTargets()!.fromElement(frame))
+    const targets = cropTargets()
+    let cropped = false
+    if (targets && track.cropTo) {
+      // cropTo работает только для этой же вкладки: выбрали окно или экран — режем сами.
+      cropped = await track.cropTo(await targets.fromElement(frame)).then(() => true, () => false)
+    }
+    crop = cropped ? null : cropFor(frame, track.getSettings().displaySurface)
     track.addEventListener('ended', () => capture === stream && setCapture(null))
     setCapture(stream)
   } catch (e) {
     stream?.getTracks().forEach((t) => t.stop())
-    if ((e as Error).name !== 'NotAllowedError') toast('Не получилось: в окне выбора нужна именно эта вкладка')
+    if ((e as Error).name !== 'NotAllowedError') toast('Этот браузер не дал показать вкладку')
   }
 }
 
@@ -87,7 +125,7 @@ export function GlowCaptureButton({ slot }: { slot: RefObject<HTMLElement | null
       type="button"
       className="btn btn--ghost watch-glow"
       aria-pressed={!!active}
-      title={active ? 'Выключить свет из кадра' : 'Свет из кадра: подсветка вокруг видео в цветах того, что сейчас на экране. Браузер спросит разрешение показать эту вкладку'}
+      title={active ? 'Выключить свет из кадра' : 'Свет из кадра: подсветка вокруг видео в цветах того, что сейчас на экране. Браузер спросит разрешение показать вкладку (в Firefox и Safari — окно браузера)'}
       onClick={() => {
         const frame = slot.current?.querySelector('.player-frame')
         if (active) stopCapture()
@@ -133,7 +171,8 @@ export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<
       if (ok && (!video.paused || !shown)) {
         try {
           ctx.globalAlpha = shown ? 0.45 : 1
-          ctx.drawImage(video, 0, 0, W, H)
+          if (video === grabbed && crop && video.videoWidth) ctx.drawImage(video, ...crop(video.videoWidth, video.videoHeight), 0, 0, W, H)
+          else ctx.drawImage(video, 0, 0, W, H)
           shown = true
         } catch {
           shown = false
