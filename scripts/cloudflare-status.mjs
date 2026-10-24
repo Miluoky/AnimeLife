@@ -108,8 +108,9 @@ try {
     for (const r of rules) {
       console.log(`  ${r.enabled ? 'вкл ' : 'выкл'}  ${r.action.padEnd(16)} ${r.description || ''} (${r.id})`)
       console.log(`        ${r.expression}`)
-      // Без исключения проверенных роботов правило задевает Google и Яндекс: страницы выпадают из поиска.
-      if (r.enabled && r.action !== 'skip' && !r.expression.includes('cf.client.bot') && !r.expression.includes('cf.verified_bot_category'))
+      // Правило по стране или сети без исключения проверенных роботов задевает Google и Яндекс: страницы выпадают
+      // из поиска. Списки имён сборщиков (по User-Agent) поисковиков не трогают.
+      if (r.enabled && r.action !== 'skip' && r.expression.includes('ip.') && !r.expression.includes('cf.client.bot') && !r.expression.includes('cf.verified_bot_category'))
         console.log('        ! нет исключения для поисковиков (not cf.client.bot)')
     }
   }
