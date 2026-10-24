@@ -75,20 +75,23 @@ try {
   const data = await graphql(
     `query ($zone: String!, $from: Time!, $to: Time!) {
       viewer { zones(filter: { zoneTag: $zone }) {
-        firewallEventsAdaptiveGroups(limit: 50, orderBy: [count_DESC], filter: { datetime_geq: $from, datetime_leq: $to }) {
-          count
-          dimensions { source action ruleId description }
+        firewallEventsAdaptive(limit: 10000, orderBy: [datetime_DESC], filter: { datetime_geq: $from, datetime_leq: $to }) {
+          source action ruleId clientCountryName
         }
       } }
     }`,
     { zone: zone.id, from: new Date(now.getTime() - 86400_000).toISOString(), to: now.toISOString() },
   )
-  const rows = data.viewer.zones[0]?.firewallEventsAdaptiveGroups ?? []
-  console.log('\nСобытия WAF и защиты от ботов за 24 часа:')
-  for (const r of rows) {
-    const d = r.dimensions
-    console.log(`  ${String(r.count).padStart(7)}  ${d.source}/${d.action}  ${d.description || d.ruleId}`)
+  // На бесплатном плане группировка недоступна, поэтому считаем сами по сырым событиям (до 10 000 последних).
+  const rows = data.viewer.zones[0]?.firewallEventsAdaptive ?? []
+  const count = (key) => {
+    const m = {}
+    for (const r of rows) m[key(r)] = (m[key(r)] ?? 0) + 1
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 15)
   }
+  console.log(`\nСобытия WAF и защиты от ботов за 24 часа: ${rows.length}${rows.length === 10000 ? '+' : ''}`)
+  for (const [k, n] of count((r) => `${r.source}/${r.action} ${r.ruleId}`)) console.log(`  ${String(n).padStart(7)}  ${k}`)
+  console.log('  по странам:', count((r) => r.clientCountryName).map(([k, n]) => `${k} ${n}`).join(', '))
   if (!rows.length) console.log('  нет событий: правила WAF, похоже, не включены')
 } catch (e) {
   console.log(`!! события WAF: ${e.message}`)
@@ -102,7 +105,13 @@ try {
   else {
     const { rules = [] } = await api(`/zones/${zone.id}/rulesets/${custom.id}`)
     console.log(`\nСвои правила WAF (${rules.length}):`)
-    for (const r of rules) console.log(`  ${r.enabled ? 'вкл ' : 'выкл'}  ${r.action.padEnd(16)} ${r.description || r.id}`)
+    for (const r of rules) {
+      console.log(`  ${r.enabled ? 'вкл ' : 'выкл'}  ${r.action.padEnd(16)} ${r.description || ''} (${r.id})`)
+      console.log(`        ${r.expression}`)
+      // Без исключения проверенных роботов правило задевает Google и Яндекс: страницы выпадают из поиска.
+      if (r.enabled && r.action !== 'skip' && !r.expression.includes('cf.client.bot') && !r.expression.includes('cf.verified_bot_category'))
+        console.log('        ! нет исключения для поисковиков (not cf.client.bot)')
+    }
   }
 } catch (e) {
   console.log(`!! правила WAF: ${e.message}`)
