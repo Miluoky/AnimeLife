@@ -819,3 +819,22 @@ test('плеер: серия на экране блокировки — назв
   await press('nexttrack')
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
 })
+
+test('последняя вышедшая серия онгоинга: таймер до следующей и «Следить за сериями»', async ({ page }) => {
+  const anime = fixture('anime')
+  const nextAt = new Date(Date.now() + 3 * 86400_000).toISOString()
+  await page.route(/\/api\/(shiki\/)?animes\/1(\?|$)/, (route) =>
+    route.fulfill({ json: { ...anime, status: 'ongoing', episodes: 12, episodes_aired: 7, next_episode_at: nextAt } }),
+  )
+  await page.goto('/watch/1/7')
+  const follow = page.locator('.watch-follow')
+  await expect(follow.getByRole('timer')).toContainText('Серия 8 выйдет через')
+  await follow.getByRole('button', { name: 'Следить за сериями' }).click()
+  await expect(follow).toContainText('Тайтл в «Смотрю»')
+  const status = await page.evaluate(() => JSON.parse(localStorage.getItem('anime.mylist.v1') ?? '[]')[0]?.status)
+  expect(status).toBe('watching')
+  // На предпоследней серии блока нет.
+  await page.goto('/watch/1/6')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Серия 6')
+  await expect(page.locator('.watch-follow')).toHaveCount(0)
+})
