@@ -2,11 +2,11 @@ import { DB, UserError, hash, listRows } from './util.js'
 
 /**
  * Уведомления на сайте (колокольчик в шапке): ответили на комментарий, отметили отзыв или подборку,
- * подписались. Строки пишет только функция, читает их владелец через notif-list.
+ * подписались, пришёл друг по ссылке-приглашению. Строки пишет только функция, читает их владелец через notif-list.
  * Таблица notifications создаётся в setup-social.mjs.
  */
 
-const KINDS = ['reply', 'review-like', 'ucol-like', 'follow']
+const KINDS = ['reply', 'review-like', 'ucol-like', 'follow', 'invite']
 const KEEP_DAYS = 60
 const LIST_LIMIT = 30
 

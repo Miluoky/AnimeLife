@@ -28,6 +28,8 @@ const OWNED = [
   ['episode_votes', 'userId'],
   ['notifications', 'userId'],
   ['push', 'userId'],
+  ['invites', '$id'],
+  ['invites', 'inviterId'],
 ]
 
 /** Поля, которые в выгрузку не идут: токены и ключи подписок. */

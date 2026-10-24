@@ -7,7 +7,7 @@ import { flagsStore } from '../data/flags'
 import Achievements from './Achievements'
 import { unlocked } from '../data/achievements'
 import { ShareIcon } from './Icons'
-import { LevelCard, ProfileStyleEditor, ShikimoriSync } from './ProfileExtras'
+import { InviteCard, LevelCard, ProfileStyleEditor, ShikimoriSync } from './ProfileExtras'
 import { profileStyleStore } from '../data/profileStyle'
 
 /** Открытый профиль и достижения в «Профиле». */
@@ -66,6 +66,7 @@ export default function ProfileSettings() {
     <>
       <LevelCard />
       <Achievements unlocked={unlocked(list, flags)} />
+      <InviteCard />
       {user && (
         <section className="stack profile-settings">
           <h2>Открытый профиль</h2>

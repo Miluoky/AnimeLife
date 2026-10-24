@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { installErrorReporting } from './data/errors'
+import { captureInvite } from './data/inviteStore'
 import './fonts.css'
 import './styles.css'
 
@@ -34,6 +35,9 @@ document.addEventListener(
 
 // Открыт внутри Telegram: цвета, кнопка «Назад» и вход через аккаунт Telegram (отдельная часть).
 if (inTelegramApp) void import('./data/telegramMiniApp').then((m) => m.initTelegramMiniApp())
+
+// Пришли по ссылке «Позови друга» (?ref=…): запоминаем, засчитаем после входа.
+captureInvite()
 
 // Ошибки у посетителей — в статистику администратора (/admin/analytics).
 installErrorReporting()
