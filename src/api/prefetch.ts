@@ -7,6 +7,7 @@ export const pageChunks = {
   player: () => import('../pages/Player'),
   catalog: () => import('../pages/Catalog'),
   landing: () => import('../pages/Landing'),
+  en: () => import('../pages/En'),
   schedule: () => import('../pages/Schedule'),
   myList: () => import('../pages/MyList'),
   watching: () => import('../pages/Watching'),

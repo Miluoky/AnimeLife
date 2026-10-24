@@ -13,6 +13,7 @@
  * а также к списку серий YummyAnime (/api/yummy/videos/*, worker/yummyProxy.js) и к главам манги MangaDex
  * (/api/mangadex/*, worker/mangadexProxy.js).
  * Шаблоны заголовков и посадочные страницы общие с приложением: src/data/seo.ts и src/data/landings.ts.
+ * Английская версия (/en и /en/anime/<id>-<slug>) — тексты в src/data/en.ts, с hreflang в обе стороны.
  * Если внешний сервис не ответил, отдаётся обычный index.html: сайт работает как раньше.
  *
  * Лимит вызовов: Worker не запускается первым (run_worker_first: false в wrangler.animelife.jsonc), сначала ищется файл.
@@ -27,6 +28,7 @@ import { isShikiProxy, shikiProxy } from './shikiProxy.js'
 import { isYummyProxy, yummyProxy } from './yummyProxy.js'
 import { isMangadexProxy, mangadexProxy } from './mangadexProxy.js'
 import { guard } from './guard.js'
+import { EN_HOME, enDescription, enFacts, enName, enPath, enTitle } from '../src/data/en.ts'
 import {
   ABOUT_LINKS,
   DISCLAIMER,
@@ -61,7 +63,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -148,7 +150,7 @@ function siteNav() {
       [`Аниме ${year} года`, `/year/${year}`],
       [`Аниме ${year - 1} года`, `/year/${year - 1}`],
     ])}</nav>` +
-    `<nav>${links([...ABOUT_LINKS, ...LEGAL_LINKS])}</nav><p>${escapeHtml(DISCLAIMER)}</p>`
+    `<nav>${links([...ABOUT_LINKS, ...LEGAL_LINKS, ['English', '/en']])}</nav><p>${escapeHtml(DISCLAIMER)}</p>`
   )
 }
 
@@ -269,6 +271,7 @@ async function home() {
     // Размытый фон баннера — самая крупная картинка первого экрана: браузер начинает качать её сразу с HTML.
     // Фон размыт, поэтому хватает лёгкого постера 1x (тот же адрес берёт Hero в src/pages/Home.tsx).
     lcpImage: heroPoster?.mainUrl,
+    alternates: { ru: '/', en: '/en' },
     title: `Смотреть аниме онлайн бесплатно с русской озвучкой | ${SITE}`,
     description: `Аниме онлайн бесплатно с русской озвучкой: онгоинги ${year}, каталог по жанрам и годам, расписание новых серий и «Мой список» с синхронизацией.`,
     body:
@@ -411,6 +414,7 @@ async function titlePage(id, path) {
       [preloadKey(`${SHIKIMORI}/api/animes/${id}/similar`)]: similar,
     },
     lcpImage: image,
+    alternates: { ru: animePath(a.id, a.name), en: enPath(a.id, a.name) },
     title: titlePageTitle(info),
     description,
     image,
@@ -663,9 +667,109 @@ function sectionPage(path, s) {
   }
 }
 
+/** Ссылки английской версии для поисковиков: русские разделы и сама английская главная. */
+const enNav = () => `<nav>${links([['Anime Life (English)', '/en'], ['Русская версия', '/'], ['Каталог', '/catalog'], ['Онгоинги', '/ongoing']])}</nav>`
+
+/** Строка английского списка: английское название, год и число серий. */
+function enItem(a) {
+  const facts = [a.aired_on?.slice(0, 4), a.kind !== 'movie' && a.episodes ? `${a.episodes} eps` : ''].filter(Boolean).join(', ')
+  return `<li>${link(enPath(a.id, a.name), enName(a))}${facts ? ` — ${escapeHtml(facts)}` : ''}</li>`
+}
+
+/** /en: о сайте по-английски, выходящее сейчас и популярное (те же запросы, что шлёт src/pages/En.tsx). */
+async function enHome() {
+  const gaps = {}
+  const airingUrl = animes({ status: 'ongoing', limit: 12, page: 1 })
+  const popularUrl = animes({ limit: 24, page: 1 })
+  const [airing, top] = await Promise.all([optional(json(airingUrl, undefined, 1800), [], gaps), optional(json(popularUrl, undefined, DAY), [], gaps)])
+  const preload = {}
+  if (airing.length) preload[preloadKey(airingUrl)] = airing
+  if (top.length) preload[preloadKey(popularUrl)] = top
+  return {
+    ...gaps,
+    lang: 'en',
+    preload,
+    alternates: { ru: '/', en: '/en' },
+    title: EN_HOME.title,
+    description: EN_HOME.description,
+    body:
+      `<h1>${escapeHtml(EN_HOME.h1)}</h1>` +
+      EN_HOME.intro.map((p) => `<p>${escapeHtml(p)}</p>`).join('') +
+      `<ul>${EN_HOME.features.map(([h, t]) => `<li><b>${escapeHtml(h)}</b>: ${escapeHtml(t)}</li>`).join('')}</ul>` +
+      (airing.length ? `<h2>Airing now</h2><ul>${airing.map(enItem).join('')}</ul>` : '') +
+      (top.length ? `<h2>Popular anime</h2><ol>${top.map(enItem).join('')}</ol>` : '') +
+      enNav(),
+    jsonLd: graph({
+      '@type': 'WebPage',
+      '@id': `${ORIGIN}/en#webpage`,
+      url: `${ORIGIN}/en`,
+      name: EN_HOME.title,
+      description: EN_HOME.description,
+      inLanguage: 'en',
+      isPartOf: { '@id': `${ORIGIN}/#website` },
+    }),
+  }
+}
+
+/** /en/anime/<id>-<slug>: английская страница тайтла. Данные те же, что у русской (кэш общий). */
+async function enTitlePage(id, path) {
+  const a = await json(`${SHIKIMORI}/api/animes/${id}`)
+  const canonicalPath = enPath(a.id, a.name)
+  if (path !== canonicalPath) throw redirectTo(canonicalPath)
+  const name = enName(a)
+  const description = enDescription(a)
+  const image = absolute(a.image?.original)
+  const movie = a.kind === 'movie'
+  const others = [...new Set([a.name, ...(a.japanese ?? [])].filter((n) => n && n !== name))]
+  const crumbs = [`<nav aria-label="Breadcrumbs">${link('/en', 'Anime Life')} › ${escapeHtml(name)}</nav>`]
+  return {
+    lang: 'en',
+    preload: { [preloadKey(`${SHIKIMORI}/api/animes/${id}`)]: a },
+    lcpImage: image,
+    alternates: { ru: animePath(a.id, a.name), en: canonicalPath },
+    title: enTitle(a),
+    description,
+    image,
+    type: movie ? 'video.movie' : 'video.tv_show',
+    body:
+      crumbs.join('') +
+      `<h1>${escapeHtml(name)}</h1>` +
+      (others.length ? `<p>${escapeHtml(others.join(' / '))}</p>` : '') +
+      `<p>${escapeHtml(enFacts(a).join(' · '))}</p>` +
+      (a.genres?.length ? `<p>Genres: ${escapeHtml(a.genres.map((g) => g.name).join(', '))}</p>` : '') +
+      `<p>${escapeHtml(description)}</p>` +
+      (available(a) ? `<p>${link(`/watch/${a.id}/1`, movie ? 'Watch the movie' : 'Watch episode 1')}</p>` : '') +
+      `<p>${link(animePath(a.id, a.name), 'Страница на русском')}</p>` +
+      enNav(),
+    jsonLd: graph(
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Anime Life', item: `${ORIGIN}/en` },
+          { '@type': 'ListItem', position: 2, name, item: ORIGIN + canonicalPath },
+        ],
+      },
+      {
+        '@type': movie ? 'Movie' : 'TVSeries',
+        name,
+        alternateName: others.length ? others : undefined,
+        description,
+        image,
+        url: ORIGIN + canonicalPath,
+        inLanguage: 'en',
+        numberOfEpisodes: (!movie && a.episodes) || undefined,
+        [movie ? 'datePublished' : 'startDate']: a.aired_on || undefined,
+        genre: (a.genres ?? []).map((g) => g.name),
+        productionCompany: a.studios?.[0] ? { '@type': 'Organization', name: a.studios[0].name } : undefined,
+      },
+    ),
+  }
+}
+
 async function metaFor(path, params) {
   const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
   if (path === '/') return home()
+  if (path === '/en') return enHome()
   if (path === '/catalog') return listing(CATALOG, page)
   if (path === '/schedule') return schedule()
   if (LEGAL[path]) return legalPage(path, LEGAL[path])
@@ -675,6 +779,8 @@ async function metaFor(path, params) {
   if (/^\/(?:genre|type|year)\//.test(path)) throw notFound()
   let m = path.match(/^\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
   if (m) return titlePage(m[1], path)
+  m = path.match(/^\/en\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
+  if (m) return enTitlePage(m[1], path)
   m = path.match(/^\/watch\/(\d{1,10})\/(\d{1,5})$/)
   if (m) return watchPage(m[1], Math.max(1, Number(m[2])))
   m = path.match(/^\/character\/(\d{1,10})$/)
@@ -809,6 +915,18 @@ async function render(env, url, status = 200, asset) {
     extra.push(`<meta name="twitter:image" content="${escapeHtml(meta.image)}" />`)
   }
   if (meta?.type) rewriter = rewriter.on('meta[property="og:type"]', content(meta.type))
+  // Английская версия страницы: язык документа и ссылки hreflang в обе стороны (x-default — русская).
+  if (meta?.lang) {
+    rewriter = rewriter.on('html', new SetAttr('lang', meta.lang)).on('meta[property="og:locale"]', content('en_US'))
+  }
+  if (meta?.alternates && !noindex) {
+    const { ru, en } = meta.alternates
+    extra.push(
+      `<link rel="alternate" hreflang="ru" href="${ORIGIN}${ru}" />`,
+      `<link rel="alternate" hreflang="en" href="${ORIGIN}${en}" />`,
+      `<link rel="alternate" hreflang="x-default" href="${ORIGIN}${ru}" />`,
+    )
+  }
   if (meta?.jsonLd) {
     extra.push(`<script type="application/ld+json">${JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c')}</script>`)
   }
@@ -914,7 +1032,7 @@ function sitemapPages() {
   const day = today()
   const year = new Date().getFullYear()
   const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
-  const paths = ['/', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', '/community', '/news', '/season', '/scene', ...landingPaths(), ...[...ABOUT_LINKS, ...LEGAL_LINKS].map(([, p]) => p)]
+  const paths = ['/', '/en', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', '/community', '/news', '/season', '/scene', ...landingPaths(), ...[...ABOUT_LINKS, ...LEGAL_LINKS].map(([, p]) => p)]
   return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
 }
 
@@ -940,7 +1058,16 @@ async function sitemapTitles(ctx, which) {
   // Порядок постоянный (по id), у онгоингов дата изменения — сегодня: у них выходят новые серии.
   const day = today()
   const list = [...all.values()].sort((a, b) => a.id - b.id)
-  const titles = urlset(list.map((a) => [animePath(a.id, a.name), a.status === 'ongoing' ? day : '']))
+  // Английские страницы тайтлов идут сразу за русскими: те же тайтлы, связаны через hreflang.
+  const titles = urlset(
+    list.flatMap((a) => {
+      const lastmod = a.status === 'ongoing' ? day : ''
+      return [
+        [animePath(a.id, a.name), lastmod],
+        [enPath(a.id, a.name), lastmod],
+      ]
+    }),
+  )
   // Серии онгоингов: последние 50 вышедших. Свежая серия получает сегодняшнюю дату.
   const episodes = urlset(
     list

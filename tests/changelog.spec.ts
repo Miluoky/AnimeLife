@@ -10,7 +10,7 @@ test('«Что нового»: обновления по дням, ссылка 
   await page.getByRole('contentinfo').getByRole('link', { name: 'Что нового' }).click()
   await expect(page).toHaveURL(/\/changelog$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Что нового' })).toBeVisible()
-  await expect(page.locator('.changelog__date').first()).toHaveText('13 октября 2026 г.')
+  await expect(page.locator('.changelog__date').first()).toHaveText('24 октября 2026 г.')
   await page.getByRole('link', { name: 'Топ-100', exact: true }).click()
   await expect(page).toHaveURL(/\/top$/)
 })

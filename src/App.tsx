@@ -11,6 +11,7 @@ const TitlePage = lazy(pageChunks.title)
 const Player = lazy(pageChunks.player)
 const Catalog = lazy(pageChunks.catalog)
 const Landing = lazy(pageChunks.landing)
+const En = lazy(pageChunks.en)
 const Schedule = lazy(pageChunks.schedule)
 const MyList = lazy(pageChunks.myList)
 const Watching = lazy(pageChunks.watching)
@@ -90,6 +91,9 @@ export default function App() {
           <Route path="type/:kind" element={<Landing />} />
           <Route path="year/:year" element={<Landing />} />
           <Route path="year/:year/:season" element={<Landing />} />
+          {/* Английская версия: о сайте и страницы тайтлов (src/pages/En.tsx, тексты в src/data/en.ts). */}
+          <Route path="en" element={<En />} />
+          <Route path="en/anime/:id" element={<En />} />
           <Route path="together" element={<TogetherHome />} />
           <Route path="chat" element={<CommunityChat />} />
           <Route path="u/:id" element={<PublicProfile />} />
