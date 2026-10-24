@@ -235,6 +235,7 @@ export default function Player() {
       ) : (
       <VideoPlayer
         title={anime.title}
+        poster={anime.posterUrl}
         originalTitle={anime.originalTitle}
         englishTitle={anime.englishTitle}
         year={anime.year}
