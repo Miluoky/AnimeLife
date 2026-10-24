@@ -9,7 +9,7 @@ import NetworkStatus from './NetworkStatus'
 import PageErrorBoundary from './PageErrorBoundary'
 import { useAuth } from '../data/auth'
 import { applyAppearance } from '../data/theme'
-import { useViewTransitions } from './morph'
+import { pageScope, useViewTransitions } from './morph'
 import { useScrollRestore } from './scrollRestore'
 import { useCanonical } from '../data/pageMeta'
 import { trackPage } from '../data/analytics'
@@ -214,7 +214,7 @@ export default function Layout() {
         <div className={`menu-backdrop${menuOpen ? '' : ' menu-backdrop--closing'}`} onClick={() => toggleMenu(false)} />
       )}
 
-      <div className="page" key={location.pathname}>
+      <div className="page" key={pageScope(location.pathname)}>
         <PageErrorBoundary>
           {/* Пока код страницы едет по сети, шапка и меню остаются на месте. */}
           <Suspense fallback={<main className="container page-fallback" aria-busy="true" />}>

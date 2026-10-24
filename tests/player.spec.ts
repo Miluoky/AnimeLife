@@ -514,7 +514,7 @@ test('плеер: Kodik продолжает с места, запоминает
         : `parent.postMessage({ key: 'kodik_player_duration_update', value: 1400 }, '*')
            parent.postMessage({ key: 'kodik_player_play' }, '*')
            addEventListener('message', (e) => {
-             if (e.data?.key !== 'kodik_player_api') return
+             if (e.data?.key !== 'kodik_player_api' || e.data.value.method !== 'seek') return
              document.title = 'seek:' + e.data.value.seconds
              parent.postMessage({ key: 'kodik_player_time_update', value: 600 }, '*')
            })`
@@ -541,6 +541,58 @@ test('плеер: Kodik продолжает с места, запоминает
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('anime.mylist.v1')!)[0])).toMatchObject({ watched: 1, status: 'watching' })
   await page.getByRole('button', { name: 'Смотреть сейчас' }).click()
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
+})
+
+test('плеер: смена озвучки и серии без перезагрузки страницы, озвучка продолжает с того же места', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({
+      json: {
+        code: 0,
+        types: [
+          { id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 },
+          { id: 30, name: 'AniDUB', is_sub: false, episodes_count: 26 },
+        ],
+      },
+    }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/(\d+)$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/(\d+)\/30$/, (route) => {
+    const type = route.request().url().match(/31\/(\d+)\/30$/)![1]
+    return route.fulfill({ json: { code: 0, episodes: [1, 2].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${type}${n}/hash/720p`, iframe: true })) } })
+  })
+  // Поддельный Kodik: серия идёт, плеер сообщает время 5:00. Новый плеер отвечает не сразу — видно, что прежний ждёт его на экране.
+  let delay = 0
+  await page.route(/kodikplayer\.com\/seria\//, async (route) => {
+    await new Promise((r) => setTimeout(r, delay))
+    return route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><title>Kodik</title><script>parent.postMessage({ key: 'kodik_player_time_update', value: 300 }, '*')</script>`,
+    })
+  })
+  await page.goto('/watch/1/1')
+  await page.getByRole('button', { name: /^Studio Band/ }).click()
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', /seria\/291\//)
+  await page.evaluate(() => ((document.querySelector('.page') as HTMLElement).dataset.mark = 'same'))
+  await page.waitForTimeout(300)
+
+  delay = 1500
+  await page.getByRole('button', { name: /^AniDUB/ }).click()
+  // Пока новый грузится, прежний плеер на месте (на паузе), новый ждёт под ним.
+  await expect(page.locator('iframe.player-iframe--old')).toHaveAttribute('src', /seria\/291\//)
+  const fresh = page.locator('iframe.player-iframe:not(.player-iframe--old)')
+  await expect(fresh).toHaveAttribute('src', 'https://kodikplayer.com/seria/301/hash/720p?start_from=300')
+  await expect(page.locator('iframe.player-iframe')).toHaveCount(1, { timeout: 8000 })
+
+  // Другая серия: та же страница, без перехода и без прокрутки наверх; новая серия — с начала.
+  delay = 0
+  await page.getByRole('navigation', { name: 'Серии' }).getByRole('link', { name: 'Серия 2', exact: true }).click()
+  await expect(page).toHaveURL(/\/watch\/1\/2$/)
+  await expect(fresh).toHaveAttribute('src', 'https://kodikplayer.com/seria/302/hash/720p')
+  expect(await page.evaluate(() => (document.querySelector('.page') as HTMLElement).dataset.mark)).toBe('same')
 })
 
 test('плеер: широкий экран на компьютере — видео во всю ширину, выбор запоминается', async ({ page }, info) => {
@@ -605,19 +657,21 @@ test('плеер: у студии есть запасные плееры YummyAn
     ['Озвучка OnWave', 'CVH', [1, 2, 3]],
   ])
   await page.goto('/watch/1/2')
+  // Прежний Kodik ненадолго остаётся под новым плеером (на паузе): смотрим на тот, что сейчас играет.
+  const playing = page.locator('iframe.player-iframe:not(.player-iframe--old)')
   await page.getByRole('button', { name: /^Studio Band/ }).click()
   const hosts = page.getByRole('group', { name: 'Плеер' })
   // Kodik у студии уже есть из Anixart: второй не показываем.
   await expect(hosts.getByRole('button')).toHaveText(['Kodik', 'CVH', 'Alloha'])
   await expect(hosts.getByRole('button', { name: 'Kodik' })).toHaveAttribute('aria-pressed', 'true')
   await hosts.getByRole('button', { name: 'CVH' }).click()
-  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', 'https://cvh.example/%D0%9E%D0%B7%D0%B2%D1%83%D1%87%D0%BA%D0%B0%20StudioBand/2')
+  await expect(playing).toHaveAttribute('src', 'https://cvh.example/%D0%9E%D0%B7%D0%B2%D1%83%D1%87%D0%BA%D0%B0%20StudioBand/2')
   // Второй серии в Alloha нет: так и пишем, а плеер можно сменить.
   await hosts.getByRole('button', { name: 'Alloha' }).click()
   await expect(page.getByText(/Серии 2 пока нет в плеере Alloha \(Studio Band\)/)).toBeVisible()
   // Студии, которой нет в других источниках, — в конце списка, со своим плеером.
   await page.getByRole('button', { name: /^OnWave/ }).click()
-  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', /^https:\/\/cvh\.example\/.*OnWave\/2$/)
+  await expect(playing).toHaveAttribute('src', /^https:\/\/cvh\.example\/.*OnWave\/2$/)
   await expect(page.getByRole('group', { name: 'Плеер' })).toHaveCount(0)
 })
 

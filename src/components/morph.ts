@@ -11,6 +11,12 @@ export const calm = () =>
   document.documentElement.dataset.calm === '1' || matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
+ * Адрес страницы без того, что меняется внутри неё: серии одного тайтла — одна страница плеера.
+ * По нему React решает, пересоздавать ли страницу, а прокрутка и объёмный переход — нужны ли они.
+ */
+export const pageScope = (path: string) => path.replace(/^(\/watch\/[^/]+)\/.*$/, '$1')
+
+/**
  * Переходы между страницами через View Transitions без тяжёлого data router: перехватываем
  * клики по внутренним ссылкам и меняем страницу внутри document.startViewTransition.
  * Постер карточки (элемент с data-morph внутри ссылки) «перелетает» в шапку тайтла,
@@ -32,6 +38,8 @@ export function useViewTransitions() {
       if (!link.pathname.startsWith(base)) return
       const to = link.pathname.slice(base.length) + link.search + link.hash
       if (to === location.pathname.slice(base.length) + location.search + location.hash) return
+      // Другая серия того же тайтла: плеер меняет видео на месте, переход страницы здесь лишний.
+      if (pageScope(link.pathname) === pageScope(location.pathname)) return
       e.preventDefault()
       const morph = link.querySelector<HTMLElement>('[data-morph]')
       if (morph) morph.style.viewTransitionName = 'poster'

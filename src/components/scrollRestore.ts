@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useLocation, useNavigationType } from 'react-router-dom'
+import { pageScope } from './morph'
 
 const STORE = 'anime.scroll.v1'
 /** Сколько ждём, пока догрузятся полки и сетка, прежде чем бросить попытки вернуть прокрутку. */
@@ -51,8 +52,9 @@ export function useScrollRestore() {
   // позицию прошлой записи истории.
   useLayoutEffect(() => {
     key.current = location.key
-    const samePath = lastPath.current === location.pathname
-    lastPath.current = location.pathname
+    // Другая серия того же тайтла — та же страница: плеер остаётся там, где зритель его оставил.
+    const samePath = lastPath.current === pageScope(location.pathname)
+    lastPath.current = pageScope(location.pathname)
     const target = type === 'POP' ? positions.current[location.key] : undefined
     if (target === undefined) {
       // Смена фильтров в адресе той же страницы не должна бросать наверх.
