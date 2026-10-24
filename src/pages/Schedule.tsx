@@ -92,6 +92,9 @@ export default function Schedule() {
           </div>
         )}
 
+        {/* Пока расписание грузится, место под строку дней уже занято: список ниже не прыгает. */}
+        {result.loading && !result.value && <div className="schedule-days skeleton" style={{ height: 42 }} aria-hidden="true" />}
+
         {days.length > 1 && (
           <nav className="schedule-days" aria-label="Дни недели">
             {days.map((day) => (

@@ -1529,6 +1529,23 @@
   color: var(--muted);
 }
 
+/* Телефон: плееры одной прокручиваемой строкой — пришедшие позже не переносят строку и не сдвигают заголовок. */
+@media (max-width: 720px) {
+  .hosts__list {
+    flex-wrap: nowrap;
+    min-height: 32px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .hosts .pill {
+    flex: 0 0 auto;
+  }
+  .hosts__hint {
+    flex-basis: 100%;
+  }
+}
+
 /* «Продолжили с 12:34» — плеер вернулся к месту, где зритель остановился. */
 .vp-resume {
   position: absolute;
