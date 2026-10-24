@@ -1,7 +1,8 @@
 /* Расписание */
 .schedule {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  /* min(): на телефоне 320 px колонка не шире экрана (раньше страница прокручивалась вбок). */
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 20px;
   align-items: start;
 }
