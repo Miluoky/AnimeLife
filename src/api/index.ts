@@ -209,9 +209,11 @@ export interface RecommendationSeed {
 
 /**
  * «Вам понравится»: собираем похожие тайтлы для того, что вы высоко оценили или смотрите,
- * и ранжируем по тому, сколько ваших любимых тайтлов на них указывают. Уже отмеченное в списке убираем.
+ * и ранжируем по тому, сколько ваших любимых тайтлов на них указывают, с поправкой на любимые жанры.
+ * Уже начатое (exclude: список и история) убираем.
  */
-export async function loadRecommendations(seeds: RecommendationSeed[], exclude: Set<string>, limit = 12) {
+export async function loadRecommendations(seeds: RecommendationSeed[], exclude: Set<string>, limit = 12, genres: string[] = []) {
+  const liked = new Set(genres)
   const real = seeds.filter((s) => !isDemoId(s.id))
   const lists = await Promise.allSettled(real.map((s) => fetchSimilar(s.id)))
   const scored = new Map<string, { anime: Anime; score: number; because: RecommendationSeed; best: number }>()
@@ -223,7 +225,9 @@ export async function loadRecommendations(seeds: RecommendationSeed[], exclude: 
       const add = seed.weight * (1 - rank / 24)
       const prev = scored.get(anime.id)
       if (!prev) {
-        scored.set(anime.id, { anime, score: add + ((anime.score ?? 7) - 7) * 0.4, because: seed, best: add })
+        // Любимые жанры зрителя (из знакомства): +0.4 за каждый, не больше двух — похожесть важнее.
+        const genreBoost = Math.min(2, anime.genres.filter((g) => liked.has(g)).length) * 0.4
+        scored.set(anime.id, { anime, score: add + ((anime.score ?? 7) - 7) * 0.4 + genreBoost, because: seed, best: add })
         return
       }
       prev.score += add

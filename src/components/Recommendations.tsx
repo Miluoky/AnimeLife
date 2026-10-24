@@ -3,6 +3,8 @@ import { useMyList, type ListEntry } from '../data/myList'
 import { notInterestedStore, setNotInterested, useNotInterested } from '../data/notInterested'
 import { toast } from '../data/toast'
 import { tasteStore } from '../data/taste'
+import { useHistory, type HistoryEntry } from '../data/history'
+import { GENRES } from '../data/seo'
 import PosterCard from './PosterCard'
 import './recs.css'
 
@@ -17,9 +19,22 @@ function seedWeight(e: ListEntry) {
   return 0
 }
 
-function pickSeeds(list: ListEntry[]): RecommendationSeed[] {
-  return list
-    .map((e) => ({ id: e.anime.id, title: e.anime.title, weight: seedWeight(e), at: e.updatedAt ?? e.addedAt }))
+/**
+ * Вес тайтла из истории просмотра: большинство зрителей смотрит, ничего не добавляя в список.
+ * Три серии и больше (или весь фильм) — тайтл зацепил; одна-две — слабее.
+ */
+function historyWeight(h: HistoryEntry) {
+  if (h.episode >= 3 || (h.totalEpisodes > 0 && h.episode >= h.totalEpisodes)) return 1.5
+  return 1
+}
+
+function pickSeeds(list: ListEntry[], history: HistoryEntry[]): RecommendationSeed[] {
+  const listed = new Set(list.map((e) => e.anime.id))
+  return [
+    ...list.map((e) => ({ id: e.anime.id, title: e.anime.title, weight: seedWeight(e), at: e.updatedAt ?? e.addedAt })),
+    // Что в списке, оценено там: брошенное не должно тянуть похожие из истории.
+    ...history.filter((h) => !listed.has(h.animeId)).map((h) => ({ id: h.animeId, title: h.title, weight: historyWeight(h), at: h.updatedAt })),
+  ]
     .filter((s) => s.weight > 0)
     .sort((a, b) => b.weight - a.weight || b.at - a.at)
     .slice(0, MAX_SEEDS)
@@ -29,15 +44,19 @@ function pickSeeds(list: ListEntry[]): RecommendationSeed[] {
 export default function Recommendations() {
   const list = useMyList()
   const taste = tasteStore.use()
-  // Список пока пуст: берём тайтлы, отмеченные при знакомстве (Onboarding).
-  const fromList = pickSeeds(list)
+  const history = useHistory()
+  // Список и история пока пусты: берём тайтлы, отмеченные при знакомстве (Onboarding).
+  const fromList = pickSeeds(list, history)
   const seeds = fromList.length ? fromList : taste.liked.slice(0, MAX_SEEDS).map((t) => ({ ...t, weight: 2 }))
-  const key = seeds.map((s) => `${s.id}:${s.weight}`).join(',')
+  // Любимые жанры из знакомства поднимают похожие тайтлы этих жанров повыше.
+  const genres = taste.genres.map((id) => GENRES.find((g) => g.id === id)?.name).filter((g): g is string => !!g)
+  const key = seeds.map((s) => `${s.id}:${s.weight}`).join(',') + '|' + genres.join(',')
   const hidden = useNotInterested()
-  const inList = new Set(list.map((e) => e.anime.id))
+  // Уже начатое (в списке или в истории) не советуем: оно и так в «Продолжить просмотр».
+  const seen = new Set([...list.map((e) => e.anime.id), ...history.map((h) => h.animeId)])
   // Берём с запасом и скрываем уже на экране: «Не интересно» сразу заменяется следующим тайтлом,
   // а «Вернуть» показывает скрытое обратно, без нового запроса.
-  const recs = useAsync(() => loadRecommendations(seeds, inList, SHOWN + 12), [key])
+  const recs = useAsync(() => loadRecommendations(seeds, seen, SHOWN + 12, genres), [key])
   const items = recs.value?.items.filter((r) => !hidden[r.anime.id]).slice(0, SHOWN) ?? []
 
   if (!seeds.length) return null
@@ -52,7 +71,7 @@ export default function Recommendations() {
         <h2>Вам понравится</h2>
       </div>
       <p className="muted section-note">
-        {fromList.length ? 'Подобрали по тому, что вы высоко оценили и смотрите' : 'Подобрали по тому, что вы отметили'}: {titles.join(', ')}
+        {fromList.length ? 'Подобрали по тому, что вы смотрите и высоко оценили' : 'Подобрали по тому, что вы отметили'}: {titles.join(', ')}
         {used.length > 3 ? ' и другим' : ''}.
         {Object.keys(hidden).length > 0 && (
           <>
