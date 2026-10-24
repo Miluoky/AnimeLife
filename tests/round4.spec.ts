@@ -38,6 +38,20 @@ test('«Не интересно»: тайтл пропадает из реком
   await expect(recs.locator('.rec-card')).toHaveCount(animes.length)
 })
 
+test('«Вам понравится» без списка: подбор по истории просмотра, начатое не советуем', async ({ page }) => {
+  await page.route(/shikimori\.(io|one)\/api\/animes\/\d+\/similar/, (route) => route.fulfill({ json: animes }))
+  const started = animes[0]
+  await page.addInitScript((history) => localStorage.setItem('anime.history.v1', JSON.stringify(history)), [
+    { animeId: '1', title: 'Ковбой Бибоп', posterFill: '#333', episode: 4, totalEpisodes: 26, updatedAt: 2 },
+    { animeId: String(started.id), title: started.russian || started.name, posterFill: '#333', episode: 1, totalEpisodes: 12, updatedAt: 1 },
+  ])
+  await page.goto('/')
+  const recs = page.locator('section', { has: page.getByRole('heading', { name: 'Вам понравится' }) })
+  await expect(recs.getByText(/Подобрали по тому, что вы смотрите/)).toContainText('«Ковбой Бибоп»')
+  // Тайтл из истории уже в «Продолжить просмотр»: в советах его нет.
+  await expect(recs.locator('.rec-card')).toHaveCount(animes.length - 1)
+})
+
 test('«Моя запись»: заметка, пересмотры и даты сохраняются, дата начала ставится сама', async ({ page }) => {
   await seedList(page, [])
   await page.goto('/anime/1')
