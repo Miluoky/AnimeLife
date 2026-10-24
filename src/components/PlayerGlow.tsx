@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
 import { loadScreenshots } from '../api'
 import { shotPreview } from '../api/shikimori'
 import { onPlayerTime } from '../data/playerTime'
 import { useAppearance } from '../data/theme'
+import { toast } from '../data/toast'
+import { SparkIcon } from './Icons'
 
 /**
  * Подсветка вокруг плеера, как Ambient Mode на YouTube: за экраном размытое свечение в цветах того,
@@ -13,6 +15,8 @@ import { useAppearance } from '../data/theme'
  * показываем, так что CORS не нужен.
  * Kodik и другие плееры в iframe кадр не отдают. Тогда свет идёт от кадров тайтла с Shikimori: они медленно
  * сменяют друг друга по ходу серии (по времени Kodik, на паузе стоят), а до них — от постера.
+ * Настоящий кадр Kodik на компьютере (Chrome, Edge): кнопка «Свет из кадра» просит показать эту вкладку
+ * (getDisplayMedia), захват обрезается до экрана плеера (Region Capture, cropTo) и идёт 2 кадра в секунду.
  *
  * Выключается в «Оформлении», в экономии трафика и на слабых телефонах (data-lite), в мини-плеере.
  * При «Без анимаций» и prefers-reduced-motion свет неподвижный: только постер.
@@ -25,12 +29,86 @@ const SHOT_SECONDS = 25
 const still = () => document.documentElement.dataset.calm === '1' || matchMedia('(prefers-reduced-motion: reduce)').matches
 const lite = () => document.documentElement.dataset.lite === '1'
 
+/* ─── Свет из кадра iframe: захват своей вкладки, обрезанный до экрана плеера ─── */
+let capture: MediaStream | null = null
+const capListeners = new Set<() => void>()
+const setCapture = (stream: MediaStream | null) => {
+  capture = stream
+  capListeners.forEach((l) => l())
+}
+const stopCapture = () => {
+  capture?.getTracks().forEach((t) => t.stop())
+  setCapture(null)
+}
+const useCapture = () =>
+  useSyncExternalStore(
+    (l) => {
+      capListeners.add(l)
+      return () => capListeners.delete(l)
+    },
+    () => capture,
+  )
+
+type Cropped = MediaStreamTrack & { cropTo?: (target: unknown) => Promise<void> }
+const cropTargets = () => (window as unknown as { CropTarget?: { fromElement(el: Element): Promise<unknown> } }).CropTarget
+/** Chrome и Edge на компьютере: захват вкладки с обрезкой до элемента. На телефонах его нет. */
+export const canCaptureFrame = () =>
+  typeof window !== 'undefined' && !!cropTargets() && !!navigator.mediaDevices?.getDisplayMedia && !matchMedia('(pointer: coarse)').matches
+
+async function startCapture(frame: Element) {
+  let stream: MediaStream | undefined
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 2 },
+      audio: false,
+      preferCurrentTab: true,
+      selfBrowserSurface: 'include',
+      surfaceSwitching: 'exclude',
+      monitorTypeSurfaces: 'exclude',
+    } as DisplayMediaStreamOptions)
+    const track = stream.getVideoTracks()[0] as Cropped
+    // cropTo работает только для этой же вкладки: другая вкладка или экран дадут ошибку.
+    await track.cropTo!(await cropTargets()!.fromElement(frame))
+    track.addEventListener('ended', () => capture === stream && setCapture(null))
+    setCapture(stream)
+  } catch (e) {
+    stream?.getTracks().forEach((t) => t.stop())
+    if ((e as Error).name !== 'NotAllowedError') toast('Не получилось: в окне выбора нужна именно эта вкладка')
+  }
+}
+
+/** Кнопка «Свет из кадра» у плееров в iframe: включает и выключает захват. */
+export function GlowCaptureButton({ slot }: { slot: RefObject<HTMLElement | null> }) {
+  const { glow = true, calm } = useAppearance()
+  const active = useCapture()
+  if (!canCaptureFrame() || !glow || calm || lite() || still()) return null
+  return (
+    <button
+      type="button"
+      className="btn btn--ghost watch-glow"
+      aria-pressed={!!active}
+      title={active ? 'Выключить свет из кадра' : 'Свет из кадра: подсветка вокруг видео в цветах того, что сейчас на экране. Браузер спросит разрешение показать эту вкладку'}
+      onClick={() => {
+        const frame = slot.current?.querySelector('.player-frame')
+        if (active) stopCapture()
+        else if (frame) startCapture(frame)
+      }}
+    >
+      <SparkIcon />
+      <span className="sr-only">Свет из кадра</span>
+    </button>
+  )
+}
+
 export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<HTMLElement | null>; poster?: string; animeId: string }) {
   const { glow = true, calm } = useAppearance()
   const on = glow && !lite()
   const moving = on && !calm && !still()
   const canvas = useRef<HTMLCanvasElement>(null)
   const [live, setLive] = useState(false)
+  const captured = useCapture()
+  // Ушли со страницы просмотра: захват вкладки больше не нужен.
+  useEffect(() => stopCapture, [])
   const [shots, setShots] = useState<string[]>([])
   // Новый кадр проявляется поверх прежнего, прежний остаётся под ним.
   const [[under, shot], setPair] = useState<[string?, string?]>([])
@@ -42,8 +120,15 @@ export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<
     const ctx = c?.getContext('2d', { alpha: false })
     if (!moving || !ctx) return
     let shown = false
+    let grabbed: HTMLVideoElement | undefined
+    if (captured) {
+      grabbed = document.createElement('video')
+      grabbed.muted = true
+      grabbed.srcObject = captured
+      grabbed.play().catch(() => {})
+    }
     const tick = () => {
-      const video = slot.current?.querySelector<HTMLVideoElement>('video.player-video:not([hidden])')
+      const video = grabbed ?? slot.current?.querySelector<HTMLVideoElement>('video.player-video:not([hidden])')
       const ok = !!video && video.readyState >= 2 && !document.hidden && !document.fullscreenElement && !slot.current?.classList.contains('video-slot--mini')
       if (ok && (!video.paused || !shown)) {
         try {
@@ -61,8 +146,9 @@ export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<
     return () => {
       clearInterval(t)
       setLive(false)
+      if (grabbed) grabbed.srcObject = null
     }
-  }, [moving, slot])
+  }, [moving, slot, captured])
 
   // Плеер в iframe: кадры тайтла, по одному на SHOT_SECONDS серии. Легкие копии (x332), грузим заранее.
   useEffect(() => {
