@@ -148,13 +148,17 @@ self.addEventListener('push', (event) => {
     data = { body: event.data && event.data.text() }
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Anime Life', {
-      body: data.body || '',
-      icon: new URL('icon-192.png', scope).toString(),
-      badge: new URL('icon-192.png', scope).toString(),
-      tag: data.tag,
-      data: { url: data.url || scope.toString() },
-    }),
+    Promise.all([
+      self.registration.showNotification(data.title || 'Anime Life', {
+        body: data.body || '',
+        icon: new URL('icon-192.png', scope).toString(),
+        badge: new URL('icon-192.png', scope).toString(),
+        tag: data.tag,
+        data: { url: data.url || scope.toString() },
+      }),
+      // Точку на значке приложения: точное число поставит сайт, когда его откроют (BottomNav).
+      self.navigator.setAppBadge ? self.navigator.setAppBadge().catch(() => {}) : undefined,
+    ]),
   )
 })
 
