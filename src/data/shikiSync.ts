@@ -30,6 +30,31 @@ export async function connectShikimori(code: string) {
   return r.nickname
 }
 
+/** Связь хранится на сервере: на новом устройстве после входа восстанавливаем её из shiki-status. */
+export async function restoreLink() {
+  if (shikiLinkStore.get()) return
+  const r = await callCommunity<{ connected: boolean; nickname?: string }>({ action: 'shiki-status' })
+  if (r.connected && r.nickname) {
+    shikiLinkStore.set({ nickname: r.nickname, at: Date.now() })
+    autoSync()
+  }
+}
+
+// Пока забираем список с Shikimori, автоотправка молчит: иначе те же тайтлы ушли бы обратно.
+let pulling = false
+
+/** Забрать список с Shikimori по нику связанного аккаунта (как импорт в «Моём списке»). */
+export async function pullAll() {
+  const link = shikiLinkStore.get()
+  if (!link) throw new Error('Shikimori не подключён')
+  pulling = true
+  try {
+    return await (await import('./listImport')).importFromShikimori(link.nickname)
+  } finally {
+    pulling = false
+  }
+}
+
 export async function disconnectShikimori() {
   await callCommunity({ action: 'shiki-disconnect' })
   shikiLinkStore.set(null)
@@ -62,7 +87,7 @@ export function autoSync() {
   listStore.subscribe(() => {
     if (!shikiLinkStore.get()) return
     const now = listStore.get()
-    for (const e of now) if (prev.get(e.anime.id) !== key(e)) pending.set(e.anime.id, toItem(e))
+    if (!pulling) for (const e of now) if (prev.get(e.anime.id) !== key(e)) pending.set(e.anime.id, toItem(e))
     prev = new Map(now.map((e) => [e.anime.id, key(e)]))
     if (!pending.size) return
     clearTimeout(timer)

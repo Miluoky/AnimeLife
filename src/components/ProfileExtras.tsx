@@ -7,7 +7,7 @@ import { listStore, useMyList, type ListEntry } from '../data/myList'
 import { STATUS_ORDER, type ProfileSummary } from '../data/profile'
 import { COVERS, FRAMES, profileStyleStore } from '../data/profileStyle'
 import { follow, followCounts, isFollowing, unfollow } from '../data/social'
-import { SHIKI_CLIENT_ID, disconnectShikimori, pushAll, shikiAuthorizeUrl, shikiLinkStore } from '../data/shikiSync'
+import { SHIKI_CLIENT_ID, disconnectShikimori, pullAll, pushAll, restoreLink, shikiAuthorizeUrl, shikiLinkStore } from '../data/shikiSync'
 import { toast } from '../data/toast'
 import { unlocked } from '../data/achievements'
 import { INVITE_CAP, XP, levelOf, totalXp } from '../data/xp'
@@ -188,8 +188,24 @@ export function ProfileStyleEditor() {
 /** Связь списка с Shikimori: вход через OAuth, автоотправка изменений и «Отправить весь список». */
 export function ShikimoriSync() {
   const link = shikiLinkStore.use()
+  const { user } = useAuth()
   const [busy, setBusy] = useState('')
+  useEffect(() => {
+    if (user && !link) restoreLink().catch(() => undefined)
+  }, [user, link])
   if (!SHIKI_CLIENT_ID && !link) return null
+
+  const takeAll = async () => {
+    setBusy('Забираем…')
+    try {
+      const r = await pullAll()
+      toast(`С Shikimori пришло ${r.total}: новых ${r.added}, у остальных обновлён прогресс`)
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Не получилось')
+    } finally {
+      setBusy('')
+    }
+  }
 
   const sendAll = async () => {
     setBusy('Отправляем…')
@@ -209,11 +225,14 @@ export function ShikimoriSync() {
       {link ? (
         <>
           <p className="muted">
-            Список связан с аккаунтом <b>{link.nickname}</b>: статусы, серии и оценки уходят на Shikimori сами. Забрать список оттуда можно импортом по нику в «Моём списке».
+            Список связан с аккаунтом <b>{link.nickname}</b>: статусы, серии и оценки уходят на Shikimori сами. Список с Shikimori можно забрать сюда одной кнопкой.
           </p>
           <div className="actions">
             <button type="button" className="btn btn--accent btn--small" disabled={!!busy || !listStore.get().length} onClick={sendAll}>
               {busy || 'Отправить весь список'}
+            </button>
+            <button type="button" className="btn btn--ghost btn--small" disabled={!!busy} onClick={takeAll}>
+              Забрать с Shikimori
             </button>
             <button
               type="button"
