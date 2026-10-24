@@ -27,6 +27,9 @@ export default function FooterLinks() {
         <Link to="/community">Сообщество и клубы</Link>
         <Link to="/recap">Итоги года</Link>
         <Link to="/changelog">Что нового</Link>
+        <Link to="/en" hrefLang="en" lang="en">
+          English
+        </Link>
         {GENRES.slice(0, 12).map((g) => (
           <Link key={g.slug} to={`/genre/${g.slug}`}>
             {g.name}
