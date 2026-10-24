@@ -67,3 +67,9 @@
     max-width: 200px;
   }
 }
+.en-title .stack {
+  gap: 10px;
+}
+.en-title p {
+  margin: 0;
+}
