@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: ['claude/**']
-    paths: ['scripts/appwrite-status.mjs', '.github/workflows/appwrite-status.yml']
+    paths: ['scripts/appwrite-status.mjs', 'scripts/shiki-key-check.mjs', '.github/workflows/appwrite-status.yml']
 
 permissions:
   contents: read
@@ -21,3 +21,10 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/appwrite-status.mjs
+      # Ключи Shikimori: верен ли секрет, без входа на сайт.
+      - name: Ключи Shikimori
+        if: always()
+        env:
+          SHIKIMORI_CLIENT_ID: ${{ vars.SHIKIMORI_CLIENT_ID || 'UYiG8nr9OhwMD8EypNgxTjYTiAxJ5gXuWZcokFkR_j4' }}
+          SHIKIMORI_CLIENT_SECRET: ${{ secrets.SHIKIMORI_CLIENT_SECRET }}
+        run: node scripts/shiki-key-check.mjs
