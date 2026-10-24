@@ -413,6 +413,20 @@
   place-items: center;
   background: #05060a;
 }
+.vp-spinner--over {
+  background: rgba(5, 6, 10, 0.35);
+}
+
+/* Смена серии, озвучки или плеера: прежний Kodik стоит на паузе, пока новый не загрузится, и тот проявляется поверх. */
+.player-frame .player-iframe {
+  transition: opacity 0.35s ease;
+}
+.player-frame .player-iframe--old {
+  pointer-events: none;
+}
+.player-frame .player-iframe--wait {
+  opacity: 0;
+}
 
 .vp-spinner__ring,
 .vp-loader {

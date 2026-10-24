@@ -15,7 +15,7 @@
  */
 
 import { rememberQuality, startQuality } from '../data/saver'
-import { useState, useEffect, useRef, useCallback, lazy, Suspense, type CSSProperties, type RefObject } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense, type CSSProperties, type RefObject } from 'react'
 import {
   findRelease,
   episodeStream,
@@ -32,7 +32,7 @@ import { FullscreenIcon } from './Icons'
 import PlayerControls, { AutoNext, autoNextStore, enhanceStore, formatTime } from './PlayerControls'
 import { toast } from '../data/toast'
 import { getPosition, savePosition } from '../data/positions'
-import { emitPlayerTime } from '../data/playerTime'
+import { emitPlayerTime, playerTime } from '../data/playerTime'
 import { useMediaSession } from './mediaSession'
 import './player.css'
 import {
@@ -191,12 +191,23 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // Видео с чужого сервера для фильтра «Чётче» надо загрузить заново с crossOrigin: счётчик перезапускает поток.
   const [corsReload, setCorsReload] = useState(0)
 
-  // Сброс загрузки при смене провайдера.
+  // Сброс загрузки при смене источника или серии: страница плеера при этом не пересоздаётся.
   useEffect(() => {
     setLoading(true)
     setError(null)
     setFrameAttempt(0)
-  }, [provider, kodikLink, anixart?.type, embed?.url])
+  }, [provider, kodikLink, anixart?.type, embed?.url, shikimoriId, episode])
+
+  // Озвучку или плеер сменили посреди серии: новый источник начинает с того же места, а не с начала.
+  // Считаем при отрисовке, а не в эффекте: адрес iframe с этим временем должен уйти сразу, без второй загрузки.
+  const sourceKey = `${provider}|${kodikLink}|${anixart?.type}|${embed?.url}`
+  const episodeKey = `${shikimoriId}|${episode}`
+  const carry = useRef({ source: sourceKey, episode: episodeKey, at: 0, user: false })
+  if (carry.current.source !== sourceKey || carry.current.episode !== episodeKey) {
+    const sameEpisode = carry.current.episode === episodeKey
+    // user: смену сделал зритель (или автопереход), значит новый плеер можно сразу запустить.
+    carry.current = { source: sourceKey, episode: episodeKey, at: sameEpisode ? playerTime() : 0, user: true }
+  }
 
   useEffect(() => {
     if (!loading || provider === 'anilibria' || provider === 'animevost') return
@@ -320,6 +331,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     const onLoaded = () => {
       setLoading(false)
       if (resumeAt.current) video.currentTime = resumeAt.current
+      else if (carry.current.at) video.currentTime = carry.current.at
       else resumeRef.current((t) => (video.currentTime = t))
     }
     const onError = () => setStreamError(PLAY_ERROR)
@@ -461,8 +473,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     let last = 0
     let started = false
     const onMessage = (e: MessageEvent) => {
-      const frame = frameRef.current?.querySelector('iframe')
-      if (!frame || e.source !== frame.contentWindow) return
+      const frame = frameRef.current?.querySelector('iframe:not(.player-iframe--old)')
+      if (!(frame instanceof HTMLIFrameElement) || e.source !== frame.contentWindow) return
       const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
       if (typeof key !== 'string' || !key.startsWith('kodik_player_')) return
       const seconds = typeof value === 'number' ? value : Number((value as { time?: unknown } | null)?.time)
@@ -476,7 +488,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         started = true
         const source = e.source as Window
         const origin = e.origin
-        resumeRef.current((t) => source.postMessage({ key: 'kodik_player_api', value: { method: 'seek', seconds: t } }, origin))
+        // Время уже передали в адресе (start_from): перематывать на сохранённое место не нужно.
+        if (!carry.current.at) resumeRef.current((t) => source.postMessage({ key: 'kodik_player_api', value: { method: 'seek', seconds: t } }, origin))
       }
       if (key === 'kodik_player_video_ended') {
         savePosition(positionKey, episode, duration || Infinity, duration)
@@ -488,88 +501,98 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     return () => window.removeEventListener('message', onMessage)
   }, [provider, positionKey, episode, kodikLink, anixart?.type, embed?.url])
 
+  /* ─── Плееры в iframe (Kodik, Alloha, Anixart, YummyAnime): один слот на все ─── */
+
+  const frameSrc = (): string | null => {
+    if (provider === 'kodik') {
+      return kodikLink ? kodikTranslationUrl(kodikLink, episode, props.kodikSkips?.spans) : kodikEmbedUrl({ shikimoriId, kinopoiskId, imdbId, title, episode })
+    }
+    if (provider === 'alloha') return allohaEmbedUrl({ kinopoiskId, imdbId, episode })
+    // Anixart и YummyAnime отдают плееры Kodik: переводим их на рабочий домен, как и свои; остальные адреса не меняются.
+    if (provider === 'anixart') {
+      const found = axEpisodes?.get(episode)
+      return found ? kodikHost(found) : null
+    }
+    if (provider === 'embed') return embed?.url ? kodikHost(embed.url) : null
+    return null
+  }
+  const frameTitle =
+    provider === 'anixart'
+      ? `${anixart?.title ?? 'Anixart'}: ${title}`
+      : provider === 'embed'
+        ? `${embed?.voice}, плеер ${embed?.player}: ${title}`
+        : `${provider === 'alloha' ? 'Alloha' : 'Kodik'}: ${title}`
+  const rawSrc = frameSrc()
+  const src0 = rawSrc && carry.current.at ? withStart(rawSrc, carry.current.at) : rawSrc
+  const frame: ShownFrame | null = src0 ? { src: src0, title: frameTitle, key: `${src0}:${frameAttempt}` } : null
+
+  // Пока новый плеер грузится, прежний Kodik остаётся на экране на паузе и потом плавно уступает место:
+  // смена озвучки, плеера или серии без чёрного экрана. Чужие плееры поставить на паузу нельзя (звук
+  // играл бы поверх), их убираем сразу. Решаем при отрисовке: старый iframe должен остаться тем же
+  // элементом, иначе он перезагрузится.
+  const lastFrame = useRef<ShownFrame | null>(null)
+  const held = useRef<ShownFrame | null>(null)
+  const [, dropHeld] = useState(0)
+  if (frame?.key !== lastFrame.current?.key) {
+    // Адрес новой озвучки бывает не готов сразу (серии Anixart ещё грузятся): прежний ждёт и этот промежуток.
+    const prev = lastFrame.current ?? held.current
+    held.current = prev && prev.src !== frame?.src && isKodik(prev.src) ? prev : null
+    lastFrame.current = frame
+  }
+  const hold = held.current
+  useLayoutEffect(() => {
+    if (!hold) return
+    const old = frameRef.current?.querySelector<HTMLIFrameElement>('iframe.player-iframe--old')
+    old?.contentWindow?.postMessage({ key: 'kodik_player_api', value: { method: 'pause' } }, '*')
+    // Новый так и не загрузился — прежний всё равно убираем, а под ним уже спиннер.
+    const timer = window.setTimeout(release, 6000)
+    return () => window.clearTimeout(timer)
+  }, [hold?.key])
+  // Вместо iframe включилось своё видео (AniLibria, AnimeVost): прежний убираем, когда поток готов.
+  useEffect(() => {
+    if (!loading && !frame) release()
+  }, [loading, !frame])
+  function release() {
+    if (!held.current) return
+    held.current = null
+    dropHeld((n) => n + 1)
+  }
+
   /* ─── Хелпер: iframe загрузился ─── */
-  const onIframeLoad = useCallback(() => {
+  const onIframeLoad = useCallback((e: { currentTarget: HTMLIFrameElement }) => {
     setLoading(false)
     setError(null)
+    // Новый плеер показался — даём ему проявиться поверх прежнего и убираем прежний.
+    window.setTimeout(release, 400)
+    // Зритель сам сменил серию или озвучку: запускаем Kodik, не заставляя жать «play» ещё раз.
+    // Kodik на «play» до загрузки сам подгружает видео; браузер пускает звук, раз клик был на этой странице.
+    const target = e.currentTarget.contentWindow
+    if (carry.current.user && target) {
+      for (const delay of [0, 1200]) {
+        window.setTimeout(() => target.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*'), delay)
+      }
+    }
   }, [])
 
-  /* ─── Рендер провайдеров ─── */
-
-  function renderKodik() {
-    const src = kodikLink ? kodikTranslationUrl(kodikLink, episode, props.kodikSkips?.spans) : kodikEmbedUrl({
-      shikimoriId,
-      kinopoiskId,
-      imdbId,
-      title,
-      episode,
-    })
-    if (!src) return null
-    return (
-      <iframe
-        key={`${src}:${frameAttempt}`}
-        className="player-iframe"
-        src={src}
-        title={`Kodik: ${title}`}
-        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-        allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
-        onLoad={onIframeLoad}
-      />
-    )
-  }
-
-  function renderAlloha() {
-    const src = allohaEmbedUrl({ kinopoiskId, imdbId, episode })
-    if (!src) return null
-    return (
-      <iframe
-        key={`${src}:${frameAttempt}`}
-        className="player-iframe"
-        src={src}
-        title={`Alloha: ${title}`}
-        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-        allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
-        onLoad={onIframeLoad}
-      />
-    )
-  }
-
-  function renderAnixart() {
-    // Anixart отдаёт плееры Kodik: переводим их на рабочий домен, как и свои.
-    const found = axEpisodes?.get(episode)
-    if (!found) return null
-    const src = kodikHost(found)
-    return (
-      <iframe
-        key={`${src}:${frameAttempt}`}
-        className="player-iframe"
-        src={src}
-        title={`${anixart?.title ?? 'Anixart'}: ${title}`}
-        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-        allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
-        onLoad={onIframeLoad}
-      />
-    )
-  }
-
-  function renderEmbed() {
-    if (!embed?.url) return null
-    // Плееры Kodik из YummyAnime тоже открываем на рабочем домене Kodik; остальные адреса не меняются.
-    const src = kodikHost(embed.url)
-    return (
-      <iframe
-        key={`${src}:${frameAttempt}`}
-        className="player-iframe"
-        src={src}
-        title={`${embed.voice}, плеер ${embed.player}: ${title}`}
-        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-        allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
-        onLoad={onIframeLoad}
-      />
+  function renderFrames() {
+    // Новый источник серию показать не может — на экране его пояснение, а не прежний плеер.
+    const old = unavailable ? null : hold
+    return [old, frame].map(
+      (f) =>
+        f && (
+          <iframe
+            key={f.key}
+            className={`player-iframe${f === old ? ' player-iframe--old' : old && loading ? ' player-iframe--wait' : ''}`}
+            src={f.src}
+            title={f.title}
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            tabIndex={f === old ? -1 : undefined}
+            aria-hidden={f === old || undefined}
+            onLoad={f === old ? undefined : onIframeLoad}
+          />
+        ),
     )
   }
 
@@ -677,12 +700,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
       {/* Контейнер плеера 16:9 */}
       <div className="player-frame" ref={frameRef}>
-        {loading && !unavailable && <Spinner />}
+        {loading && !unavailable && <Spinner over={!!hold} />}
 
-        {provider === 'kodik' && renderKodik()}
-        {provider === 'alloha' && renderAlloha()}
-        {provider === 'anixart' && renderAnixart()}
-        {provider === 'embed' && renderEmbed()}
+        {renderFrames()}
         {provider === 'embed' && embed?.player === 'Aksor' && !unavailable && <AksorFullscreen frame={frameRef} />}
         {(provider === 'anilibria' || provider === 'animevost') && renderOwn()}
         {stream && !unavailable && (
@@ -767,9 +787,33 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
 /* ──────────────── Вспомогательные компоненты ──────────────── */
 
-function Spinner() {
+interface ShownFrame {
+  src: string
+  title: string
+  key: string
+}
+
+/** Плеер Kodik (свой или из Anixart и YummyAnime): он понимает команды через postMessage и параметр start_from. */
+function isKodik(src: string) {
+  try {
+    return /kodik/i.test(new URL(src).hostname)
+  } catch {
+    return false
+  }
+}
+
+/** Kodik начнёт серию с этой секунды. У других плееров такого параметра нет. */
+function withStart(src: string, seconds: number) {
+  if (seconds < 3 || !isKodik(src)) return src
+  const url = new URL(src)
+  url.searchParams.set('start_from', String(Math.floor(seconds)))
+  return url.toString()
+}
+
+/** over — под спиннером виден прежний плеер на паузе: фон полупрозрачный. */
+function Spinner({ over }: { over?: boolean }) {
   return (
-    <div className="vp-spinner" aria-label="Загрузка…">
+    <div className={`vp-spinner${over ? ' vp-spinner--over' : ''}`} aria-label="Загрузка…">
       <div className="vp-spinner__ring" />
     </div>
   )

@@ -25,6 +25,7 @@ import { usePageMeta } from '../data/pageMeta'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
+import { calm } from '../components/morph'
 import VoiceLogo from '../components/VoiceLogo'
 import PlayerGlow, { GlowCaptureButton } from '../components/PlayerGlow'
 import NextEpisode from '../components/NextEpisode'
@@ -174,6 +175,15 @@ export default function Player() {
 
   const [lightsOff, setLightsOff] = useLightsOff()
   const miniPlayer = useMiniPlayer(!!anime && !isScheduled && !lightsOff)
+  // Другая серия открывается на этой же странице. Видео ушло вверх наполовину — плавно подводим к нему;
+  // в мини-плеере новая серия просто играет в углу.
+  const shownEpisode = useRef(current)
+  useEffect(() => {
+    if (shownEpisode.current === current) return
+    shownEpisode.current = current
+    const top = miniPlayer.slot.current?.getBoundingClientRect().top ?? 0
+    if (!miniPlayer.mini && top < 0) window.scrollBy({ top: top - 80, behavior: calm() ? 'auto' : 'smooth' })
+  }, [current])
 
   usePageMeta(
     anime && watchPageTitle(animeInfo(anime), current),
@@ -451,6 +461,9 @@ function EpisodePicker({
   const shown = q
     ? Array.from({ length: total }, (_, i) => i + 1).filter((n) => String(n).startsWith(q) || names[n]?.toLowerCase().includes(q))
     : Array.from({ length: to - from + 1 }, (_, i) => from + i)
+
+  // Серию сменили кнопкой или из плеера: открываем её сотню.
+  useEffect(() => setRange(Math.floor((current - 1) / RANGE)), [current])
 
   // Текущая серия сразу на виду: прокручиваем только саму полосу, не страницу.
   useEffect(() => {
