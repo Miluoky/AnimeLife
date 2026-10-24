@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { type CSSProperties, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { useAmbient } from '../components/ambient'
 import { loadAnime, useAsync } from '../api'
 import { episodeTotals, episodesLabel } from '../data/catalog'
@@ -26,6 +26,7 @@ import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../da
 import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
 import VoiceLogo from '../components/VoiceLogo'
+import PlayerGlow from '../components/PlayerGlow'
 import NextEpisode from '../components/NextEpisode'
 
 // «Пропускать филлеры»: кнопка и автопереход ведут сразу к следующей сюжетной серии.
@@ -217,7 +218,6 @@ export default function Player() {
   return (
     <main
       className={`container player-page${wide ? ' player-page--wide' : ''}${lightsOff ? ' player-page--dark' : ''}`}
-      style={(anime.posterSmall ?? anime.posterUrl) ? ({ '--poster': `url("${anime.posterSmall ?? anime.posterUrl}")` } as CSSProperties) : undefined}
     >
       {lightsOff && <div className="lights-curtain" aria-hidden="true" onClick={() => setLightsOff(false)} />}
       <div
@@ -225,6 +225,7 @@ export default function Player() {
         className={`video-slot${miniPlayer.mini ? ' video-slot--mini' : ''}`}
         style={miniPlayer.mini ? { minHeight: miniPlayer.height } : undefined}
       >
+      <PlayerGlow slot={miniPlayer.slot} poster={anime.posterSmall ?? anime.posterUrl} animeId={anime.id} />
       {miniPlayer.mini && (
         <button type="button" className="video-slot__close" aria-label="Закрыть мини-плеер" onClick={miniPlayer.close}>
           <CloseIcon size={16} />

@@ -1668,12 +1668,12 @@
   border-width: 0;
 }
 
-/* ─── «Кадр»: свет постера вокруг экрана, как подсветка стены за телевизором ─── */
+/* ─── Подсветка вокруг плеера (PlayerGlow.tsx): свет кадра или постера растекается за экраном,
+   как Ambient Mode на YouTube ─── */
 .video-slot {
   isolation: isolate;
 }
-.video-slot:not(.video-slot--mini)::before {
-  content: '';
+.vp-glow {
   position: absolute;
   z-index: -1;
   /* Размытие растекается за края само и не добавляет прокрутки, а растянутый слой добавил бы. */
@@ -1681,13 +1681,46 @@
   left: 0;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: var(--poster) center / cover;
-  filter: blur(60px) saturate(1.7);
-  opacity: 0.55;
+  filter: blur(80px) saturate(1.4);
+  opacity: 0.9;
   pointer-events: none;
 }
-:root[data-lite='1'] .video-slot::before {
+/* На компьютере свет чуть шире экрана: запас 6% меньше отступа страницы (40 px), прокрутки вбок нет. */
+@media (min-width: 641px) {
+  .vp-glow {
+    transform: scale(1.06, 1.12);
+  }
+}
+.vp-glow > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.vp-glow__img--in {
+  animation: vp-glow-in 2.5s ease both;
+}
+.vp-glow__live {
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.vp-glow__live--on {
+  opacity: 1;
+}
+@keyframes vp-glow-in {
+  from {
+    opacity: 0;
+  }
+}
+.video-slot--mini .vp-glow,
+:root[data-lite='1'] .vp-glow {
   display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vp-glow__img--in {
+    animation: none;
+  }
 }
 
 /* Своя кнопка поверх перепутанного значка Aksor: тёмное пятно прячет его значок, клик ловим всегда */
