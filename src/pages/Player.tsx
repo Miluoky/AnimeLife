@@ -7,7 +7,7 @@ import { saveProgress } from '../data/history'
 import { savePosition } from '../data/positions'
 import { logEpisode } from '../data/watchLog'
 import { playerTime } from '../data/playerTime'
-import { getEntry, setWatched, useMyList } from '../data/myList'
+import { getEntry, setListStatus, setWatched, useMyList } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import VideoPlayer, { type Provider } from '../components/VideoPlayer'
@@ -332,6 +332,30 @@ export default function Player() {
             <SkipIcon />
           </button>
         </div>
+        {/* Последняя вышедшая серия онгоинга: когда следующая и как о ней узнать — повод вернуться. */}
+        {anime.ongoing && anime.nextEpisodeAt && current >= total && (
+          <div className="watch-follow">
+            <NextEpisode at={anime.nextEpisodeAt} episode={total + 1} />
+            {list.find((e) => e.anime.id === anime.id)?.status === 'watching' ? (
+              <p className="muted watch-follow__text">Тайтл в «Смотрю»: новая серия появится там с отметкой, а в приложении — числом на значке.</p>
+            ) : (
+              <div className="watch-follow__text">
+                <p className="muted">Добавьте в «Смотрю» — покажем новую серию, как только она выйдет.</p>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => {
+                    const prev = getEntry(anime.id)?.status
+                    setListStatus(anime, 'watching')
+                    toast(`«${anime.title}» — в «Смотрю»`, { label: 'Отменить', onClick: () => setListStatus(anime, prev) })
+                  }}
+                >
+                  Следить за сериями
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="watch-side">

@@ -1702,3 +1702,24 @@
     opacity: 1;
   }
 }
+
+/* Последняя вышедшая серия онгоинга: таймер до следующей и «Следить за сериями». */
+.watch-follow {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.watch-follow__text {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  flex: 1 1 260px;
+  margin: 0;
+}
+
+.watch-follow__text p {
+  margin: 0;
+}
