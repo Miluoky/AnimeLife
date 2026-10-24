@@ -33,6 +33,7 @@ import PlayerControls, { AutoNext, autoNextStore, enhanceStore, formatTime } fro
 import { toast } from '../data/toast'
 import { getPosition, savePosition } from '../data/positions'
 import { emitPlayerTime } from '../data/playerTime'
+import { useMediaSession } from './mediaSession'
 import './player.css'
 import {
   kodikEmbedUrl,
@@ -64,6 +65,8 @@ export interface VideoPlayerProps {
   kinopoiskId?: string
   /** IMDb ID — для Kodik и Alloha. */
   imdbId?: string
+  /** Постер тайтла: картинка на экране блокировки. */
+  poster?: string
   /** Текущий номер серии (1-indexed). */
   episode: number
   /** Общее количество серий. */
@@ -637,6 +640,13 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const ownEpisodes = provider === 'animevost' ? avEpisodes : alRelease?.episodes
   const ownSkips = provider === 'anilibria' && alEp ? episodeSkips(alEp) : []
   const hasNext = !!onEpisodeChange && episode < totalEpisodes && !!ownEpisodes?.some((e) => e.ordinal === episode + 1)
+  useMediaSession(videoRef, !!stream && !unavailable, {
+    title,
+    episode,
+    poster: props.poster,
+    onNext: hasNext ? () => onEpisodeChange?.(episode + 1) : undefined,
+    onPrev: onEpisodeChange && episode > 1 && ownEpisodes?.some((e) => e.ordinal === episode - 1) ? () => onEpisodeChange(episode - 1) : undefined,
+  })
   const visibleTabs = tabs.filter((t) => t.available)
   const tabIndex = visibleTabs.findIndex((t) => t.id === provider)
 

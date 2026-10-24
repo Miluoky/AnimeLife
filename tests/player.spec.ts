@@ -784,3 +784,38 @@ test('плеер: по умолчанию популярная озвучка, �
   // Над списком серий оба числа: сколько вышло по Shikimori и сколько есть у источников.
   await expect(page.locator('.episodes__head', { hasText: 'Серии' })).toContainText('26 серий · 26 доступно')
 })
+
+test('плеер: серия на экране блокировки — название, пауза и следующая серия из системы', async ({ page }) => {
+  await mockAniLibria(page, search)
+  await page.addInitScript(() => {
+    const original = HTMLMediaElement.prototype.canPlayType
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      return type === 'application/vnd.apple.mpegurl' ? 'maybe' : original.call(this, type)
+    }
+    // Запоминаем обработчики, которые сайт отдал системе, чтобы нажать их «как с экрана блокировки».
+    const handlers: Record<string, MediaSessionActionHandler | null> = {}
+    ;(window as unknown as { msHandlers: typeof handlers }).msHandlers = handlers
+    const set = navigator.mediaSession.setActionHandler.bind(navigator.mediaSession)
+    navigator.mediaSession.setActionHandler = (action, handler) => {
+      handlers[action] = handler
+      set(action, handler)
+    }
+  })
+  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
+  await page.route(/cache\.libria\.fun\/.*\.m3u8/, (route) => route.fulfill({ contentType: 'video/webm', body: clip }))
+  await page.goto('/watch/1/1')
+
+  const video = page.locator('video.player-video')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
+  await expect.poll(() => page.evaluate(() => navigator.mediaSession.metadata?.title)).toBe('1 серия')
+  expect(await page.evaluate(() => navigator.mediaSession.metadata?.album)).toBe('Anime Life')
+
+  const press = (action: string) =>
+    page.evaluate((a) => (window as unknown as { msHandlers: Record<string, ((d: object) => void) | null> }).msHandlers[a]?.({ action: a }), action)
+  await press('play')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(false)
+  await press('pause')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  await press('nexttrack')
+  await expect(page).toHaveURL(/\/watch\/1\/2$/)
+})
