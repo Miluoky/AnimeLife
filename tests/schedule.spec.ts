@@ -56,3 +56,13 @@ test('расписание: вышедшие сегодня свёрнуты, у
   await expect(chips).toHaveCount(2)
   await expect(chips.first()).toContainText('Сегодня')
 })
+
+test('расписание на телефоне 320 px: колонка дня по ширине экрана, без прокрутки вбок', async ({ page }) => {
+  const at = (h: number) => new Date(Date.now() + h * 3600_000).toISOString()
+  const calendar = animes.slice(0, 4).map((anime: unknown, i: number) => ({ next_episode: 3, next_episode_at: at(2 + i * 24), duration: 24, anime }))
+  await page.route(/\/api\/(shiki\/)?calendar/, (route) => route.fulfill({ json: calendar }))
+  await page.setViewportSize({ width: 320, height: 640 })
+  await page.goto('/schedule')
+  await expect(page.locator('.schedule-row')).toHaveCount(4)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+})

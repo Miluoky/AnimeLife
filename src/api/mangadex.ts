@@ -37,7 +37,17 @@ const langRank = (l: string) => {
   const i = Object.keys(LANGS).indexOf(l)
   return i === -1 ? 999 : i
 }
-export const langName = (l: string) => LANGS[l] ?? l.toUpperCase()
+// Редких языков нет в LANGS: название по-русски даёт сам браузер («румынский» → «Румынский»), код — только если не знает и он.
+const names = typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames(['ru'], { type: 'language', fallback: 'none' }) : undefined
+function browserName(l: string) {
+  try {
+    const name = names?.of(l)
+    return name ? name[0].toUpperCase() + name.slice(1) : undefined
+  } catch {
+    return undefined
+  }
+}
+export const langName = (l: string) => LANGS[l] ?? browserName(l) ?? l.toUpperCase()
 export const sortLangs = (langs: string[]) => [...new Set(langs)].sort((a, b) => langRank(a) - langRank(b))
 
 export interface MangadexTitle {
