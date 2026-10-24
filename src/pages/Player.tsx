@@ -71,10 +71,14 @@ export default function Player() {
     return { aniLibria: al === null ? 0 : al?.episodes.length, animeVost: av?.length ?? 0, anixart: ax }
   }, [anime?.id])
   // YummyAnime: те же студии в других плеерах (CVH, Alloha…) и студии, которых нет больше нигде. Плеер его не ждёт.
-  const yummy = useAsync(
-    () => (anime ? findYummy(anime.id, [anime.title, anime.originalTitle, anime.englishTitle]).catch(() => null) : Promise.resolve(null)),
-    [anime?.id],
-  )
+  // Ответ помечен id тайтла: пока он не про этот тайтл (ещё грузится или остался от прошлого), строка плееров ждёт его.
+  const yummy = useAsync(async () => {
+    if (!anime) return undefined
+    const found = await findYummy(anime.id, [anime.title, anime.originalTitle, anime.englishTitle]).catch(() => null)
+    return { id: anime.id, voices: found }
+  }, [anime?.id])
+  const yummyVoices = yummy.value?.id === anime?.id ? (yummy.value?.voices ?? null) : null
+  const yummyPending = !!anime && yummy.value?.id !== anime.id
   const voices = useMemo(
     () =>
       buildVoices(
@@ -82,9 +86,9 @@ export default function Player() {
         Object.keys(names).length || free.value?.aniLibria,
         free.value?.animeVost ?? 0,
         free.value?.anixart ?? null,
-        yummy.value ?? null,
+        yummyVoices,
       ),
-    [kodik.value, names, free.value, yummy.value],
+    [kodik.value, names, free.value, yummyVoices],
   )
   const available = Math.max(0, ...voices.map((v) => v.episodes ?? 0))
   // Источники могут знать больше серий, чем Shikimori, но меньше — не повод прятать вышедшие серии.
@@ -92,7 +96,7 @@ export default function Player() {
   const { total, next } = anime ? episodeTotals(anime, available) : { total: 1, next: 2 }
   // Своих источников нет: ждём YummyAnime, иначе сначала включится трейлер, а потом серия.
   const hasOwn = !!kodik.value?.length || !!free.value?.aniLibria || !!free.value?.animeVost || !!free.value?.anixart?.voices.length
-  const waitYummy = yummy.loading && !hasOwn
+  const waitYummy = yummyPending && !hasOwn
   // Филлеры размечены в Anixart: берём их из самой популярной озвучки, у всех студий номера одни.
   const axRelease = free.value?.anixart
   const fillers = useAsync(
@@ -270,7 +274,11 @@ export default function Player() {
       {/* Заголовок и кнопки идут сразу за видео: на телефоне они не уезжают под длинный список озвучек. */}
       <div className="watch-head">
         {/* Выбор плеера — отдельной строкой над заголовком, в той же ячейке сетки. */}
-        {hosts.length > 1 && <HostPicker hosts={hosts} current={host?.id} onChoose={chooseHost} />}
+        {/* Запасные плееры YummyAnime приходят через пару секунд: место под строку занято сразу,
+            иначе она появлялась над заголовком и сдвигала его и кнопки (CLS 0.1 на телефоне). */}
+        {(hosts.length > 1 || yummyPending) && (
+          <HostPicker hosts={hosts} current={host?.id} onChoose={chooseHost} searching={yummyPending} />
+        )}
         <div className="watch-head__info">
           {/* Название тайтла входит в заголовок: «Ван-Пис, серия 5» ищут именно так. */}
           <h1>
@@ -656,7 +664,7 @@ function saveHost(id: string) {
   }
 }
 
-function HostPicker({ hosts, current, onChoose }: { hosts: Host[]; current?: string; onChoose: (id: string) => void }) {
+function HostPicker({ hosts, current, onChoose, searching }: { hosts: Host[]; current?: string; onChoose: (id: string) => void; searching?: boolean }) {
   return (
     <div className="hosts" role="group" aria-labelledby="hosts-label">
       <span className="hosts__label" id="hosts-label">
@@ -669,7 +677,7 @@ function HostPicker({ hosts, current, onChoose }: { hosts: Host[]; current?: str
           </button>
         ))}
       </div>
-      <span className="hosts__hint">Не грузится или тормозит? Выберите другой плеер</span>
+      <span className="hosts__hint">{searching ? 'Ищем запасные плееры…' : 'Не грузится или тормозит? Выберите другой плеер'}</span>
     </div>
   )
 }
