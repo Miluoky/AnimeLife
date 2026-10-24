@@ -52,6 +52,7 @@ const rules: Rule[] = [
   { id: 'reviewer', icon: '✍️', title: 'Рецензент', hint: 'Написать отзыв', done: (_, g) => !!g.wroteReview },
   { id: 'talker', icon: '💬', title: 'Собеседник', hint: 'Обсудить серию', done: (_, g) => !!g.commented },
   { id: 'eye', icon: '🖼️', title: 'Глаз-алмаз', hint: 'Угадать 5 аниме по кадру подряд', done: (_, g) => !!g.quizStreak },
+  { id: 'friend', icon: '🤝', title: 'Душа компании', hint: 'Позвать друга по своей ссылке', done: (_, g) => !!g.invitedFriend },
   { id: 'mover', icon: '📦', title: 'Переезд', hint: 'Импортировать список с другого сайта', done: (_, g) => !!g.imported },
 ]
 

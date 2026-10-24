@@ -1,7 +1,8 @@
 import './profile-extras.css'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../data/auth'
+import { ShareIcon } from './Icons'
 import { listStore, useMyList, type ListEntry } from '../data/myList'
 import { STATUS_ORDER, type ProfileSummary } from '../data/profile'
 import { COVERS, FRAMES, profileStyleStore } from '../data/profileStyle'
@@ -9,7 +10,8 @@ import { follow, followCounts, isFollowing, unfollow } from '../data/social'
 import { SHIKI_CLIENT_ID, disconnectShikimori, pushAll, shikiAuthorizeUrl, shikiLinkStore } from '../data/shikiSync'
 import { toast } from '../data/toast'
 import { unlocked } from '../data/achievements'
-import { levelOf, totalXp } from '../data/xp'
+import { INVITE_CAP, XP, levelOf, totalXp } from '../data/xp'
+import { inviteStore } from '../data/inviteStore'
 import PosterCard from './PosterCard'
 
 /** Части профиля, которые появились вместе с сообществом: подписка, совпадение вкусов, оформление, Shikimori. */
@@ -237,6 +239,7 @@ export function ShikimoriSync() {
 
 export function LevelCard() {
   const list = useMyList()
+  useSyncExternalStore(inviteStore.subscribe, inviteStore.get)
   const xp = totalXp(list, unlocked(list).size)
   const l = levelOf(xp)
   return (
@@ -254,6 +257,59 @@ export function LevelCard() {
           <Link to="/recap" className="link-accent">Мои итоги года</Link>
         </span>
       </div>
+    </section>
+  )
+}
+
+/** «Позови друга»: своя ссылка, счётчик пришедших и опыт за них (functions/community/src/invites.js). */
+export function InviteCard() {
+  const { user } = useAuth()
+  const stats = useSyncExternalStore(inviteStore.subscribe, inviteStore.get)
+  const [link, setLink] = useState('')
+  useEffect(() => {
+    if (!user) return
+    void import('../data/invites').then((m) => {
+      setLink(m.inviteLink(user.$id))
+      m.loadInviteStats().catch(() => undefined)
+    })
+  }, [user])
+  if (!user) return null
+  const share = async () => {
+    if (!link) return
+    if (navigator.share) {
+      await navigator.share({ title: 'Смотрим аниме вместе на Anime Life', url: link }).catch(() => undefined)
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(link)
+      toast('Ссылка скопирована')
+    } catch {
+      toast('Не удалось скопировать ссылку')
+    }
+  }
+  return (
+    <section className="stack pf-invite" id="invite">
+      <h2>Позови друга</h2>
+      <p className="muted pf-note">
+        Друг заходит по вашей ссылке и заводит аккаунт: вам +{XP.invite} опыта и достижение «Душа компании», ему +{XP.invited} на старт.
+        Засчитываются новые аккаунты, опыт идёт за первых {INVITE_CAP} друзей.
+      </p>
+      <div className="pf-invite__row">
+        <input className="pf-invite__link" readOnly value={link} aria-label="Ваша ссылка-приглашение" onFocus={(e) => e.currentTarget.select()} />
+        <button type="button" className="btn btn--accent btn--small" onClick={share} disabled={!link}>
+          <ShareIcon size={16} />
+          Поделиться
+        </button>
+      </div>
+      <p className="pf-note">
+        {stats.invited > 0 ? (
+          <>
+            По вашей ссылке пришли: <b>{stats.invited}</b> · +{Math.min(stats.invited, INVITE_CAP) * XP.invite} опыта
+          </>
+        ) : (
+          <span className="muted">По вашей ссылке пока никто не пришёл.</span>
+        )}
+      </p>
     </section>
   )
 }

@@ -4,6 +4,7 @@ import { historyStore, type HistoryEntry } from './history'
 import { listStore, removedStore, type ListEntry } from './myList'
 import { flagsStore, mergeFlags, type Flag } from './flags'
 import { telegramOnStore } from './telegramFlag'
+import { inviteStore, pendingInvite } from './inviteStore'
 
 /**
  * Аккаунт и синхронизация. «Мой список» и история просмотра лежат в настройках пользователя
@@ -178,6 +179,8 @@ async function adopt(user: User) {
   applyingRemote = false
   setState({ checking: false, user })
   await push()
+  // Пришли по ссылке «Позови друга»: засчитываем приглашение после входа или регистрации.
+  if (pendingInvite()) void import('./invites').then((m) => m.claimInvite())
 }
 
 // Был ли зритель гостем в прошлый раз. Гостю при открытии страницы не грузим библиотеку Appwrite (~27 КБ)
@@ -313,6 +316,7 @@ export async function signOut() {
     rememberGuest(true)
     // Уведомления в Telegram привязаны к аккаунту: без входа колокольчик о них не знает.
     telegramOnStore.set(false)
+    inviteStore.set({ invited: 0, invitedBy: false })
     setState({ user: null, syncError: undefined })
   }
 }
@@ -331,6 +335,7 @@ export async function forgetDeletedAccount(accountDeleted: boolean) {
     remoteListLoaded = false
     rememberGuest(true)
     telegramOnStore.set(false)
+    inviteStore.set({ invited: 0, invitedBy: false })
     setState({ user: null, syncError: undefined })
   }
 }

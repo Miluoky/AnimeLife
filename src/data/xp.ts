@@ -1,14 +1,19 @@
 import type { ListEntry } from './myList'
 import type { LogEntry } from './watchLog'
+import { inviteStore, type InviteStats } from './inviteStore'
 
 /**
  * Опыт и уровни зрителя. Опыт считается по списку и достижениям, неделя — по журналу просмотра.
  * Сервер принимает число и только отсекает явную накрутку (functions/community/src/profile.js).
  */
-export const XP = { episode: 10, completed: 50, rating: 5, achievement: 100 }
+export const XP = { episode: 10, completed: 50, rating: 5, achievement: 100, invite: 200, invited: 50 }
 
-export function totalXp(list: ListEntry[], achievements: number) {
+/** За друзей по ссылке опыт идёт максимум за столько человек: дальше это уже не друзья, а реклама. */
+export const INVITE_CAP = 50
+
+export function totalXp(list: ListEntry[], achievements: number, invites: InviteStats = inviteStore.get()) {
   let xp = achievements * XP.achievement
+  xp += Math.min(invites.invited, INVITE_CAP) * XP.invite + (invites.invitedBy ? XP.invited : 0)
   for (const e of list) {
     xp += (e.watched ?? (e.status === 'completed' ? e.anime.episodes ?? 0 : 0)) * XP.episode
     if (e.status === 'completed') xp += XP.completed

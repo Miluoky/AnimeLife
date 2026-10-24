@@ -3,7 +3,7 @@ import { callCommunity } from './community'
 /** Уведомления колокольчика: пишет функция community (notifications.js), здесь только чтение. */
 export interface SiteNotification {
   $id: string
-  kind: 'reply' | 'review-like' | 'ucol-like' | 'follow'
+  kind: 'reply' | 'review-like' | 'ucol-like' | 'follow' | 'invite'
   actorId: string
   actorName: string
   text: string
@@ -27,5 +27,7 @@ export function notificationText(n: SiteNotification): string {
       return `${n.actorName} оценил(а) вашу подборку «${n.text}»`
     case 'follow':
       return `${n.actorName} подписался(-ась) на вас`
+    case 'invite':
+      return `${n.actorName} пришёл(-ла) по вашему приглашению: +200 опыта`
   }
 }
