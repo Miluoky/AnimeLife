@@ -1,0 +1,25 @@
+name: Состояние Cloudflare
+
+# Только читает: вызовы Worker animelife.top за последние сутки (лимит 100 000) и что отсеяли правила WAF.
+# Ничего не меняет. Ключи те же, что у публикации на animelife.top.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    paths: ['scripts/cloudflare-status.mjs', '.github/workflows/cloudflare-status.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_EMAIL: ${{ secrets.ANIMELIFE_CF_EMAIL }}
+      CLOUDFLARE_API_KEY: ${{ secrets.ANIMELIFE_CF_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/cloudflare-status.mjs

@@ -12,6 +12,8 @@ interface Topic {
   id: number
   topic_title: string
   html_body: string
+  /** Картинки и видео новости Shikimori теперь кладёт сюда, а не в html_body. */
+  html_footer?: string
   created_at: string
   comments_count: number
   linked_id?: number
@@ -21,9 +23,10 @@ interface Topic {
 
 const absolute = (src: string) => (src.startsWith('//') ? `https:${src}` : src.startsWith('/') ? `${SHIKIMORI_URL}${src}` : src)
 
-function parse(html: string) {
-  const image = html.match(/<img[^>]+src="([^"]+)"/)?.[1]
-  const youtube = html.match(/youtube\.com\/(?:embed\/|watch\?v=)([\w-]{11})|youtu\.be\/([\w-]{11})/)
+function parse(html: string, footer = '') {
+  const media = html + footer
+  const image = media.match(/<img[^>]+src="([^"]+)"/)?.[1]
+  const youtube = media.match(/youtube\.com\/(?:embed\/|watch\?v=)([\w-]{11})|youtu\.be\/([\w-]{11})/)
   const doc = new DOMParser().parseFromString(html.replace(/<br[^>]*>/g, '\n'), 'text/html')
   doc.querySelectorAll('.b-replies, .b-spoiler_marker, script, style').forEach((n) => n.remove())
   const text = (doc.body.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim()
@@ -57,11 +60,11 @@ export default function News() {
       {!topics.loading && topics.value === null && <div className="s-empty">Новости не загрузились. Попробуйте обновить страницу.</div>}
       <div className="news-list">
         {(topics.value ?? []).map((t) => {
-          const n = parse(t.html_body)
+          const n = parse(t.html_body, t.html_footer)
           const full = open.has(t.id)
           const anime = t.linked_type === 'Anime' && t.linked ? t.linked : undefined
           return (
-            <article key={t.id} className="news-item">
+            <article key={t.id} className={`news-item${n.image || n.youtube ? '' : ' news-item--text'}`}>
               {n.image ? (
                 <img className="news-item__img" src={n.image} alt="" loading="lazy" referrerPolicy="no-referrer" />
               ) : n.youtube ? (
