@@ -440,6 +440,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Новость без картинки: текст на всю ширину, а не в узкой колонке под картинку */
+.news-item--text {
+  grid-template-columns: minmax(0, 1fr);
+}
 @media (max-width: 640px) {
   .news-item {
     grid-template-columns: minmax(0, 1fr);

@@ -53,5 +53,24 @@ for (const f of functions) {
   } catch (e) {
     console.log(`!! запуски: ${e.message}`)
   }
+  // Запуски по расписанию теряются среди сотен запусков из сайта, поэтому их смотрим отдельно:
+  // у community по расписанию уходят уведомления о новых сериях и чистятся комнаты.
+  try {
+    const { executions } = await get(
+      `/functions/${f.$id}/executions?` +
+        q({ method: 'equal', attribute: 'trigger', values: ['schedule'] }, { method: 'orderDesc', attribute: '$createdAt' }, { method: 'limit', values: [3] }),
+    )
+    if (!executions.length) console.log('по расписанию: запусков нет')
+    for (const e of executions) {
+      console.log(`по расписанию: ${e.$createdAt} ${e.status} ${e.responseStatusCode} ${(e.responseBody || e.errors || '').replace(/\s+/g, ' ').slice(0, 200)}`)
+    }
+    const last = executions[0] && Date.parse(executions[0].$createdAt)
+    if (f.$id === 'community' && (!last || Date.now() - last > 2 * 3600_000)) {
+      console.log('!! community давно не запускалась по расписанию: уведомления о сериях не уходят')
+      bad++
+    }
+  } catch (e) {
+    console.log(`!! запуски по расписанию: ${e.message}`)
+  }
 }
 console.log(`\nПроблем: ${bad}`)
