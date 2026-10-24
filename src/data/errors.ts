@@ -30,6 +30,9 @@ export function reportError(error: unknown, source = '') {
   const stack = err?.stack ?? ''
   // Ошибки из расширений браузера к сайту не относятся.
   if (/(chrome|moz|safari)-extension:\/\//.test(stack + source)) return
+  // Встроенные браузеры приложений на iOS (VK, Instagram и др.) подмешивают в страницу свой скрипт, а он лезет
+  // в iframe плеера и ловит запрет Safari. Код сайта в чужие iframe не заглядывает (только postMessage).
+  if (/Blocked a frame with origin/.test(message) && !/\/assets\//.test(stack + source)) return
   const key = message + source
   if (sent.has(key)) return
   sent.add(key)
