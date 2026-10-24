@@ -2761,9 +2761,22 @@ input[type='radio'] {
   .hero__text {
     gap: 14px;
   }
+  /* Баннер листается каждые 8 секунд: высота текста одна для любого тайтла, страница под ним не прыгает. */
+  .hero__title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 1.96em;
+  }
+  .hero .chips {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
   .hero__desc {
     font-size: 15px;
     -webkit-line-clamp: 3;
+    min-height: 4.8em;
   }
   .hero .actions {
     display: grid;
