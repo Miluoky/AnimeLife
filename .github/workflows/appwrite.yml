@@ -55,12 +55,13 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Подготовить таблицы сообщества
         run: node functions/community/setup-social.mjs
-      # Синхронизация списка с Shikimori: приложение OAuth на shikimori.io (переменная SHIKIMORI_CLIENT_ID и секрет SHIKIMORI_CLIENT_SECRET).
+      # Синхронизация списка с Shikimori: приложение OAuth «AnimeLife» на shikimori.io. Client ID публичный (он и так виден в адресе входа),
+      # поэтому записан тут запасным значением; секрет SHIKIMORI_CLIENT_SECRET только в секретах GitHub или в переменных функции Appwrite.
       - if: steps.keys.outputs.ok == 'true'
         name: Ключи Shikimori
         continue-on-error: true
         env:
-          VAR_VALUE: ${{ vars.SHIKIMORI_CLIENT_ID }}
+          VAR_VALUE: ${{ vars.SHIKIMORI_CLIENT_ID || 'UYiG8nr9OhwMD8EypNgxTjYTiAxJ5gXuWZcokFkR_j4' }}
         run: node scripts/set-function-var.mjs community SHIKIMORI_CLIENT_ID
       - if: steps.keys.outputs.ok == 'true'
         name: Секрет Shikimori

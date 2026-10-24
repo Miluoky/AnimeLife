@@ -43,7 +43,7 @@ jobs:
         run: npm run build
         env:
           VITE_KODIK_TOKEN: ${{ secrets.VITE_KODIK_TOKEN }}
-          VITE_SHIKIMORI_CLIENT_ID: ${{ vars.SHIKIMORI_CLIENT_ID }}
+          VITE_SHIKIMORI_CLIENT_ID: ${{ vars.SHIKIMORI_CLIENT_ID || 'UYiG8nr9OhwMD8EypNgxTjYTiAxJ5gXuWZcokFkR_j4' }}
           # Новый домен плееров Kodik, если старый заблокируют (Settings → Variables → KODIK_DOMAIN).
           VITE_KODIK_DOMAIN: ${{ vars.KODIK_DOMAIN }}
           VITE_ALLOHA_TOKEN: ${{ secrets.VITE_ALLOHA_TOKEN }}
