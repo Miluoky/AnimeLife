@@ -26,7 +26,7 @@ import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../da
 import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
 import VoiceLogo from '../components/VoiceLogo'
-import PlayerGlow from '../components/PlayerGlow'
+import PlayerGlow, { GlowCaptureButton } from '../components/PlayerGlow'
 import NextEpisode from '../components/NextEpisode'
 
 // «Пропускать филлеры»: кнопка и автопереход ведут сразу к следующей сюжетной серии.
@@ -316,6 +316,7 @@ export default function Player() {
             <BulbIcon />
             <span className="sr-only">Шторка света</span>
           </button>
+          {(host?.player || (voice?.provider !== 'anilibria' && voice?.provider !== 'animevost')) && <GlowCaptureButton slot={miniPlayer.slot} />}
           <button
             type="button"
             className="btn btn--ghost watch-moment"
