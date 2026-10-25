@@ -17,7 +17,7 @@ import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
 import { findYummy, voiceKey, type YummyPlayer, type YummyVoice } from '../api/yummy'
-import { playerVoiceKey, rememberVoice, savedVoice, voiceKey as studioKey } from '../api/voiceKey'
+import { favoriteStudios, playerVoiceKey, rememberVoice, savedVoice, voiceKey as studioKey } from '../api/voiceKey'
 import { markFlag } from '../data/flags'
 import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
@@ -117,7 +117,7 @@ export default function Player() {
   // Со страницы тайтла приходит ключ по названию студии (playerVoiceKey): источник там неизвестен.
   const voice =
     voices.find((v) => v.key === voiceKey || playerVoiceKey(v) === voiceKey) ??
-    defaultVoice(voices, current, (axRelease?.voices ?? []).filter((v) => v.kind === 'voice').map((v) => studioKey(v.title)))
+    defaultVoice(voices, current, (axRelease?.voices ?? []).filter((v) => v.kind === 'voice').map((v) => studioKey(v.title)), favoriteStudios())
   // Озвучка для «Итогов года»: журнал читает её из ref, чтобы смена озвучки не считалась новым просмотром.
   const voiceTitle = useRef<string | undefined>(undefined)
   voiceTitle.current = voice?.title
@@ -126,7 +126,7 @@ export default function Player() {
   const manual = useRef(false)
   const chooseVoice = (key: string) => {
     manual.current = true
-    rememberVoice(id, key)
+    rememberVoice(id, key, voices.find((v) => v.key === key)?.title)
     setVoiceKey(key)
   }
   const [hostId, setHostId] = useState(savedHost)
@@ -158,7 +158,7 @@ export default function Player() {
   }
   // Озвучки для прогрева: того же вида, что играет, самые популярные первыми; и та, на которую навели.
   const [hint, setHint] = useState<string>()
-  const popular = (axRelease?.voices ?? []).filter((v) => v.kind === 'voice').map((v) => studioKey(v.title))
+  const popular = [...favoriteStudios(), ...(axRelease?.voices ?? []).filter((v) => v.kind === 'voice').map((v) => studioKey(v.title))]
   const rank = (v: Voice) => {
     const i = popular.indexOf(studioKey(v.title))
     return i < 0 ? popular.length : i
@@ -606,10 +606,15 @@ interface Voice {
  * по убыванию популярности), при равенстве та, где серий больше. Раньше первой стояла дорожка с наибольшим
  * числом серий, и у Ван-Пис это были субтитры.
  */
-function defaultVoice(voices: Voice[], episode: number, popular: string[]): Voice | undefined {
+function defaultVoice(voices: Voice[], episode: number, popular: string[], favorites: string[] = []): Voice | undefined {
   const withEpisode = voices.filter((v) => hasEpisode(v, episode))
   const dubbed = withEpisode.filter((v) => v.kind === 'voice')
   if (!dubbed.length) return withEpisode[0] ?? voices[0]
+  // Любимая студия зрителя (выбирал её на других тайтлах) важнее популярной, если эта серия у неё вышла.
+  for (const f of favorites) {
+    const fav = dubbed.find((v) => studioKey(v.title) === f)
+    if (fav) return fav
+  }
   const count = (v: Voice) => (v.episodes ?? 0) - (v.first ?? 1) + 1
   const most = Math.max(...dubbed.map(count))
   const full = most > 1 ? dubbed.filter((v) => count(v) >= most * 0.9) : dubbed
