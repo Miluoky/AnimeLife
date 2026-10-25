@@ -39,6 +39,7 @@ const wideStore = createLocalStore('anime.widescreen.v1', false)
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
 const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
 const NextPart = lazy(() => import('../components/NextPart'))
+const WatchReturn = lazy(() => import('../components/WatchReturn'))
 const EpisodeRating = lazy(() => import('../components/EpisodeRating'))
 
 export default function Player() {
@@ -425,6 +426,7 @@ export default function Player() {
 
       <Suspense fallback={null}>
         {current >= total && !anime.ongoing && !anime.upcoming && <NextPart animeId={anime.id} />}
+        <WatchReturn anime={anime} current={current} total={total} />
         <EpisodeRating animeId={anime.id} episode={current} />
         <EpisodeComments animeId={anime.id} episode={current} />
       </Suspense>
