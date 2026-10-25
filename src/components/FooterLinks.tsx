@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { ABOUT_LINKS, DISCLAIMER, GENRES, KINDS, LEGAL_LINKS } from '../data/seo'
+import { ABOUT_LINKS, DISCLAIMER, GENRES, KINDS, LEGAL_LINKS, TELEGRAM_CHANNEL_URL } from '../data/seo'
+import './footer-channel.css'
 
 /**
  * Подвал: о проекте, приложение, документы (правообладателям, контакты, политика, соглашение), ссылки на жанры, типы и годы —
@@ -9,6 +10,13 @@ export default function FooterLinks() {
   const year = new Date().getFullYear()
   return (
     <>
+      <a className="footer-channel" href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noopener">
+        <span className="footer-channel__text">
+          <strong>Telegram-канал Anime Life</strong>
+          <span>Новые серии, анонсы сезона и «Серия недели» каждое воскресенье</span>
+        </span>
+        <span className="btn btn--accent btn--small">Подписаться</span>
+      </a>
       <nav className="footer-legal" aria-label="Документы">
         {[...ABOUT_LINKS, ...LEGAL_LINKS].map(([name, to]) => (
           <Link key={to} to={to}>

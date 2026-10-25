@@ -1,0 +1,29 @@
+/* Подвал: заметная ссылка на Telegram-канал (FooterLinks.tsx). */
+.footer-channel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-channel:hover .btn {
+  filter: brightness(1.08);
+}
+
+.footer-channel__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.footer-channel__text span {
+  color: var(--muted);
+}

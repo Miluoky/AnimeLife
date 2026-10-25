@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useAsync } from '../api'
 import { SHIKIMORI_URL, get } from '../api/shikimori'
 import { usePageMeta } from '../data/pageMeta'
+import { TELEGRAM_CHANNEL_URL } from '../data/seo'
 import { CalendarIcon } from '../components/Icons'
 
 /** Новости аниме из форума новостей Shikimori: анонсы, даты премьер, новые сезоны. Тайтлы ведут на наши страницы. */
@@ -54,6 +55,9 @@ export default function News() {
         <div>
           <h1 className="page-title">Новости аниме</h1>
           <p className="muted top-head__lead">Анонсы, даты премьер и новые сезоны. Пишут авторы Shikimori, тайтлы открываются прямо у нас.</p>
+          <a className="btn btn--ghost btn--small news-channel" href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noopener">
+            Наш Telegram-канал
+          </a>
         </div>
       </header>
       {topics.loading && <p className="muted" aria-busy="true">Загружаем новости…</p>}
