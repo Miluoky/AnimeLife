@@ -58,6 +58,8 @@ const ECHO_MS = 1800
 type Echo = 'play' | 'pause' | 'seek'
 /** Какие события плеера вызывает наша команда: после перемотки плеер догружается и сам шлёт ещё и «плей». */
 const ECHOES: Record<Echo, Echo[]> = { play: ['play'], pause: ['pause'], seek: ['seek', 'play'] }
+/** Насколько перемотка Kodik может не совпасть с нашей командой и всё ещё быть её эхом (плеер округляет до кадра). */
+const SEEK_ECHO_S = 2
 /** Kodik принимает команды не сразу после загрузки страницы плеера, а когда поднимется его API. */
 const KODIK_WARMUP_MS = 1500
 /** Как часто спрашиваем у Kodik точное время. */
@@ -76,6 +78,8 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
   const video = useRef<HTMLVideoElement>(null)
   /** до какого момента события плеера считаем эхом своей команды — отдельно для плея, паузы и перемотки */
   const quietUntil = useRef<Record<Echo, number>>({ play: 0, pause: 0, seek: 0 })
+  /** куда перематывали сами: эхом считается только перемотка Kodik в это же место */
+  const seekTarget = useRef(0)
   const [url, setUrl] = useState<string>()
   const [failed, setFailed] = useState(false)
   const changeRef = useRef(onUserChange)
@@ -124,6 +128,7 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
       },
       seek(s) {
         hush('seek')
+        seekTarget.current = s
         if (frame.current) {
           kodikCall('seek', { seconds: s })
           kodik.current = { ...kodik.current, time: s, at: Date.now(), seekAt: Date.now() }
@@ -219,7 +224,10 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         kodikCall('get_time')
       } else if (key === 'kodik_player_seek' && Number.isFinite(seconds)) {
         kodik.current = { ...k, time: seconds, at: now, seekAt: now }
-        report('seek', k.playing, seconds)
+        // Эхо — только перемотка туда, куда перематывали мы. Зритель перемотал в другое место сразу после
+        // нашей подстройки к комнате — это его действие (раньше оно глохло, и комната оставалась на старом месте).
+        if (quiet('seek') && Math.abs(seconds - seekTarget.current) < SEEK_ECHO_S) return
+        changeRef.current({ playing: k.playing, position: seconds })
       } else if (key === 'kodik_player_speed_change') {
         const speed = Number((value as { speed?: unknown } | null)?.speed)
         if (speed > 0) kodik.current = { ...k, time: kodikTime(k), at: now, rate: speed }
