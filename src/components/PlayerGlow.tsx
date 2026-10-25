@@ -54,7 +54,8 @@ type Cropped = MediaStreamTrack & { cropTo?: (target: unknown) => Promise<void> 
 const cropTargets = () => (window as unknown as { CropTarget?: { fromElement(el: Element): Promise<unknown> } }).CropTarget
 /** Захват есть во всех браузерах на компьютере (Chrome, Edge, Яндекс, Opera, Firefox, Safari). На телефонах его нет. */
 export const canCaptureFrame = () =>
-  typeof window !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && !matchMedia('(pointer: coarse)').matches
+  // any-pointer: ноутбук с сенсорным экраном (Firefox на Windows) считает основным указателем палец, но мышь у него есть.
+  typeof window !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && matchMedia('(any-pointer: fine)').matches
 
 /**
  * Где на захваченной картинке экран плеера. Chrome и Edge обрезают захват сами (cropTo), тогда это весь кадр.
@@ -117,9 +118,10 @@ async function startCapture(frame: Element) {
 
 /** Кнопка «Свет из кадра» у плееров в iframe: включает и выключает захват. */
 export function GlowCaptureButton({ slot }: { slot: RefObject<HTMLElement | null> }) {
-  const { glow = true, calm } = useAppearance()
+  const { glow = true } = useAppearance()
   const active = useCapture()
-  if (!canCaptureFrame() || !glow || calm || lite() || still()) return null
+  // «Без анимаций» и reduced motion кнопку не прячут: свет из кадра зритель включает сам, нажатием.
+  if (!canCaptureFrame() || !glow || lite()) return null
   return (
     <button
       type="button"
@@ -156,7 +158,7 @@ export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<
   useEffect(() => {
     const c = canvas.current
     const ctx = c?.getContext('2d', { alpha: false })
-    if (!moving || !ctx) return
+    if (!(moving || (on && captured)) || !ctx) return
     let shown = false
     let grabbed: HTMLVideoElement | undefined
     if (captured) {
@@ -187,7 +189,7 @@ export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<
       setLive(false)
       if (grabbed) grabbed.srcObject = null
     }
-  }, [moving, slot, captured])
+  }, [moving, on, slot, captured])
 
   // Плеер в iframe: кадры тайтла, по одному на SHOT_SECONDS серии. Легкие копии (x332), грузим заранее.
   useEffect(() => {
@@ -235,7 +237,7 @@ export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<
     <div className="vp-glow" aria-hidden="true">
       {below && <img key={below} className="vp-glow__img" src={below} alt="" decoding="async" />}
       {top && <img key={top} className="vp-glow__img vp-glow__img--in" src={top} alt="" decoding="async" />}
-      <canvas ref={canvas} width={W} height={H} className={`vp-glow__live${live ? ' vp-glow__live--on' : ''}`} hidden={!moving} />
+      <canvas ref={canvas} width={W} height={H} className={`vp-glow__live${live ? ' vp-glow__live--on' : ''}`} hidden={!moving && !captured} />
     </div>
   )
 }
