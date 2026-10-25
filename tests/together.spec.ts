@@ -264,6 +264,31 @@ test('комната с плеером Kodik: медленная перемот�
   expect(controls).toEqual([])
 })
 
+test('перемотка ведущего сразу после подстройки к комнате не теряется как «эхо»', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+    route.fulfill({ json: { $id: 'host1', name: 'Ведущий', email: 'h@example.com', labels: [], prefs: {}, status: true } }),
+  )
+  const start = { ...baseRoom, source: 'trailer', videoId: 'pl-ax-29', playing: true, position: 30, at: Date.now() }
+  const push = await mockRoom(page, start)
+  await mockKodikVoice(page)
+  const controls: { playing: boolean; position: number }[] = []
+  page.on('request', (r) => {
+    const body = r.url().includes('/functions/community/executions') && JSON.parse(JSON.parse(r.postData() ?? '{}').body ?? '{}')
+    if (body?.action === 'room-control') controls.push(body)
+  })
+  await page.goto(`/together/${CODE}`)
+  await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', /kodikplayer\.com/)
+  await page.getByRole('button', { name: /Начать просмотр/ }).click()
+  await expect.poll(async () => (await kodikState(page)).t, { timeout: 8000 }).toBeGreaterThan(31)
+  // Комната ушла на 100-ю секунду: плеер сам перематывается туда (это эхо, в комнату не уходит)…
+  await push('rooms', { ...start, position: 100, at: Date.now() })
+  await expect.poll(async () => (await kodikState(page)).t, { timeout: 3000 }).toBeGreaterThan(99)
+  // …и тут же ведущий сам перематывает в плеере на 300-ю: это его действие, комната должна перейти туда.
+  await page.frameLocator('iframe.player-iframe').locator('body').evaluate(() => postMessage({ key: 'kodik_player_api', value: { method: 'seek', seconds: 300 } }, '*'))
+  await expect.poll(() => controls.map((c) => Math.round(c.position)), { timeout: 3000 }).toContain(300)
+  expect(controls.some((c) => Math.abs(c.position - 100) < 2)).toBe(false)
+})
+
 test('две вкладки одной комнаты идут вровень: плей, перемотка и пауза с задержками сервера и сбитыми часами', async ({ browser, isMobile }) => {
   test.skip(isMobile, 'синхронизация одна и та же, хватает прогона на компьютере')
   test.setTimeout(90_000)
