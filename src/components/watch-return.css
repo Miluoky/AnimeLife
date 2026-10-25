@@ -1,0 +1,46 @@
+/* Конец серии: вход для гостя, напоминание ботом, похожее после финала (WatchReturn.tsx). */
+.watch-return {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.watch-return__text {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.watch-return--nudge {
+  padding-right: 48px;
+}
+
+.watch-return__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.watch-return--similar {
+  display: block;
+}
+
+.watch-return__title {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.watch-return__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 560px;
+}
