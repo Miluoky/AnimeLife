@@ -97,3 +97,27 @@ test('статистика закрыта для обычных пользова
   await assert.rejects(analyticsStats(fakeApi({ admin: false }).api, req), /Недостаточно прав/)
   await assert.rejects(analyticsStats(fakeApi().api, { headers: {} }), /Войдите/)
 })
+
+test('воронка новичков: тайтл, серия, возврат на следующий день и через неделю', async () => {
+  const { api, tables } = fakeApi()
+  const DAY = 86_400_000
+  const start = NOW
+  // A: открыл тайтл, запустил серию, вернулся завтра и через 8 дней.
+  await analyticsTrack(api, { sessionId: A, path: '/anime/1-cowboy-bebop', pageview: true }, start)
+  await analyticsTrack(api, { sessionId: A, path: '/watch/1/1', pageview: true }, start + 60_000)
+  await analyticsTrack(api, { sessionId: A, path: '/', pageview: true }, start + DAY)
+  await analyticsTrack(api, { sessionId: A, path: '/', pageview: true }, start + 8 * DAY)
+  // B: зашёл на главную и больше не появлялся.
+  await analyticsTrack(api, { sessionId: B, path: '/', pageview: true }, start)
+  // Старый браузер до запуска воронки (нет firstDay) в неё не попадает.
+  tables.analytics.set('aold', { $id: 'aold', sessionId: 'x', path: '/', lastSeen: new Date(start).toISOString(), views: 5 })
+
+  const row = tables.analytics.get([...tables.analytics.keys()].find((k) => tables.analytics.get(k).titles === 1))
+  assert.deepEqual([row.titles, row.episodes, row.ret1, row.ret7], [1, 1, true, true])
+
+  const stats = await analyticsStats(api, req, start + 9 * DAY)
+  assert.deepEqual(stats.funnel, { visitors: 2, titles: 1, episodes: 1, day1: { of: 2, back: 1 }, day7: { of: 2, back: 1 } })
+  // Через полдня после первого визита возвращаться «на следующий день» ещё рано: такие не в счёт.
+  const early = await analyticsStats(api, req, start + 3_600_000)
+  assert.deepEqual(early.funnel.day1, { of: 0, back: 0 })
+})
