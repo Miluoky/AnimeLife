@@ -4,6 +4,9 @@
 // когда что-то упало или поднялось, а не каждый час.
 // Кому писать: TELEGRAM_ADMIN_CHAT_ID, иначе администраторам сайта (метка admin в Appwrite),
 // вошедшим через Telegram. Токен бота — TELEGRAM_BOT_TOKEN или переменная функции входа (APPWRITE_API_KEY).
+// Ещё считает вызовы Worker за сутки UTC (лимит бесплатного плана 100 000, сброс в 00:00 UTC): на 70 и 90 тысячах
+// пишет администратору один раз за сутки на каждый порог, пока сайт не начал отвечать Error 1027.
+// Нужны ключи публикации CLOUDFLARE_EMAIL и CLOUDFLARE_API_KEY (секреты ANIMELIFE_CF_*); без них проверка пропускается.
 // Запуск у себя: node scripts/source-health.mjs (без токенов только печатает результат).
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -118,6 +121,62 @@ async function notify(text) {
   }
 }
 
+const WORKER_LIMIT = 100_000
+/** Пороги предупреждения о лимите Worker: на каждом пишем один раз за сутки. */
+const WORKER_ALERTS = [70_000, 90_000]
+
+/** Вызовы Worker «anime» с 00:00 UTC сегодня. undefined — ключей нет или Cloudflare не ответил. */
+async function workerRequestsToday(now) {
+  const email = process.env.CLOUDFLARE_EMAIL
+  const key = process.env.CLOUDFLARE_API_KEY
+  if (!email || !key) return undefined
+  const headers = { 'X-Auth-Email': email, 'X-Auth-Key': key, 'Content-Type': 'application/json' }
+  try {
+    const zones = await fetch('https://api.cloudflare.com/client/v4/zones?name=animelife.top', { headers }).then((r) => r.json())
+    const account = zones.result?.[0]?.account?.id
+    if (!account) throw new Error('зона animelife.top не найдена')
+    const res = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        query: `query ($account: String!, $from: Time!, $to: Time!) {
+          viewer { accounts(filter: { accountTag: $account }) {
+            workersInvocationsAdaptive(limit: 100, filter: { scriptName: "anime", datetime_geq: $from, datetime_leq: $to }) { sum { requests } }
+          } }
+        }`,
+        variables: { account, from: `${now.toISOString().slice(0, 10)}T00:00:00Z`, to: now.toISOString() },
+      }),
+    }).then((r) => r.json())
+    if (res.errors?.length) throw new Error(res.errors.map((e) => e.message).join('; '))
+    return (res.data.viewer.accounts[0]?.workersInvocationsAdaptive ?? []).reduce((n, r) => n + r.sum.requests, 0)
+  } catch (e) {
+    console.log(`::warning::Не удалось узнать вызовы Worker: ${e.message}`)
+    return undefined
+  }
+}
+
+/**
+ * Текст предупреждения, если за сутки пройден новый порог. sent — порог, о котором уже писали сегодня.
+ * Прогноз до конца суток — по среднему темпу с полуночи UTC.
+ */
+function workerAlert(requests, now, sent = 0) {
+  const level = WORKER_ALERTS.filter((n) => requests >= n).pop()
+  if (!level || level <= sent) return undefined
+  const hours = (now.getTime() - Date.parse(`${now.toISOString().slice(0, 10)}T00:00:00Z`)) / 3_600_000
+  const forecast = hours >= 1 ? Math.round((requests / hours) * 24) : undefined
+  const left = Math.max(0, 24 - Math.ceil(hours))
+  const fmt = (n) => n.toLocaleString('ru-RU')
+  return {
+    level,
+    text:
+      `⚠️ Anime Life: Worker уже ${fmt(requests)} запросов за сутки из ${fmt(WORKER_LIMIT)}.\n` +
+      (forecast ? `При таком темпе к 03:00 мск будет около ${fmt(forecast)}${forecast >= WORKER_LIMIT ? ', сайт может начать отвечать Error 1027' : ''}.\n` : '') +
+      `До сброса лимита около ${left} ч.\n\n` +
+      `Что сделать: в Cloudflare → Security → Events посмотреть, кто шлёт запросы, и закрыть их правилом WAF (docs/worker-limit.md). ` +
+      `Если это живые зрители — включить Workers Paid ($5 в месяц).`,
+  }
+}
+
 const results = await Promise.all(CHECKS.map(async (c) => ({ name: c.name, ...(await check(c)) })))
 for (const r of results) console.log(`${r.up ? '✅' : '❌'} ${r.name}${r.up ? ` — ${r.ms} мс${r.challenged ? ' (Cloudflare не пустил сервер GitHub, но отвечает)' : ''}` : ` — ${r.reason}`}`)
 
@@ -132,8 +191,22 @@ if (lines.length) {
   const still = results.filter((r) => !r.up).length
   await notify(`Anime Life, проверка источников\n\n${lines.join('\n')}${still ? `\n\nСейчас не работает: ${still} из ${results.length}. Плеер сам переключается на рабочие источники.` : ''}\n${SITE}`)
 }
+
+const now = new Date()
+const today = now.toISOString().slice(0, 10)
+const requests = await workerRequestsToday(now)
+let worker = before._worker?.date === today ? before._worker : { date: today, sent: 0 }
+if (requests !== undefined) {
+  console.log(`Worker: ${requests} вызовов с 00:00 UTC (${Math.round((requests / WORKER_LIMIT) * 100)}% лимита)`)
+  const alert = workerAlert(requests, now, worker.sent)
+  if (alert) {
+    await notify(alert.text)
+    worker = { date: today, sent: alert.level }
+  }
+}
+
 mkdirSync('.health', { recursive: true })
-writeFileSync(STATE_FILE, JSON.stringify(Object.fromEntries(results.map((r) => [r.name, r.up]))))
+writeFileSync(STATE_FILE, JSON.stringify({ ...Object.fromEntries(results.map((r) => [r.name, r.up])), _worker: worker }))
 
 // Сам сайт или каталог лёг — job красный, GitHub тоже пришлёт письмо.
 if (!results[0].up || !results[1].up) process.exit(1)
