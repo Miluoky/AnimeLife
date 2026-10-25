@@ -473,13 +473,25 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     let last = 0
     let started = false
     const onMessage = (e: MessageEvent) => {
-      const frame = frameRef.current?.querySelector('iframe:not(.player-iframe--old)')
+      const frame = frameRef.current?.querySelector('iframe:not(.player-iframe--old):not(.player-iframe--prep)')
       if (!(frame instanceof HTMLIFrameElement) || e.source !== frame.contentWindow) return
       const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
       if (typeof key !== 'string' || !key.startsWith('kodik_player_')) return
       const seconds = typeof value === 'number' ? value : Number((value as { time?: unknown } | null)?.time)
       if (key === 'kodik_player_duration_update' && Number.isFinite(seconds)) duration = seconds
-      if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) emitPlayerTime(seconds)
+      if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) {
+        emitPlayerTime(seconds)
+        // Только что подменили озвучку: видео должно идти с места прежней. Kodik сбил время — возвращаем.
+        const fix = settle.current
+        const gone = fix && (performance.now() - fix.since) / 1000
+        if (fix && gone! < 6 && fix.tries < 2) {
+          const want = fix.at + (fix.paused ? 0 : gone!)
+          if (Math.abs(seconds - want) > 2.5) {
+            fix.tries++
+            ;(e.source as Window).postMessage({ key: 'kodik_player_api', value: { method: 'seek', seconds: want } }, e.origin)
+          }
+        } else settle.current = null
+      }
       if (key === 'kodik_player_time_update' && Number.isFinite(seconds) && Math.abs(seconds - last) >= 5) {
         last = seconds
         savePosition(positionKey, episode, seconds, duration)
@@ -532,14 +544,89 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // элементом, иначе он перезагрузится.
   const lastFrame = useRef<ShownFrame | null>(null)
   const held = useRef<ShownFrame | null>(null)
+  // Бесшовная смена озвучки или плеера Kodik посреди серии: прежний играет дальше со звуком, новый
+  // грузится под ним без звука на том же месте и подменяет его, когда видео в нём пошло (после рекламы).
+  const playing = useRef<ShownFrame | null>(null)
+  const settle = useRef<{ at: number; since: number; paused: boolean; tries: number } | null>(null)
   const [, dropHeld] = useState(0)
   if (frame?.key !== lastFrame.current?.key) {
     // Адрес новой озвучки бывает не готов сразу (серии Anixart ещё грузятся): прежний ждёт и этот промежуток.
-    const prev = lastFrame.current ?? held.current
-    held.current = prev && prev.src !== frame?.src && isKodik(prev.src) ? prev : null
+    const prev = playing.current ?? lastFrame.current ?? held.current
+    const kodikToKodik = !!prev && prev.src !== frame?.src && isKodik(prev.src)
+    if (kodikToKodik && carry.current.at > 0 && (!frame || isKodik(frame.src))) {
+      playing.current = prev
+      held.current = null
+    } else {
+      playing.current = null
+      held.current = kodikToKodik ? prev : null
+    }
     lastFrame.current = frame
   }
   const hold = held.current
+  const live = playing.current
+
+  useEffect(() => {
+    if (!live || !frame) return
+    const box = frameRef.current
+    const el = (role: string) => box?.querySelector<HTMLIFrameElement>(`iframe[data-role="${role}"]`)?.contentWindow
+    const call = (win: Window | null | undefined, method: string, extra: Record<string, unknown> = {}) =>
+      win?.postMessage({ key: 'kodik_player_api', value: { method, ...extra } }, '*')
+    const expected = carry.current.at
+    let paused = false
+    let done = false
+    // Kodik принимает команды, только когда его плеер создан: «без звука» повторяем, пока новый не подменит прежний.
+    const hush = window.setInterval(() => call(el('next'), 'mute'), 250)
+    const swap = (at: number) => {
+      if (done) return
+      done = true
+      window.clearInterval(hush)
+      const next = el('next')
+      call(next, 'seek', { seconds: at })
+      call(next, 'unmute')
+      call(next, paused ? 'pause' : 'play')
+      call(el('live'), 'pause')
+      // Kodik сам перематывает на start_from, когда видео тронулось, и может перебить эту перемотку: пару секунд сверяем.
+      settle.current = { at, since: performance.now(), paused, tries: 0 }
+      // Прежний на паузе плавно уходит, новый уже на его месте и со звуком.
+      held.current = playing.current
+      playing.current = null
+      dropHeld((n) => n + 1)
+      window.setTimeout(release, 400)
+    }
+    let asked = 0
+    const onMessage = (e: MessageEvent) => {
+      const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
+      if (typeof key !== 'string') return
+      if (e.source === el('live')) {
+        if (key === 'kodik_player_pause') paused = true
+        if (key === 'kodik_player_play') paused = false
+        // Точное время прежнего плеера — с него и продолжит новый (+ доля секунды на перемотку).
+        if (key === 'kodik_player_time' && asked && typeof value === 'number') swap(value + (paused ? 0 : 0.3))
+        return
+      }
+      if (e.source !== el('next')) return
+      // В новом пошло само видео, а не реклама: его время рядом с тем, откуда он стартовал.
+      // После video_started Kodik ещё перематывает на start_from, поэтому ждём первое время, а если его нет — 3 с.
+      if (key === 'kodik_player_video_started' && !started) started = window.setTimeout(ready, 3000)
+      if (key === 'kodik_player_time_update' && typeof value === 'number' && Math.abs(value - expected) < 30) ready()
+    }
+    let started = 0
+    const ready = () => {
+      if (asked) return
+      asked = window.setTimeout(() => swap(playerTime()), 600)
+      call(el('live'), 'get_time')
+    }
+    window.addEventListener('message', onMessage)
+    // Новый так и не заиграл: показываем его как есть (реклама или своя кнопка «play»), прежний ставим на паузу.
+    const giveUp = window.setTimeout(() => swap(playerTime()), 20000)
+    return () => {
+      window.removeEventListener('message', onMessage)
+      window.clearInterval(hush)
+      window.clearTimeout(giveUp)
+      window.clearTimeout(asked)
+      window.clearTimeout(started)
+    }
+  }, [live?.key, frame?.key])
   useLayoutEffect(() => {
     if (!hold) return
     const old = frameRef.current?.querySelector<HTMLIFrameElement>('iframe.player-iframe--old')
@@ -567,6 +654,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     // Зритель сам сменил серию или озвучку: запускаем Kodik, не заставляя жать «play» ещё раз.
     // Kodik на «play» до загрузки сам подгружает видео; браузер пускает звук, раз клик был на этой странице.
     const target = e.currentTarget.contentWindow
+    // Новая озвучка под прежней: сначала без звука, а «play» после подмены решает, играть ли дальше.
+    if (e.currentTarget.dataset.role === 'next') {
+      target?.postMessage({ key: 'kodik_player_api', value: { method: 'mute' } }, '*')
+      target?.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*')
+      return
+    }
     if (carry.current.user && target) {
       for (const delay of [0, 1200]) {
         window.setTimeout(() => target.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*'), delay)
@@ -577,20 +670,24 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   function renderFrames() {
     // Новый источник серию показать не может — на экране его пояснение, а не прежний плеер.
     const old = unavailable ? null : hold
-    return [old, frame].map(
+    // Новый источник не может показать серию: прежний тоже убираем, иначе он играл бы за пояснением.
+    const shown = unavailable ? null : live
+    const next = shown && frame
+    return [old, shown, frame].map(
       (f) =>
         f && (
           <iframe
             key={f.key}
-            className={`player-iframe${f === old ? ' player-iframe--old' : old && loading ? ' player-iframe--wait' : ''}`}
+            data-role={f === shown ? 'live' : f === next ? 'next' : undefined}
+            className={`player-iframe${f === old ? ' player-iframe--old' : f === next ? ' player-iframe--prep' : old && loading ? ' player-iframe--wait' : ''}`}
             src={f.src}
             title={f.title}
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            tabIndex={f === old ? -1 : undefined}
-            aria-hidden={f === old || undefined}
-            onLoad={f === old ? undefined : onIframeLoad}
+            tabIndex={f === old || f === next ? -1 : undefined}
+            aria-hidden={f === old || f === next || undefined}
+            onLoad={f === old || f === shown ? undefined : onIframeLoad}
           />
         ),
     )
@@ -700,7 +797,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
       {/* Контейнер плеера 16:9 */}
       <div className="player-frame" ref={frameRef}>
-        {loading && !unavailable && <Spinner over={!!hold} />}
+        {loading && !unavailable && !live && <Spinner over={!!hold} />}
+        {live && frame && !unavailable && (
+          <span className="player-tag player-tag--switch" role="status">
+            Подключаем озвучку…
+          </span>
+        )}
 
         {renderFrames()}
         {provider === 'embed' && embed?.player === 'Aksor' && !unavailable && <AksorFullscreen frame={frameRef} />}

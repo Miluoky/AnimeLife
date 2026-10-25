@@ -424,8 +424,13 @@
 .player-frame .player-iframe--old {
   pointer-events: none;
 }
-.player-frame .player-iframe--wait {
+.player-tag--switch {
+  z-index: 3;
+}
+.player-frame .player-iframe--wait,
+.player-frame .player-iframe--prep {
   opacity: 0;
+  pointer-events: none;
 }
 
 .vp-spinner__ring,
