@@ -916,7 +916,8 @@ test('плеер: источник не может показать серию �
   await expect(page.getByRole('group', { name: 'Плеер' }).getByRole('button', { name: 'CVH' })).toHaveAttribute('aria-pressed', 'true')
 })
 
-test('плеер: по умолчанию популярная озвучка, а не субтитры; выбор помнится для тайтла', async ({ page }) => {
+/** Anixart с четырьмя студиями «Ковбоя Бибопа»: субтитры, Studio Band, Persona99 и Shachiburi (12 серий). */
+async function mockBebopVoices(page: Page) {
   await page.route(/api\.anixart\.tv\/search/, (route) =>
     route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
   )
@@ -939,6 +940,10 @@ test('плеер: по умолчанию популярная озвучка, �
     route.fulfill({ json: { code: 0, episodes: [1, 2].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true })) } }),
   )
   await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
+}
+
+test('плеер: по умолчанию популярная озвучка, а не субтитры; выбор помнится для тайтла', async ({ page }) => {
+  await mockBebopVoices(page)
   await page.goto('/watch/1/1')
   // Studio Band популярнее по Anixart, и у неё почти все серии (25 из 26).
   await expect(page.getByRole('button', { name: /^Studio Band/ })).toHaveAttribute('aria-pressed', 'true')
@@ -947,6 +952,24 @@ test('плеер: по умолчанию популярная озвучка, �
   await expect(page.getByRole('button', { name: /^Persona99/ })).toHaveAttribute('aria-pressed', 'true')
   // Над списком серий оба числа: сколько вышло по Shikimori и сколько есть у источников.
   await expect(page.locator('.episodes__head', { hasText: 'Серии' })).toContainText('26 серий · 26 доступно')
+})
+
+test('плеер: любимая студия зрителя с других тайтлов включается на новом тайтле', async ({ page }) => {
+  await mockBebopVoices(page)
+  // На двух других тайтлах зритель сам выбирал Shachiburi — на новом она первая, хоть серий у неё меньше.
+  await page.addInitScript(() => {
+    if (localStorage.getItem('anime.voice.v1')) return
+    const at = Date.now()
+    localStorage.setItem(
+      'anime.voice.v1',
+      JSON.stringify({ '5': { key: 'kodik:9', at, studio: 'shachiburi' }, '6': { key: 'title:voice:shachiburi', at, studio: 'shachiburi' } }),
+    )
+  })
+  await page.goto('/watch/1/1')
+  await expect(page.getByRole('button', { name: /^Shachiburi/ })).toHaveAttribute('aria-pressed', 'true')
+  // Серии 13 у неё нет — тогда как обычно, популярная с полным набором серий.
+  await page.goto('/watch/1/13')
+  await expect(page.getByRole('button', { name: /^Studio Band/ })).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('плеер: серия на экране блокировки — название, пауза и следующая серия из системы', async ({ page }) => {
