@@ -1524,6 +1524,8 @@
 /* ─── Плеер студии: свой источник и запасные (YummyAnime) ─── */
 .hosts {
   flex: 1 1 100%;
+  /* Иначе ряд плееров растягивает строку по содержимому и на 360 px вылезает вбок. */
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1541,6 +1543,7 @@
 }
 
 .hosts__list {
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;

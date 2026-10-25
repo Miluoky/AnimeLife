@@ -62,6 +62,8 @@ const ECHOES: Record<Echo, Echo[]> = { play: ['play'], pause: ['pause'], seek: [
 const KODIK_WARMUP_MS = 1500
 /** Как часто спрашиваем у Kodik точное время. */
 const KODIK_ASK_MS = 500
+/** Сколько ждём точное время паузы от Kodik, прежде чем разослать прикидку. */
+const PAUSE_EXACT_MS = 400
 
 const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
   { source, videoId, file, src, title, onUserChange, onReady, onEnded },
@@ -162,6 +164,14 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
     if (source !== 'kodik') return
     kodik.current = { time: 0, at: Date.now(), playing: false, rate: 1, exact: 0, seekAt: 0, pausedAt: 0 }
     let askedAt = 0
+    // Пауза зрителя: ждём точное время от плеера (get_time), а не прикидку по часам — иначе у ведущего
+    // и гостей кадр паузы расходился на полсекунды. Не ответил быстро — шлём прикидку.
+    let pausing: ReturnType<typeof setTimeout> | undefined
+    const sendPause = (position: number) => {
+      clearTimeout(pausing)
+      pausing = undefined
+      changeRef.current({ playing: false, position })
+    }
     const ask = setInterval(() => {
       askedAt = Date.now()
       kodikCall('get_time')
@@ -176,6 +186,11 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
       if (key === 'kodik_player_time' && Number.isFinite(seconds)) {
         if (now - k.seekAt < KODIK_ASK_MS * 2) return
         // Ответ на get_time: время было снято примерно посередине между вопросом и ответом.
+        if (pausing && !k.playing) {
+          kodik.current = { ...k, time: seconds, at: now, exact: now }
+          sendPause(seconds)
+          return
+        }
         const at = askedAt && now - askedAt < KODIK_ASK_MS ? (askedAt + now) / 2 : now
         // Ответы немного «дрожат» (плеер обновляет время пару раз в секунду): мелкую разницу сглаживаем,
         // чтобы скорость не дёргалась туда-сюда, а большую (перемотка, догрузка) принимаем сразу.
@@ -196,7 +211,12 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
         report('play', true, kodikTime(kodik.current))
       } else if (key === 'kodik_player_pause') {
         kodik.current = { ...k, time: kodikTime(k), at: now, playing: false, pausedAt: now }
-        report('pause', false, kodik.current.time)
+        if (quiet('pause')) return
+        const guess = kodik.current.time
+        clearTimeout(pausing)
+        pausing = setTimeout(() => sendPause(guess), PAUSE_EXACT_MS)
+        askedAt = now
+        kodikCall('get_time')
       } else if (key === 'kodik_player_seek' && Number.isFinite(seconds)) {
         kodik.current = { ...k, time: seconds, at: now, seekAt: now }
         report('seek', k.playing, seconds)
@@ -211,6 +231,7 @@ const SyncVideo = forwardRef<VideoControl, Props>(function SyncVideo(
     window.addEventListener('message', onMessage)
     return () => {
       clearInterval(ask)
+      clearTimeout(pausing)
       window.removeEventListener('message', onMessage)
     }
   }, [source, src])
