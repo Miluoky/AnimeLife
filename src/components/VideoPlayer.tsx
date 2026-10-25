@@ -697,10 +697,16 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     const go = (at: number) => {
       if (done || moving) return
       const paused = liveState.current.paused
-      // Следующая серия прогрета с начала: с начала и пускаем, а прежняя доигрывает, пока новая не тронулась.
-      target = sameEpisode ? at + (paused ? 0 : SEEK_LEAD) : 0
-      send(next, 'seek', { seconds: Math.round(target * 10) / 10 })
-      if (paused && sameEpisode) return commit()
+      if (sameEpisode) {
+        target = at + (paused ? 0 : SEEK_LEAD)
+        send(next, 'seek', { seconds: Math.round(target * 10) / 10 })
+        if (paused) return commit()
+      } else {
+        // Следующая серия прогрета с начала и стоит на первой секунде: пускаем оттуда, без перемотки —
+        // перемотку в начало серии Kodik отдаёт рекламе и потом не слушает «play». Прежняя доигрывает,
+        // пока новая не тронулась; откуда тронулась, узнаём по первому ответу get_time.
+        target = -1
+      }
       // «play» шлём всегда: новый мог стать готовым раньше, чем мы успели его запустить.
       send(next, 'play')
       next.paused = false
@@ -744,7 +750,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         }
         return
       }
-      if (!moving || e.source !== win(next) || value < target + 0.15) return
+      if (!moving || e.source !== win(next)) return
+      if (target < 0) {
+        target = value
+        return
+      }
+      if (value < target + 0.15) return
       if (!sameEpisode) return commit()
       // Новый пошёл (время ушло дальше места перемотки, а не просто встало на него). Если перемотка была долгой, он отстал от прежнего: догоняем ещё раз — это место уже в буфере.
       const lag = liveNow() - value

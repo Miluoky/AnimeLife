@@ -700,7 +700,7 @@ test('плеер: ближе к концу серии следующая уже 
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
   // Тот же iframe, без новой загрузки: с начала, со звуком.
   await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('data-mark', 'warm')
-  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/seek:0,play,(get_time,|mute,)*unmute,play$/)
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/pause,(mute,)+play,(get_time,|mute,)*unmute,play$/)
   await expect(page.locator('iframe.player-iframe')).toHaveCount(1)
 })
 
