@@ -12,7 +12,7 @@ import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import VideoPlayer, { type Provider } from '../components/VideoPlayer'
 import { isBalancerAvailable } from '../api/balancers'
-import { fetchKodikTranslations } from '../api/kodik'
+import { fetchKodikTranslations, kodikTranslationUrl } from '../api/kodik'
 import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
@@ -155,6 +155,23 @@ export default function Player() {
         : `${voice.title} не грузится, включили озвучку ${next.voice.title}`,
     )
   }
+  // Озвучки для прогрева: того же вида, что играет, самые популярные первыми; и та, на которую навели.
+  const [hint, setHint] = useState<string>()
+  const popular = (axRelease?.voices ?? []).filter((v) => v.kind === 'voice').map((v) => studioKey(v.title))
+  const rank = (v: Voice) => {
+    const i = popular.indexOf(studioKey(v.title))
+    return i < 0 ? popular.length : i
+  }
+  const warm = voice
+    ? voices
+        .filter((v) => v !== voice && v.kind === voice.kind && hasEpisode(v, current))
+        .sort((a, b) => rank(a) - rank(b))
+        .map((v) => warmSrc(v, current, hostId))
+        .filter((src): src is string => !!src)
+        .slice(0, 4)
+    : []
+  const hinted = voices.find((v) => v.key === hint)
+  const hintSrc = hinted && hinted !== voice ? warmSrc(hinted, current, hostId) : undefined
   const isScheduled = !!anime?.ongoing && !!anime.nextEpisodeAt && requested === next
 
   useEffect(() => {
@@ -273,6 +290,9 @@ export default function Player() {
         skips={voice?.yummy?.map((p) => p.skips.get(current)).find(Boolean)}
         kodikSkips={voice?.yummy?.find((p) => /kodik/i.test(p.name))?.skips.get(current)}
         embed={host?.player && voice ? { url: host.player.urls.get(current), player: host.player.name, voice: voice.title } : undefined}
+        nextEmbedUrl={host?.player?.urls.get(current + 1)}
+        warm={warm}
+        hint={hintSrc}
         onUnavailable={fallBack}
         onProviderChange={(p) => {
           const next = voices.find((v) => v.provider === p)
@@ -379,7 +399,7 @@ export default function Player() {
       </div>
 
       <div className="watch-side">
-        {voices.length > 0 && <VoicePicker voices={voices} current={voice?.key} total={total} onChoose={chooseVoice} />}
+        {voices.length > 0 && <VoicePicker voices={voices} current={voice?.key} total={total} onChoose={chooseVoice} onHint={setHint} />}
         <EpisodePicker
           animeId={anime.id}
           total={total}
@@ -680,6 +700,17 @@ function nextSource(voices: Voice[], from: Voice, episode: number, tried: Set<st
   }
 }
 
+/**
+ * Адрес плеера Kodik, который включится для этой озвучки (свой Kodik или Kodik из YummyAnime в том же плеере,
+ * что выбран сейчас). У Anixart адреса серий приходят отдельным запросом, а чужие плееры не прогреваются.
+ */
+function warmSrc(voice: Voice, episode: number, hostId: string): string | undefined {
+  const hosts = hostsOf(voice)
+  const host = hosts.find((h) => h.id === hostId) ?? hosts[0]
+  if (host?.player) return /kodik/i.test(host.player.name) ? host.player.urls.get(episode) : undefined
+  if (voice.provider === 'kodik' && voice.kodikLink) return kodikTranslationUrl(voice.kodikLink, episode)
+}
+
 /** Есть ли в озвучке эта серия (неизвестно, сколько серий, — считаем, что есть). */
 function hasEpisode(voice: Voice, episode: number) {
   return (voice.first ?? 1) <= episode && (voice.episodes === undefined || voice.episodes >= episode)
@@ -734,7 +765,20 @@ type VoiceSort = 'episodes' | 'title'
 type VoiceTab = Voice['kind']
 
 /** Озвучки карточками, как на Senku: вкладки «Озвучка» и «Субтитры», поиск, у каждой студии свой значок. */
-function VoicePicker({ voices, current, total, onChoose }: { voices: Voice[]; current?: string; total: number; onChoose: (key: string) => void }) {
+function VoicePicker({
+  voices,
+  current,
+  total,
+  onChoose,
+  onHint,
+}: {
+  voices: Voice[]
+  current?: string
+  total: number
+  onChoose: (key: string) => void
+  /** курсор или палец на студии: плеер заранее прогревает её */
+  onHint: (key: string) => void
+}) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<VoiceSort>('episodes')
   const active = voices.find((v) => v.key === current)
@@ -799,7 +843,15 @@ function VoicePicker({ voices, current, total, onChoose }: { voices: Voice[]; cu
           const share = v.episodes && total > 0 ? Math.min(1, v.episodes / total) : 0
           return (
             <li key={v.key}>
-              <button type="button" className="voice" aria-pressed={on} onClick={() => onChoose(v.key)}>
+              <button
+                type="button"
+                className="voice"
+                aria-pressed={on}
+                onClick={() => onChoose(v.key)}
+                onPointerEnter={() => onHint(v.key)}
+                onTouchStart={() => onHint(v.key)}
+                onFocus={() => onHint(v.key)}
+              >
                 <VoiceLogo title={v.title} kind={v.kind} icon={v.icon} size={44} />
                 <span className="voice__text">
                   <span className="voice__title">{v.title}</span>
