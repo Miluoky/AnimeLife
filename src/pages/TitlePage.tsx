@@ -5,7 +5,7 @@ import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { useAmbient } from '../components/ambient'
 import { loadAnime, loadScreenshots, loadTitleExtras, useAsync } from '../api'
-import { shotPreview } from '../api/shikimori'
+import { blurPoster, shotPreview } from '../api/shikimori'
 import { slowNetwork } from '../data/saver'
 import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeTotals, episodesLabel } from '../data/catalog'
@@ -245,7 +245,7 @@ export default function TitlePage() {
   const extras = useAsync(() => loadTitleExtras(id), [id])
   const screenshots = useAsync(() => loadScreenshots(id), [id])
   // «Кадр»: страница подсвечена постером тайтла.
-  useAmbient(result.value?.data?.posterSmall ?? result.value?.data?.posterUrl)
+  useAmbient(result.value?.data?.posterSmall ?? blurPoster(result.value?.data?.posterUrl))
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
   const noSpoilers = useNoSpoilers()
@@ -369,7 +369,14 @@ export default function TitlePage() {
     <>
       <div className="banner" style={{ background: anime.posterFill }}>
         {shots.length ? (
-          <img className="banner__img banner__img--shot" src={innerWidth <= 640 || slowNetwork() ? shotPreview(shots[0]) : shots[0]} alt="" />
+          <img
+            className="banner__img banner__img--shot"
+            src={innerWidth <= 640 || slowNetwork() ? shotPreview(shots[0]) : shots[0]}
+            alt=""
+            // Главная картинка экрана (LCP): вперёд кадров серий, что грузятся в ту же секунду.
+            // @ts-expect-error fetchpriority ещё нет в типах React 18
+            fetchpriority="high"
+          />
         ) : anime.posterUrl ? (
           <img className="banner__img" src={anime.posterUrl} alt="" />
         ) : (
@@ -534,7 +541,14 @@ export default function TitlePage() {
                         />
                       ) : (
                         shots.length > 0 && (
-                          <img className="poster-img episode-card__shot" src={shotPreview(shots[(n - 1) % shots.length])} alt="" loading="lazy" />
+                          <img
+                            className="poster-img episode-card__shot"
+                            src={shotPreview(shots[(n - 1) % shots.length])}
+                            alt=""
+                            loading="lazy"
+                            // @ts-expect-error fetchpriority ещё нет в типах React 18
+                            fetchpriority="low"
+                          />
                         )
                       )}
                       <span className="episode-card__num">{n}</span>
