@@ -53,7 +53,7 @@ test('ошибки у посетителей: администратор вид�
   })
   await page.goto('/admin/analytics')
   // Статистика не загрузилась, а ошибки всё равно видны.
-  await expect(page.getByText('нет данных')).toBeVisible()
+  await expect(page.locator('.notice--error')).toHaveText('нет данных')
   const card = page.getByRole('region', { name: /^Ошибки у посетителей/ })
   await expect(card.getByRole('heading')).toHaveText('Ошибки у посетителей (1)')
   await expect(card).toContainText('TypeError: x is undefined')

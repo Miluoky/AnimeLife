@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { installErrorReporting } from './data/errors'
+import { live } from './data/analytics'
 import { captureInvite } from './data/inviteStore'
 import './fonts.css'
 import './styles.css'
@@ -41,6 +42,9 @@ captureInvite()
 
 // Ошибки у посетителей — в статистику администратора (/admin/analytics).
 installErrorReporting()
+
+// Скорость загрузки у настоящих зрителей (LCP, CLS, INP): маленькая отдельная часть, только на animelife.top.
+if (live() || (window as Window & { __reportQuality?: boolean }).__reportQuality) void import('./data/quality').then((m) => m.watchVitals())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

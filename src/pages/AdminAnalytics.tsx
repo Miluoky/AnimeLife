@@ -142,6 +142,97 @@ function Funnel({ funnel }: { funnel: NonNullable<AnalyticsStats['funnel']> }) {
   )
 }
 
+interface QualityMetric {
+  good: number
+  mid: number
+  poor: number
+  total: number
+}
+
+const VITAL_NAMES: [string, string, (avg: number) => string][] = [
+  ['lcp', 'Загрузка (LCP)', (avg) => `${(avg / 1000).toFixed(1)} с`],
+  ['inp', 'Отклик на нажатия (INP)', (avg) => `${Math.round(avg)} мс`],
+  ['cls', 'Сдвиги вёрстки (CLS)', (avg) => (avg / 1000).toFixed(2)],
+]
+const SOURCE_LABELS: Record<string, string> = {
+  kodik: 'Kodik',
+  alloha: 'Alloha',
+  anilibria: 'AniLibria',
+  animevost: 'AnimeVost',
+  anixart: 'Anixart',
+  embed: 'Плееры YummyAnime',
+}
+
+/**
+ * Как сайт работает у настоящих зрителей за 7 дней (functions/community/src/quality.js): скорость по порогам Google
+ * и плеер. Цель плана развития — сбоев плеера меньше 3%.
+ */
+function Quality() {
+  const [metrics, setMetrics] = useState<Record<string, QualityMetric>>()
+  const [failed, setFailed] = useState('')
+  useEffect(() => {
+    callCommunity<{ metrics: Record<string, QualityMetric> }>({ action: 'quality-stats' })
+      .then((r) => setMetrics(r.metrics))
+      .catch((cause) => setFailed(cause instanceof Error ? cause.message : 'Не удалось загрузить замеры.'))
+  }, [])
+  const count = (m: QualityMetric) => m.good + m.mid + m.poor
+  const pct = (part: number, of: number) => (of ? Math.round((part / of) * 100) : 0)
+  const vitals = metrics
+    ? VITAL_NAMES.flatMap(([key, name, format]) =>
+        ['mobile', 'desktop'].map((dev) => ({ key: `${key}-${dev}`, name: `${name}, ${dev === 'mobile' ? 'телефоны' : 'компьютеры'}`, format, m: metrics[`${key}-${dev}`] })),
+      ).filter((v) => v.m && count(v.m))
+    : []
+  const sources = metrics ? Object.entries(metrics).filter(([key, m]) => key.startsWith('src-') && m.good + m.poor) : []
+  const ep = metrics?.episode
+  return (
+    <section className="an-card an-quality" aria-labelledby="an-quality-title">
+      <h2 id="an-quality-title">Качество у зрителей (7 дней)</h2>
+      {failed ? (
+        <p className="muted">{failed}</p>
+      ) : !metrics ? (
+        <p className="muted" aria-busy="true">Загружаю…</p>
+      ) : !vitals.length && !sources.length && !ep ? (
+        <p className="muted">Замеров пока нет: они появятся с первыми посетителями после выкладки.</p>
+      ) : (
+        <>
+          {ep && count(ep) > 0 && (
+            <p className="an-quality__lead">
+              Серии: <strong>{pct(ep.good, count(ep))}%</strong> пошли с первого плеера, {pct(ep.mid, count(ep))}% после автопереключения,{' '}
+              <strong className={pct(ep.poor, count(ep)) >= 3 ? 'an-bad' : ''}>{pct(ep.poor, count(ep))}%</strong> не пошли совсем (из {number(count(ep))}).
+            </p>
+          )}
+          {sources.length > 0 && (
+            <ul className="an-list">
+              {sources.map(([key, m]) => (
+                <li key={key}>
+                  <span>{SOURCE_LABELS[key.slice(4)] ?? key.slice(4)}</span>
+                  <strong className={pct(m.poor, m.good + m.poor) >= 10 ? 'an-bad' : ''}>
+                    {pct(m.poor, m.good + m.poor)}% сбоев · {number(m.good + m.poor)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          )}
+          {vitals.length > 0 && (
+            <ul className="an-share">
+              {vitals.map(({ key, name, format, m }) => (
+                <li key={key}>
+                  <span className="an-share__name">{name}</span>
+                  <strong>
+                    {pct(m.good, count(m))}% хорошо · в среднем {format(m.total / count(m))}
+                  </strong>
+                  <span className="an-share__bar" style={{ width: `${pct(m.good, count(m))}%` }} />
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="muted">«Хорошо» по порогам Google: загрузка до 2,5 с, отклик до 200 мс, сдвиги до 0,1. Цель — больше 75% хороших и меньше 3% несработавших серий.</p>
+        </>
+      )}
+    </section>
+  )
+}
+
 /** Короткая сводка для профиля администратора. */
 export function AnalyticsSummary({ stats }: { stats: AnalyticsStats }) {
   return (
@@ -300,6 +391,7 @@ export default function AdminAnalytics() {
           </p>
         </>
       )}
+      <Quality />
       <ClientErrors />
     </main>
   )

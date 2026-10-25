@@ -32,6 +32,7 @@ import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
 import { TG_PREFIX, telegramReady, tgSendEpisode, tgStatus, tgSubscribe, tgUnsubscribe } from './telegram.js'
 import { analyticsStats, analyticsTrack } from './analytics.js'
 import { errorClear, errorList, errorReport } from './errors.js'
+import { qualityStats, qualityTrack } from './quality.js'
 import { socialActions } from './social.js'
 import { notificationActions, notify } from './notifications.js'
 import { accountActions } from './account.js'
@@ -541,6 +542,11 @@ export default async ({ req, res, log, error }) => {
         return res.json(await analyticsTrack(api, body))
       case 'analytics-stats':
         return res.json(await analyticsStats(api, req))
+      // Скорость страниц и плеер у зрителей (quality.js): присылает любой, читает администратор.
+      case 'quality-track':
+        return res.json(await qualityTrack(api, body))
+      case 'quality-stats':
+        return res.json(await qualityStats(api, req))
       // Ошибки JavaScript у посетителей (errors.js): присылает любой, читает и убирает администратор.
       case 'error-report':
         return res.json(await errorReport(api, body))

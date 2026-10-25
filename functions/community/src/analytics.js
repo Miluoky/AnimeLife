@@ -20,7 +20,7 @@ export const dayNumber = (ms) => Math.floor((ms + MSK) / DAY)
 /** Онлайн — кто был активен последние 5 минут (вкладка открыта и видна, отметка раз в 2 минуты). */
 const ONLINE_WINDOW = 5 * 60 * 1000
 
-async function requireAdmin(api, req) {
+export async function requireAdmin(api, req) {
   const userId = req.headers['x-appwrite-user-id']
   if (!userId) throw new UserError('Войдите в аккаунт администратора.')
   const user = await api('GET', `/users/${userId}`)
@@ -36,6 +36,7 @@ export function buckets(ms) {
 
 /** Начало часа или дня по Москве как ISO-время — для колонки at и выборок за период. */
 const startOf = (ms, unit) => new Date(Math.floor((ms + MSK) / unit) * unit - MSK).toISOString()
+export const startOfDay = (ms) => startOf(ms, DAY)
 
 /** Первое число текущего месяца по Москве. */
 const monthStart = (ms) => {
@@ -65,7 +66,7 @@ export function sourceOf(referrer, utm) {
 }
 
 /** Прибавить к счётчикам строки; если строки ещё нет, создать её с этими значениями. */
-async function bump(api, id, base, add) {
+export async function bump(api, id, base, add) {
   const columns = Object.entries(add).filter(([, value]) => value > 0)
   if (!columns.length) return
   const increment = () =>
