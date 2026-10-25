@@ -623,7 +623,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         const held = liveKodik && live!.base !== base ? live! : null
         slot ??= newSlot(frame, base, episodeKey, carry.current.at)
         slots.current = held ? [held, slot] : [slot]
+        // Другая серия: время прежней не в счёт (по нему грелись бы озвучки новой серии).
+        if (slot.episode !== live?.episode) liveState.current = { duration: 0, paused: false, t: 0, at: 0 }
         if (slot.loaded && slot.key !== liveKey.current) promoteKey.current = slot.key
+        slot.idle = false
         liveKey.current = slot.key
         heldKey.current = held?.key ?? null
         pendingKey.current = null
@@ -799,10 +802,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // Плееры, которые не на экране: пока видео в них не пошло, держим без звука; пошло — ставим на паузу и считаем готовыми.
   useEffect(() => {
     const hush = window.setInterval(() => {
-      for (const s of slots.current) if (s.loaded && (!s.ready || s.key === pendingKey.current) && s.key !== liveKey.current) send(s, 'mute')
+      for (const s of slots.current) if (s.loaded && !s.idle && (!s.ready || s.key === pendingKey.current) && s.key !== liveKey.current) send(s, 'mute')
     }, 250)
     const ready = (s: Slot) => {
-      if (s.ready || s.key === liveKey.current) return
+      if (s.ready || s.idle || s.key === liveKey.current) return
       s.ready = s.loaded = true
       if (s.key !== pendingKey.current) {
         send(s, 'pause')
@@ -861,6 +864,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     if (!s) return
     send(s, 'unmute')
     send(s, 'play')
+    // Уже загружен — onLoad не будет: прежний уходит сразу, как новый проявился.
+    window.setTimeout(release, 400)
   })
   useLayoutEffect(() => {
     const held = slotOf(heldKey.current)
@@ -889,6 +894,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     if (slot) slot.loaded = true
     const role = el.dataset.role
     const target = el.contentWindow
+    if (slot?.idle && role === 'warm') return
     // Прогрев и новая озвучка под прежней: без звука проходят рекламу; «play» после подмены решает, играть ли дальше.
     if (role === 'warm' || role === 'next') {
       // Видео в нём уже пошло (Kodik прислал время раньше, чем страница догрузилась): не запускаем снова.
@@ -1023,7 +1029,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         back.sought = now
         send(back, 'seek', { seconds: Math.floor(back.pos) })
       }
-      if (slots.current.some((s) => s !== live && !s.ready && now - s.since < 60000)) return
+      if (slots.current.some((s) => s !== live && !s.ready && !s.idle && now - s.since < 60000)) return
       const { hint, next, warm } = wish.current
       const { duration } = liveState.current
       const nearEnd = duration > 0 && (t / duration > 0.5 || duration - t < 360)
@@ -1044,7 +1050,11 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           trim(1)
         }
         const start = isNext ? 0 : Math.floor(t)
-        slots.current.push(newSlot({ src: withStart(src, start), title: frameTitle, key: '' }, base, isNext ? nextEpisode : episodeKey, start))
+        const slot = newSlot({ src: withStart(src, start), title: frameTitle, key: '' }, base, isNext ? nextEpisode : episodeKey, start)
+        // Следующую серию только загружаем, не запуская: перемотку и паузу в начале серии Kodik отдаёт рекламе,
+        // и запущенная заранее серия потом застывала. Готовый плеер на месте всё равно экономит его загрузку.
+        slot.idle = isNext
+        slots.current.push(slot)
         return rerender()
       }
     }
@@ -1224,6 +1234,8 @@ interface Slot extends ShownFrame {
   /** реклама в нём кончилась; первое время от него; длительность серии */
   ad?: boolean
   t0?: number
+  /** только загружен, не запущен (следующая серия) */
+  idle?: boolean
   duration?: number
   /** когда был на экране: из пула первым уходит давно не нужный */
   used: number

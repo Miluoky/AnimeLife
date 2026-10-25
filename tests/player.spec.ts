@@ -649,7 +649,7 @@ test('плеер: смена озвучки без паузы — новая г�
   expect(await page.frames().find((f) => f.url().includes('seria/292'))?.title()).not.toMatch(/pause|mute/)
 })
 
-test('плеер: ближе к концу серии следующая уже прогрета и включается сразу, тем же плеером', async ({ page }) => {
+test('плеер: ближе к концу серии следующая уже загружена и включается тем же плеером, без новой загрузки', async ({ page }) => {
   await mockAniLibria(page, search.slice(0, 1))
   await page.route(/api\.anixart\.tv\/search/, (route) =>
     route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
@@ -690,17 +690,18 @@ test('плеер: ближе к концу серии следующая уже 
   )
   await page.goto('/watch/1/1')
   await page.getByRole('button', { name: /^Studio Band/ }).click()
-  // Вторая серия грузится заранее, невидимо, без звука, и после старта встаёт на паузу.
+  // Вторая серия грузится заранее, невидимо, но не запускается: в начале серии Kodik крутит рекламу.
   const warm = page.locator('iframe.player-warm')
   await expect(warm).toHaveAttribute('src', 'https://kodikplayer.com/seria/2/hash/720p', { timeout: 8000 })
-  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/pause,mute(,mute)*$/)
+  await page.waitForTimeout(1500)
+  expect(await page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toBe('Kodik')
   await warm.evaluate((el) => (el.dataset.mark = 'warm'))
 
   await page.getByRole('button', { name: 'Следующая серия' }).click()
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
-  // Тот же iframe, без новой загрузки: с начала, со звуком.
+  // Тот же iframe, без новой загрузки: запускается со звуком.
   await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('data-mark', 'warm')
-  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/pause,(mute,)+play,(get_time,|mute,)*unmute,play$/)
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/^unmute,play/)
   await expect(page.locator('iframe.player-iframe')).toHaveCount(1)
 })
 
