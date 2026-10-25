@@ -186,7 +186,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [avEpisodes, setAvEpisodes] = useState<AnimeVostEpisode[] | null>(null)
   const [avSearching, setAvSearching] = useState(false)
   // ─── Anixart state: ссылки на серии выбранной озвучки ───
-  const [axEpisodes, setAxEpisodes] = useState<Map<number, string> | null>(null)
+  // Помечены озвучкой: пока не пришли серии новой, адреса прежней не годятся (иначе на миг включилась бы она).
+  const [axState, setAxEpisodes] = useState<{ key: string; urls: Map<number, string> } | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   // Позиция, с которой продолжить после смены качества (поток меняется, а серия та же).
@@ -217,7 +218,11 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   useEffect(() => {
     if (!loading || provider === 'anilibria' || provider === 'animevost') return
-    const timer = window.setTimeout(() => setError('Плеер не ответил вовремя. Возможно, источник или CDN заблокирован. Попробуйте другой плеер.'), 15000)
+    const timer = window.setTimeout(() => {
+      // Новая озвучка ещё готовится, а прежняя играет: это не «плеер не ответил».
+      if (pendingKey.current) return
+      setError('Плеер не ответил вовремя. Возможно, источник или CDN заблокирован. Попробуйте другой плеер.')
+    }, 15000)
     return () => window.clearTimeout(timer)
   }, [loading, provider, frameAttempt])
 
@@ -286,6 +291,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   /* ─── Серии озвучки Anixart ─── */
   const axRelease = anixart?.release
   const axType = anixart?.type
+  const axEpisodes = axState?.key === `${axRelease}:${axType}` ? axState.urls : null
   useEffect(() => {
     if (provider !== 'anixart' || !axRelease || !axType) return
     let cancelled = false
@@ -294,7 +300,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     anixartEpisodes(axRelease, axType)
       .then(({ urls: map }) => {
         if (cancelled) return
-        setAxEpisodes(map)
+        setAxEpisodes({ key: `${axRelease}:${axType}`, urls: map })
         if (!map.size) setError('У этой озвучки нет плеера, который можно встроить')
       })
       .catch(() => !cancelled && setError('Не удалось подключиться к Anixart'))
@@ -630,7 +636,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // Новый источник уже загружен (прогретая озвучка): ждать его onLoad не нужно.
   useEffect(() => {
     if (slotOf(targetKey.current)?.loaded) setLoading(false)
-  }, [provider, kodikLink, anixart?.type, embed?.url, shikimoriId, episode])
+  }, [provider, kodikLink, anixart?.type, embed?.url, shikimoriId, episode, frame?.key])
 
   const send = (slot: Slot | undefined, method: string, extra: Record<string, unknown> = {}) =>
     frameRef.current
@@ -660,7 +666,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       done = true
       window.clearTimeout(moving)
       window.clearInterval(poll)
-      const paused = liveState.current.paused
+      window.clearInterval(retry)
+      // Следующая серия играет, даже если прежняя уже кончилась (стоит на паузе).
+      const paused = sameEpisode && liveState.current.paused
       send(next, 'unmute')
       send(next, paused ? 'pause' : 'play')
       next.paused = paused
@@ -688,16 +696,11 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     }
     const go = (at: number) => {
       if (done || moving) return
-      if (!sameEpisode) {
-        // Следующая серия прогрета с начала: сразу показываем её.
-        target = 0
-        if (next.start > 0 || next.ready) send(next, 'seek', { seconds: 0 })
-        return commit()
-      }
       const paused = liveState.current.paused
-      target = at + (paused ? 0 : SEEK_LEAD)
+      // Следующая серия прогрета с начала: с начала и пускаем, а прежняя доигрывает, пока новая не тронулась.
+      target = sameEpisode ? at + (paused ? 0 : SEEK_LEAD) : 0
       send(next, 'seek', { seconds: Math.round(target * 10) / 10 })
-      if (paused) return commit()
+      if (paused && sameEpisode) return commit()
       // «play» шлём всегда: новый мог стать готовым раньше, чем мы успели его запустить.
       send(next, 'play')
       next.paused = false
@@ -712,6 +715,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     // Новый не тронулся за 3,5 с: в нём ещё идёт реклама (Kodik тогда не слушает «play»). Подмену отменяем —
     // прежний играет дальше со звуком, — и ждём, когда новый будет готов по-настоящему. Второй раз — показываем как есть.
     let aborted = false
+    let retry = 0
     const stall = () => {
       if (aborted) return commit()
       aborted = true
@@ -719,7 +723,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       moving = asked = 0
       next.ready = false
       next.t0 = undefined
+      // Kodik не слушает «play», пока грузит рекламу: повторяем, пока видео в новом не пойдёт.
       send(next, 'play')
+      retry = window.setInterval(() => !next.ready && send(next, 'play'), 1500)
       window.clearTimeout(giveUp)
       giveUp = window.setTimeout(() => go(liveNow()), 25000)
       rerender()
@@ -739,6 +745,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         return
       }
       if (!moving || e.source !== win(next) || value < target + 0.15) return
+      if (!sameEpisode) return commit()
       // Новый пошёл (время ушло дальше места перемотки, а не просто встало на него). Если перемотка была долгой, он отстал от прежнего: догоняем ещё раз — это место уже в буфере.
       const lag = liveNow() - value
       if (lag > 0.6 && !caught) {
@@ -752,7 +759,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     }
     const start = () => {
       if (asked || done) return
-      if (!sameEpisode) return go(0)
       // Точное время показанного плеера — с него и продолжит новый. Нет ответа за 250 мс — считаем сами.
       send(live, 'get_time')
       asked = window.setTimeout(() => go(liveNow()), 250)
@@ -768,7 +774,14 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       window.clearTimeout(asked)
       window.clearTimeout(moving)
       window.clearInterval(poll)
+      window.clearInterval(retry)
       window.clearTimeout(giveUp)
+      // Подмену отменили (зритель выбрал другую), а прогретый мы уже пустили: снова на паузу, без звука.
+      if (!done && moving && next.ready && next.key !== liveKey.current) {
+        send(next, 'pause')
+        send(next, 'mute')
+        next.paused = true
+      }
     }
   }, [pending?.key])
 
@@ -801,7 +814,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       // Время именно идёт: после перемотки на паузе Kodik тоже присылает одно время — место, куда встал.
       if (key === 'kodik_player_time_update' && typeof value === 'number') {
         s.t0 ??= value
-        if ((s.ad && value !== s.t0) || value - s.t0 >= 20) ready(s)
+        // Выбранная озвучка, которую не ставим на паузу, может подменить прежнюю и раньше: застрянет — подмена отменится.
+        if ((s.ad && value !== s.t0) || value - s.t0 >= (s.key === pendingKey.current ? 3 : 20)) ready(s)
       }
     }
     window.addEventListener('message', onMessage)

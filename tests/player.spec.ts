@@ -672,7 +672,13 @@ test('плеер: ближе к концу серии следующая уже 
           const v = e.data.value
           log.push(v.method + (v.seconds != null ? ':' + v.seconds : ''))
           document.title = log.join(',')
+          if (v.method === 'seek') (t = v.seconds), (at = performance.now())
+          if (v.method === 'play' && !playing) (t = now()), (at = performance.now()), (playing = true)
+          if (v.method === 'pause') (t = now()), (playing = false)
+          if (v.method === 'get_time') parent.postMessage({ key: 'kodik_player_time', value: now() }, '*')
         })
+        let t = 0, at = 0, playing = false
+        const now = () => (playing ? t + (performance.now() - at) / 1000 : t)
         const start = Number(new URL(location.href).searchParams.get('start_from') ?? 0)
         parent.postMessage({ key: 'kodik_player_duration_update', value: 1400 }, '*')
         parent.postMessage({ key: 'kodik_player_advert_ended' }, '*')
@@ -694,7 +700,7 @@ test('плеер: ближе к концу серии следующая уже 
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
   // Тот же iframe, без новой загрузки: с начала, со звуком.
   await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('data-mark', 'warm')
-  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/seek:0,unmute,play$/)
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/seek:0,play,(get_time,|mute,)*unmute,play$/)
   await expect(page.locator('iframe.player-iframe')).toHaveCount(1)
 })
 
