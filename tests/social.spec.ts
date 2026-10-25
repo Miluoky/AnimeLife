@@ -16,6 +16,24 @@ test('сообщество: вкладки ленты, топа, клубов и
   await expect(page.getByRole('link', { name: 'Войти, чтобы создать клуб' })).toBeVisible()
 })
 
+test('топ зрителей за месяц: запрос по monthKey и опыт за месяц', async ({ page }) => {
+  const asked: string[] = []
+  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/profiles\/rows\?.*/, (route) => {
+    const url = decodeURIComponent(route.request().url())
+    asked.push(url)
+    const month = url.includes('"monthKey"')
+    return route.fulfill({
+      json: { total: 1, rows: [{ $id: 'u1', name: 'Мика', xp: 5000, weekXp: 70, monthXp: month ? 420 : 0, summary: '{}' }] },
+    })
+  })
+  await page.goto('/community?tab=top')
+  await page.getByRole('button', { name: 'Этот месяц' }).click()
+  await expect(page.locator('.s-leaders__xp')).toHaveText('420 XP')
+  const d = new Date()
+  expect(asked.some((u) => u.includes(`"monthKey","values":[${d.getUTCFullYear() * 100 + d.getUTCMonth() + 1}]`))).toBe(true)
+  await expect(page.getByText('в последний день называем в нашем Telegram-канале')).toBeVisible()
+})
+
 test('новости: заголовок, текст и переход к тайтлу', async ({ page }) => {
   await page.route(/shikimori\.(io|one)\/api\/topics.*/, (route) =>
     route.fulfill({

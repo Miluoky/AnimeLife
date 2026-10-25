@@ -5,7 +5,7 @@ import { flagsStore } from './flags'
 import { listStore, type ListEntry, type ListStatus } from './myList'
 import { profileStyleStore, type ProfileStyle } from './profileStyle'
 import { watchLogStore } from './watchLog'
-import { totalXp, weekXp } from './xp'
+import { totalXp, weekXp, monthXp } from './xp'
 
 /** Открытый профиль /u/:id: имя, о себе, счётчики, любимое, что смотрит сейчас, достижения. */
 export interface ProfileSummary {
@@ -19,6 +19,8 @@ export interface ProfileSummary {
   /** опыт для уровня и топа зрителей */
   xp?: number
   week?: { key: number; xp: number }
+  /** опыт за месяц по журналу: топ месяца и итоги в Telegram-канале */
+  month?: { key: number; xp: number }
   /** весь список коротко: [id, оценка или 0, номер статуса] — для «Совпадения вкусов» */
   rates?: [string, number, number][]
   style?: ProfileStyle
@@ -83,6 +85,7 @@ export function buildSummary(list = listStore.get()): ProfileSummary {
     ...base,
     xp: totalXp(list, base.achievements.length),
     week: weekXp(watchLogStore.get().entries),
+    month: monthXp(watchLogStore.get().entries),
     rates: [...list]
       .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
       .slice(0, MAX_RATES)

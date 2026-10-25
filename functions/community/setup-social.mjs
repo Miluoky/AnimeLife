@@ -220,8 +220,12 @@ async function main() {
   }
   // Профили уже есть: добавляем опыт для топа зрителей.
   const profiles = `/tablesdb/${DATABASE}/tables/profiles`
-  await ensureColumns(profiles, [int('xp', false), int('weekXp', false), int('weekKey', false)])
-  await ensureIndexes(profiles, [idx('xp_desc', ['xp'], ['DESC']), idx('week_xp', ['weekKey', 'weekXp'], ['ASC', 'DESC'])])
+  await ensureColumns(profiles, [int('xp', false), int('weekXp', false), int('weekKey', false), int('monthXp', false), int('monthKey', false)])
+  await ensureIndexes(profiles, [
+    idx('xp_desc', ['xp'], ['DESC']),
+    idx('week_xp', ['weekKey', 'weekXp'], ['ASC', 'DESC']),
+    idx('month_xp', ['monthKey', 'monthXp'], ['ASC', 'DESC']),
+  ])
   // Ответы в обсуждении серий: на какой комментарий и чьё имя показать.
   await ensureColumns(`/tablesdb/${DATABASE}/tables/comments`, [str('replyTo', 36, false), str('replyName', 64, false)])
   console.log('Готово.')

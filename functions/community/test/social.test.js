@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { socialActions } from '../src/social.js'
-import { isoWeekKey, profileSave } from '../src/profile.js'
+import { isoWeekKey, monthKeyOf, profileSave } from '../src/profile.js'
 
 /** База в памяти: таблицы → строки; понимает equal, greaterThan, limit и total, как TablesDB. */
 function fakeDb(users = { u1: { $id: 'u1', name: 'Мика' }, u2: { $id: 'u2', name: 'Рэй' }, admin: { $id: 'admin', name: 'Мод', labels: ['admin'] } }) {
@@ -146,4 +146,15 @@ test('профиль: опыт за неделю засчитывается то
   row = db.table('profiles').get('u1')
   assert.equal(row.weekXp, 0)
   assert.equal(row.weekKey, 0)
+})
+
+test('профиль: опыт за месяц — только текущего месяца и не больше 4 000 серий', async () => {
+  const db = fakeDb()
+  const month = monthKeyOf()
+  await profileSave(db.api, as('u1'), { summary: { xp: 10, month: { key: month, xp: 420 } } })
+  assert.deepEqual([db.table('profiles').get('u1').monthXp, db.table('profiles').get('u1').monthKey], [420, month])
+  await profileSave(db.api, as('u1'), { summary: { xp: 10, month: { key: month, xp: 1e9 } } })
+  assert.equal(db.table('profiles').get('u1').monthXp, 40000)
+  await profileSave(db.api, as('u1'), { summary: { xp: 10, month: { key: 202001, xp: 420 } } })
+  assert.deepEqual([db.table('profiles').get('u1').monthXp, db.table('profiles').get('u1').monthKey], [0, 0])
 })

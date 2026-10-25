@@ -143,7 +143,7 @@ function Feed() {
 }
 
 function Leaders() {
-  const [period, setPeriod] = useState<'week' | 'all'>('week')
+  const [period, setPeriod] = useState<'week' | 'month' | 'all'>('week')
   const rows = useAsync(() => loadLeaders(period).catch(() => []), [period])
   const list = rows.value ?? []
   return (
@@ -152,15 +152,21 @@ function Leaders() {
         <button type="button" className={period === 'week' ? 'is-on' : undefined} onClick={() => setPeriod('week')}>
           Эта неделя
         </button>
+        <button type="button" className={period === 'month' ? 'is-on' : undefined} onClick={() => setPeriod('month')}>
+          Этот месяц
+        </button>
         <button type="button" className={period === 'all' ? 'is-on' : undefined} onClick={() => setPeriod('all')}>
           За всё время
         </button>
       </div>
       <p className="muted s-note">
         Опыт: 10 за серию, 50 за досмотренный тайтл, 5 за оценку, 100 за достижение. В топ попадают зрители с открытым профилем.
+        {period === 'month' && ' Неделя и месяц считаются по сериям; лучших за месяц в последний день называем в нашем Telegram-канале.'}
       </p>
       {rows.loading && <p className="muted" aria-busy="true">Считаем опыт…</p>}
-      {!rows.loading && !list.length && <div className="s-empty">На этой неделе ещё никто не набрал опыта. Самое время стать первым!</div>}
+      {!rows.loading && !list.length && (
+        <div className="s-empty">{period === 'month' ? 'В этом месяце' : 'На этой неделе'} ещё никто не набрал опыта. Самое время стать первым!</div>
+      )}
       <ol className="s-leaders">
         {list.map((p, i) => (
           <li key={p.$id} className={`s-leaders__row${i < 3 ? ` s-leaders__row--${i + 1}` : ''}`}>
@@ -170,7 +176,7 @@ function Leaders() {
               {p.name}
             </Link>
             <LevelBadge xp={p.xp} />
-            <b className="s-leaders__xp">{(period === 'week' ? p.weekXp : p.xp) ?? 0} XP</b>
+            <b className="s-leaders__xp">{(period === 'week' ? p.weekXp : period === 'month' ? p.monthXp : p.xp) ?? 0} XP</b>
           </li>
         ))}
       </ol>

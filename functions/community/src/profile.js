@@ -62,6 +62,9 @@ export async function profileSave(api, req, body) {
   const xp = int(parsed.xp, 5_000_000)
   const weekKey = int(parsed.week?.key, 999_999)
   const weekXp = weekKey === isoWeekKey() ? int(parsed.week?.xp, 30_000) : 0
+  // Месяц: те же 10 опыта за серию, верхняя граница — 4 000 серий.
+  const monthKey = int(parsed.month?.key, 999_999)
+  const monthXp = monthKey === monthKeyOf() ? int(parsed.month?.xp, 40_000) : 0
   await api('PUT', `${DB}/profiles/rows/${user.$id}`, {
     data: {
       name: (user.name || 'Зритель').slice(0, 64),
@@ -70,6 +73,8 @@ export async function profileSave(api, req, body) {
       xp,
       weekXp,
       weekKey: weekXp ? weekKey : 0,
+      monthXp,
+      monthKey: monthXp ? monthKey : 0,
       updatedAt: Date.now(),
     },
   })
@@ -83,6 +88,12 @@ export function isoWeekKey(t = Date.now()) {
   date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
   const week = Math.ceil(((date - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7)
   return date.getUTCFullYear() * 100 + week
+}
+
+/** Месяц ГГГГММ по UTC, как на сайте (src/data/xp.ts). */
+export const monthKeyOf = (t = Date.now()) => {
+  const d = new Date(t)
+  return d.getUTCFullYear() * 100 + d.getUTCMonth() + 1
 }
 
 export async function profileHide(api, req) {
