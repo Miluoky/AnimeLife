@@ -2,7 +2,8 @@
 // Посты с карточкой тайтла в дизайне сайта (scripts/telegram-card.mjs). Публикует бот @AnimeLifeAuth_bot (он должен быть администратором канала):
 //   • новые серии популярных онгоингов Shikimori: до трёх отдельными постами с постером, больше — одной сводкой;
 //   • анонс сезона за три недели до его начала: самые ожидаемые тайтлы и ссылка на страницу сезона;
-//   • обновления сайта из src/data/changelog.ts, один пост на день обновлений.
+//   • обновления сайта из src/data/changelog.ts, один пост на день обновлений;
+//   • по воскресеньям после 17:00 мск — «Что вышло за неделю» и опрос «Серия недели».
 // Что уже опубликовано, хранится в STATE_FILE (между запусками его переносит кэш GitHub Actions). Если файла нет
 // (первый запуск или кэш пропал), скрипт только запоминает текущее состояние и ничего не публикует, чтобы не завалить
 // канал старыми новостями. Ночью (01:00–08:00 по Москве) посты выходят без звука.
@@ -243,6 +244,75 @@ export async function season(state, now = new Date()) {
   return 1
 }
 
+// ——— Итоги недели ———
+
+/** Понедельник недели (UTC) в виде ГГГГ-ММ-ДД: ключ недели для итогов. */
+export function weekKey(now = new Date()) {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7))
+  return d.toISOString().slice(0, 10)
+}
+
+/** Воскресенье, 17:00 по Москве и позже: время итогов недели. */
+export const digestTime = (now = new Date()) => now.getUTCDay() === 0 && now.getUTCHours() >= 14
+
+/**
+ * Что вышло за неделю: онгоинги, у которых число серий выросло с начала недели (start — снимок в понедельник),
+ * в порядке популярности. Тайтлы без снимка (попали в топ посреди недели) пропускаем: не знаем, сколько вышло.
+ */
+export function weekReleases(list, start) {
+  return list
+    // У завершившегося за неделю тайтла Shikimori может обнулить episodesAired: тогда вышли все серии.
+    .map((a) => ({ ...a, episodesAired: a.episodesAired || a.episodes || 0 }))
+    .filter((a) => start[a.id] !== undefined && a.episodesAired > start[a.id])
+    .map((a) => ({ ...a, from: start[a.id] + 1 }))
+}
+
+export function weeklyPost(list) {
+  const lines = list.slice(0, 12).map((a) => {
+    const range = a.from < a.episodesAired ? `${a.from}–${a.episodesAired} серии` : `${a.episodesAired}-я серия`
+    return `▫️ <a href="${SITE}/watch/${a.id}/${a.episodesAired}">${escapeHtml(titleOf(a))}</a>: ${range}`
+  })
+  const more = list.length > 12 ? `\n…и ещё ${list.length - 12} в расписании` : ''
+  return `📺 <b>Что вышло за неделю</b>\n\n${lines.join('\n')}${more}\n\nГолосуйте ниже за серию недели 👇\n\n#итоги_недели`
+}
+
+/** Варианты опроса «Серия недели»: до 10 самых популярных из вышедшего, название до 100 знаков. */
+export function weeklyPollOptions(list) {
+  return list.slice(0, 10).map((a) => {
+    const name = `${titleOf(a)}, ${a.episodesAired}`
+    return { text: name.length > 100 ? `${titleOf(a).slice(0, 92)}…, ${a.episodesAired}` : name }
+  })
+}
+
+async function weekly(state, now = new Date()) {
+  const key = weekKey(now)
+  // Снимок серий на начало недели: берём из уже обновлённого state.episodes (часть episodes идёт раньше).
+  if (state.week?.key !== key) {
+    state.week = { key, start: { ...(state.episodes ?? {}) }, posted: false }
+    return 0
+  }
+  if (state.week.posted || !digestTime(now)) return 0
+  // По id из снимка: так в итоги попадают и тайтлы, которые за неделю завершились и выпали из онгоингов.
+  const ids = Object.keys(state.week.start).slice(0, 50).join(',')
+  if (!ids) return 0
+  const data = await graphql(`{ animes(ids: "${ids}", order: popularity, limit: 50) { ${FIELDS} } }`)
+  const list = weekReleases(data.animes ?? [], state.week.start)
+  state.week.posted = true
+  if (list.length < 2) return 0
+  await post({ text: weeklyPost(list), photo: list[0].poster?.originalUrl, buttons: [[['📅 Расписание', `${SITE}/schedule`]]] })
+  const options = weeklyPollOptions(list)
+  await pause(1500)
+  await bot('sendPoll', {
+    chat_id: CHANNEL,
+    question: 'Серия недели: какая понравилась больше всего?',
+    options,
+    is_anonymous: true,
+    disable_notification: true,
+  })
+  return 1
+}
+
 // ——— Обновления сайта ———
 
 const changelogKey = (date, item) => `${date}|${item.title}`
@@ -325,7 +395,7 @@ async function main() {
   else if (!DRY_RUN) await bot('getChat', { chat_id: CHANNEL })
 
   // Каждая часть сохраняет состояние сразу: ошибка в одной не повторит посты другой.
-  const parts = { episodes, season, changelog }
+  const parts = { episodes, season, changelog, weekly }
   let failed = false
   for (const [name, run] of Object.entries(parts)) {
     try {

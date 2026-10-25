@@ -449,3 +449,9 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Ссылка на Telegram-канал под заголовком «Новостей». */
+.news-channel {
+  margin-top: 10px;
+  white-space: normal;
+}
