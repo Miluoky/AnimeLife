@@ -29,6 +29,7 @@ import { calm } from '../components/morph'
 import VoiceLogo from '../components/VoiceLogo'
 import PlayerGlow, { GlowCaptureButton } from '../components/PlayerGlow'
 import NextEpisode from '../components/NextEpisode'
+import { blurPoster } from '../api/shikimori'
 
 // «Пропускать филлеры»: кнопка и автопереход ведут сразу к следующей сюжетной серии.
 const skipFillersStore = createLocalStore('anime.skipfillers.v1', false)
@@ -52,7 +53,7 @@ export default function Player() {
   const result = useAsync(() => loadAnime(id), [id])
   const anime = result.value?.data
   // «Кадр»: вокруг плеера свет постера.
-  useAmbient(anime?.posterSmall ?? anime?.posterUrl)
+  useAmbient(anime?.posterSmall ?? blurPoster(anime?.posterUrl))
   // Названия серий приходят от AniLibria, когда плеер нашёл релиз.
   const [names, setNames] = useState<Record<number, string>>({})
   // Другой тайтл — серии прошлого релиза не в счёт.
@@ -262,7 +263,7 @@ export default function Player() {
         className={`video-slot${miniPlayer.mini ? ' video-slot--mini' : ''}`}
         style={miniPlayer.mini ? { minHeight: miniPlayer.height } : undefined}
       >
-      <PlayerGlow slot={miniPlayer.slot} poster={anime.posterSmall ?? anime.posterUrl} animeId={anime.id} />
+      <PlayerGlow slot={miniPlayer.slot} poster={anime.posterSmall ?? blurPoster(anime.posterUrl)} animeId={anime.id} />
       {miniPlayer.mini && (
         <button type="button" className="video-slot__close" aria-label="Закрыть мини-плеер" onClick={miniPlayer.close}>
           <CloseIcon size={16} />

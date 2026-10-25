@@ -574,6 +574,12 @@ export async function fetchSimilar(id: string): Promise<Anime[]> {
  * Уменьшенная копия кадра (высота 332 px, в 10–15 раз легче оригинала): для миниатюр серий, сетки кадров
  * и фона баннера на телефоне. Оригинал остаётся для просмотра кадра на весь экран и фона на компьютере.
  */
+/**
+ * Постер под сильным размытием (свет страницы, подсветка плеера): из полного постера REST берём версию 96 px
+ * (~9 КБ вместо 60–400 КБ) — она не отнимает канал у главной картинки экрана. Лёгкий webp из GraphQL оставляем.
+ */
+export const blurPoster = (url: string | undefined) => url?.replace('/system/animes/original/', '/system/animes/x96/')
+
 export const shotPreview = (url: string) => url.replace('/screenshots/original/', '/screenshots/x332/')
 
 export async function fetchScreenshots(id: string): Promise<string[]> {
