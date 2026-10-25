@@ -567,6 +567,8 @@ test('плеер: смена озвучки без паузы — новая г�
   // Поддельный Kodik: серия идёт с 5:00, команды сайта он записывает в заголовок, на get_time отвечает 5:12.
   // Новый плеер отвечает не сразу — видно, как прежний играет, пока новый готовится.
   let delay = 0
+  // stuck — в новом плеере ещё идёт реклама: «play» он не слушает, время стоит.
+  let stuck = false
   await page.route(/kodikplayer\.com\/seria\//, async (route) => {
     await new Promise((r) => setTimeout(r, delay))
     return route.fulfill({
@@ -578,9 +580,20 @@ test('плеер: смена озвучки без паузы — новая г�
           const v = e.data.value
           log.push(v.method + (v.seconds != null ? ':' + v.seconds : ''))
           document.title = log.join(',')
-          if (v.method === 'get_time') parent.postMessage({ key: 'kodik_player_time', value: 312 }, '*')
+          // Время идёт, пока плеер играет; до первой перемотки он на 5:12.
+          if (v.method === 'seek') (moved = true), (t = v.seconds), (at = performance.now())
+          if (v.method === 'play' && !playing && !${stuck}) (t = now()), (at = performance.now()), (playing = true)
+          if (v.method === 'pause') (t = now()), (playing = false)
+          if (v.method === 'get_time') parent.postMessage({ key: 'kodik_player_time', value: moved ? now() : 312 }, '*')
         })
+        let t = 300, at = 0, playing = false, moved = false
+        const now = () => (playing ? t + (performance.now() - at) / 1000 : t)
+        // Реклама позади (Kodik шлёт это, даже когда рекламы не было), видео идёт.
+        parent.postMessage({ key: 'kodik_player_advert_ended' }, '*')
         parent.postMessage({ key: 'kodik_player_time_update', value: 300 }, '*')
+        if (!${stuck}) parent.postMessage({ key: 'kodik_player_time_update', value: 301 }, '*')
+        // Во второй серии Kodik шлёт время и дальше, как настоящий раз в секунду: сайт узнаёт, где серия идёт.
+        if (location.pathname.endsWith('2/hash/720p')) setInterval(() => parent.postMessage({ key: 'kodik_player_time_update', value: 300 }, '*'), 500)
       </script>`,
     })
   })
@@ -594,21 +607,102 @@ test('плеер: смена озвучки без паузы — новая г�
   await page.getByRole('button', { name: /^AniDUB/ }).click()
   // Прежняя озвучка играет дальше, новая готовится под ней без звука с того же места.
   await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/291\//)
-  await expect(page.locator('iframe.player-iframe--prep')).toHaveAttribute('src', 'https://kodikplayer.com/seria/301/hash/720p?start_from=300')
+  await expect(page.locator('iframe.player-iframe--prep')).toHaveAttribute('src', 'https://kodikplayer.com/seria/301/hash/720p?start_from=301')
   await expect(page.getByText('Подключаем озвучку…')).toBeVisible()
   // Новая пошла — она встаёт на место прежней точно с её времени и со звуком, прежняя уходит.
   const fresh = page.locator('iframe.player-iframe:not(.player-iframe--old)')
   await expect(page.locator('iframe.player-iframe')).toHaveCount(1, { timeout: 8000 })
   await expect(fresh).toHaveAttribute('src', /seria\/301\//)
-  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/301'))?.title()).toMatch(/^mute,.*seek:312\.3,unmute,play$/)
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/301'))?.title()).toMatch(/^mute,.*seek:312\.3,play,(mute,|get_time,)*unmute,play$/)
   await expect(page.getByText('Подключаем озвучку…')).toHaveCount(0)
+  // Прежняя озвучка не выгружена: она прогрета на паузе без звука и ждёт под новой.
+  const warm = page.locator('iframe.player-warm')
+  await expect(warm).toHaveAttribute('src', /seria\/291\//)
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/291'))?.title()).toMatch(/pause,mute(,mute)*$/)
+  await warm.evaluate((el) => (el.dataset.mark = 'warm'))
+
+  // Возврат к ней — без загрузки и без «Подключаем озвучку…»: тот же iframe перематывается на место и получает звук.
+  await page.getByRole('button', { name: /^Studio Band/ }).click()
+  await expect(page.getByText('Подключаем озвучку…')).toHaveCount(0)
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('data-mark', 'warm', { timeout: 6000 })
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/291'))?.title()).toMatch(/pause,(mute,)+seek:31\d\.\d,play,(mute,|get_time,)*unmute,play$/)
+  await expect(warm).toHaveAttribute('src', /seria\/301\//)
 
   // Другая серия: та же страница, без перехода и без прокрутки наверх; новая серия — с начала.
   delay = 0
+  // Дальше в новых плеерах «реклама»: так прогретая заранее озвучка второй серии не успеет тронуться.
+  stuck = true
   await page.getByRole('navigation', { name: 'Серии' }).getByRole('link', { name: 'Серия 2', exact: true }).click()
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
-  await expect(fresh).toHaveAttribute('src', 'https://kodikplayer.com/seria/302/hash/720p')
+  await expect(fresh).toHaveAttribute('src', 'https://kodikplayer.com/seria/292/hash/720p')
   expect(await page.evaluate(() => (document.querySelector('.page') as HTMLElement).dataset.mark)).toBe('same')
+  // Озвучки прошлой серии больше не нужны.
+  await expect(page.locator('iframe.player-warm')).toHaveCount(0)
+
+  // Новая озвучка не тронулась после перемотки (реклама): подмену отменяем, прежняя играет дальше со звуком.
+  await page.waitForTimeout(800)
+  await page.getByRole('button', { name: /^AniDUB/ }).click()
+  await expect(page.locator('iframe.player-iframe--prep')).toHaveAttribute('src', /seria\/302\//)
+  await page.waitForTimeout(4500)
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/292\//)
+  await expect(page.getByText('Подключаем озвучку…')).toBeVisible()
+  expect(await page.frames().find((f) => f.url().includes('seria/292'))?.title()).not.toMatch(/pause|mute/)
+})
+
+test('плеер: ближе к концу серии следующая уже загружена и включается тем же плеером, без новой загрузки', async ({ page }) => {
+  await mockAniLibria(page, search.slice(0, 1))
+  await page.route(/api\.anixart\.tv\/search/, (route) =>
+    route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31$/, (route) =>
+    route.fulfill({ json: { code: 0, types: [{ id: 29, name: 'Studio Band', is_sub: false, episodes_count: 26 }] } }),
+  )
+  await page.route(/api\.anixart\.tv\/episode\/31\/29$/, (route) => route.fulfill({ json: { code: 0, sources: [{ id: 30, name: 'Kodik', episodes_count: 26 }] } }))
+  await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
+    route.fulfill({ json: { code: 0, episodes: [1, 2, 3].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true })) } }),
+  )
+  // Поддельный Kodik: серия на 23 минуты, идёт 20-я минута; команды сайта пишет в заголовок.
+  await page.route(/kodikplayer\.com\/seria\//, (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><title>Kodik</title><script>
+        const log = []
+        addEventListener('message', (e) => {
+          if (e.data?.key !== 'kodik_player_api') return
+          const v = e.data.value
+          log.push(v.method + (v.seconds != null ? ':' + v.seconds : ''))
+          document.title = log.join(',')
+          if (v.method === 'seek') (t = v.seconds), (at = performance.now())
+          if (v.method === 'play' && !playing) (t = now()), (at = performance.now()), (playing = true)
+          if (v.method === 'pause') (t = now()), (playing = false)
+          if (v.method === 'get_time') parent.postMessage({ key: 'kodik_player_time', value: now() }, '*')
+        })
+        let t = 0, at = 0, playing = false
+        const now = () => (playing ? t + (performance.now() - at) / 1000 : t)
+        const start = Number(new URL(location.href).searchParams.get('start_from') ?? 0)
+        parent.postMessage({ key: 'kodik_player_duration_update', value: 1400 }, '*')
+        parent.postMessage({ key: 'kodik_player_advert_ended' }, '*')
+        const first = location.pathname.includes('/1/') ? 1200 : start
+        parent.postMessage({ key: 'kodik_player_time_update', value: first }, '*')
+        parent.postMessage({ key: 'kodik_player_time_update', value: first + 1 }, '*')
+      </script>`,
+    }),
+  )
+  await page.goto('/watch/1/1')
+  await page.getByRole('button', { name: /^Studio Band/ }).click()
+  // Вторая серия грузится заранее, невидимо, но не запускается: в начале серии Kodik крутит рекламу.
+  const warm = page.locator('iframe.player-warm')
+  await expect(warm).toHaveAttribute('src', 'https://kodikplayer.com/seria/2/hash/720p', { timeout: 8000 })
+  await page.waitForTimeout(1500)
+  expect(await page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toBe('Kodik')
+  await warm.evaluate((el) => (el.dataset.mark = 'warm'))
+
+  await page.getByRole('button', { name: 'Следующая серия' }).click()
+  await expect(page).toHaveURL(/\/watch\/1\/2$/)
+  // Тот же iframe, без новой загрузки: запускается со звуком.
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('data-mark', 'warm')
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/^unmute,play/)
+  await expect(page.locator('iframe.player-iframe')).toHaveCount(1)
 })
 
 test('плеер: широкий экран на компьютере — видео во всю ширину, выбор запоминается', async ({ page }, info) => {

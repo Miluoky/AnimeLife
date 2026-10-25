@@ -14,7 +14,7 @@
  * Если ни один источник не может показать серию, вместо пустого экрана — трейлер с Shikimori.
  */
 
-import { rememberQuality, startQuality } from '../data/saver'
+import { rememberQuality, saverOn, slowNetwork, startQuality } from '../data/saver'
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense, type CSSProperties, type RefObject } from 'react'
 import {
   findRelease,
@@ -99,6 +99,12 @@ export interface VideoPlayerProps {
   skips?: YummySkips
   /** опенинг и эндинг этой серии в плеере Kodik той же озвучки (YummyAnime): станут кнопкой пропуска в Kodik */
   kodikSkips?: YummySkips
+  /** Плееры других озвучек этой серии, которые стоит прогреть заранее (по убыванию популярности). */
+  warm?: string[]
+  /** Озвучка под курсором или пальцем: её греют первой, прогретую — перематывают на текущее место. */
+  hint?: string
+  /** Адрес следующей серии в плеере со стороны (YummyAnime): её тоже прогреваем ближе к концу. */
+  nextEmbedUrl?: string
 }
 
 /* ──────────────── Конфигурация табов ──────────────── */
@@ -180,7 +186,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [avEpisodes, setAvEpisodes] = useState<AnimeVostEpisode[] | null>(null)
   const [avSearching, setAvSearching] = useState(false)
   // ─── Anixart state: ссылки на серии выбранной озвучки ───
-  const [axEpisodes, setAxEpisodes] = useState<Map<number, string> | null>(null)
+  // Помечены озвучкой: пока не пришли серии новой, адреса прежней не годятся (иначе на миг включилась бы она).
+  const [axState, setAxEpisodes] = useState<{ key: string; urls: Map<number, string> } | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   // Позиция, с которой продолжить после смены качества (поток меняется, а серия та же).
@@ -211,7 +218,11 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   useEffect(() => {
     if (!loading || provider === 'anilibria' || provider === 'animevost') return
-    const timer = window.setTimeout(() => setError('Плеер не ответил вовремя. Возможно, источник или CDN заблокирован. Попробуйте другой плеер.'), 15000)
+    const timer = window.setTimeout(() => {
+      // Новая озвучка ещё готовится, а прежняя играет: это не «плеер не ответил».
+      if (pendingKey.current) return
+      setError('Плеер не ответил вовремя. Возможно, источник или CDN заблокирован. Попробуйте другой плеер.')
+    }, 15000)
     return () => window.clearTimeout(timer)
   }, [loading, provider, frameAttempt])
 
@@ -280,6 +291,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   /* ─── Серии озвучки Anixart ─── */
   const axRelease = anixart?.release
   const axType = anixart?.type
+  const axEpisodes = axState?.key === `${axRelease}:${axType}` ? axState.urls : null
   useEffect(() => {
     if (provider !== 'anixart' || !axRelease || !axType) return
     let cancelled = false
@@ -288,7 +300,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     anixartEpisodes(axRelease, axType)
       .then(({ urls: map }) => {
         if (cancelled) return
-        setAxEpisodes(map)
+        setAxEpisodes({ key: `${axRelease}:${axType}`, urls: map })
         if (!map.size) setError('У этой озвучки нет плеера, который можно встроить')
       })
       .catch(() => !cancelled && setError('Не удалось подключиться к Anixart'))
@@ -473,14 +485,28 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     let last = 0
     let started = false
     const onMessage = (e: MessageEvent) => {
-      const frame = frameRef.current?.querySelector('iframe:not(.player-iframe--old):not(.player-iframe--prep)')
+      const frame = frameRef.current?.querySelector('iframe[data-role="live"]')
       if (!(frame instanceof HTMLIFrameElement) || e.source !== frame.contentWindow) return
       const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
       if (typeof key !== 'string' || !key.startsWith('kodik_player_')) return
       const seconds = typeof value === 'number' ? value : Number((value as { time?: unknown } | null)?.time)
-      if (key === 'kodik_player_duration_update' && Number.isFinite(seconds)) duration = seconds
+      const state = liveState.current
+      if (key === 'kodik_player_duration_update' && Number.isFinite(seconds)) duration = state.duration = seconds
+      if (key === 'kodik_player_pause') state.paused = true
+      if (key === 'kodik_player_play') state.paused = false
+      // Зритель сам перемотал сразу после подмены: это не сбой Kodik, возвращать не нужно.
+      const fix0 = settle.current
+      if (key === 'kodik_player_seek' && fix0 && Number.isFinite(seconds)) {
+        const want = fix0.at + (fix0.paused ? 0 : (performance.now() - fix0.since) / 1000)
+        if (Math.abs(seconds - want) > 2.5 && Math.abs(seconds - fix0.start) > 2.5) settle.current = null
+      }
       if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) {
         emitPlayerTime(seconds)
+        state.t = seconds
+        state.at = performance.now()
+        // Видео в показанном плеере пошло: можно греть остальные.
+        const live = slotOf(liveKey.current)
+        if (live && !live.ready && seconds > 0) live.ready = true
         // Только что подменили озвучку: видео должно идти с места прежней. Kodik сбил время — возвращаем.
         const fix = settle.current
         const gone = fix && (performance.now() - fix.since) / 1000
@@ -494,7 +520,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       }
       if (key === 'kodik_player_time_update' && Number.isFinite(seconds) && Math.abs(seconds - last) >= 5) {
         last = seconds
-        savePosition(positionKey, episode, seconds, duration)
+        savePosition(positionKey, episode, seconds, duration || state.duration)
       }
       if ((key === 'kodik_player_video_started' || key === 'kodik_player_play') && !started) {
         started = true
@@ -515,17 +541,21 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   /* ─── Плееры в iframe (Kodik, Alloha, Anixart, YummyAnime): один слот на все ─── */
 
-  const frameSrc = (): string | null => {
+  const frameSrc = (ep = episode): string | null => {
     if (provider === 'kodik') {
+      if (ep !== episode) return kodikLink ? kodikTranslationUrl(kodikLink, ep) : null
       return kodikLink ? kodikTranslationUrl(kodikLink, episode, props.kodikSkips?.spans) : kodikEmbedUrl({ shikimoriId, kinopoiskId, imdbId, title, episode })
     }
-    if (provider === 'alloha') return allohaEmbedUrl({ kinopoiskId, imdbId, episode })
+    if (provider === 'alloha') return ep === episode ? allohaEmbedUrl({ kinopoiskId, imdbId, episode }) : null
     // Anixart и YummyAnime отдают плееры Kodik: переводим их на рабочий домен, как и свои; остальные адреса не меняются.
     if (provider === 'anixart') {
-      const found = axEpisodes?.get(episode)
+      const found = axEpisodes?.get(ep)
       return found ? kodikHost(found) : null
     }
-    if (provider === 'embed') return embed?.url ? kodikHost(embed.url) : null
+    if (provider === 'embed') {
+      const url = ep === episode ? embed?.url : props.nextEmbedUrl
+      return url ? kodikHost(url) : null
+    }
     return null
   }
   const frameTitle =
@@ -538,128 +568,353 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const src0 = rawSrc && carry.current.at ? withStart(rawSrc, carry.current.at) : rawSrc
   const frame: ShownFrame | null = src0 ? { src: src0, title: frameTitle, key: `${src0}:${frameAttempt}` } : null
 
-  // Пока новый плеер грузится, прежний Kodik остаётся на экране на паузе и потом плавно уступает место:
-  // смена озвучки, плеера или серии без чёрного экрана. Чужие плееры поставить на паузу нельзя (звук
-  // играл бы поверх), их убираем сразу. Решаем при отрисовке: старый iframe должен остаться тем же
-  // элементом, иначе он перезагрузится.
+  /*
+   * Пул плееров Kodik. Каждая озвучка серии — свой iframe; он не удаляется после смены, а остаётся прогретым:
+   * реклама в нём уже прошла, видео стоит на паузе без звука. Смена на прогретую озвучку — перемотка на
+   * текущее время и звук, без загрузки. Заранее (после старта серии) прогреваются озвучка под курсором,
+   * популярные студии и следующая серия той же озвучки. Порядок iframe в DOM не меняется никогда:
+   * перенос iframe браузер считает новой загрузкой. Чужие плееры (Alloha, CVH…) так не умеют: им нечем
+   * сказать «пауза» и «без звука», поэтому их не греем и не держим.
+   */
+  const slots = useRef<Slot[]>([])
+  const liveKey = useRef<string | null>(null)
+  const pendingKey = useRef<string | null>(null)
+  const heldKey = useRef<string | null>(null)
+  const targetKey = useRef<string | null>(null)
+  // Чужой плеер или своё видео на месте Kodik: прежний Kodik надо запустить заново, а не оставлять на паузе.
+  const promoteKey = useRef<string | null>(null)
+  const settle = useRef<{ at: number; since: number; paused: boolean; tries: number; start: number } | null>(null)
+  // Что знаем о показанном плеере из его сообщений: длительность, пауза и последнее время с отметкой.
+  const liveState = useRef({ duration: 0, paused: false, t: 0, at: 0 })
+  const [, bump] = useState(0)
+  const rerender = () => bump((n) => n + 1)
+  const slotOf = (key: string | null) => (key ? slots.current.find((s) => s.key === key) : undefined)
   const lastFrame = useRef<ShownFrame | null>(null)
-  const held = useRef<ShownFrame | null>(null)
-  // Бесшовная смена озвучки или плеера Kodik посреди серии: прежний играет дальше со звуком, новый
-  // грузится под ним без звука на том же месте и подменяет его, когда видео в нём пошло (после рекламы).
-  const playing = useRef<ShownFrame | null>(null)
-  const settle = useRef<{ at: number; since: number; paused: boolean; tries: number } | null>(null)
-  const [, dropHeld] = useState(0)
   if (frame?.key !== lastFrame.current?.key) {
-    // Адрес новой озвучки бывает не готов сразу (серии Anixart ещё грузятся): прежний ждёт и этот промежуток.
-    const prev = playing.current ?? lastFrame.current ?? held.current
-    const kodikToKodik = !!prev && prev.src !== frame?.src && isKodik(prev.src)
-    if (kodikToKodik && carry.current.at > 0 && (!frame || isKodik(frame.src))) {
-      playing.current = prev
-      held.current = null
-    } else {
-      playing.current = null
-      held.current = kodikToKodik ? prev : null
-    }
     lastFrame.current = frame
+    const list = slots.current
+    const live = slotOf(liveKey.current)
+    const liveKodik = !!live && isKodik(live.src)
+    if (!frame) {
+      // Адрес новой озвучки бывает не готов сразу (серии Anixart ещё грузятся): прежний Kodik играет и этот промежуток.
+      const iframeSource = provider === 'kodik' || provider === 'anixart' || provider === 'embed'
+      if (!(liveKodik && iframeSource && carry.current.at > 0)) {
+        slots.current = liveKodik ? [live!] : []
+        heldKey.current = liveKodik ? live!.key : null
+        liveKey.current = null
+      }
+      pendingKey.current = null
+      targetKey.current = null
+    } else {
+      const base = baseOf(frame.src, frameAttempt)
+      let slot = list.find((s) => s.base === base)
+      const seamless = liveKodik && isKodik(frame.src) && (carry.current.at > 0 || !!slot?.ready)
+      if (seamless) {
+        if (!slot) {
+          slot = newSlot(frame, base, episodeKey, carry.current.at)
+          list.push(slot)
+        }
+        pendingKey.current = slot.key === liveKey.current ? null : slot.key
+        // Озвучки другой серии больше не нужны, кроме показанной до подмены.
+        slots.current = list.filter((s) => s.episode === episodeKey || s.key === liveKey.current)
+        if (heldKey.current && heldKey.current !== liveKey.current) heldKey.current = null
+      } else {
+        // Обычная смена: прежний Kodik на паузе виден, пока новый не загрузится; прогретые сбрасываем.
+        const held = liveKodik && live!.base !== base ? live! : null
+        slot ??= newSlot(frame, base, episodeKey, carry.current.at)
+        slots.current = held ? [held, slot] : [slot]
+        // Другая серия: время прежней не в счёт (по нему грелись бы озвучки новой серии).
+        if (slot.episode !== live?.episode) liveState.current = { duration: 0, paused: false, t: 0, at: 0 }
+        if (slot.loaded && slot.key !== liveKey.current) promoteKey.current = slot.key
+        slot.idle = false
+        liveKey.current = slot.key
+        heldKey.current = held?.key ?? null
+        pendingKey.current = null
+      }
+      targetKey.current = slot.key
+    }
   }
-  const hold = held.current
-  const live = playing.current
+  const pending = slotOf(pendingKey.current)
 
+  // Новый источник уже загружен (прогретая озвучка): ждать его onLoad не нужно.
   useEffect(() => {
-    if (!live || !frame) return
-    const box = frameRef.current
-    const el = (role: string) => box?.querySelector<HTMLIFrameElement>(`iframe[data-role="${role}"]`)?.contentWindow
-    const call = (win: Window | null | undefined, method: string, extra: Record<string, unknown> = {}) =>
-      win?.postMessage({ key: 'kodik_player_api', value: { method, ...extra } }, '*')
-    const expected = carry.current.at
-    let paused = false
+    if (slotOf(targetKey.current)?.loaded) setLoading(false)
+  }, [provider, kodikLink, anixart?.type, embed?.url, shikimoriId, episode, frame?.key])
+
+  const send = (slot: Slot | undefined, method: string, extra: Record<string, unknown> = {}) =>
+    frameRef.current
+      ?.querySelector<HTMLIFrameElement>(`iframe[data-key="${CSS.escape(slot?.key ?? '')}"]`)
+      ?.contentWindow?.postMessage({ key: 'kodik_player_api', value: { method, ...extra } }, '*')
+  // Где сейчас показанный плеер: последнее время от него плюс прошедшее с тех пор, если он играет.
+  const liveNow = () => {
+    const s = liveState.current
+    return s.at && !s.paused ? s.t + (performance.now() - s.at) / 1000 : s.t || playerTime()
+  }
+
+  // Подмена: новый (прогретый или только что загруженный) встаёт на место показанного с того же времени.
+  // Пока новый перематывается, прежний играет со звуком: зритель не слышит паузы.
+  const onReady = useRef<((s: Slot) => void) | null>(null)
+  useEffect(() => {
+    const next = slotOf(pendingKey.current)
+    const live = slotOf(liveKey.current)
+    if (!next || !live) return
+    const sameEpisode = next.episode === live.episode
+    const win = (s: Slot) => frameRef.current?.querySelector<HTMLIFrameElement>(`iframe[data-key="${CSS.escape(s.key)}"]`)?.contentWindow
     let done = false
-    // Kodik принимает команды, только когда его плеер создан: «без звука» повторяем, пока новый не подменит прежний.
-    const hush = window.setInterval(() => call(el('next'), 'mute'), 250)
-    const swap = (at: number) => {
+    let asked = 0
+    let moving = 0
+    let target = 0
+    const commit = () => {
       if (done) return
       done = true
-      window.clearInterval(hush)
-      const next = el('next')
-      call(next, 'seek', { seconds: at })
-      call(next, 'unmute')
-      call(next, paused ? 'pause' : 'play')
-      call(el('live'), 'pause')
+      window.clearTimeout(moving)
+      window.clearInterval(poll)
+      window.clearInterval(retry)
+      // Следующая серия играет, даже если прежняя уже кончилась (стоит на паузе).
+      const paused = sameEpisode && liveState.current.paused
+      send(next, 'unmute')
+      send(next, paused ? 'pause' : 'play')
+      next.paused = paused
+      send(live, 'pause')
+      send(live, 'mute')
+      live.paused = true
+      live.pos = liveNow()
+      next.used = live.used = Date.now()
+      liveKey.current = next.key
+      pendingKey.current = null
       // Kodik сам перематывает на start_from, когда видео тронулось, и может перебить эту перемотку: пару секунд сверяем.
-      settle.current = { at, since: performance.now(), paused, tries: 0 }
-      // Прежний на паузе плавно уходит, новый уже на его месте и со звуком.
-      held.current = playing.current
-      playing.current = null
-      dropHeld((n) => n + 1)
-      window.setTimeout(release, 400)
+      settle.current = sameEpisode ? { at: target, since: performance.now(), paused, tries: 0, start: next.start } : null
+      liveState.current = { duration: next.duration || (sameEpisode ? liveState.current.duration : 0), paused, t: target, at: performance.now() }
+      if (sameEpisode) {
+        // Прежняя озвучка остаётся прогретой: вернуться к ней — так же мгновенно.
+        live.ready = true
+      } else {
+        // Прошлая серия больше не нужна: уходит, пока новая проявляется.
+        heldKey.current = live.key
+        window.setTimeout(release, 400)
+      }
+      setLoading(false)
+      trim()
+      rerender()
     }
-    let asked = 0
+    const go = (at: number) => {
+      if (done || moving) return
+      const paused = liveState.current.paused
+      if (sameEpisode) {
+        target = at + (paused ? 0 : SEEK_LEAD)
+        send(next, 'seek', { seconds: Math.round(target * 10) / 10 })
+        if (paused) return commit()
+      } else {
+        // Следующая серия прогрета с начала и стоит на первой секунде: пускаем оттуда, без перемотки —
+        // перемотку в начало серии Kodik отдаёт рекламе и потом не слушает «play». Прежняя доигрывает,
+        // пока новая не тронулась; откуда тронулась, узнаём по первому ответу get_time.
+        target = -1
+      }
+      // «play» шлём всегда: новый мог стать готовым раньше, чем мы успели его запустить.
+      send(next, 'play')
+      next.paused = false
+      // Пошёл ли новый, узнаём по его точному времени: time_update у Kodik приходит раз в секунду и целым числом.
+      // Место уже в буфере — новый трогается за 0–0,4 с, далеко — за ~2 с; всё это время звучит прежний.
+      poll = window.setInterval(() => {
+        send(next, 'get_time')
+        send(live, 'get_time')
+      }, 150)
+      moving = window.setTimeout(stall, 3500)
+    }
+    // Новый не тронулся за 3,5 с: в нём ещё идёт реклама (Kodik тогда не слушает «play»). Подмену отменяем —
+    // прежний играет дальше со звуком, — и ждём, когда новый будет готов по-настоящему. Второй раз — показываем как есть.
+    let aborted = false
+    let retry = 0
+    const stall = () => {
+      if (aborted) return commit()
+      aborted = true
+      window.clearInterval(poll)
+      moving = asked = 0
+      next.ready = false
+      next.t0 = undefined
+      // Kodik не слушает «play», пока грузит рекламу: повторяем, пока видео в новом не пойдёт.
+      send(next, 'play')
+      retry = window.setInterval(() => !next.ready && send(next, 'play'), 1500)
+      window.clearTimeout(giveUp)
+      giveUp = window.setTimeout(() => go(liveNow()), 25000)
+      rerender()
+    }
+    let poll = 0
+    let caught = false
     const onMessage = (e: MessageEvent) => {
       const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
-      if (typeof key !== 'string') return
-      if (e.source === el('live')) {
-        if (key === 'kodik_player_pause') paused = true
-        if (key === 'kodik_player_play') paused = false
-        // Точное время прежнего плеера — с него и продолжит новый (+ доля секунды на перемотку).
-        if (key === 'kodik_player_time' && asked && typeof value === 'number') swap(value + (paused ? 0 : 0.3))
+      if (key !== 'kodik_player_time' || typeof value !== 'number') return
+      if (e.source === win(live)) {
+        liveState.current.t = value
+        liveState.current.at = performance.now()
+        if (asked && !moving) {
+          window.clearTimeout(asked)
+          go(value)
+        }
         return
       }
-      if (e.source !== el('next')) return
-      // В новом пошло само видео, а не реклама: его время рядом с тем, откуда он стартовал.
-      // После video_started Kodik ещё перематывает на start_from, поэтому ждём первое время, а если его нет — 3 с.
-      if (key === 'kodik_player_video_started' && !started) started = window.setTimeout(ready, 3000)
-      if (key === 'kodik_player_time_update' && typeof value === 'number' && Math.abs(value - expected) < 30) ready()
+      if (!moving || e.source !== win(next)) return
+      if (target < 0) {
+        target = value
+        return
+      }
+      if (value < target + 0.15) return
+      if (!sameEpisode) return commit()
+      // Новый пошёл (время ушло дальше места перемотки, а не просто встало на него). Если перемотка была долгой, он отстал от прежнего: догоняем ещё раз — это место уже в буфере.
+      const lag = liveNow() - value
+      if (lag > 0.6 && !caught) {
+        caught = true
+        target = liveNow() + 0.35
+        send(next, 'seek', { seconds: Math.round(target * 10) / 10 })
+        return
+      }
+      if (lag < -1.5) return
+      commit()
     }
-    let started = 0
-    const ready = () => {
-      if (asked) return
-      asked = window.setTimeout(() => swap(playerTime()), 600)
-      call(el('live'), 'get_time')
+    const start = () => {
+      if (asked || done) return
+      // Точное время показанного плеера — с него и продолжит новый. Нет ответа за 250 мс — считаем сами.
+      send(live, 'get_time')
+      asked = window.setTimeout(() => go(liveNow()), 250)
     }
     window.addEventListener('message', onMessage)
-    // Новый так и не заиграл: показываем его как есть (реклама или своя кнопка «play»), прежний ставим на паузу.
-    const giveUp = window.setTimeout(() => swap(playerTime()), 20000)
+    onReady.current = (s) => s === next && start()
+    if (next.ready) start()
+    // Новый так и не заиграл: показываем его как есть (реклама или своя кнопка «play»).
+    let giveUp = window.setTimeout(() => go(liveNow()), 20000)
+    return () => {
+      window.removeEventListener('message', onMessage)
+      onReady.current = null
+      window.clearTimeout(asked)
+      window.clearTimeout(moving)
+      window.clearInterval(poll)
+      window.clearInterval(retry)
+      window.clearTimeout(giveUp)
+      // Подмену отменили (зритель выбрал другую), а прогретый мы уже пустили: снова на паузу, без звука.
+      if (!done && moving && next.ready && next.key !== liveKey.current) {
+        send(next, 'pause')
+        send(next, 'mute')
+        next.paused = true
+      }
+    }
+  }, [pending?.key])
+
+  // Плееры, которые не на экране: пока видео в них не пошло, держим без звука; пошло — ставим на паузу и считаем готовыми.
+  useEffect(() => {
+    const hush = window.setInterval(() => {
+      for (const s of slots.current) if (s.loaded && !s.idle && (!s.ready || s.key === pendingKey.current) && s.key !== liveKey.current) send(s, 'mute')
+    }, 250)
+    const ready = (s: Slot) => {
+      if (s.ready || s.idle || s.key === liveKey.current) return
+      s.ready = s.loaded = true
+      if (s.key !== pendingKey.current) {
+        send(s, 'pause')
+        s.paused = true
+      }
+      send(s, 'mute')
+      onReady.current?.(s)
+      rerender()
+    }
+    const onMessage = (e: MessageEvent) => {
+      const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
+      if (typeof key !== 'string' || !key.startsWith('kodik_player_')) return
+      const box = frameRef.current
+      const s = slots.current.find((x) => x.key !== liveKey.current && box?.querySelector<HTMLIFrameElement>(`iframe[data-key="${CSS.escape(x.key)}"]`)?.contentWindow === e.source)
+      if (!s) return
+      if (key === 'kodik_player_duration_update' && typeof value === 'number') s.duration = value
+      // Готов — когда реклама позади (advert_ended приходит, даже если её не было) и время идёт. Пока реклама
+      // не кончилась, Kodik не слушает «play» после паузы. Без advert_ended хватит 20 с идущего видео.
+      if (key === 'kodik_player_advert_ended') s.ad = true
+      // Время именно идёт: после перемотки на паузе Kodik тоже присылает одно время — место, куда встал.
+      if (key === 'kodik_player_time_update' && typeof value === 'number') {
+        s.t0 ??= value
+        // Выбранная озвучка, которую не ставим на паузу, может подменить прежнюю и раньше: застрянет — подмена отменится.
+        if ((s.ad && value !== s.t0) || value - s.t0 >= (s.key === pendingKey.current ? 3 : 20)) ready(s)
+      }
+    }
+    window.addEventListener('message', onMessage)
     return () => {
       window.removeEventListener('message', onMessage)
       window.clearInterval(hush)
-      window.clearTimeout(giveUp)
-      window.clearTimeout(asked)
-      window.clearTimeout(started)
     }
-  }, [live?.key, frame?.key])
+  }, [])
+
+  /** Лишние прогретые уходят: остаются показанный, готовящийся и самые недавние в пределах лимита. */
+  function trim(room = 0) {
+    const keep = new Set([liveKey.current, pendingKey.current, heldKey.current])
+    const spare = slots.current.filter((s) => !keep.has(s.key)).sort((a, b) => b.used - a.used)
+    const drop = new Set(spare.slice(Math.max(0, warmLimit() - room)))
+    if (drop.size) slots.current = slots.current.filter((s) => !drop.has(s))
+  }
+
+  // Курсор на озвучке, которая уже прогрета: заранее перематываем её на текущее место, пока зритель не нажал.
+  useEffect(() => {
+    if (!props.hint) return
+    const base = baseOf(kodikHost(props.hint), frameAttempt)
+    const s = slots.current.find((x) => x.base === base && x.ready && x.key !== liveKey.current && x.episode === episodeKey)
+    if (!s || liveState.current.paused || Math.abs(liveNow() + 2 - s.pos) < 10) return
+    s.pos = liveNow() + 2
+    s.sought = Date.now()
+    send(s, 'seek', { seconds: Math.floor(s.pos) })
+  }, [props.hint])
+
+  useEffect(() => {
+    const s = slotOf(promoteKey.current)
+    promoteKey.current = null
+    if (!s) return
+    send(s, 'unmute')
+    send(s, 'play')
+    // Уже загружен — onLoad не будет: прежний уходит сразу, как новый проявился.
+    window.setTimeout(release, 400)
+  })
   useLayoutEffect(() => {
-    if (!hold) return
-    const old = frameRef.current?.querySelector<HTMLIFrameElement>('iframe.player-iframe--old')
-    old?.contentWindow?.postMessage({ key: 'kodik_player_api', value: { method: 'pause' } }, '*')
+    const held = slotOf(heldKey.current)
+    if (!held) return
+    send(held, 'pause')
     // Новый так и не загрузился — прежний всё равно убираем, а под ним уже спиннер.
     const timer = window.setTimeout(release, 6000)
     return () => window.clearTimeout(timer)
-  }, [hold?.key])
+  }, [heldKey.current])
   // Вместо iframe включилось своё видео (AniLibria, AnimeVost): прежний убираем, когда поток готов.
   useEffect(() => {
     if (!loading && !frame) release()
   }, [loading, !frame])
   function release() {
-    if (!held.current) return
-    held.current = null
-    dropHeld((n) => n + 1)
+    const key = heldKey.current
+    if (!key) return
+    heldKey.current = null
+    slots.current = slots.current.filter((s) => s.key !== key || s.key === liveKey.current)
+    rerender()
   }
 
   /* ─── Хелпер: iframe загрузился ─── */
   const onIframeLoad = useCallback((e: { currentTarget: HTMLIFrameElement }) => {
+    const el = e.currentTarget
+    const slot = slots.current.find((s) => s.key === el.dataset.key)
+    if (slot) slot.loaded = true
+    const role = el.dataset.role
+    const target = el.contentWindow
+    if (slot?.idle && role === 'warm') return
+    // Прогрев и новая озвучка под прежней: без звука проходят рекламу; «play» после подмены решает, играть ли дальше.
+    if (role === 'warm' || role === 'next') {
+      // Видео в нём уже пошло (Kodik прислал время раньше, чем страница догрузилась): не запускаем снова.
+      if (!slot?.ready) {
+        target?.postMessage({ key: 'kodik_player_api', value: { method: 'mute' } }, '*')
+        target?.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*')
+      }
+      if (role === 'next') {
+        setLoading(false)
+        setError(null)
+      }
+      return
+    }
+    if (role !== 'live') return
     setLoading(false)
     setError(null)
     // Новый плеер показался — даём ему проявиться поверх прежнего и убираем прежний.
     window.setTimeout(release, 400)
     // Зритель сам сменил серию или озвучку: запускаем Kodik, не заставляя жать «play» ещё раз.
     // Kodik на «play» до загрузки сам подгружает видео; браузер пускает звук, раз клик был на этой странице.
-    const target = e.currentTarget.contentWindow
-    // Новая озвучка под прежней: сначала без звука, а «play» после подмены решает, играть ли дальше.
-    if (e.currentTarget.dataset.role === 'next') {
-      target?.postMessage({ key: 'kodik_player_api', value: { method: 'mute' } }, '*')
-      target?.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*')
-      return
-    }
     if (carry.current.user && target) {
       for (const delay of [0, 1200]) {
         window.setTimeout(() => target.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*'), delay)
@@ -668,29 +923,33 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }, [])
 
   function renderFrames() {
-    // Новый источник серию показать не может — на экране его пояснение, а не прежний плеер.
-    const old = unavailable ? null : hold
-    // Новый источник не может показать серию: прежний тоже убираем, иначе он играл бы за пояснением.
-    const shown = unavailable ? null : live
-    const next = shown && frame
-    return [old, shown, frame].map(
-      (f) =>
-        f && (
-          <iframe
-            key={f.key}
-            data-role={f === shown ? 'live' : f === next ? 'next' : undefined}
-            className={`player-iframe${f === old ? ' player-iframe--old' : f === next ? ' player-iframe--prep' : old && loading ? ' player-iframe--wait' : ''}`}
-            src={f.src}
-            title={f.title}
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            tabIndex={f === old || f === next ? -1 : undefined}
-            aria-hidden={f === old || f === next || undefined}
-            onLoad={f === old || f === shown ? undefined : onIframeLoad}
-          />
-        ),
-    )
+    // Новый источник не может показать серию: на экране его пояснение, прежние и прогретые плееры убираем.
+    const list = unavailable ? slots.current.filter((s) => s.key === targetKey.current) : slots.current
+    const held = heldKey.current
+    return list.map((s) => {
+      const role = s.key === liveKey.current ? 'live' : s.key === pendingKey.current ? 'next' : s.key === held ? 'held' : 'warm'
+      const hidden = role !== 'live'
+      return (
+        <iframe
+          key={s.key}
+          data-key={s.key}
+          data-role={role}
+          className={
+            role === 'warm'
+              ? 'player-warm'
+              : `player-iframe${role === 'held' ? ' player-iframe--old' : role === 'next' ? ' player-iframe--prep' : held && loading ? ' player-iframe--wait' : ''}`
+          }
+          src={s.src}
+          title={role === 'live' && s.key === targetKey.current ? frameTitle : s.title}
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          tabIndex={hidden ? -1 : undefined}
+          aria-hidden={hidden || undefined}
+          onLoad={onIframeLoad}
+        />
+      )
+    })
   }
 
   function renderOwn() {
@@ -741,6 +1000,67 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }
 
   const unavailable = unavailableReason()
+
+  // Прогрев заранее: по одному плееру, когда серия уже идёт. Сначала озвучка под курсором,
+  // ближе к концу серии — следующая серия, затем популярные студии.
+  const nextSrc = episode < totalEpisodes ? frameSrc(episode + 1) : null
+  const wish = useRef<{ hint?: string; next: string | null; warm: string[] }>({ next: null, warm: [] })
+  wish.current = { hint: props.hint, next: nextSrc, warm: props.warm ?? [] }
+  const pooled = provider === 'kodik' || provider === 'anixart' || provider === 'embed'
+  useEffect(() => {
+    if (!pooled || unavailable) return
+    const nextEpisode = `${shikimoriId}|${episode + 1}`
+    const tick = () => {
+      const live = slotOf(liveKey.current)
+      if (!live?.ready || !isKodik(live.src) || pendingKey.current || document.hidden) return
+      const now = Date.now()
+      const t = liveNow()
+      // Прогретые отстали: видео ушло дальше их буфера (Kodik держит ~30 с вперёд). Подтягиваем их на паузе
+      // к текущему месту по одному, каждый не чаще раза в 45 с: такая перемотка — около 1,5 МБ. На телефоне —
+      // только прежнюю озвучку, в «Экономии трафика» — никого.
+      const close = saverOn() ? 0 : warmLimit() > 2 ? 3 : 1
+      const back = slots.current
+        .filter((s) => s !== live && s.ready && s.paused && s.episode === episodeKey)
+        .sort((a, b) => b.used - a.used)
+        .slice(0, close)
+        .find((s) => (t - s.pos > 25 || t < s.pos - 1) && now - s.sought > 45000)
+      if (back && !liveState.current.paused && now - live.used > 5000) {
+        back.pos = t + 2
+        back.sought = now
+        send(back, 'seek', { seconds: Math.floor(back.pos) })
+      }
+      if (slots.current.some((s) => s !== live && !s.ready && !s.idle && now - s.since < 60000)) return
+      const { hint, next, warm } = wish.current
+      const { duration } = liveState.current
+      const nearEnd = duration > 0 && (t / duration > 0.5 || duration - t < 360)
+      const eager = !saverOn() && !slowNetwork() && now - live.used > 8000
+      const order: [string, boolean][] = []
+      if (hint) order.push([hint, false])
+      if (next && nearEnd && !saverOn()) order.push([next, true])
+      if (eager) for (const src of warm) order.push([src, false])
+      for (const [raw, isNext] of order) {
+        const src = kodikHost(raw)
+        if (!isKodik(src)) continue
+        const base = baseOf(src, frameAttempt)
+        if (slots.current.some((s) => s.base === base)) continue
+        const spare = slots.current.filter((s) => s.key !== liveKey.current && s.key !== heldKey.current).length
+        if (spare >= warmLimit()) {
+          // Озвучка под курсором и следующая серия важнее давно прогретых: те уступают место.
+          if (raw !== hint && !isNext) return
+          trim(1)
+        }
+        const start = isNext ? 0 : Math.floor(t)
+        const slot = newSlot({ src: withStart(src, start), title: frameTitle, key: '' }, base, isNext ? nextEpisode : episodeKey, start)
+        // Следующую серию только загружаем, не запуская: перемотку и паузу в начале серии Kodik отдаёт рекламе,
+        // и запущенная заранее серия потом застывала. Готовый плеер на месте всё равно экономит его загрузку.
+        slot.idle = isNext
+        slots.current.push(slot)
+        return rerender()
+      }
+    }
+    const timer = window.setInterval(tick, 1500)
+    return () => window.clearInterval(timer)
+  }, [pooled, !!unavailable, shikimoriId, episode, frameAttempt, frameTitle])
   // Сообщаем странице, что источник не справился, но не сразу: короткие промежуточные состояния не в счёт.
   const onUnavailable = useRef(props.onUnavailable)
   onUnavailable.current = props.onUnavailable
@@ -797,8 +1117,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
       {/* Контейнер плеера 16:9 */}
       <div className="player-frame" ref={frameRef}>
-        {loading && !unavailable && !live && <Spinner over={!!hold} />}
-        {live && frame && !unavailable && (
+        {loading && !unavailable && !pending && <Spinner over={!!heldKey.current} />}
+        {pending && !pending.ready && !unavailable && (
           <span className="player-tag player-tag--switch" role="status">
             Подключаем озвучку…
           </span>
@@ -893,6 +1213,61 @@ interface ShownFrame {
   src: string
   title: string
   key: string
+}
+
+/** Плеер Kodik в пуле: показан, готовится к подмене или прогрет про запас. */
+interface Slot extends ShownFrame {
+  /** озвучка и серия без start_from: по нему узнаём уже прогретый плеер */
+  base: string
+  /** id тайтла и серия */
+  episode: string
+  /** с какой секунды стартовал */
+  start: number
+  loaded: boolean
+  /** видео в нём уже шло (реклама позади) */
+  ready: boolean
+  paused: boolean
+  since: number
+  /** где стоит на паузе и когда его туда перематывали */
+  pos: number
+  sought: number
+  /** реклама в нём кончилась; первое время от него; длительность серии */
+  ad?: boolean
+  t0?: number
+  /** только загружен, не запущен (следующая серия) */
+  idle?: boolean
+  duration?: number
+  /** когда был на экране: из пула первым уходит давно не нужный */
+  used: number
+}
+
+let slotSeq = 0
+function newSlot(frame: ShownFrame, base: string, episode: string, start: number): Slot {
+  return { ...frame, key: `${frame.src}#${++slotSeq}`, base, episode, start: Math.floor(start), pos: start, sought: 0, loaded: false, ready: false, paused: false, since: Date.now(), used: Date.now() }
+}
+
+/** Адрес плеера без места старта и кнопок пропуска: одна и та же озвучка той же серии. */
+function baseOf(src: string, attempt: number) {
+  try {
+    const url = new URL(src)
+    url.searchParams.delete('start_from')
+    url.searchParams.delete('skip_button')
+    return `${url}#${attempt}`
+  } catch {
+    return `${src}#${attempt}`
+  }
+}
+
+/** Новый плеер перематываем чуть вперёд: пока он докачивает это место, прежний играет дальше. */
+const SEEK_LEAD = 0.3
+
+/**
+ * Сколько прогретых плееров держать кроме показанного. Каждый на паузе всё равно докачивает
+ * десяток секунд видео: на телефоне и в «Экономии трафика» — только прежнюю озвучку.
+ */
+function warmLimit() {
+  if (saverOn() || slowNetwork()) return 1
+  return matchMedia('(pointer: coarse)').matches || innerWidth < 760 ? 2 : 3
 }
 
 /** Плеер Kodik (свой или из Anixart и YummyAnime): он понимает команды через postMessage и параметр start_from. */
