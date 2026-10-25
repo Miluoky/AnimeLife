@@ -67,6 +67,16 @@ test('ответ на комментарий: строка помнит, ком�
   assert.equal((await notificationActions['notif-list'](db.api, as('u1'))).unread, 0)
 })
 
+test('автомодерация: комментарий с матом уходит на проверку и не будит автора исходного', async () => {
+  const db = fakeDb()
+  const { comment: first } = await commentSave(db.api, as('u1'), { animeId: '1', episode: 2, text: 'Отличная серия' })
+  const saved = await commentSave(db.api, as('u2'), { animeId: '1', episode: 2, text: 'да ну нахуй такой финал', replyTo: first.$id })
+  assert.equal(saved.held, 'мат')
+  assert.equal(saved.comment.hidden, true)
+  assert.equal((await notificationActions['notif-list'](db.api, as('u1'))).unread, 0)
+  await assert.rejects(commentSave(db.api, as('u1'), { animeId: '1', episode: 2, text: 'отличная  серия' }), /уже отправили/)
+})
+
 test('подписка и лайк подборки — по одному уведомлению, даже если нажать дважды', async () => {
   const db = fakeDb()
   db.table('profiles').set('u1', { $id: 'u1', name: 'Мика' })

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { digestTime, weekKey, weeklyPollOptions, weeklyPost, weekReleases } from '../scripts/telegram-news.mjs'
+import { digestTime, episodeButtons, weekKey, weeklyPollOptions, weeklyPost, weekReleases } from '../scripts/telegram-news.mjs'
 
 // Итоги недели в Telegram-канале: что вышло с понедельника и опрос «Серия недели».
 
@@ -33,4 +33,11 @@ test('что вышло: рост серий от снимка, завершив
   expect(weeklyPollOptions(fresh)).toEqual([{ text: 'Дандадан, 9' }, { text: 'Финал недели, 12' }])
   const long = weeklyPollOptions([{ id: '1', russian: 'Я'.repeat(120), episodesAired: 3 }])[0].text
   expect(long.length).toBeLessThanOrEqual(100)
+})
+
+test('пост о серии: кнопки «Смотреть» и «Обсудить» ведут на серию и к её обсуждению', () => {
+  expect(episodeButtons({ id: 52991, episodesAired: 7 })).toEqual([
+    [['▶️ Смотреть', 'https://animelife.top/watch/52991/7'], ['💬 Обсудить', 'https://animelife.top/watch/52991/7#comments']],
+    [['О тайтле', 'https://animelife.top/anime/52991']],
+  ])
 })

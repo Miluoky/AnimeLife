@@ -166,13 +166,22 @@ export function episodeCaption(a) {
     '',
     escapeHtml(shortText(a.description)),
     '',
-    `▶️ <a href="${SITE}/watch/${a.id}/${n}">Смотреть на Anime Life</a>`,
+    `▶️ <a href="${SITE}/watch/${a.id}/${n}">Смотреть на Anime Life</a> · 💬 <a href="${SITE}/watch/${a.id}/${n}#comments">обсудить серию</a>`,
     '',
     ['#новая_серия', ...tags].join(' '),
   ]
     .filter((line, i, all) => line || all[i - 1])
     .join('\n')
     .trim()
+}
+
+/** Кнопки под постом о серии: смотреть и обсудить серию на сайте (комментарии под плеером), ниже — страница тайтла. */
+export function episodeButtons(a) {
+  const watch = `${SITE}/watch/${a.id}/${a.episodesAired}`
+  return [
+    [['▶️ Смотреть', watch], ['💬 Обсудить', `${watch}#comments`]],
+    [['О тайтле', `${SITE}/anime/${a.id}`]],
+  ]
 }
 
 export function episodesDigest(list) {
@@ -199,7 +208,7 @@ async function episodes(state) {
         text: episodeCaption(a),
         photo: a.poster?.originalUrl,
         card: await renderCard(a, { badge: `Новая серия · ${a.episodesAired}`, text: shortText(a.description, 400) }),
-        buttons: [[['▶️ Смотреть', `${SITE}/watch/${a.id}/${a.episodesAired}`], ['О тайтле', `${SITE}/anime/${a.id}`]]],
+        buttons: episodeButtons(a),
       })
       next[a.id] = a.episodesAired
       await pause(1500)
@@ -383,7 +392,7 @@ async function main() {
       text: episodeCaption(a),
       photo: a.poster?.originalUrl,
       card: await renderCard(a, { badge: `Новая серия · ${a.episodesAired}`, text: shortText(a.description, 400) }),
-      buttons: [[['▶️ Смотреть', `${SITE}/watch/${a.id}/${a.episodesAired}`], ['О тайтле', `${SITE}/anime/${a.id}`]]],
+      buttons: episodeButtons(a),
     })
     await closeCards()
     console.log(`Пробный пост опубликован: ${titleOf(a)}`)

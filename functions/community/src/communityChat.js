@@ -1,4 +1,5 @@
 import { DB, UserError, hash, listRows } from './util.js'
+import { heldReason, rejectSpam } from './automod.js'
 
 const TABLE = 'community_chat'
 const REPORTS = 'community_chat_reports'
@@ -29,6 +30,8 @@ export async function communityChatSend(api, req, body) {
     { method: 'limit', values: [MESSAGES_PER_10S] },
   ])
   if (recent.length >= MESSAGES_PER_10S) throw new UserError('Не так быстро: подождите пару секунд.')
+  rejectSpam(message, recent.map((r) => r.text))
+  if (heldReason(message)) throw new UserError('В общем чате нельзя мат и ссылки на чужие сайты.')
 
   const row = await api('POST', `${DB}/${TABLE}/rows`, {
     rowId: 'unique()',

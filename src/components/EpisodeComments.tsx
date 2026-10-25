@@ -98,7 +98,9 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
   }, [animeId, episode])
 
   // Ссылка из уведомления (#c-<id>): прокручиваем к комментарию и подсвечиваем его.
+  // Кнопка «Обсудить» из Telegram-канала (#comments): прокручиваем к обсуждению, когда оно загрузилось.
   useEffect(() => {
+    if (items && location.hash === '#comments') document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     const id = location.hash.startsWith('#c-') ? location.hash.slice(3) : ''
     if (!items || !id) return
     const el = document.getElementById(`c-${id}`)
@@ -122,6 +124,7 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
       setSpoiler(false)
       setReplyTo(null)
       markFlag('commented')
+      if (c.hidden) toast('Комментарий виден только вам, пока его не проверит модератор: в нём мат или ссылка на другой сайт')
     } catch (err) {
       toast(err instanceof CommunityError ? err.message : 'Не удалось отправить')
     } finally {
@@ -175,6 +178,7 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
           {c.replyName && <span className="muted comment__to">ответ для {c.replyName}</span>}
           <span className="muted">{ago(c.at)}</span>
           {c.spoiler && <span className="comment__tag">спойлер</span>}
+          {c.hidden && <span className="comment__tag">на проверке</span>}
           {user && c.userId !== user.$id && (
             <button type="button" className="comment__delete" onClick={() => startReply(c)}>
               Ответить
@@ -205,7 +209,7 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
   }
 
   return (
-    <section className="stack comments" aria-label={`Обсуждение серии ${episode}`}>
+    <section id="comments" className="stack comments" aria-label={`Обсуждение серии ${episode}`}>
       <div className="section-head">
         <h2 style={{ fontSize: 20 }}>Обсуждение серии {episode}</h2>
         {items && <span className="muted">{items.length}</span>}
