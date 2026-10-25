@@ -40,7 +40,8 @@ export default function WatchReturn({ anime, current, total }: { anime: Anime; c
 function LoginNudge({ waiting }: { waiting: boolean }) {
   const [closedAt, setClosedAt] = useState(nudgeStore.get)
   // Одна запись журнала — одна серия за день: две и больше значат, что зритель уже смотрит, а не заглянул.
-  const watched = watchLogStore.get().entries.length
+  // Считаем один раз при открытии страницы: карточка не выезжает посреди просмотра и не двигает плеер.
+  const [watched] = useState(() => watchLogStore.get().entries.length)
   if (closedAt || (watched < 2 && !waiting)) return null
   return (
     <aside className="watch-return watch-return--nudge" aria-label="Сохранить прогресс">

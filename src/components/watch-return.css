@@ -1,6 +1,5 @@
 /* Конец серии: вход для гостя, напоминание ботом, похожее после финала (WatchReturn.tsx). */
 .watch-return {
-  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -19,14 +18,16 @@
   min-width: 0;
 }
 
-.watch-return--nudge {
-  padding-right: 48px;
+/* Без position: карточка не должна перекрывать мини-плеер, который на телефоне висит поверх страницы. */
+.watch-return__close {
+  align-self: flex-start;
+  order: -1;
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 
-.watch-return__close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+.watch-return--nudge .watch-return__text {
+  order: -2;
 }
 
 .watch-return--similar {
