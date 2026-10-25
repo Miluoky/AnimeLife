@@ -3,7 +3,8 @@ name: Проверка источников
 # Раз в час проверяет сайт и источники видео (scripts/source-health.mjs). Если что-то упало или поднялось,
 # бот @AnimeLifeAuth_bot пишет администратору сайта в Telegram (аккаунт с меткой admin, вошедший через Telegram,
 # или чат из секрета TELEGRAM_ADMIN_CHAT_ID). Состояние прошлой проверки переносится кэшем (.health/state.json),
-# поэтому сообщения приходят только при изменениях. Сайт или каталог лёг — запуск красный, GitHub пришлёт письмо.
+# поэтому сообщения приходят только при изменениях. Там же порог лимита Worker (70k и 90k вызовов за сутки).
+# Сайт или каталог лёг — запуск красный, GitHub пришлёт письмо.
 on:
   schedule:
     - cron: '23 * * * *'
@@ -25,6 +26,9 @@ jobs:
       TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
       APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
       KODIK_TOKEN: ${{ secrets.VITE_KODIK_TOKEN }}
+      # Вызовы Worker за сутки: на 70 и 90 тысячах из 100 000 бот предупреждает администратора.
+      CLOUDFLARE_EMAIL: ${{ secrets.ANIMELIFE_CF_EMAIL }}
+      CLOUDFLARE_API_KEY: ${{ secrets.ANIMELIFE_CF_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
