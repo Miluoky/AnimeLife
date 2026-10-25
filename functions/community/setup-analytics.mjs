@@ -51,9 +51,15 @@ const tables = [
       ['integer', { key: 'episodes', required: false, default: 0, min: 0, max: 1_000_000 }],
       ['string', { key: 'device', size: 16, required: false }],
       ['string', { key: 'source', size: 64, required: false }],
+      // Воронка новичков: сколько раз открывал тайтлы, день первого визита (по Москве), вернулся ли через день и неделю.
+      ['integer', { key: 'titles', required: false, default: 0, min: 0, max: 1_000_000 }],
+      ['integer', { key: 'firstDay', required: false, min: 0, max: 1_000_000 }],
+      ['boolean', { key: 'ret1', required: false, default: false }],
+      ['boolean', { key: 'ret7', required: false, default: false }],
     ],
     indexes: [
       { key: 'last_seen', type: 'key', columns: ['lastSeen'], orders: ['DESC'] },
+      { key: 'first_day', type: 'key', columns: ['firstDay'], orders: ['ASC'] },
       { key: 'path_views', type: 'key', columns: ['path', 'views'], orders: ['ASC', 'DESC'] },
     ],
   },

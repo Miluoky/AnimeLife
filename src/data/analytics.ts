@@ -97,6 +97,14 @@ export interface AnalyticsStats {
   devices: { name: string; count: number }[]
   sources: { name: string; count: number }[]
   popular: { path: string; views: number }[]
+  /** воронка новичков за 30 дней; нет у ответа старой функции */
+  funnel?: {
+    visitors: number
+    titles: number
+    episodes: number
+    day1: { of: number; back: number }
+    day7: { of: number; back: number }
+  }
   generatedAt: string
 }
 

@@ -14,6 +14,9 @@ const DEVICES = new Set(['mobile', 'tablet', 'desktop'])
 const MSK = 3 * 60 * 60 * 1000
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
+/** Номер дня по Москве: для воронки «вернулся на следующий день / через неделю». */
+export const dayNumber = (ms) => Math.floor((ms + MSK) / DAY)
+
 /** Онлайн — кто был активен последние 5 минут (вкладка открыта и видна, отметка раз в 2 минуты). */
 const ONLINE_WINDOW = 5 * 60 * 1000
 
@@ -83,6 +86,7 @@ export async function analyticsTrack(api, body, now = Date.now()) {
   if (!SESSION_RE.test(sessionId) || !PATH_RE.test(path)) throw new UserError('Неверные данные посещения.')
   const pageview = !!body.pageview
   const episode = pageview && /^\/watch\//.test(path)
+  const title = pageview && /^\/(?:en\/)?anime\//.test(path)
   const id = `a${hash(sessionId)}`
   const existing = await api('GET', `${DB}/analytics/rows/${id}`)
   const fresh = existing.status === 404
@@ -91,6 +95,10 @@ export async function analyticsTrack(api, body, now = Date.now()) {
   const at = buckets(now)
   const was = last ? buckets(last) : undefined
   const device = DEVICES.has(body.device) ? body.device : 'desktop'
+  // Воронка считается только по браузерам, впервые пришедшим после её запуска: у старых нет firstDay.
+  const today = dayNumber(now)
+  const firstDay = fresh ? today : row.firstDay
+  const gap = Number.isInteger(firstDay) ? today - firstDay : -1
 
   await api('PUT', `${DB}/analytics/rows/${id}`, {
     data: {
@@ -99,6 +107,11 @@ export async function analyticsTrack(api, body, now = Date.now()) {
       lastSeen: new Date(now).toISOString(),
       views: Math.min(1_000_000, Number(row.views ?? 0) + (pageview ? 1 : 0)),
       episodes: Math.min(1_000_000, Number(row.episodes ?? 0) + (episode ? 1 : 0)),
+      titles: Math.min(1_000_000, Number(row.titles ?? 0) + (title ? 1 : 0)),
+      firstDay: Number.isInteger(firstDay) ? firstDay : null,
+      // Вернулся на следующий день после первого визита; через неделю — в любой из дней с 7-го по 13-й.
+      ret1: !!row.ret1 || gap === 1,
+      ret7: !!row.ret7 || (gap >= 7 && gap <= 13),
       device: row.device || device,
       source: row.source || sourceOf(body.referrer, body.utm),
     },
@@ -137,6 +150,23 @@ async function allRows(api, table, queries, max) {
   return rows
 }
 
+/**
+ * Воронка новичков за 30 дней: зашёл → открыл тайтл → запустил серию → вернулся на следующий день → через неделю.
+ * Возврат считаем только у тех, у кого этот день уже наступил: пришедший сегодня ещё не мог вернуться завтра.
+ */
+export function funnelOf(rows, today) {
+  const ready = (days) => rows.filter((row) => row.firstDay <= today - days)
+  const day1 = ready(1)
+  const day7 = ready(7)
+  return {
+    visitors: rows.length,
+    titles: rows.filter((row) => Number(row.titles) > 0).length,
+    episodes: rows.filter((row) => Number(row.episodes) > 0).length,
+    day1: { of: day1.length, back: day1.filter((row) => row.ret1).length },
+    day7: { of: day7.length, back: day7.filter((row) => row.ret7).length },
+  }
+}
+
 const top = (map, limit) => [...map].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([name, count]) => ({ name, count }))
 
 export async function analyticsStats(api, req, now = Date.now()) {
@@ -145,7 +175,8 @@ export async function analyticsStats(api, req, now = Date.now()) {
   const gte = (q) => ({ method: 'greaterThanEqual', ...q })
   const created = (ms) => gte({ attribute: '$createdAt', values: [new Date(now - ms).toISOString()] })
 
-  const [online, today, week, month30, all, newToday, newWeek, newMonth, users, usersWeek, counters, pages, sessions] = await Promise.all([
+  const today0 = dayNumber(now)
+  const [online, today, week, month30, all, newToday, newWeek, newMonth, users, usersWeek, counters, pages, sessions, cohort] = await Promise.all([
     countRows(api, 'analytics', [gte(since(ONLINE_WINDOW))]),
     countRows(api, 'analytics', [gte(since(DAY))]),
     countRows(api, 'analytics', [gte(since(7 * DAY))]),
@@ -168,6 +199,10 @@ export async function analyticsStats(api, req, now = Date.now()) {
       { method: 'limit', values: [12] },
     ].map(query).join('&')}`).then((r) => r.json.rows ?? []),
     allRows(api, 'analytics', [gte(since(30 * DAY)), { method: 'select', values: ['device', 'source', 'path', 'lastSeen'] }], 5000),
+    allRows(api, 'analytics', [
+      gte({ attribute: 'firstDay', values: [today0 - 30] }),
+      { method: 'select', values: ['firstDay', 'titles', 'episodes', 'ret1', 'ret7'] },
+    ], 5000),
   ])
 
   const point = (row) => ({
@@ -196,6 +231,7 @@ export async function analyticsStats(api, req, now = Date.now()) {
   return {
     online,
     onlinePages: top(live, 8),
+    funnel: funnelOf(cohort, today0),
     visitors: { today, week, month: month30, all },
     newVisitors: { today: newToday, week: newWeek, month: newMonth },
     views: { today: todayRow?.views ?? 0, week: sum(last(7), 'views'), month: sum(days, 'views') },

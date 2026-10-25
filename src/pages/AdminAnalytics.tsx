@@ -105,6 +105,43 @@ function Share({ title, items, names }: { title: string; items: { name: string; 
   )
 }
 
+/**
+ * Воронка новичков за 30 дней: зашёл → открыл тайтл → запустил серию → вернулся. Первые три шага — доля от всех новичков,
+ * возвраты — от тех, у кого нужный день уже наступил. Цель плана развития: через неделю возвращаются больше 20%.
+ */
+function Funnel({ funnel }: { funnel: NonNullable<AnalyticsStats['funnel']> }) {
+  const pct = (part: number, of: number) => (of ? Math.round((part / of) * 100) : 0)
+  const steps: [string, number, number][] = [
+    ['Пришли впервые', funnel.visitors, funnel.visitors],
+    ['Открыли тайтл', funnel.titles, funnel.visitors],
+    ['Запустили серию', funnel.episodes, funnel.visitors],
+    ['Вернулись на следующий день', funnel.day1.back, funnel.day1.of],
+    ['Вернулись через неделю (7–13 день)', funnel.day7.back, funnel.day7.of],
+  ]
+  return (
+    <section className="an-card an-funnel">
+      <h2>Воронка новичков (30 дней)</h2>
+      {funnel.visitors ? (
+        <ul className="an-share">
+          {steps.map(([name, count, of]) => (
+            <li key={name}>
+              <span className="an-share__name">{name}</span>
+              <strong>
+                {number(count)}
+                {of !== funnel.visitors || name !== 'Пришли впервые' ? ` · ${pct(count, of)}%` : ''}
+              </strong>
+              <span className="an-share__bar" style={{ width: `${pct(count, of)}%` }} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted">Считаем новичков с момента запуска воронки: данные появятся с первыми посетителями.</p>
+      )}
+      <p className="muted">Возврат считаем от тех, у кого этот день уже наступил: пришедшие сегодня ещё не могли вернуться завтра. Цель — через неделю больше 20%.</p>
+    </section>
+  )
+}
+
 /** Короткая сводка для профиля администратора. */
 export function AnalyticsSummary({ stats }: { stats: AnalyticsStats }) {
   return (
@@ -229,6 +266,7 @@ export default function AdminAnalytics() {
           />
 
           <div className="an-grid">
+            {stats.funnel && <Funnel funnel={stats.funnel} />}
             <section className="an-card">
               <h2>Где сейчас ({number(stats.online)})</h2>
               {stats.onlinePages.length ? (
