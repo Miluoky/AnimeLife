@@ -543,7 +543,7 @@ test('плеер: Kodik продолжает с места, запоминает
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
 })
 
-test('плеер: смена озвучки и серии без перезагрузки страницы, озвучка продолжает с того же места', async ({ page }) => {
+test('плеер: смена озвучки без паузы — новая готовится под прежней и встаёт на её место; смена серии без перезагрузки страницы', async ({ page }) => {
   await mockAniLibria(page, search.slice(0, 1))
   await page.route(/api\.anixart\.tv\/search/, (route) =>
     route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
@@ -564,13 +564,24 @@ test('плеер: смена озвучки и серии без перезаг�
     const type = route.request().url().match(/31\/(\d+)\/30$/)![1]
     return route.fulfill({ json: { code: 0, episodes: [1, 2].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${type}${n}/hash/720p`, iframe: true })) } })
   })
-  // Поддельный Kodik: серия идёт, плеер сообщает время 5:00. Новый плеер отвечает не сразу — видно, что прежний ждёт его на экране.
+  // Поддельный Kodik: серия идёт с 5:00, команды сайта он записывает в заголовок, на get_time отвечает 5:12.
+  // Новый плеер отвечает не сразу — видно, как прежний играет, пока новый готовится.
   let delay = 0
   await page.route(/kodikplayer\.com\/seria\//, async (route) => {
     await new Promise((r) => setTimeout(r, delay))
     return route.fulfill({
       contentType: 'text/html',
-      body: `<!doctype html><title>Kodik</title><script>parent.postMessage({ key: 'kodik_player_time_update', value: 300 }, '*')</script>`,
+      body: `<!doctype html><title>Kodik</title><script>
+        const log = []
+        addEventListener('message', (e) => {
+          if (e.data?.key !== 'kodik_player_api') return
+          const v = e.data.value
+          log.push(v.method + (v.seconds != null ? ':' + v.seconds : ''))
+          document.title = log.join(',')
+          if (v.method === 'get_time') parent.postMessage({ key: 'kodik_player_time', value: 312 }, '*')
+        })
+        parent.postMessage({ key: 'kodik_player_time_update', value: 300 }, '*')
+      </script>`,
     })
   })
   await page.goto('/watch/1/1')
@@ -581,11 +592,16 @@ test('плеер: смена озвучки и серии без перезаг�
 
   delay = 1500
   await page.getByRole('button', { name: /^AniDUB/ }).click()
-  // Пока новый грузится, прежний плеер на месте (на паузе), новый ждёт под ним.
-  await expect(page.locator('iframe.player-iframe--old')).toHaveAttribute('src', /seria\/291\//)
+  // Прежняя озвучка играет дальше, новая готовится под ней без звука с того же места.
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/291\//)
+  await expect(page.locator('iframe.player-iframe--prep')).toHaveAttribute('src', 'https://kodikplayer.com/seria/301/hash/720p?start_from=300')
+  await expect(page.getByText('Подключаем озвучку…')).toBeVisible()
+  // Новая пошла — она встаёт на место прежней точно с её времени и со звуком, прежняя уходит.
   const fresh = page.locator('iframe.player-iframe:not(.player-iframe--old)')
-  await expect(fresh).toHaveAttribute('src', 'https://kodikplayer.com/seria/301/hash/720p?start_from=300')
   await expect(page.locator('iframe.player-iframe')).toHaveCount(1, { timeout: 8000 })
+  await expect(fresh).toHaveAttribute('src', /seria\/301\//)
+  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/301'))?.title()).toMatch(/^mute,.*seek:312\.3,unmute,play$/)
+  await expect(page.getByText('Подключаем озвучку…')).toHaveCount(0)
 
   // Другая серия: та же страница, без перехода и без прокрутки наверх; новая серия — с начала.
   delay = 0
