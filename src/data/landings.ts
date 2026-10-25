@@ -46,6 +46,60 @@ const GENRE_INTROS: Record<string, string> = {
   josei: 'Аниме для взрослых женщин: реалистичные отношения, карьера и жизнь после школы. Популярные тайтлы в жанре дзёсей.',
 }
 
+/**
+ * Темы Shikimori (genre_v2): «исэкай», «реинкарнация», «путешествие во времени». Их ищут как «аниме про …»,
+ * а в старом списке жанров /api/genres их нет. about — продолжение фразы «Аниме про …».
+ */
+export const THEMES: { slug: string; id: number; name: string; about: string; intro: string }[] = [
+  { slug: 'isekai', id: 130, name: 'Исэкай', about: 'исекай и попаданцев', intro: 'Герой погибает, засыпает или просто открывает дверь — и оказывается в другом мире, часто с силой, которой не было дома. Аниме про исекай и попаданцев: от классики жанра до свежих онгоингов.' },
+  { slug: 'reincarnation', id: 106, name: 'Реинкарнация', about: 'реинкарнацию и перерождение', intro: 'Новая жизнь с памятью о прошлой: перерождение в другом мире, в другом теле или в другой эпохе. Аниме про реинкарнацию по популярности у зрителей.' },
+  { slug: 'time-travel', id: 111, name: 'Путешествие во времени', about: 'путешествия во времени', intro: 'Петли времени, попытки исправить прошлое и письма из будущего. Аниме про путешествия во времени, где каждая мелочь может изменить всё.' },
+  { slug: 'survival', id: 141, name: 'Выживание', about: 'выживание', intro: 'Необитаемые острова, апокалипсис, смертельные игры и мир, где каждый день может стать последним. Аниме про выживание для любителей напряжения.' },
+  { slug: 'high-stakes-game', id: 146, name: 'Игры на выживание', about: 'смертельные игры', intro: 'Игры, где на кону жизнь, деньги или свобода: блеф, расчёт и предательство. Аниме про смертельные игры и азарт с высокими ставками.' },
+  { slug: 'villainess', id: 198, name: 'Злодейка', about: 'злодейку', intro: 'Героиня просыпается в теле злодейки из любимой игры или романа и пытается избежать плохого финала. Аниме про злодейку — комедии, романтика и интриги.' },
+  { slug: 'iyashikei', id: 140, name: 'Иясикэй', about: 'уют и спокойствие (иясикэй)', intro: 'Иясикэй — «исцеляющие» аниме: спокойный ритм, красивые пейзажи и тёплые истории без драмы. Лучшее, что можно включить вечером, чтобы отдохнуть.' },
+  { slug: 'mahou-shoujo', id: 124, name: 'Махо-сёдзё', about: 'девочек-волшебниц', intro: 'Девочки-волшебницы, превращения и битвы со злом — от светлой классики до мрачных историй, которые переворачивают жанр. Аниме махо-сёдзё по популярности.' },
+  { slug: 'urban-fantasy', id: 197, name: 'Городское фэнтези', about: 'магию в современном городе', intro: 'Духи, маги и монстры живут рядом с обычными людьми в современном городе. Аниме в жанре городского фэнтези.' },
+  { slug: 'mythology', id: 6, name: 'Мифология', about: 'богов и мифологию', intro: 'Боги, ёкаи, легендарные герои и существа из японских, греческих и скандинавских мифов. Аниме про мифологию по популярности.' },
+  { slug: 'video-game', id: 103, name: 'Видеоигры', about: 'видеоигры и виртуальные миры', intro: 'Виртуальные миры, MMORPG, из которых нельзя выйти, и киберспорт. Аниме про видеоигры и игровые миры.' },
+  { slug: 'team-sports', id: 102, name: 'Командный спорт', about: 'командный спорт', intro: 'Волейбол, баскетбол, футбол и бейсбол: тренировки, соперники и матчи, где побеждает команда. Аниме про командный спорт.' },
+  { slug: 'combat-sports', id: 118, name: 'Единоборства', about: 'бокс и единоборства', intro: 'Бокс, борьба и смешанные единоборства: путь бойца от первой тренировки до титула. Аниме про спортивные единоборства.' },
+  { slug: 'love-polygon', id: 107, name: 'Любовный многоугольник', about: 'любовный треугольник', intro: 'Когда в одну историю влюблены сразу несколько героев и выбрать так и не получается. Аниме про любовные треугольники и многоугольники.' },
+  { slug: 'idols', id: 145, name: 'Айдолы', about: 'айдолов', intro: 'Путь к сцене: прослушивания, тренировки, концерты и соперничество групп. Аниме про айдолов.' },
+  { slug: 'showbiz', id: 136, name: 'Шоу-бизнес', about: 'шоу-бизнес', intro: 'Актёры, певцы, стримеры и закулисье индустрии развлечений, где за улыбкой на сцене скрывается совсем другое.' },
+  { slug: 'gore', id: 105, name: 'Жестокость', about: 'жестокость и кровь', intro: 'Аниме, которые не отводят камеру: кровь, жестокие бои и мрачные миры. Только для взрослых зрителей с крепкими нервами.' },
+  { slug: 'organized-crime', id: 138, name: 'Мафия', about: 'мафию и якудза', intro: 'Якудза, мафиозные кланы и преступный мир изнутри: долг, честь и предательство. Аниме про мафию и организованную преступность.' },
+  { slug: 'delinquents', id: 131, name: 'Хулиганы', about: 'хулиганов и уличные банды', intro: 'Уличные банды, драки за честь района и хулиганы, у которых доброе сердце. Аниме про хулиганов.' },
+  { slug: 'adult-cast', id: 104, name: 'Взрослые герои', about: 'взрослых героев', intro: 'Не школьники, а взрослые люди со своей работой, семьёй и проблемами. Аниме со взрослыми главными героями.' },
+  { slug: 'otaku-culture', id: 137, name: 'Культура отаку', about: 'отаку', intro: 'Аниме про тех, кто любит аниме: фанаты, косплей, создание манги и игр, жизнь отаку.' },
+  { slug: 'medical', id: 147, name: 'Медицина', about: 'врачей и медицину', intro: 'Врачи, больницы и спасение жизней, а иногда и лечение необычных пациентов. Аниме про медицину.' },
+  { slug: 'award-winning', id: 114, name: 'Удостоенные наград', about: 'награды', intro: 'Аниме, получившие крупные премии: фестивали анимации, награды критиков и зрительские призы. Проверенные временем тайтлы.' },
+]
+
+/** Прилагательное для «Лучшие … аниме» у самых частых жанров; у остальных «Лучшие аниме в жанре «…»». */
+const BEST_ADJ: Record<string, string> = {
+  action: 'экшен',
+  adventure: 'приключенческие',
+  comedy: 'комедийные',
+  drama: 'драматические',
+  fantasy: 'фэнтези',
+  romance: 'романтические',
+  'sci-fi': 'фантастические',
+  mystery: 'детективные',
+  horror: 'страшные',
+  psychological: 'психологические',
+  'slice-of-life': 'повседневные',
+  school: 'школьные',
+  sports: 'спортивные',
+  historical: 'исторические',
+  military: 'военные',
+  music: 'музыкальные',
+  kids: 'детские',
+}
+
+/** Первый год у страниц «Лучшие аниме года» в карте сайта: раньше оценённых тайтлов мало. */
+const FIRST_BEST_YEAR = 2000
+
 /** Заголовок вкладки и вводный текст страниц по типу. */
 const KIND_PAGES: Record<string, { title: string; intro: string }> = {
   tv: {
@@ -95,8 +149,8 @@ export interface Landing {
   title: string
   description: string
   intro: string
-  /** фильтр каталога Shikimori: те же параметры, что у CatalogQuery */
-  query: { genre?: number; season?: string; kind?: string; status?: 'ongoing' }
+  /** фильтр каталога Shikimori: те же параметры, что у CatalogQuery (themeId — это genre_v2) */
+  query: { genre?: number; themeId?: number; season?: string; kind?: string; status?: 'ongoing'; order?: 'ranked' }
   /** родительские разделы для хлебных крошек, без главной */
   crumbs: [string, string][]
   /** есть страницы ?page=N */
@@ -113,7 +167,10 @@ const yearLinks = (around: number, now: number): [string, string][] => {
   return out
 }
 
-/** Посадочная страница по адресу: /genre/romance, /year/2026, /year/2026/fall, /type/movie, /ongoing. */
+/**
+ * Посадочная страница по адресу: /genre/romance, /theme/isekai, /best/romance, /best/2024, /year/2026, /year/2026/fall,
+ * /type/movie, /ongoing.
+ */
 export function landingFor(path: string, now = new Date()): Landing | undefined {
   const thisYear = now.getFullYear()
   let m = path.match(/^\/genre\/([a-z-]+)$/)
@@ -130,9 +187,27 @@ export function landingFor(path: string, now = new Date()): Landing | undefined 
       query: { genre: g.id },
       crumbs: [['Каталог', '/catalog']],
       paged: true,
-      related: GENRES.filter((x) => x !== g).map((x) => [x.name, `/genre/${x.slug}`]),
+      related: [[bestH1(g), `/best/${g.slug}`], ...GENRES.filter((x) => x !== g).map((x): [string, string] => [x.name, `/genre/${x.slug}`])],
     }
   }
+  m = path.match(/^\/theme\/([a-z-]+)$/)
+  if (m) {
+    const t = THEMES.find((x) => x.slug === m![1])
+    if (!t) return undefined
+    return {
+      path,
+      h1: `Аниме про ${t.about}`,
+      title: fitTitle(`Аниме про ${t.about}`, [' — смотреть онлайн бесплатно', ' — смотреть онлайн', ' онлайн']),
+      description: `Аниме про ${t.about}: популярные сериалы и фильмы с годом выхода, числом серий и описанием. Смотрите онлайн бесплатно на ${SITE}.`,
+      intro: t.intro,
+      query: { themeId: t.id },
+      crumbs: [['Каталог', '/catalog']],
+      paged: true,
+      related: [[bestH1(t), `/best/${t.slug}`], ...THEMES.filter((x) => x !== t).map((x): [string, string] => [`Про ${x.about}`, `/theme/${x.slug}`])],
+    }
+  }
+  m = path.match(/^\/best\/([a-z0-9-]+)$/)
+  if (m) return bestLanding(path, m[1], thisYear)
   m = path.match(/^\/type\/([a-z]+)$/)
   if (m) {
     const k = KIND_PAGES[m[1]]
@@ -187,7 +262,11 @@ export function landingFor(path: string, now = new Date()): Landing | undefined 
       query: { season: String(year) },
       crumbs: [['Каталог', '/catalog']],
       paged: true,
-      related: [...seasons, ...yearLinks(year, thisYear)],
+      related: [
+        ...(year >= FIRST_BEST_YEAR && year <= thisYear ? [[`Лучшие аниме ${year} года`, `/best/${year}`] as [string, string]] : []),
+        ...seasons,
+        ...yearLinks(year, thisYear),
+      ],
     }
   }
   if (path === '/ongoing') {
@@ -211,6 +290,71 @@ export function landingFor(path: string, now = new Date()): Landing | undefined 
   return undefined
 }
 
+/** Заголовок вкладки до 70 знаков вместе с « | Anime Life»: первый хвост, который помещается. */
+const fitTitle = (head: string, tails: string[]) => {
+  for (const tail of tails) if (`${head}${tail} | ${SITE}`.length <= 70) return head + tail
+  return head
+}
+
+/** «Лучшие романтические аниме», «Лучшие аниме про исекай». */
+function bestH1(x: { slug: string; name: string; about?: string }) {
+  if ('about' in x && x.about) return `Лучшие аниме про ${x.about}`
+  const adj = BEST_ADJ[x.slug]
+  return adj ? `Лучшие ${adj} аниме` : `Лучшие аниме в жанре «${x.name}»`
+}
+
+/**
+ * Подборка «Лучшие …»: тот же жанр, тема или год, но по оценке зрителей Shikimori, а не по популярности.
+ * Это отдельные запросы в поиске («лучшие аниме 2024», «топ романтических аниме»).
+ */
+function bestLanding(path: string, key: string, thisYear: number): Landing | undefined {
+  if (/^\d{4}$/.test(key)) {
+    const year = Number(key)
+    if (year < 1960 || year > thisYear) return undefined
+    const h1 = `Лучшие аниме ${year} года`
+    return {
+      path,
+      h1,
+      title: `${h1} — топ по оценкам зрителей`,
+      description: `${h1}: рейтинг сериалов и фильмов по оценкам зрителей Shikimori, с числом серий и описанием. Смотрите онлайн бесплатно на ${SITE}.`,
+      intro:
+        year === thisYear
+          ? `Самые высоко оценённые аниме ${year} года на сегодня: сериалы и фильмы, которые уже вышли или выходят сейчас. Рейтинг меняется вместе с оценками зрителей Shikimori.`
+          : `Аниме ${year} года с самыми высокими оценками зрителей Shikimori: сериалы, фильмы и OVA. Хороший список, чтобы наверстать лучшее за год.`,
+      query: { season: String(year), order: 'ranked' },
+      crumbs: [[`Аниме ${year} года`, `/year/${year}`]],
+      paged: true,
+      related: [
+        [`Все аниме ${year} года`, `/year/${year}`],
+        ...[year + 1, year - 1, year - 2]
+          .filter((y) => y >= FIRST_BEST_YEAR && y <= thisYear)
+          .map((y): [string, string] => [`Лучшие аниме ${y} года`, `/best/${y}`]),
+        ...GENRES.filter((g) => BEST_ADJ[g.slug]).map((g): [string, string] => [bestH1(g), `/best/${g.slug}`]),
+      ],
+    }
+  }
+  const g = GENRES.find((x) => x.slug === key)
+  const t = g ? undefined : THEMES.find((x) => x.slug === key)
+  if (!g && !t) return undefined
+  const h1 = bestH1((g ?? t)!)
+  const parent: [string, string] = g ? [`Аниме в жанре «${g.name}»`, `/genre/${g.slug}`] : [`Аниме про ${t!.about}`, `/theme/${t!.slug}`]
+  return {
+    path,
+    h1,
+    title: fitTitle(h1, [' — топ по оценкам зрителей', ' — топ по оценкам', ': топ']),
+    description: `${h1}: рейтинг сериалов и фильмов по оценкам зрителей Shikimori, от самых высоких. Смотрите онлайн бесплатно на ${SITE}.`,
+    intro: `${h1} по оценкам зрителей Shikimori: сначала тайтлы с самым высоким баллом. Продолжения популярных сериалов тоже здесь, если их оценили выше первого сезона.`,
+    query: g ? { genre: g.id, order: 'ranked' } : { themeId: t!.id, order: 'ranked' },
+    crumbs: [parent],
+    paged: true,
+    related: [
+      parent,
+      ...(g ? GENRES.filter((x) => x !== g && BEST_ADJ[x.slug]) : THEMES.filter((x) => x !== t)).slice(0, 16).map((x): [string, string] => [bestH1(x), `/best/${x.slug}`]),
+      [`Лучшие аниме ${thisYear} года`, `/best/${thisYear}`],
+    ],
+  }
+}
+
 /** Каталог без фильтров: популярное по страницам, ссылки на все жанры и типы. */
 export const CATALOG: Landing = {
   path: '/catalog',
@@ -224,6 +368,7 @@ export const CATALOG: Landing = {
   paged: true,
   related: [
     ...GENRES.map((g): [string, string] => [g.name, `/genre/${g.slug}`]),
+    ...THEMES.map((t): [string, string] => [`Про ${t.about}`, `/theme/${t.slug}`]),
     ...Object.entries(KINDS).map(([id, h1]): [string, string] => [h1, `/type/${id}`]),
   ],
 }
@@ -232,7 +377,14 @@ export const CATALOG: Landing = {
 export function landingPaths(now = new Date()) {
   const thisYear = now.getFullYear()
   const [season, seasonYear] = seasonOf(now)
-  const out = ['/ongoing', ...GENRES.map((g) => `/genre/${g.slug}`), ...Object.keys(KINDS).map((k) => `/type/${k}`)]
+  const out = [
+    '/ongoing',
+    ...GENRES.map((g) => `/genre/${g.slug}`),
+    ...THEMES.map((t) => `/theme/${t.slug}`),
+    ...[...GENRES, ...THEMES].map((x) => `/best/${x.slug}`),
+    ...Object.keys(KINDS).map((k) => `/type/${k}`),
+  ]
+  for (let y = thisYear; y >= FIRST_BEST_YEAR; y--) out.push(`/best/${y}`)
   for (let y = thisYear + 1; y >= FIRST_YEAR; y--) out.push(`/year/${y}`)
   // Сезоны: три последних года и следующий сезон после текущего (в нём уже есть анонсы).
   const last = SEASON_ORDER.indexOf(season) + 1 + seasonYear * 4
