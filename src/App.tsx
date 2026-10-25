@@ -88,6 +88,8 @@ export default function App() {
           {/* Посадочные страницы для поиска: онгоинги, жанры, типы, годы и сезоны (src/data/seo.ts). */}
           <Route path="ongoing" element={<Landing />} />
           <Route path="genre/:slug" element={<GenreRoute />} />
+          <Route path="theme/:slug" element={<Landing />} />
+          <Route path="best/:slug" element={<Landing />} />
           <Route path="type/:kind" element={<Landing />} />
           <Route path="year/:year" element={<Landing />} />
           <Route path="year/:year/:season" element={<Landing />} />

@@ -63,11 +63,11 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|theme\/[a-z-]{2,24}|best\/(?:[a-z-]{2,24}|\d{4})|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
-const PAGED = /^\/(?:catalog$|genre\/|type\/|year\/)/
+const PAGED = /^\/(?:catalog$|genre\/|theme\/|best\/|type\/|year\/)/
 
 /** Список тайтлов Shikimori по фильтрам каталога, самые популярные сначала. */
 const animes = (params) =>
@@ -200,7 +200,9 @@ function pager(path, page, hasNext) {
  */
 async function listing(l, page) {
   const limit = l.paged ? PAGE_SIZE : 50
-  const url = animes({ ...l.query, limit, page })
+  // Тема в приложении — themeId (CatalogQuery), у Shikimori это genre_v2.
+  const { themeId, ...query } = l.query
+  const url = animes({ ...query, ...(themeId && { genre_v2: themeId }), limit, page })
   const items = await json(url, undefined, l.query.status ? 3600 : DAY)
   if (!items.length) throw notFound()
   // Сетка страницы (CatalogGrid) просит ровно этот список по 24 и постеры к нему: отдаём их вместе с HTML,
@@ -869,7 +871,7 @@ async function metaFor(path, params) {
   if (SECTIONS[path]) return sectionPage(path, SECTIONS[path])
   const landing = landingFor(path)
   if (landing) return listing(landing, page)
-  if (/^\/(?:genre|type|year)\//.test(path)) throw notFound()
+  if (/^\/(?:genre|theme|best|type|year)\//.test(path)) throw notFound()
   let m = path.match(/^\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
   if (m) return titlePage(m[1], path)
   m = path.match(/^\/en\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)

@@ -92,6 +92,8 @@ export interface CatalogQuery {
   score?: number
   /** жанр или несколько через запятую (тайтл должен подходить под все) */
   genre?: number | string
+  /** тема Shikimori (genre_v2): исэкай, реинкарнация и т.п. — их нет в старом списке жанров */
+  themeId?: number
   /** студия или несколько через запятую */
   studio?: string
   /** возрастной рейтинг: g, pg, pg_13, r, r_plus */
@@ -380,6 +382,7 @@ export async function fetchCatalog(q: CatalogQuery = {}): Promise<Anime[]> {
     season: q.season,
     score: q.score,
     genre: q.genre,
+    genre_v2: q.themeId,
     studio: q.studio,
     rating: q.rating,
     exclude_ids: q.excludeIds?.length ? q.excludeIds.join(',') : undefined,

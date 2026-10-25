@@ -58,6 +58,49 @@ test('посадочные страницы: свои тексты и полны
   )
 })
 
+test('подборки «Лучшие …» и темы: по оценке, своя тема Shikimori, в карте сайта', async ({}, info) => {
+  test.skip(info.project.name !== 'desktop', 'без браузера, достаточно одного прогона')
+  const now = new Date('2026-10-03T12:00:00Z')
+  expect(landingFor('/best/romance', now)?.h1).toBe('Лучшие романтические аниме')
+  expect(landingFor('/best/romance', now)?.query).toEqual({ genre: 22, order: 'ranked' })
+  expect(landingFor('/best/vampire', now)?.h1).toBe('Лучшие аниме в жанре «Вампиры»')
+  expect(landingFor('/best/2024', now)?.h1).toBe('Лучшие аниме 2024 года')
+  expect(landingFor('/best/2024', now)?.query).toEqual({ season: '2024', order: 'ranked' })
+  expect(landingFor('/best/2027', now)).toBeUndefined()
+  expect(landingFor('/best/nope', now)).toBeUndefined()
+  expect(landingFor('/theme/isekai', now)?.h1).toBe('Аниме про исекай и попаданцев')
+  expect(landingFor('/theme/isekai', now)?.query).toEqual({ themeId: 130 })
+  expect(landingFor('/best/isekai', now)?.query).toEqual({ themeId: 130, order: 'ranked' })
+  // Жанр ведёт на свою подборку лучших, год — на лучшие за год.
+  expect(landingFor('/genre/romance', now)?.related[0]).toEqual(['Лучшие романтические аниме', '/best/romance'])
+  expect(landingFor('/year/2024', now)?.related[0]).toEqual(['Лучшие аниме 2024 года', '/best/2024'])
+  const paths = landingPaths(now)
+  for (const p of ['/theme/isekai', '/best/isekai', '/best/romance', '/best/2026', '/best/2000']) expect(paths).toContain(p)
+  expect(paths).not.toContain('/best/2027')
+  // Темы не повторяют друг друга ни адресом, ни id, ни текстом.
+  const themes = paths.filter((p) => p.startsWith('/theme/')).map((p) => landingFor(p, now)!)
+  expect(new Set(themes.map((l) => l.query.themeId)).size).toBe(themes.length)
+  expect(new Set(themes.map((l) => l.intro)).size).toBe(themes.length)
+  // Новые заголовки помещаются в 70 знаков: длинным достаётся хвост короче.
+  for (const p of paths.filter((p) => /^\/(theme|best)\//.test(p))) expect(`${landingFor(p, now)!.title} | Anime Life`.length, p).toBeLessThanOrEqual(70)
+  expect(landingFor('/best/urban-fantasy', now)?.title).toBe('Лучшие аниме про магию в современном городе: топ')
+})
+
+test('страница «Лучшие …» и тема: список по оценке и по genre_v2', async ({ page }) => {
+  const urls: string[] = []
+  page.on('request', (r) => r.url().includes('/api/animes?') && urls.push(r.url()))
+  await page.goto('/best/romance')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Лучшие романтические аниме')
+  await expect(page.getByRole('navigation', { name: 'Хлебные крошки' }).getByRole('link', { name: 'Аниме в жанре «Романтика»' })).toBeVisible()
+  await expect(page.locator('.poster-card').first()).toBeVisible()
+  expect(urls.some((u) => u.includes('order=ranked') && u.includes('genre=22'))).toBe(true)
+  await page.goto('/theme/isekai')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Аниме про исекай и попаданцев')
+  await expect(page.locator('.poster-card').first()).toBeVisible()
+  expect(urls.some((u) => u.includes('genre_v2=130'))).toBe(true)
+  await expect(page.getByRole('link', { name: 'Лучшие аниме про исекай и попаданцев' })).toHaveAttribute('href', '/best/isekai')
+})
+
 test('страница жанра: заголовок, вводный текст, тайтлы и ссылки на страницы списка', async ({ page }) => {
   const requests: URL[] = []
   page.on('request', (r) => r.url().includes('/api/animes?') && requests.push(new URL(r.url())))
