@@ -228,7 +228,8 @@
   }
 }
 
-.an-errors {
+.an-errors,
+.an-quality {
   margin-top: 16px;
 }
 
@@ -256,4 +257,13 @@
   font-size: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* Качество у зрителей: скорость и плеер */
+.an-quality__lead {
+  margin: 0 0 12px;
+}
+
+.an-bad {
+  color: var(--accent);
 }

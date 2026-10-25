@@ -33,7 +33,7 @@ export function beacon(body: object) {
 }
 
 /** Устройство по ширине экрана и типу указателя: этого хватает для «телефон / планшет / компьютер». */
-function device() {
+export function device() {
   const coarse = matchMedia('(pointer: coarse)').matches
   const width = Math.min(screen.width, screen.height)
   return coarse ? (width >= 600 ? 'tablet' : 'mobile') : 'desktop'

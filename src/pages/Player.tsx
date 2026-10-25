@@ -7,6 +7,7 @@ import { saveProgress } from '../data/history'
 import { savePosition } from '../data/positions'
 import { logEpisode } from '../data/watchLog'
 import { playerTime } from '../data/playerTime'
+import { usePlayerHealth } from '../data/quality'
 import { getEntry, setListStatus, setWatched, useMyList } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
@@ -142,9 +143,12 @@ export default function Player() {
     tried.current = new Set()
     manual.current = false
   }, [anime?.id, current])
+  // Здоровье плеера у зрителей: запустился ли источник, был ли сбой, чем кончилась серия (data/quality.ts).
+  const playerFailed = usePlayerHealth(anime ? `${anime.id}:${current}` : undefined, voice && (host?.player ? 'embed' : voice.provider))
   // Источник не грузится или серии в нём нет: сами включаем следующий, а не просим зрителя перебирать плееры.
   // Если зритель выбрал источник сам, оставляем его выбор и пояснение под видео.
   const fallBack = () => {
+    playerFailed()
     if (manual.current || !voice || tried.current.size >= MAX_AUTO_SWITCHES) return
     tried.current.add(sourceSlot(voice, host))
     const next = nextSource(voices, voice, current, tried.current)

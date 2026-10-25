@@ -75,6 +75,11 @@ const tables = [
       ['integer', { key: 'episodes', required: false, default: 0, min: 0 }],
       ['integer', { key: 'visitors', required: false, default: 0, min: 0 }],
       ['integer', { key: 'newVisitors', required: false, default: 0, min: 0 }],
+      // Качество у зрителей (quality.js): замеры «хорошо / средне / плохо» и сумма значений для среднего.
+      ['integer', { key: 'good', required: false, default: 0, min: 0 }],
+      ['integer', { key: 'mid', required: false, default: 0, min: 0 }],
+      ['integer', { key: 'poor', required: false, default: 0, min: 0 }],
+      ['integer', { key: 'total', required: false, default: 0, min: 0 }],
     ],
     indexes: [
       { key: 'period_at', type: 'key', columns: ['period', 'at'], orders: ['ASC', 'ASC'] },

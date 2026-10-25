@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { analyticsStats, analyticsTrack, buckets, sourceOf } from '../src/analytics.js'
+import { grade, qualityStats, qualityTrack } from '../src/quality.js'
 
 /** Простая база в памяти: строки таблиц, increment, фильтры greaterThanEqual/equal и счёт total. */
 function fakeApi({ admin = true } = {}) {
@@ -120,4 +121,28 @@ test('воронка новичков: тайтл, серия, возврат н
   // Через полдня после первого визита возвращаться «на следующий день» ещё рано: такие не в счёт.
   const early = await analyticsStats(api, req, start + 3_600_000)
   assert.deepEqual(early.funnel.day1, { of: 0, back: 0 })
+})
+
+test('качество у зрителей: скорость по порогам Google, плеер по источникам, итог серии', async () => {
+  const { api, tables } = fakeApi()
+  assert.deepEqual([grade('lcp', 2500), grade('lcp', 3000), grade('cls', 0.3), grade('inp', 120)], ['good', 'mid', 'poor', 'good'])
+  await qualityTrack(api, { kind: 'vitals', device: 'mobile', lcp: 1800, cls: 0.02, inp: 640 }, NOW)
+  await qualityTrack(api, { kind: 'vitals', device: 'mobile', lcp: 4200, inp: 90 }, NOW)
+  // Мусор не считаем: отрицательное, бесконечное, вкладка в фоне на минуту.
+  await qualityTrack(api, { kind: 'vitals', device: 'mobile', lcp: 61_000, cls: -1 }, NOW).catch(() => undefined)
+  await qualityTrack(api, { kind: 'player', source: 'kodik', ok: true }, NOW)
+  await qualityTrack(api, { kind: 'player', source: 'kodik', ok: false }, NOW)
+  await qualityTrack(api, { kind: 'episode', result: 'switched' }, NOW)
+  await assert.rejects(qualityTrack(api, { kind: 'player', source: 'evil.example' }, NOW), /Неверные/)
+  await assert.rejects(qualityTrack(api, { kind: 'episode', result: '__proto__' }, NOW), /Неверные/)
+
+  const lcp = tables.analytics_stats.get('q20261009-lcp-mobile')
+  assert.deepEqual([lcp.good, lcp.poor, lcp.total, lcp.period, lcp.label], [1, 1, 6000, 'quality', 'lcp-mobile'])
+  assert.equal(tables.analytics_stats.get('q20261009-cls-mobile').total, 20)
+
+  const stats = await qualityStats(api, req, NOW)
+  assert.deepEqual(stats.metrics['inp-mobile'], { good: 1, mid: 0, poor: 1, total: 730 })
+  assert.deepEqual(stats.metrics['src-kodik'], { good: 1, mid: 0, poor: 1, total: 0 })
+  assert.deepEqual(stats.metrics.episode, { good: 0, mid: 1, poor: 0, total: 0 })
+  await assert.rejects(qualityStats(fakeApi({ admin: false }).api, req), /Недостаточно прав/)
 })
