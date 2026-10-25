@@ -36,6 +36,17 @@ export function weekXp(entries: LogEntry[], t = Date.now()) {
   return { key, xp: entries.filter((e) => weekKey(e.at) === key).length * XP.episode }
 }
 
+/** Месяц ГГГГММ (UTC), как на сервере и в итогах месяца в Telegram-канале. */
+export function monthKey(t = Date.now()) {
+  const d = new Date(t)
+  return d.getUTCFullYear() * 100 + d.getUTCMonth() + 1
+}
+
+export function monthXp(entries: LogEntry[], t = Date.now()) {
+  const key = monthKey(t)
+  return { key, xp: entries.filter((e) => monthKey(e.at) === key).length * XP.episode }
+}
+
 /** Сколько опыта нужно для уровня n: 100, 300, 600… */
 export const xpFor = (level: number) => 50 * level * (level - 1)
 

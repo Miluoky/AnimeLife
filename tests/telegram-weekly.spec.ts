@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { digestTime, weekKey, weeklyPollOptions, weeklyPost, weekReleases } from '../scripts/telegram-news.mjs'
+import { digestTime, episodeButtons, episodesWord, monthKey, monthTopPost, monthTopTime, weekKey, weeklyPollOptions, weeklyPost, weekReleases } from '../scripts/telegram-news.mjs'
 
 // Итоги недели в Telegram-канале: что вышло с понедельника и опрос «Серия недели».
 
@@ -33,4 +33,32 @@ test('что вышло: рост серий от снимка, завершив
   expect(weeklyPollOptions(fresh)).toEqual([{ text: 'Дандадан, 9' }, { text: 'Финал недели, 12' }])
   const long = weeklyPollOptions([{ id: '1', russian: 'Я'.repeat(120), episodesAired: 3 }])[0].text
   expect(long.length).toBeLessThanOrEqual(100)
+})
+
+test('пост о серии: кнопки «Смотреть» и «Обсудить» ведут на серию и к её обсуждению', () => {
+  expect(episodeButtons({ id: 52991, episodesAired: 7 })).toEqual([
+    [['▶️ Смотреть', 'https://animelife.top/watch/52991/7'], ['💬 Обсудить', 'https://animelife.top/watch/52991/7#comments']],
+    [['О тайтле', 'https://animelife.top/anime/52991']],
+  ])
+})
+
+test('топ зрителей месяца: в последний день после 18:00 мск, имена с матом пропускаем, меньше трёх — не публикуем', () => {
+  expect(monthKey(new Date('2026-10-31T16:00:00Z'))).toBe(202610)
+  expect(monthTopTime(new Date('2026-10-31T15:00:00Z'))).toBe(true)
+  expect(monthTopTime(new Date('2026-10-31T14:59:00Z'))).toBe(false)
+  expect(monthTopTime(new Date('2026-10-30T20:00:00Z'))).toBe(false)
+  const rows = [
+    { $id: 'u1', name: 'Мика', monthXp: 1200 },
+    { $id: 'u2', name: 'бля<script>', monthXp: 900 },
+    { $id: 'u3', name: 'Рэй & Ко', monthXp: 600 },
+    { $id: 'u4', name: 'Аска', monthXp: 50 },
+  ]
+  const text = monthTopPost(rows, new Date('2026-10-31T16:00:00Z'))!
+  expect(text).toContain('🏆 <b>Топ зрителей октября</b>')
+  expect(text).toContain('🥇 <a href="https://animelife.top/u/u1">Мика</a>: 120 серий')
+  expect(text).toContain('🥈 <a href="https://animelife.top/u/u3">Рэй &amp; Ко</a>: 60 серий')
+  expect(text).toContain('🥉 <a href="https://animelife.top/u/u4">Аска</a>: 5 серий')
+  expect(text).not.toContain('бля')
+  expect(monthTopPost(rows.slice(0, 2))).toBeNull()
+  expect([1, 2, 5, 11, 21, 22, 112].map(episodesWord)).toEqual(['1 серия', '2 серии', '5 серий', '11 серий', '21 серия', '22 серии', '112 серий'])
 })

@@ -1,6 +1,7 @@
 import './reviews.css'
 import { Link } from 'react-router-dom'
 import { markFlag } from '../data/flags'
+import { toast } from '../data/toast'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../data/auth'
 import {
@@ -43,6 +44,7 @@ function ReviewForm({ animeId, mine, onSaved }: { animeId: string; mine?: Review
     try {
       const saved = await saveReview(animeId, text, rating, captcha)
       markFlag('wroteReview')
+      if (saved.hidden) toast('Отзыв появится после проверки модератором: в нём мат или ссылка на другой сайт')
       // Оценка из отзыва попадает и в «Мой список», чтобы статистика профиля её учла.
       if (entry && rating && entry.rating !== rating) setListRating(animeId, rating)
       onSaved(saved)

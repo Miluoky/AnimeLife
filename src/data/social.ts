@@ -2,7 +2,7 @@ import { Query } from 'appwrite'
 import { COMMUNITY_DB, tablesDB } from '../api/appwrite'
 import { callCommunity } from './community'
 import type { ProfileSummary } from './profile'
-import { weekKey } from './xp'
+import { weekKey, monthKey } from './xp'
 
 /** Социальная часть сайта: подписки и лента, топ зрителей, подборки зрителей, клубы, оценки серий. Пишет функция community. */
 
@@ -73,6 +73,7 @@ export interface ProfileRow {
   updatedAt: number
   xp?: number
   weekXp?: number
+  monthXp?: number
   summary: string
 }
 
@@ -87,11 +88,13 @@ export const parseSummary = (row: ProfileRow): Partial<ProfileSummary> => {
 export const loadPeople = () =>
   list<ProfileRow>('profiles', [Query.orderDesc('updatedAt'), Query.limit(30)]).then((r) => r.rows)
 
-export function loadLeaders(period: 'week' | 'all') {
+export function loadLeaders(period: 'week' | 'month' | 'all') {
   const queries =
     period === 'week'
       ? [Query.equal('weekKey', weekKey()), Query.greaterThan('weekXp', 0), Query.orderDesc('weekXp'), Query.limit(50)]
-      : [Query.greaterThan('xp', 0), Query.orderDesc('xp'), Query.limit(50)]
+      : period === 'month'
+        ? [Query.equal('monthKey', monthKey()), Query.greaterThan('monthXp', 0), Query.orderDesc('monthXp'), Query.limit(50)]
+        : [Query.greaterThan('xp', 0), Query.orderDesc('xp'), Query.limit(50)]
   return list<ProfileRow>('profiles', queries).then((r) => r.rows)
 }
 

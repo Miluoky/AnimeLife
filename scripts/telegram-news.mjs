@@ -13,6 +13,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { CHANGELOG } from '../src/data/changelog.ts'
 import { closeCards, renderCard } from './telegram-card.mjs'
+import { heldReason } from '../functions/community/src/automod.js'
 
 const SITE = 'https://animelife.top'
 const SHIKIMORI = 'https://shikimori.io'
@@ -166,13 +167,22 @@ export function episodeCaption(a) {
     '',
     escapeHtml(shortText(a.description)),
     '',
-    `▶️ <a href="${SITE}/watch/${a.id}/${n}">Смотреть на Anime Life</a>`,
+    `▶️ <a href="${SITE}/watch/${a.id}/${n}">Смотреть на Anime Life</a> · 💬 <a href="${SITE}/watch/${a.id}/${n}#comments">обсудить серию</a>`,
     '',
     ['#новая_серия', ...tags].join(' '),
   ]
     .filter((line, i, all) => line || all[i - 1])
     .join('\n')
     .trim()
+}
+
+/** Кнопки под постом о серии: смотреть и обсудить серию на сайте (комментарии под плеером), ниже — страница тайтла. */
+export function episodeButtons(a) {
+  const watch = `${SITE}/watch/${a.id}/${a.episodesAired}`
+  return [
+    [['▶️ Смотреть', watch], ['💬 Обсудить', `${watch}#comments`]],
+    [['О тайтле', `${SITE}/anime/${a.id}`]],
+  ]
 }
 
 export function episodesDigest(list) {
@@ -199,7 +209,7 @@ async function episodes(state) {
         text: episodeCaption(a),
         photo: a.poster?.originalUrl,
         card: await renderCard(a, { badge: `Новая серия · ${a.episodesAired}`, text: shortText(a.description, 400) }),
-        buttons: [[['▶️ Смотреть', `${SITE}/watch/${a.id}/${a.episodesAired}`], ['О тайтле', `${SITE}/anime/${a.id}`]]],
+        buttons: episodeButtons(a),
       })
       next[a.id] = a.episodesAired
       await pause(1500)
@@ -313,6 +323,56 @@ async function weekly(state, now = new Date()) {
   return 1
 }
 
+// ——— Топ зрителей месяца ———
+
+const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+
+/** Месяц ГГГГММ по UTC, как у профилей на сайте (src/data/xp.ts). */
+export const monthKey = (now = new Date()) => now.getUTCFullYear() * 100 + now.getUTCMonth() + 1
+
+/** Последний день месяца, 18:00 по Москве и позже: время итогов месяца (до полуночи UTC профили ещё этого месяца). */
+export function monthTopTime(now = new Date()) {
+  const tomorrow = new Date(now.getTime() + 86_400_000)
+  return tomorrow.getUTCMonth() !== now.getUTCMonth() && now.getUTCHours() >= 15
+}
+
+/** 1 серия, 2 серии, 5 серий. */
+export function episodesWord(n) {
+  const d = n % 10
+  const dd = n % 100
+  return `${n} ${d === 1 && dd !== 11 ? 'серия' : d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? 'серии' : 'серий'}`
+}
+
+/** Пост «Топ зрителей месяца»: открытые профили с опытом за месяц; имена с матом и ссылками не публикуем. */
+export function monthTopPost(rows, now = new Date()) {
+  const medal = ['🥇', '🥈', '🥉']
+  const lines = rows
+    .filter((r) => r.name && !heldReason(r.name))
+    .slice(0, 10)
+    .map((r, i) => `${medal[i] ?? `${i + 1}.`} <a href="${SITE}/u/${r.$id}">${escapeHtml(r.name)}</a>: ${episodesWord(Math.round(r.monthXp / 10))}`)
+  if (lines.length < 3) return null
+  return `🏆 <b>Топ зрителей ${MONTHS_GEN[now.getUTCMonth()]}</b>\n\n${lines.join('\n')}\n\nСчитаем серии, открытые на Anime Life. Попасть в топ: открытый профиль и просмотры в течение месяца.\n\n#топ_зрителей`
+}
+
+async function monthTop(state, now = new Date()) {
+  const key = monthKey(now)
+  if (state.monthTop === key || !monthTopTime(now)) return 0
+  const queries = [
+    { method: 'equal', attribute: 'monthKey', values: [key] },
+    { method: 'greaterThan', attribute: 'monthXp', values: [0] },
+    { method: 'orderDesc', attribute: 'monthXp' },
+    { method: 'limit', values: [15] },
+  ]
+  const url = `https://fra.cloud.appwrite.io/v1/tablesdb/anime/tables/profiles/rows?${queries.map((q) => `queries[]=${encodeURIComponent(JSON.stringify(q))}`).join('&')}`
+  const res = await fetch(url, { headers: { 'X-Appwrite-Project': '6abf65850016889f9b1b' } })
+  if (!res.ok) throw new Error(`профили: ${res.status}`)
+  const text = monthTopPost((await res.json()).rows ?? [], now)
+  state.monthTop = key
+  if (!text) return 0
+  await post({ text, buttons: [[['🏆 Весь топ', `${SITE}/community?tab=top`]]] })
+  return 1
+}
+
 // ——— Обновления сайта ———
 
 const changelogKey = (date, item) => `${date}|${item.title}`
@@ -383,7 +443,7 @@ async function main() {
       text: episodeCaption(a),
       photo: a.poster?.originalUrl,
       card: await renderCard(a, { badge: `Новая серия · ${a.episodesAired}`, text: shortText(a.description, 400) }),
-      buttons: [[['▶️ Смотреть', `${SITE}/watch/${a.id}/${a.episodesAired}`], ['О тайтле', `${SITE}/anime/${a.id}`]]],
+      buttons: episodeButtons(a),
     })
     await closeCards()
     console.log(`Пробный пост опубликован: ${titleOf(a)}`)
@@ -395,7 +455,7 @@ async function main() {
   else if (!DRY_RUN) await bot('getChat', { chat_id: CHANNEL })
 
   // Каждая часть сохраняет состояние сразу: ошибка в одной не повторит посты другой.
-  const parts = { episodes, season, changelog, weekly }
+  const parts = { episodes, season, changelog, weekly, monthTop }
   let failed = false
   for (const [name, run] of Object.entries(parts)) {
     try {

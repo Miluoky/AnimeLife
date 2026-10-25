@@ -1,5 +1,6 @@
 import { DB, UserError, hash, listRows, query } from './util.js'
 import { notify } from './notifications.js'
+import { heldReason, rejectSpam } from './automod.js'
 
 /**
  * Списки и профили.
@@ -61,6 +62,9 @@ export async function profileSave(api, req, body) {
   const xp = int(parsed.xp, 5_000_000)
   const weekKey = int(parsed.week?.key, 999_999)
   const weekXp = weekKey === isoWeekKey() ? int(parsed.week?.xp, 30_000) : 0
+  // Месяц: те же 10 опыта за серию, верхняя граница — 4 000 серий.
+  const monthKey = int(parsed.month?.key, 999_999)
+  const monthXp = monthKey === monthKeyOf() ? int(parsed.month?.xp, 40_000) : 0
   await api('PUT', `${DB}/profiles/rows/${user.$id}`, {
     data: {
       name: (user.name || 'Зритель').slice(0, 64),
@@ -69,6 +73,8 @@ export async function profileSave(api, req, body) {
       xp,
       weekXp,
       weekKey: weekXp ? weekKey : 0,
+      monthXp,
+      monthKey: monthXp ? monthKey : 0,
       updatedAt: Date.now(),
     },
   })
@@ -82,6 +88,12 @@ export function isoWeekKey(t = Date.now()) {
   date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
   const week = Math.ceil(((date - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7)
   return date.getUTCFullYear() * 100 + week
+}
+
+/** Месяц ГГГГММ по UTC, как на сайте (src/data/xp.ts). */
+export const monthKeyOf = (t = Date.now()) => {
+  const d = new Date(t)
+  return d.getUTCFullYear() * 100 + d.getUTCMonth() + 1
 }
 
 export async function profileHide(api, req) {
@@ -107,6 +119,9 @@ export async function commentSave(api, req, body) {
     { method: 'limit', values: [COMMENTS_PER_10MIN] },
   ])
   if (recent.length >= COMMENTS_PER_10MIN) throw new UserError('Слишком много комментариев подряд, передохните пару минут.')
+  rejectSpam(text, recent.map((r) => r.text))
+  // Мат и чужие ссылки сначала смотрит модератор: автор видит свой комментарий с пометкой «на проверке».
+  const held = heldReason(text)
   // Ответ на комментарий той же серии: запоминаем, кому, и сообщаем автору в колокольчик.
   let parent
   if (body.replyTo) {
@@ -122,12 +137,12 @@ export async function commentSave(api, req, body) {
       name: (user.name || 'Зритель').slice(0, 64),
       text,
       spoiler: Boolean(body.spoiler),
-      hidden: false,
+      hidden: !!held,
       at: now,
       ...(parent && { replyTo: parent.$id, replyName: parent.name }),
     },
   })
-  if (parent) {
+  if (parent && !held) {
     await notify(api, {
       userId: parent.userId,
       kind: 'reply',
@@ -137,7 +152,7 @@ export async function commentSave(api, req, body) {
       key: row.json.$id,
     })
   }
-  return { comment: row.json }
+  return { comment: row.json, ...(held && { held }) }
 }
 
 export async function commentDelete(api, req, body) {

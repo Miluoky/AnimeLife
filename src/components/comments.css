@@ -11,6 +11,8 @@
 }
 .comments {
   gap: 14px;
+  /* под шапкой сайта: кнопка «Обсудить» из канала прокручивает сюда (#comments) */
+  scroll-margin-top: 88px;
 }
 .comments__list {
   list-style: none;

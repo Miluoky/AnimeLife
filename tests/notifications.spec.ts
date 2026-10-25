@@ -56,6 +56,23 @@ test('обсуждение: ответ встаёт под комментари�
   await expect(block.getByRole('textbox', { name: 'Комментарий к серии' })).toBeVisible()
 })
 
+test('обсуждение: комментарий с матом виден автору «на проверке», ссылка #comments из канала ведёт к обсуждению', async ({ page }) => {
+  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/comments\/rows\?.*/, (route) => route.fulfill({ json: { total: 0, rows: [] } }))
+  await signedIn(page, (b) =>
+    b.action === 'comment-save'
+      ? { comment: { $id: 'c5', animeId: '1', episode: 1, userId: 'u1', name: 'Аня', text: b.text, spoiler: false, hidden: true, at: Date.now() }, held: 'мат' }
+      : { items: [], unread: 0 },
+  )
+  await page.goto('/watch/1/1#comments')
+  const block = page.getByRole('region', { name: 'Обсуждение серии 1' })
+  await expect(block.getByText('Пока никто не написал')).toBeVisible()
+  await expect(block).toBeInViewport()
+  await block.getByRole('textbox', { name: 'Комментарий к серии' }).fill('ну и финал, блин')
+  await block.getByRole('button', { name: 'Отправить' }).click()
+  await expect(block.locator('#c-c5')).toContainText('на проверке')
+  await expect(page.getByText('пока его не проверит модератор')).toBeVisible()
+})
+
 test('колокольчик: число новых, список уведомлений и «прочитано» при открытии', async ({ page }) => {
   const sent = await signedIn(page, (b) =>
     b.action === 'notif-list'

@@ -33,6 +33,7 @@ import { TG_PREFIX, telegramReady, tgSendEpisode, tgStatus, tgSubscribe, tgUnsub
 import { analyticsStats, analyticsTrack } from './analytics.js'
 import { errorClear, errorList, errorReport } from './errors.js'
 import { qualityStats, qualityTrack } from './quality.js'
+import { heldReason } from './automod.js'
 import { socialActions } from './social.js'
 import { notificationActions, notify } from './notifications.js'
 import { accountActions } from './account.js'
@@ -158,6 +159,8 @@ async function reviewSave(api, req, body) {
   await checkCaptcha(req, body.captcha)
   // Лайки, жалобы и решение модератора при правке текста сохраняются.
   const keep = prev.status === 404 ? {} : prev.json
+  // Мат и чужие ссылки — сначала модератору (automod.js), в том числе после правки одобренного отзыва.
+  const held = heldReason(text)
   const row = await api('PUT', `${DB}/reviews/rows/${rowId}`, {
     data: {
       animeId,
@@ -167,10 +170,10 @@ async function reviewSave(api, req, body) {
       text,
       likes: keep.likes ?? 0,
       reports: keep.reports ?? 0,
-      hidden: keep.hidden ?? false,
+      hidden: !!held || (keep.hidden ?? false),
     },
   })
-  return { review: row.json }
+  return { review: row.json, ...(held && { held }) }
 }
 
 async function deleteVotes(api, reviewId) {
