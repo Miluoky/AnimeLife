@@ -546,6 +546,41 @@ async function titlePage(id, path) {
   }
 }
 
+/**
+ * Примерная дата выхода серии: у Shikimori нет дат отдельных серий, поэтому от начала показа по неделе на серию,
+ * не позже конца показа и сегодняшнего дня. У фильма и первой серии — дата премьеры.
+ */
+function episodeDate(a, episode, now = new Date()) {
+  if (!a.aired_on) return undefined
+  const start = Date.parse(`${a.aired_on}T00:00:00Z`)
+  if (Number.isNaN(start)) return undefined
+  let t = start + (a.kind === 'movie' ? 0 : (episode - 1) * 7 * 86_400_000)
+  if (a.released_on) t = Math.min(t, Date.parse(`${a.released_on}T00:00:00Z`) || t)
+  t = Math.max(start, Math.min(t, now.getTime()))
+  return new Date(t).toISOString().slice(0, 10)
+}
+
+/**
+ * Видео на странице серии для поиска (Google и Яндекс показывают такие страницы в видеовыдаче):
+ * имя, описание, кадр, дата и длительность. Плеер чужой (Kodik и др.), поэтому embedUrl не указываем.
+ */
+function episodeVideo(a, info, name, description, episode, image) {
+  const uploadDate = episodeDate(a, episode)
+  if (!uploadDate || !image) return undefined
+  return {
+    '@type': 'VideoObject',
+    name,
+    description,
+    thumbnailUrl: [image],
+    uploadDate,
+    // У Shikimori длительность одной серии в минутах.
+    duration: a.duration ? `PT${a.duration}M` : undefined,
+    inLanguage: 'ru',
+    isFamilyFriendly: a.rating ? !['r_plus', 'rx'].includes(a.rating) : undefined,
+    genre: info.genres.length ? info.genres : undefined,
+  }
+}
+
 async function watchPage(id, episode) {
   const a = await json(`${SHIKIMORI}/api/animes/${id}`)
   const count = available(a)
@@ -560,31 +595,43 @@ async function watchPage(id, episode) {
   if (episode > 1) near.push([`← ${episode - 1} серия`, `/watch/${a.id}/${episode - 1}`])
   if (episode < count) near.push([`${episode + 1} серия →`, `/watch/${a.id}/${episode + 1}`])
   const genres = info.genres.map((g) => [g, genrePath(g)]).filter(([, p]) => p)
+  const image = absolute(a.image?.original)
+  const description = watchPageDescription(info, episode, count)
+  const url = `${ORIGIN}/watch/${a.id}/${episode}`
+  const video = a.status === 'anons' ? undefined : episodeVideo(a, info, movie ? `${info.title} — смотреть онлайн` : name, description, episode, image)
   return {
     preload: { [preloadKey(`${SHIKIMORI}/api/animes/${id}`)]: a },
     title: watchPageTitle(info, episode),
-    description: watchPageDescription(info, episode, count),
-    image: absolute(a.image?.original),
+    description,
+    image,
     type: movie ? 'video.movie' : 'video.episode',
     // У анонса вместо серии трейлер: такую страницу не индексируем.
     noindex: a.status === 'anons',
     body:
       crumbs.html +
       `<h1>${escapeHtml(name)}</h1>` +
-      `<p>${escapeHtml(watchPageDescription(info, episode, count))}</p>` +
+      `<p>${escapeHtml(description)}</p>` +
       (near.length ? `<p>${links(near)}</p>` : '') +
       `<p>${link(titleUrl, movie ? `О фильме «${info.title}»` : `Все серии «${info.title}»`)}</p>` +
       (genres.length ? `<p>Жанры: ${links(genres)}</p>` : '') +
       siteNav(),
     jsonLd: graph(
       crumbs.ld,
-      !movie && {
-        '@type': 'TVEpisode',
-        name,
-        episodeNumber: episode,
-        url: `${ORIGIN}/watch/${a.id}/${episode}`,
-        partOfSeries: { '@type': 'TVSeries', name: info.title, url: ORIGIN + titleUrl },
-      },
+      movie
+        ? video && { ...video, url }
+        : {
+            '@type': 'TVEpisode',
+            name,
+            episodeNumber: episode,
+            url,
+            description,
+            image,
+            datePublished: (a.status !== 'anons' && episodeDate(a, episode)) || undefined,
+            inLanguage: 'ru',
+            partOfSeries: { '@type': 'TVSeries', name: info.title, url: ORIGIN + titleUrl, numberOfEpisodes: a.episodes || undefined },
+            video: video && { ...video, url },
+            potentialAction: a.status === 'anons' ? undefined : { '@type': 'WatchAction', target: url },
+          },
     ),
   }
 }
