@@ -162,16 +162,26 @@ export default function Player() {
     const i = popular.indexOf(studioKey(v.title))
     return i < 0 ? popular.length : i
   }
-  const warm = voice
+  const candidates = voice
     ? voices
         .filter((v) => v !== voice && v.kind === voice.kind && hasEpisode(v, current))
         .sort((a, b) => rank(a) - rank(b))
-        .map((v) => warmSrc(v, current, hostId))
-        .filter((src): src is string => !!src)
         .slice(0, 4)
     : []
   const hinted = voices.find((v) => v.key === hint)
-  const hintSrc = hinted && hinted !== voice ? warmSrc(hinted, current, hostId) : undefined
+  // У студий Anixart адреса серий приходят отдельным запросом: заранее берём их для кандидатов и озвучки под курсором.
+  const [axUrls, setAxUrls] = useState<Record<string, Map<number, string>>>({})
+  useEffect(() => setAxUrls({}), [id])
+  const axWanted = [...candidates, ...(hinted ? [hinted] : [])].filter((v) => v.anixart && !axUrls[v.key])
+  useEffect(() => {
+    for (const v of axWanted) {
+      anixartEpisodes(v.anixart!.release, v.anixart!.type)
+        .then((e) => setAxUrls((m) => (m[v.key] ? m : { ...m, [v.key]: e.urls })))
+        .catch(() => undefined)
+    }
+  }, [axWanted.map((v) => v.key).join()])
+  const warm = candidates.map((v) => warmSrc(v, current, hostId, axUrls[v.key])).filter((src): src is string => !!src)
+  const hintSrc = hinted && hinted !== voice ? warmSrc(hinted, current, hostId, axUrls[hinted.key]) : undefined
   const isScheduled = !!anime?.ongoing && !!anime.nextEpisodeAt && requested === next
 
   useEffect(() => {
@@ -701,14 +711,15 @@ function nextSource(voices: Voice[], from: Voice, episode: number, tried: Set<st
 }
 
 /**
- * Адрес плеера Kodik, который включится для этой озвучки (свой Kodik или Kodik из YummyAnime в том же плеере,
- * что выбран сейчас). У Anixart адреса серий приходят отдельным запросом, а чужие плееры не прогреваются.
+ * Адрес плеера Kodik, который включится для этой озвучки: свой Kodik, Kodik из Anixart (адреса серий уже
+ * загружены) или Kodik из YummyAnime в том же плеере, что выбран сейчас. Чужие плееры не прогреваются.
  */
-function warmSrc(voice: Voice, episode: number, hostId: string): string | undefined {
+function warmSrc(voice: Voice, episode: number, hostId: string, anixartUrls?: Map<number, string>): string | undefined {
   const hosts = hostsOf(voice)
   const host = hosts.find((h) => h.id === hostId) ?? hosts[0]
   if (host?.player) return /kodik/i.test(host.player.name) ? host.player.urls.get(episode) : undefined
   if (voice.provider === 'kodik' && voice.kodikLink) return kodikTranslationUrl(voice.kodikLink, episode)
+  if (voice.provider === 'anixart') return anixartUrls?.get(episode)
 }
 
 /** Есть ли в озвучке эта серия (неизвестно, сколько серий, — считаем, что есть). */

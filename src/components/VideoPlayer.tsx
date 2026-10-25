@@ -488,6 +488,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       if (key === 'kodik_player_duration_update' && Number.isFinite(seconds)) duration = state.duration = seconds
       if (key === 'kodik_player_pause') state.paused = true
       if (key === 'kodik_player_play') state.paused = false
+      // Зритель сам перемотал сразу после подмены: это не сбой Kodik, возвращать не нужно.
+      const fix0 = settle.current
+      if (key === 'kodik_player_seek' && fix0 && Number.isFinite(seconds)) {
+        const want = fix0.at + (fix0.paused ? 0 : (performance.now() - fix0.since) / 1000)
+        if (Math.abs(seconds - want) > 2.5 && Math.abs(seconds - fix0.start) > 2.5) settle.current = null
+      }
       if (key === 'kodik_player_time_update' && Number.isFinite(seconds)) {
         emitPlayerTime(seconds)
         state.t = seconds
@@ -508,7 +514,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       }
       if (key === 'kodik_player_time_update' && Number.isFinite(seconds) && Math.abs(seconds - last) >= 5) {
         last = seconds
-        savePosition(positionKey, episode, seconds, duration)
+        savePosition(positionKey, episode, seconds, duration || state.duration)
       }
       if ((key === 'kodik_player_video_started' || key === 'kodik_player_play') && !started) {
         started = true
@@ -571,7 +577,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const targetKey = useRef<string | null>(null)
   // Чужой плеер или своё видео на месте Kodik: прежний Kodik надо запустить заново, а не оставлять на паузе.
   const promoteKey = useRef<string | null>(null)
-  const settle = useRef<{ at: number; since: number; paused: boolean; tries: number } | null>(null)
+  const settle = useRef<{ at: number; since: number; paused: boolean; tries: number; start: number } | null>(null)
   // Что знаем о показанном плеере из его сообщений: длительность, пауза и последнее время с отметкой.
   const liveState = useRef({ duration: 0, paused: false, t: 0, at: 0 })
   const [, bump] = useState(0)
@@ -666,8 +672,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       liveKey.current = next.key
       pendingKey.current = null
       // Kodik сам перематывает на start_from, когда видео тронулось, и может перебить эту перемотку: пару секунд сверяем.
-      settle.current = sameEpisode ? { at: target, since: performance.now(), paused, tries: 0 } : null
-      liveState.current = { duration: 0, paused, t: target, at: performance.now() }
+      settle.current = sameEpisode ? { at: target, since: performance.now(), paused, tries: 0, start: next.start } : null
+      liveState.current = { duration: next.duration || (sameEpisode ? liveState.current.duration : 0), paused, t: target, at: performance.now() }
       if (sameEpisode) {
         // Прежняя озвучка остаётся прогретой: вернуться к ней — так же мгновенно.
         live.ready = true
@@ -692,7 +698,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       target = at + (paused ? 0 : SEEK_LEAD)
       send(next, 'seek', { seconds: Math.round(target * 10) / 10 })
       if (paused) return commit()
-      if (next.paused) send(next, 'play')
+      // «play» шлём всегда: новый мог стать готовым раньше, чем мы успели его запустить.
+      send(next, 'play')
       next.paused = false
       // Пошёл ли новый, узнаём по его точному времени: time_update у Kodik приходит раз в секунду и целым числом.
       // Место уже в буфере — новый трогается за 0–0,4 с, далеко — за ~2 с; всё это время звучит прежний.
@@ -700,7 +707,22 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         send(next, 'get_time')
         send(live, 'get_time')
       }, 150)
-      moving = window.setTimeout(commit, 3500)
+      moving = window.setTimeout(stall, 3500)
+    }
+    // Новый не тронулся за 3,5 с: в нём ещё идёт реклама (Kodik тогда не слушает «play»). Подмену отменяем —
+    // прежний играет дальше со звуком, — и ждём, когда новый будет готов по-настоящему. Второй раз — показываем как есть.
+    let aborted = false
+    const stall = () => {
+      if (aborted) return commit()
+      aborted = true
+      window.clearInterval(poll)
+      moving = asked = 0
+      next.ready = false
+      next.t0 = undefined
+      send(next, 'play')
+      window.clearTimeout(giveUp)
+      giveUp = window.setTimeout(() => go(liveNow()), 25000)
+      rerender()
     }
     let poll = 0
     let caught = false
@@ -716,8 +738,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         }
         return
       }
-      if (!moving || e.source !== win(next) || value < target + 0.05) return
-      // Новый пошёл. Если перемотка была долгой, он отстал от прежнего: догоняем ещё раз — это место уже в буфере.
+      if (!moving || e.source !== win(next) || value < target + 0.15) return
+      // Новый пошёл (время ушло дальше места перемотки, а не просто встало на него). Если перемотка была долгой, он отстал от прежнего: догоняем ещё раз — это место уже в буфере.
       const lag = liveNow() - value
       if (lag > 0.6 && !caught) {
         caught = true
@@ -739,7 +761,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     onReady.current = (s) => s === next && start()
     if (next.ready) start()
     // Новый так и не заиграл: показываем его как есть (реклама или своя кнопка «play»).
-    const giveUp = window.setTimeout(() => go(liveNow()), 20000)
+    let giveUp = window.setTimeout(() => go(liveNow()), 20000)
     return () => {
       window.removeEventListener('message', onMessage)
       onReady.current = null
@@ -752,7 +774,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   // Плееры, которые не на экране: пока видео в них не пошло, держим без звука; пошло — ставим на паузу и считаем готовыми.
   useEffect(() => {
-    const timers = new Map<Slot, number>()
     const hush = window.setInterval(() => {
       for (const s of slots.current) if (s.loaded && (!s.ready || s.key === pendingKey.current) && s.key !== liveKey.current) send(s, 'mute')
     }, 250)
@@ -773,16 +794,20 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       const box = frameRef.current
       const s = slots.current.find((x) => x.key !== liveKey.current && box?.querySelector<HTMLIFrameElement>(`iframe[data-key="${CSS.escape(x.key)}"]`)?.contentWindow === e.source)
       if (!s) return
-      // Пошло само видео, а не реклама: время рядом с тем, откуда плеер стартовал.
-      // После video_started Kodik ещё перематывает на start_from, поэтому ждём время, а если его нет — 3 с.
-      if (key === 'kodik_player_video_started' && !timers.has(s)) timers.set(s, window.setTimeout(() => ready(s), 3000))
-      if (key === 'kodik_player_time_update' && typeof value === 'number' && Math.abs(value - s.start) < 30) ready(s)
+      if (key === 'kodik_player_duration_update' && typeof value === 'number') s.duration = value
+      // Готов — когда реклама позади (advert_ended приходит, даже если её не было) и время идёт. Пока реклама
+      // не кончилась, Kodik не слушает «play» после паузы. Без advert_ended хватит 20 с идущего видео.
+      if (key === 'kodik_player_advert_ended') s.ad = true
+      // Время именно идёт: после перемотки на паузе Kodik тоже присылает одно время — место, куда встал.
+      if (key === 'kodik_player_time_update' && typeof value === 'number') {
+        s.t0 ??= value
+        if ((s.ad && value !== s.t0) || value - s.t0 >= 20) ready(s)
+      }
     }
     window.addEventListener('message', onMessage)
     return () => {
       window.removeEventListener('message', onMessage)
       window.clearInterval(hush)
-      timers.forEach((t) => window.clearTimeout(t))
     }
   }, [])
 
@@ -959,17 +984,21 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       if (!live?.ready || !isKodik(live.src) || pendingKey.current || document.hidden) return
       const now = Date.now()
       const t = liveNow()
-      // Прежняя озвучка отстала: видео ушло дальше её буфера (Kodik держит ~30 с вперёд). Подтягиваем её
-      // на паузе к текущему месту, но не чаще раза в 45 с: каждая такая перемотка — около 1,5 МБ.
+      // Прогретые отстали: видео ушло дальше их буфера (Kodik держит ~30 с вперёд). Подтягиваем их на паузе
+      // к текущему месту по одному, каждый не чаще раза в 45 с: такая перемотка — около 1,5 МБ. На телефоне —
+      // только прежнюю озвучку, в «Экономии трафика» — никого.
+      const close = saverOn() ? 0 : warmLimit() > 2 ? 3 : 1
       const back = slots.current
         .filter((s) => s !== live && s.ready && s.paused && s.episode === episodeKey)
-        .sort((a, b) => b.used - a.used)[0]
-      if (back && !saverOn() && !liveState.current.paused && (t - back.pos > 25 || t < back.pos - 1) && now - back.sought > 45000) {
+        .sort((a, b) => b.used - a.used)
+        .slice(0, close)
+        .find((s) => (t - s.pos > 25 || t < s.pos - 1) && now - s.sought > 45000)
+      if (back && !liveState.current.paused && now - live.used > 5000) {
         back.pos = t + 2
         back.sought = now
         send(back, 'seek', { seconds: Math.floor(back.pos) })
       }
-      if (slots.current.some((s) => s !== live && !s.ready && now - s.since < 25000)) return
+      if (slots.current.some((s) => s !== live && !s.ready && now - s.since < 60000)) return
       const { hint, next, warm } = wish.current
       const { duration } = liveState.current
       const nearEnd = duration > 0 && (t / duration > 0.5 || duration - t < 360)
@@ -985,7 +1014,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         if (slots.current.some((s) => s.base === base)) continue
         const spare = slots.current.filter((s) => s.key !== liveKey.current && s.key !== heldKey.current).length
         if (spare >= warmLimit()) {
-          if (raw !== hint) return
+          // Озвучка под курсором и следующая серия важнее давно прогретых: те уступают место.
+          if (raw !== hint && !isNext) return
           trim(1)
         }
         const start = isNext ? 0 : Math.floor(t)
@@ -1166,6 +1196,10 @@ interface Slot extends ShownFrame {
   /** где стоит на паузе и когда его туда перематывали */
   pos: number
   sought: number
+  /** реклама в нём кончилась; первое время от него; длительность серии */
+  ad?: boolean
+  t0?: number
+  duration?: number
   /** когда был на экране: из пула первым уходит давно не нужный */
   used: number
 }
