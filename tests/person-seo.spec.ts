@@ -90,3 +90,9 @@ test('персонаж: ссылка на сэйю', async () => {
   const page = await render('/character/1')
   expect(page.root).toContain('Озвучивает: <a href="/person/2">Коити Ямадэра</a>')
 })
+
+test('раздел /manga: 200, заголовок и текст для поисковиков', async () => {
+  const page = await render('/manga')
+  expect(page.status).toBe(200)
+  expect(page.root).toContain('<h1>Манга</h1>')
+})
