@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
-import { MANGA_PAGE_SIZE, searchMangas, type MangaQuery } from '../api/manga'
-import { allProgress, chapterLabel, latestChapter } from '../api/mangadex'
+import { MANGA_PAGE_SIZE, mangasByIds, searchMangas, type MangaQuery } from '../api/manga'
+import { allProgress, chapterLabel, latestChapter, readableIds } from '../api/mangadex'
 import type { Anime } from '../data/catalog'
 import { mangaProgressStore } from '../data/mangaProgress'
 import PosterCard from '../components/PosterCard'
@@ -10,6 +10,8 @@ import { usePageMeta } from '../data/pageMeta'
 import './manga.css'
 
 const tabs = [
+  // Всё, что можно прочитать на сайте по-русски (главы с MangaDex), самое читаемое первым.
+  { id: 'ru', title: 'На русском', query: {} },
   { id: 'popular', title: 'Популярное', query: { order: 'popularity' } },
   { id: 'best', title: 'Лучшее', query: { order: 'ranked' } },
   { id: 'ongoing', title: 'Выходит', query: { order: 'popularity', status: 'ongoing' } },
@@ -90,11 +92,21 @@ function Reading() {
   )
 }
 
+/** Одна страница списка: из Shikimori по запросу или, на вкладке «На русском», по списку MangaDex. */
+async function loadPage(tab: string, query: MangaQuery): Promise<{ items: Anime[]; more: boolean }> {
+  if (tab === 'ru' && !query.search) {
+    const { ids, more } = await readableIds('ru', query.kind ?? '', query.page ?? 1)
+    return { items: await mangasByIds(ids), more }
+  }
+  const items = await searchMangas(query)
+  return { items, more: items.length === MANGA_PAGE_SIZE }
+}
+
 /** Раздел «Манга»: поиск, популярное, лучшее и выходящее, полка «Читаю». Читать можно прямо на сайте. */
 export default function MangaHome() {
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
-  const tabId = tabs.some((t) => t.id === params.get('tab')) ? (params.get('tab') as (typeof tabs)[number]['id']) : 'popular'
+  const tabId = tabs.some((t) => t.id === params.get('tab')) ? (params.get('tab') as (typeof tabs)[number]['id']) : 'ru'
   const kind = kinds.some((k) => k.id === params.get('kind')) ? (params.get('kind') ?? '') : ''
   const tab = tabs.find((t) => t.id === tabId)!
   const [text, setText] = useState(q)
@@ -104,16 +116,16 @@ export default function MangaHome() {
   useEffect(() => setPage(1), [q, tabId, kind])
 
   const query: MangaQuery = { ...tab.query, search: q || undefined, kind: kind || undefined, page }
-  const result = useAsync(() => searchMangas(query).catch(() => null), [q, tabId, kind, page])
+  const result = useAsync(() => loadPage(tabId, query).catch(() => null), [q, tabId, kind, page])
   useEffect(() => {
     if (result.loading || !result.value) return
-    const fresh = result.value
+    const fresh = result.value.items
     setItems((prev) => (page === 1 ? fresh : [...prev, ...fresh.filter((a) => !prev.some((p) => p.id === a.id))]))
   }, [result])
 
   usePageMeta(
     q ? `Манга «${q}»: поиск` : 'Читать мангу онлайн',
-    'Манга, манхва и маньхуа: поиск, популярное, лучшее и выходящее. Читайте главы на русском прямо на Anime Life.',
+    'Тысячи манг, манхв и маньхуа с главами на русском, поиск, популярное, лучшее и выходящее. Читайте прямо на Anime Life.',
   )
 
   function set(name: string, value: string) {
@@ -127,7 +139,7 @@ export default function MangaHome() {
     set('q', text.trim())
   }
 
-  const hasMore = result.value?.length === MANGA_PAGE_SIZE
+  const hasMore = !!result.value?.more
   return (
     <main className="container stack manga-home">
       <header className="stack">
@@ -167,7 +179,7 @@ export default function MangaHome() {
                 role="tab"
                 aria-selected={t.id === tabId}
                 className={`pill${t.id === tabId ? ' active' : ''}`}
-                onClick={() => set('tab', t.id === 'popular' ? '' : t.id)}
+                onClick={() => set('tab', t.id === 'ru' ? '' : t.id)}
               >
                 {t.title}
               </button>
@@ -184,7 +196,7 @@ export default function MangaHome() {
       </div>
 
       {result.value === null && !result.loading && page === 1 ? (
-        <p className="muted">Shikimori сейчас не отвечает. Попробуйте обновить страницу через минуту.</p>
+        <p className="muted">Список сейчас не загрузился. Попробуйте обновить страницу через минуту.</p>
       ) : !result.loading && items.length === 0 ? (
         <p className="muted">Ничего не нашлось. Попробуйте другое название или вид.</p>
       ) : (
