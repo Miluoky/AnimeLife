@@ -75,7 +75,8 @@ export async function fetchCharacter(id: string): Promise<CharacterPage> {
     voices: (c.seyu ?? []).slice(0, 12).map((p) => ({
       id: p.id,
       name: p.russian || p.name,
-      image: absolute(p.image?.original),
+      // Кружок 36 px: хватает картинки 96 px вместо оригинала.
+      image: absolute(p.image?.x96 ?? '') ?? absolute(p.image?.original),
       url: new URL(p.url, SHIKIMORI_URL).toString(),
     })),
     animes: withPics.map((a) => ({ ...fromShort(a), main: a.roles?.includes('Main') ?? false })),

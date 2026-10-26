@@ -22,10 +22,11 @@ function remember(a: Hint) {
   recentStore.set([entry, ...recentStore.get().filter((r) => r.id !== a.id)].slice(0, RECENT_LIMIT))
 }
 
-// Популярные онгоинги для пустого поля: грузим один раз за визит.
+// Популярные онгоинги для пустого поля: грузим один раз за визит. Запрос как у баннера главной и полки
+// «Топ-10 онгоингов» (ONGOING_TOP в Home.tsx): на главной ответ уже есть, и нового запроса нет.
 let popular: Promise<Hint[]> | undefined
 const loadPopular = () =>
-  (popular ??= loadCatalog({ status: 'ongoing', order: 'popularity', limit: 5 }).then((r) => (r.demo ? [] : r.data)))
+  (popular ??= loadCatalog({ status: 'ongoing', order: 'popularity', limit: 10 }).then((r) => (r.demo ? [] : r.data.slice(0, 5))))
 
 interface Found {
   text: string

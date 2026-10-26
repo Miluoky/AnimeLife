@@ -19,6 +19,9 @@ const API_URL = import.meta.env.VITE_SHIKIMORI_PROXY === '1' && PROXY ? PROXY : 
 export interface ShikiImage {
   original: string
   preview: string
+  /** персонажи и люди: 96 и 48 px в ширину */
+  x96?: string
+  x48?: string
   main?: string
   main2x?: string
 }
@@ -195,13 +198,25 @@ async function request<T>(url: URL, init: RequestInit = {}): Promise<T> {
   const proxy = proxyFor(url)
   if (!proxy) return load<T>(url, init, 3)
   if (proxyPreferred()) return load<T>(proxy, init, 3)
+  // Если Shikimori в сети зрителя заблокирован, соединение может висеть: ждём не дольше 6 секунд.
+  const direct = () => load<T>(url, init, 0, 0, 6000)
   try {
-    // Напрямую без повторов на 429: у прокси есть кэш, и ответ оттуда придёт быстрее, чем через паузу.
-    // Если Shikimori в сети зрителя заблокирован, соединение может висеть: ждём не дольше 6 секунд.
-    return await load<T>(url, init, 0, 0, 6000)
+    return await direct()
   } catch (e) {
-    // Тайтла нет — прокси скажет то же самое.
-    if ((e as { status?: number }).status === 404) throw e
+    // Тайтла нет — прокси скажет то же самое. Запрос отменила сама страница — повторять некому.
+    if ((e as { status?: number }).status === 404 || init.signal?.aborted) throw e
+    // Прокси — это вызов Worker из лимита 100 тысяч в сутки, и вкладка уходит туда на 15 минут.
+    // Одиночный отказ чаще всего лимит Shikimori (90 запросов в минуту): его 429 приходит без заголовков CORS,
+    // и браузер видит просто сбой сети. Поэтому сначала один повтор напрямую через паузу. Повисшее соединение
+    // (TimeoutError) не повторяем: так ведёт себя блокировка, и второй раз ждать 6 секунд незачем.
+    if ((e as Error).name !== 'TimeoutError') {
+      await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 700))
+      try {
+        return await direct()
+      } catch (again) {
+        if ((again as { status?: number }).status === 404 || init.signal?.aborted) throw again
+      }
+    }
     preferProxy()
     return load<T>(proxy, init, 3)
   }
@@ -691,7 +706,10 @@ export async function fetchTitleDetails(id: string): Promise<{ scores?: ScoreSta
 export interface Character {
   id: number
   name: string
+  /** превью 154 px: карточка персонажа шириной 128 px */
   image: string
+  /** оригинал 225 px для экранов с высокой плотностью */
+  image2x?: string
   main: boolean
   url: string
 }
@@ -709,7 +727,9 @@ export async function fetchCharacters(id: string): Promise<Character[]> {
     .map((r) => ({
       id: r.character.id,
       name: r.character.russian || r.character.name,
-      image: absolute(r.character.image.original) ?? '',
+      // Оригинал весит в 2–3 раза больше превью, а на странице до 16 персонажей.
+      image: absolute(r.character.image.preview) ?? absolute(r.character.image.original) ?? '',
+      image2x: absolute(r.character.image.original),
       main: r.roles.includes('Main'),
       url: new URL(r.character.url, SHIKIMORI_URL).toString(),
     }))

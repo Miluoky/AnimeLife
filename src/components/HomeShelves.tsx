@@ -282,6 +282,7 @@ export function SeasonShelf() {
         title="Топ-10 онгоингов"
         subtitle="Что смотрят больше всего прямо сейчас"
         icon={<TrophyIcon />}
+        // Тот же запрос, что у баннера главной (ONGOING_TOP в Home.tsx): ответ один на двоих.
         query={{ status: 'ongoing', order: 'popularity' }}
         more="/catalog?status=ongoing"
         ranked={10}

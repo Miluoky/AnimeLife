@@ -32,6 +32,9 @@ const CatalogSection = lazy(() => import('../components/CatalogSection'))
 if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
 
 const HERO_COUNT = 5
+// Список онгоингов тот же, что у полки «Топ-10 онгоингов» (SeasonShelf) и подсказок поиска: адрес запроса
+// совпадает, и все три места делят один ответ Shikimori вместо трёх запросов.
+const ONGOING_TOP = { status: 'ongoing', order: 'popularity', limit: 10 } as const
 const HERO_INTERVAL = 8000
 
 /** Серия выходит сегодня по местному времени. */
@@ -55,11 +58,11 @@ function heroLabel(at?: string) {
 
 function Hero() {
   // Баннер: пять самых популярных онгоингов сменяют друг друга.
-  const list = useAsync(() => loadCatalog({ status: 'ongoing', limit: HERO_COUNT }), [])
+  const list = useAsync(() => loadCatalog(ONGOING_TOP), [])
   // Шаг карусели растёт без сброса: так 3D-кольцо постеров всегда крутится вперёд, а не отматывается назад.
   const [step, setStep] = useState(0)
   const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-  const items = list.value?.data ?? []
+  const items = list.value?.data.slice(0, HERO_COUNT) ?? []
   const count = items.length || 1
   const index = ((step % count) + count) % count
   const setIndex = (i: number) => setStep((s) => s + ((((i - s) % count) + count + Math.floor(count / 2)) % count) - Math.floor(count / 2))
