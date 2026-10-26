@@ -567,9 +567,10 @@ export async function fetchRelated(id: string, from: 'animes' | 'mangas' = 'anim
   }))
 }
 
-export async function fetchSimilar(id: string): Promise<Anime[]> {
+/** Похожие тайтлы: на странице тайтла 12, на странице «Аниме, похожие на …» больше. */
+export async function fetchSimilar(id: string, limit = 12): Promise<Anime[]> {
   const list = await get<ShikiAnimeShort[]>(`/animes/${encodeURIComponent(id)}/similar`)
-  return (await withPosters(list.slice(0, 12))).map(fromShort)
+  return (await withPosters(list.slice(0, limit))).map(fromShort)
 }
 
 /** Кадры из аниме, для баннера и превью серий. */

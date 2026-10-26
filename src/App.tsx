@@ -45,6 +45,7 @@ const SceneSearch = lazy(pageChunks.scene)
 const News = lazy(pageChunks.news)
 const Season = lazy(pageChunks.season)
 const PersonPage = lazy(pageChunks.person)
+const SimilarPage = lazy(pageChunks.similar)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -85,11 +86,13 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="anime/:id" element={<TitlePageRoute />} />
           <Route path="watch/:id/:episode" element={<Player />} />
-          {/* Посадочные страницы для поиска: онгоинги, жанры, типы, годы и сезоны (src/data/seo.ts). */}
+          {/* Посадочные страницы для поиска: онгоинги, жанры, темы, студии, типы, годы и сезоны (src/data/landings.ts). */}
           <Route path="ongoing" element={<Landing />} />
           <Route path="genre/:slug" element={<GenreRoute />} />
           <Route path="theme/:slug" element={<Landing />} />
           <Route path="best/:slug" element={<Landing />} />
+          <Route path="studio/:slug" element={<Landing />} />
+          <Route path="similar/:id" element={<SimilarPage />} />
           <Route path="type/:kind" element={<Landing />} />
           <Route path="year/:year" element={<Landing />} />
           <Route path="year/:year/:season" element={<Landing />} />

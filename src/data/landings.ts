@@ -4,6 +4,7 @@
  * Тексты тяжёлые, поэтому лежат отдельно от src/data/seo.ts: страница тайтла их не грузит.
  */
 import { GENRES, KINDS, SITE } from './seo'
+import { STUDIOS } from './studios'
 
 /** Вводный текст жанра: свой у каждого, чтобы страницы не были копиями друг друга. */
 const GENRE_INTROS: Record<string, string> = {
@@ -97,6 +98,45 @@ const BEST_ADJ: Record<string, string> = {
   kids: 'детские',
 }
 
+/**
+ * Чем известна студия: продолжение фразы «… — студия, которая сделала …». Так у каждой страницы студии
+ * свой вводный текст, а не одна фраза с подставленным названием.
+ */
+const STUDIO_WORKS: Record<string, string> = {
+  mappa: '«Магическую битву», «Человека-бензопилу», финальный сезон «Атаки титанов» и «Юри на льду»',
+  ufotable: '«Клинок, рассекающий демонов», «Fate/Zero» и «Fate/stay night: Unlimited Blade Works»',
+  'kyoto-animation': '«Вайолет Эвергарден», «Форму голоса», «Меланхолию Харухи Судзумии» и «Кланнад»',
+  madhouse: '«Тетрадь смерти», «Охотника × Охотника» 2011 года, первый сезон «Ванпанчмена» и «Провожающую в последний путь Фрирен»',
+  bones: '«Стального алхимика: Братство», «Мою геройскую академию», «Моб Психо 100» и «Великого из бродячих псов»',
+  'wit-studio': 'первые три сезона «Атаки титанов», первый сезон «Винланд саги», «Рейтинг короля» и «Семью шпиона» вместе с CloverWorks',
+  'production-ig': '«Призрака в доспехах», «Психопаспорт», «Волейбол!!» и «Баскетбол Куроко»',
+  cloverworks: '«Обещанный Неверленд», «Одинокого рокера!», «Семью шпиона» вместе с Wit Studio и «Этот глупый свин не понимает мечту девочки-зайки»',
+  'a-1-pictures': '«Мастера меча онлайн», «Госпожу Кагуя», «Твою апрельскую ложь» и «Поднятие уровня в одиночку»',
+  'toei-animation': '«Ван-Пис», «Драконий жемчуг», «Сейлор Мун» и «Цифровых монстров»',
+  'studio-ghibli': '«Унесённых призраками», «Моего соседа Тоторо», «Ходячий замок» и «Принцессу Мононоке»',
+  pierrot: '«Наруто», «Блич», «Токийского гуля» и «Чёрного клевера»',
+  sunrise: '«Мобильного воина Гандам», «Ковбоя Бибопа», «Код Гиас» и «Гинтаму»',
+  shaft: '«Девочку-волшебницу Мадоку», «Цикл историй» («Моногатари»), «Мартовский лев» и «Притворную любовь»',
+  trigger: '«Убей или умри», «Киберпанк: Бегущие по краю», «Промар» и «Академию ведьмочек»',
+  'jc-staff': '«Торадору!», «Некий магический индекс», «Повара-бойца Сому» и второй сезон «Ванпанчмена»',
+  'david-production': '«Невероятные приключения ДжоДжо», «Пламенную бригаду пожарных» и «Клетки за работой!»',
+  'white-fox': '«Врата Штейна», первый сезон «Re:Zero», «Убийцу гоблинов» и «Убийцу Акамэ!»',
+  'doga-kobo': '«Звёздное дитя» («Oshi no Ko»), «Ежемесячное сёдзё Нодзаки» и «Новую игру!»',
+  lerche: '«Класс убийц» и «Данганронпу»',
+  '8bit': '«О моём перерождении в слизь» и «Синюю тюрьму»',
+  'pa-works': '«Ангельские ритмы!», «Белый ящик» («Широбако») и «Иную»',
+  'tms-entertainment': '«Детектива Конана», «Люпена III», «Доктора Стоуна» и «Акиру»',
+  'science-saru': '«Дандадан», «Человека-дьявола: Плаксу» и «Гибель Японии 2020»',
+  'comix-wave-films': 'фильмы Макото Синкая «Твоё имя», «Дитя погоды» и «Судзумэ, закрывающая двери»',
+  'studio-deen': 'первые сезоны «Коносубы» и «Когда плачут цикады» 2006 года',
+  'brains-base': '«Дюрарару!!» и первые сезоны «Тетради дружбы Нацумэ»',
+  'kinema-citrus': '«Созданного в Бездне», «Мой счастливый брак» и первый сезон «Восхождения героя щита»',
+  gainax: '«Евангелион», «Гуррен-Лаганн» и «Фури-Кури»',
+  orange: '«Выдающихся зверей» и «Страну самоцветов» — с одной из лучших 3D-анимаций в индустрии',
+  'studio-bind': '«Реинкарнацию безработного» и «Мой братик теперь не братик!»',
+  'studio-4c': '«Железобетон» и «Детей моря»',
+}
+
 /** Первый год у страниц «Лучшие аниме года» в карте сайта: раньше оценённых тайтлов мало. */
 const FIRST_BEST_YEAR = 2000
 
@@ -150,7 +190,7 @@ export interface Landing {
   description: string
   intro: string
   /** фильтр каталога Shikimori: те же параметры, что у CatalogQuery (themeId — это genre_v2) */
-  query: { genre?: number; themeId?: number; season?: string; kind?: string; status?: 'ongoing'; order?: 'ranked' }
+  query: { genre?: number; themeId?: number; studio?: string; season?: string; kind?: string; status?: 'ongoing'; order?: 'ranked' }
   /** родительские разделы для хлебных крошек, без главной */
   crumbs: [string, string][]
   /** есть страницы ?page=N */
@@ -169,7 +209,7 @@ const yearLinks = (around: number, now: number): [string, string][] => {
 
 /**
  * Посадочная страница по адресу: /genre/romance, /theme/isekai, /best/romance, /best/2024, /year/2026, /year/2026/fall,
- * /type/movie, /ongoing.
+ * /type/movie, /studio/mappa, /ongoing.
  */
 export function landingFor(path: string, now = new Date()): Landing | undefined {
   const thisYear = now.getFullYear()
@@ -267,6 +307,23 @@ export function landingFor(path: string, now = new Date()): Landing | undefined 
         ...seasons,
         ...yearLinks(year, thisYear),
       ],
+    }
+  }
+  m = path.match(/^\/studio\/([a-z0-9-]+)$/)
+  if (m) {
+    const st = STUDIOS.find((x) => x.slug === m![1])
+    if (!st) return undefined
+    const h1 = `Аниме студии ${st.name}`
+    return {
+      path,
+      h1,
+      title: fitTitle(h1, [' — все аниме, смотреть онлайн', ' — смотреть онлайн', ' онлайн']),
+      description: `${h1}: все сериалы и фильмы студии по популярности, с годом выхода, числом серий и описанием. Смотрите онлайн бесплатно на ${SITE}.`,
+      intro: `${st.name} — студия, которая сделала ${STUDIO_WORKS[st.slug]}. Здесь все её аниме по популярности у зрителей: сериалы, фильмы и OVA, включая онгоинги.`,
+      query: { studio: String(st.id) },
+      crumbs: [['Каталог', '/catalog']],
+      paged: true,
+      related: STUDIOS.filter((x) => x !== st).map((x): [string, string] => [x.name, `/studio/${x.slug}`]),
     }
   }
   if (path === '/ongoing') {
@@ -370,10 +427,11 @@ export const CATALOG: Landing = {
     ...GENRES.map((g): [string, string] => [g.name, `/genre/${g.slug}`]),
     ...THEMES.map((t): [string, string] => [`Про ${t.about}`, `/theme/${t.slug}`]),
     ...Object.entries(KINDS).map(([id, h1]): [string, string] => [h1, `/type/${id}`]),
+    ...STUDIOS.map((x): [string, string] => [`Студия ${x.name}`, `/studio/${x.slug}`]),
   ],
 }
 
-/** Все посадочные страницы для карты сайта и IndexNow: жанры, типы, годы и сезоны до ближайшего будущего. */
+/** Все посадочные страницы для карты сайта и IndexNow: жанры, темы, студии, типы, годы и сезоны до ближайшего будущего. */
 export function landingPaths(now = new Date()) {
   const thisYear = now.getFullYear()
   const [season, seasonYear] = seasonOf(now)
@@ -383,6 +441,7 @@ export function landingPaths(now = new Date()) {
     ...THEMES.map((t) => `/theme/${t.slug}`),
     ...[...GENRES, ...THEMES].map((x) => `/best/${x.slug}`),
     ...Object.keys(KINDS).map((k) => `/type/${k}`),
+    ...STUDIOS.map((x) => `/studio/${x.slug}`),
   ]
   for (let y = thisYear; y >= FIRST_BEST_YEAR; y--) out.push(`/best/${y}`)
   for (let y = thisYear + 1; y >= FIRST_YEAR; y--) out.push(`/year/${y}`)

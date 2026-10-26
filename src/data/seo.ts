@@ -5,6 +5,7 @@
  * Без зависимостей: Worker импортирует его напрямую. В основную сборку не входит, только в отдельные части страниц.
  */
 import type { Anime } from './catalog'
+import { animePath } from './animeUrl'
 
 export const SITE = 'Anime Life'
 /** Telegram-канал сайта: новые серии, анонсы сезона, итоги недели (scripts/telegram-news.mjs). */
@@ -211,6 +212,31 @@ export const kindPath = (kind: string | null | undefined) => (kind && KINDS[kind
 export function pageParam(value: string | null | undefined) {
   const n = Number(value)
   return Number.isInteger(n) && n > 1 ? n : 1
+}
+
+/** Больше стольких похожих страница «Аниме, похожие на …» не показывает; меньше SIMILAR_MIN — страницы нет (404). */
+export const SIMILAR_LIMIT = 30
+export const SIMILAR_MIN = 6
+
+/** Страница «Аниме, похожие на …»: /similar/52991-sousou-no-frieren. */
+export function similarPath(id: string | number, name?: string | null) {
+  return animePath(id, name).replace(/^\/anime\//, '/similar/')
+}
+
+/** Заголовок вкладки до 70 знаков вместе с « | Anime Life», как у посадочных. */
+export function similarPageTitle(title: string) {
+  const head = `Аниме, похожие на «${title}»`
+  for (const tail of [' — что посмотреть', '']) if (`${head}${tail} | ${SITE}`.length <= 70) return head + tail
+  return head
+}
+
+export function similarPageDescription(title: string, names: string[]) {
+  const top = names.slice(0, 3).map((n) => `«${n}»`)
+  return cut(
+    `Что посмотреть после «${title}»: ${names.length} аниме, похожих по жанрам и настроению` +
+      (top.length ? ` — ${top.join(', ')} и другие` : '') +
+      `. Смотрите онлайн бесплатно на ${SITE}.`,
+  )
 }
 
 // Адреса тайтлов живут в отдельном файле: основная сборка (карточки, App) не тянет весь seo.ts.

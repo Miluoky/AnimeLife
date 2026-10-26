@@ -38,6 +38,7 @@ export const pageChunks = {
   news: () => import('../pages/News'),
   season: () => import('../pages/Season'),
   person: () => import('../pages/PersonPage'),
+  similar: () => import('../pages/SimilarPage'),
 }
 
 const prefetched = new Set<string>()
