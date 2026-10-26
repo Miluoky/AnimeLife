@@ -172,10 +172,20 @@ test('тайтл и серия: заголовки по шаблону, жанр
 test('один h1 на главной и ссылки на жанры и годы в подвале', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-  const footer = page.getByRole('navigation', { name: 'Подборки' })
-  await expect(footer.getByRole('link', { name: 'Романтика' })).toHaveAttribute('href', '/genre/romance')
-  await expect(footer.getByRole('link', { name: 'Аниме-фильмы' })).toHaveAttribute('href', '/type/movie')
-  await expect(footer.getByRole('link', { name: /^Аниме \d{4} года$/ }).first()).toBeVisible()
+  const col = (title: string) => page.locator('.foot-col').filter({ has: page.locator('.foot-col__title', { hasText: title }) })
+  const genres = col('Жанры')
+  await expect(genres.getByRole('link', { name: 'Романтика' })).toHaveAttribute('href', '/genre/romance')
+  const kinds = col('Форматы и годы')
+  await expect(kinds.getByRole('link', { name: 'Аниме-фильмы' })).toHaveAttribute('href', '/type/movie')
+  await expect(kinds.getByRole('link', { name: /^Аниме \d{4} года$/ }).first()).toBeVisible()
+  await expect(col('Смотреть').getByRole('link', { name: 'Топ-100 аниме' })).toHaveAttribute('href', '/top')
+  // Значки канала, бота и почты; на телефоне колонки не раздвигают страницу вбок.
+  const footer = page.locator('.site-footer')
+  await expect(footer.getByRole('link', { name: 'Telegram-канал Anime Life', exact: true })).toHaveAttribute('href', 'https://t.me/AnimeLifeNew')
+  await expect(footer.getByRole('link', { name: /^Бот Anime Life/ })).toHaveAttribute('href', 'https://t.me/AnimeLifeAuth_bot')
+  await expect(footer.getByRole('link', { name: /^Написать на почту/ })).toHaveAttribute('href', /^mailto:/)
+  await footer.scrollIntoViewIfNeeded()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
 test('описание без разметки Shikimori: вики-ссылки оставляют имя, теги и японские скобки уходят', () => {
