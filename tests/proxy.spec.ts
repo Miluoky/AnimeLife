@@ -70,17 +70,31 @@ test('на animelife.top данные идут прямо в Shikimori, а не 
   expect(proxied).toEqual([])
 })
 
-test('Shikimori напрямую отказал (429 или сеть): запрос уходит в прокси, дальше вкладка ходит через него', async ({ page }) => {
+test('Shikimori напрямую отказал и на повторе (429 или сеть): запрос уходит в прокси, дальше вкладка ходит через него', async ({ page }) => {
   const proxied = await asProduction(page)
   let refused = 0
   await page.route('https://shikimori.io/api/animes/1', (route) => (refused++ ? route.abort('connectionrefused') : route.fulfill({ status: 429, body: '' })))
   await page.goto('http://animelife.top/anime/1')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
   expect(proxied).toContain('GET /animes/1')
-  expect(refused).toBe(1)
+  // Первый отказ и один повтор напрямую, дальше — прокси.
+  expect(refused).toBe(2)
   // Остальные запросы страницы после отказа тоже пошли через прокси.
   expect(proxied.length).toBeGreaterThan(1)
   expect(await page.evaluate(() => Number(sessionStorage.getItem('shiki.viaProxy')) > Date.now())).toBe(true)
+})
+
+test('одиночный отказ Shikimori (429 без CORS) не уводит вкладку в прокси: повтор напрямую через паузу', async ({ page }) => {
+  const proxied = await asProduction(page)
+  let calls = 0
+  await page.route('https://shikimori.io/api/animes/1', (route) =>
+    calls++ ? route.fulfill({ json: shikimoriFixture('/animes/1', new URLSearchParams()), headers: { 'Access-Control-Allow-Origin': '*' } }) : route.fulfill({ status: 429, body: '' }),
+  )
+  await page.goto('http://animelife.top/anime/1')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
+  expect(calls).toBe(2)
+  expect(proxied).not.toContain('GET /animes/1')
+  expect(await page.evaluate(() => sessionStorage.getItem('shiki.viaProxy'))).toBeNull()
 })
 
 test('через прокси работает повтор после 429', async ({ page }) => {

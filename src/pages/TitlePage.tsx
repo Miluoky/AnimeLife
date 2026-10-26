@@ -640,7 +640,7 @@ export default function TitlePage() {
               {characters.map((c) => (
                 <Link key={c.id} to={`/character/${c.id}`} className="row-scroll__item character-card">
                   <span className="character-card__img">
-                    <img src={c.image} alt="" loading="lazy" />
+                    <img src={c.image} srcSet={c.image2x && `${c.image} 1x, ${c.image2x} 2x`} alt="" loading="lazy" />
                   </span>
                   <span className="character-card__name">{c.name}</span>
                   <span className="muted character-card__role">{c.main ? 'Главный герой' : 'Второстепенный'}</span>

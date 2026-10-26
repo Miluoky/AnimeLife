@@ -8,6 +8,20 @@ test.beforeEach(async ({ page }) => {
   await mockServices(page)
 })
 
+test('главная: баннер и «Топ-10 онгоингов» делят один запрос к Shikimori', async ({ page }) => {
+  const ongoing: string[] = []
+  page.on('request', (r) => {
+    const url = new URL(r.url())
+    if (url.pathname === '/api/animes' && url.searchParams.get('status') === 'ongoing') ongoing.push(url.search)
+  })
+  await page.goto('/')
+  await expect(page.locator('.hero__title')).toBeVisible()
+  await expect(page.locator('.top-ten').first()).toBeVisible()
+  // В баннере листаются первые пять, в полке все десять.
+  await expect(page.locator('.hero__thumbs [role="tab"]')).toHaveCount(5)
+  expect(ongoing).toHaveLength(1)
+})
+
 test('главная: смену тайтлов в баннере можно остановить и продолжить', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.clock.install()

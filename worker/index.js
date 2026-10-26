@@ -252,8 +252,9 @@ async function listing(l, page) {
   }
 }
 
-// Баннер главной: пять популярных онгоингов, как запрашивает Hero в src/pages/Home.tsx.
-const HERO = animes({ status: 'ongoing', limit: 5, page: 1 })
+// Баннер главной: десять популярных онгоингов, как запрашивает Hero в src/pages/Home.tsx (ONGOING_TOP).
+// Тот же ответ берёт полка «Топ-10 онгоингов», поэтому десять, хотя в баннере листаются первые пять.
+const HERO = animes({ status: 'ongoing', limit: 10, page: 1 })
 
 async function home() {
   const year = new Date().getFullYear()

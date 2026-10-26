@@ -78,7 +78,8 @@ export async function fetchPerson(id: string): Promise<Person> {
       const c = r.characters[0]
       const best = [...r.animes].sort((a, b) => Number(b.score) - Number(a.score))[0]
       return {
-        character: { id: c.id, name: c.russian || c.name, image: absolute(c.image?.original) },
+        // Карточка роли 72 px: превью 154 px (около 13 КБ, чётко и на экранах 2x) вместо оригинала (около 30 КБ).
+        character: { id: c.id, name: c.russian || c.name, image: absolute(c.image?.preview ?? '') ?? absolute(c.image?.original) },
         anime: { id: String(best.id), title: best.russian || best.name, year: year(best), score: Number(best.score) || undefined },
         more: r.animes.length - 1,
       }
