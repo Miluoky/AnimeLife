@@ -147,8 +147,8 @@ export default function Player() {
   const playerFailed = usePlayerHealth(anime ? `${anime.id}:${current}` : undefined, voice && (host?.player ? 'embed' : voice.provider))
   // Источник не грузится или серии в нём нет: сами включаем следующий, а не просим зрителя перебирать плееры.
   // Если зритель выбрал источник сам, оставляем его выбор и пояснение под видео.
-  const fallBack = () => {
-    playerFailed()
+  const fallBack = (reason: string, missing: boolean, detail: string) => {
+    playerFailed(reason, missing, detail)
     if (manual.current || !voice || tried.current.size >= MAX_AUTO_SWITCHES) return
     tried.current.add(sourceSlot(voice, host))
     const next = nextSource(voices, voice, current, tried.current)

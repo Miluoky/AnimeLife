@@ -3,13 +3,16 @@ import { beacon, live } from './analytics'
 /**
  * Ошибки JavaScript у посетителей уходят в функцию community (error-report), а администратор
  * видит их в /admin/analytics. Только на настоящем сайте, не больше пяти за загрузку страницы,
- * одинаковые — один раз. Шум не шлём: обрывы сети, расширения браузера, ResizeObserver.
+ * одинаковые — один раз. Шум не шлём: обрывы сети, расширения браузера, ResizeObserver, прерванные
+ * View Transitions (окно сменило размер, вкладку спрятали — страница всё равно открывается, только без анимации).
+ * «Blocked a frame with origin» — тоже шум: код сайта в чужие iframe не заглядывает (только postMessage),
+ * это скрипты встроенных браузеров приложений на iOS (VK, Telegram и др.) лезут в iframe плеера.
  */
 
 const MAX_PER_PAGE = 5
 const sent = new Set<string>()
 
-const NOISE = /ResizeObserver loop|^Script error\.?$|Failed to fetch|Load failed|NetworkError|network error|AbortError|The operation was aborted|dynamically imported module|Importing a module script failed|Unable to preload CSS/i
+const NOISE = /ResizeObserver loop|^Script error\.?$|Failed to fetch|Load failed|NetworkError|network error|AbortError|The operation was aborted|dynamically imported module|Importing a module script failed|Unable to preload CSS|Transition was (aborted|skipped)|Blocked a frame with origin/i
 
 /** Браузер и система одной строкой: «Chrome 129 / Android». */
 function browser() {
@@ -30,9 +33,6 @@ export function reportError(error: unknown, source = '') {
   const stack = err?.stack ?? ''
   // Ошибки из расширений браузера к сайту не относятся.
   if (/(chrome|moz|safari)-extension:\/\//.test(stack + source)) return
-  // Встроенные браузеры приложений на iOS (VK, Instagram и др.) подмешивают в страницу свой скрипт, а он лезет
-  // в iframe плеера и ловит запрет Safari. Код сайта в чужие iframe не заглядывает (только postMessage).
-  if (/Blocked a frame with origin/.test(message) && !/\/assets\//.test(stack + source)) return
   const key = message + source
   if (sent.has(key)) return
   sent.add(key)

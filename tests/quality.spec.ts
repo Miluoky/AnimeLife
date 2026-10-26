@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import { mockServices } from './mocks'
 import { clsOf, inpOf } from '../src/data/vitals'
 
@@ -74,4 +75,31 @@ test('администратор видит качество у зрителей
   await expect(card.getByText('90% хорошо · в среднем 0.03')).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
+})
+
+test('сбой плеера: «серии нет в источнике» не сбой, сломанный поток — сбой с причиной в ошибках', async ({ page }) => {
+  const sent: Record<string, unknown>[] = []
+  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
+    const body = JSON.parse(route.request().postDataJSON().body)
+    if (body.action === 'quality-track' || body.action === 'error-report') sent.push(body)
+    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: '{"ok":true}' } })
+  })
+  await page.addInitScript(() => {
+    const w = window as Window & { __reportQuality?: boolean; __reportErrors?: boolean }
+    w.__reportQuality = w.__reportErrors = true
+  })
+  // Релиза AniLibria с этим id нет (заготовка mocks отдаёт пустой поиск): серия честно недоступна.
+  await page.goto('/watch/1/1')
+  await expect(page.getByText(/вот трейлер/)).toBeVisible()
+  await page.waitForTimeout(2000)
+  expect(sent.filter((b) => b.kind === 'player' || b.action === 'error-report')).toEqual([])
+
+  // Релиз есть, а плейлист отвечает 404: это сбой AniLibria, и причина видна администратору.
+  const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
+  await page.route(/anilibria\.top\/api\/v1\/app\/search\/releases/, (route) => route.fulfill({ json: fixture('anilibria-search') }))
+  await page.route(/anilibria\.top\/api\/v1\/anime\/releases\/8443$/, (route) => route.fulfill({ json: fixture('anilibria-release') }))
+  await page.route(/cache\.libria\.fun\/.*/, (route) => route.fulfill({ status: 404, body: '' }))
+  await page.goto('/watch/1/2')
+  await expect.poll(() => sent.find((b) => b.kind === 'player')).toMatchObject({ source: 'anilibria', ok: false })
+  await expect.poll(() => sent.find((b) => b.action === 'error-report')?.message).toMatch(/^PlayerError: anilibria: Не удалось воспроизвести серию/)
 })

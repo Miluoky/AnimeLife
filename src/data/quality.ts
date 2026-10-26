@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { beacon, device, live } from './analytics'
+import { reportError } from './errors'
 import { onPlayerTime } from './playerTime'
 import { clsOf, inpOf, type Shift } from './vitals'
 
@@ -70,7 +71,10 @@ export function watchVitals() {
  * Здоровье плеера на странице серии. Источник «запустился», когда время видео пошло вперёд,
  * «сбой» — когда он сообщил, что серию показать не может (onUnavailable). Итог серии — один раз:
  * пошла с первого источника, после автопереключения или так и не пошла.
- * Возвращает функцию, которую страница зовёт при сбое источника.
+ * Плееры YummyAnime, кроме Kodik, время наружу не сообщают: для них «запустился» — зритель нажал в плеер
+ * и 20 секунд после этого сбоя не было. Без этого у них были бы одни сбои.
+ * Возвращает функцию, которую страница зовёт при сбое источника. «Серии в источнике нет» сбоем не считаем:
+ * это пробел каталога, а не поломка плеера.
  */
 export function usePlayerHealth(episodeKey: string | undefined, source: string | undefined) {
   const sourceRef = useRef(source)
@@ -96,17 +100,38 @@ export function usePlayerHealth(episodeKey: string | undefined, source: string |
       s.started = true
       beacon({ action: 'quality-track', kind: 'episode', result: 'failed' })
     }
+    let clicked = 0
+    const onBlur = () =>
+      setTimeout(() => {
+        if (s.started || sourceRef.current !== 'embed' || !document.activeElement?.closest('.player-frame')) return
+        const fails = s.fails
+        window.clearTimeout(clicked)
+        clicked = window.setTimeout(() => {
+          if (s.started || s.fails !== fails || sourceRef.current !== 'embed') return
+          s.started = true
+          beacon({ action: 'quality-track', kind: 'player', source: 'embed', ok: true })
+          beacon({ action: 'quality-track', kind: 'episode', result: s.fails ? 'switched' : 'first' })
+        }, 20000)
+      })
     window.addEventListener('pagehide', finish)
+    window.addEventListener('blur', onBlur)
     return () => {
       off()
+      window.clearTimeout(clicked)
+      window.removeEventListener('blur', onBlur)
       window.removeEventListener('pagehide', finish)
       finish()
     }
   }, [episodeKey])
-  return () => {
+  return (reason: string, missing: boolean, detail: string) => {
     const s = state.current
-    if (!enabled() || s.started) return
+    if (!enabled() || s.started || missing) return
     s.fails++
-    if (sourceRef.current) beacon({ action: 'quality-track', kind: 'player', source: sourceRef.current, ok: false })
+    if (!sourceRef.current) return
+    beacon({ action: 'quality-track', kind: 'player', source: sourceRef.current, ok: false })
+    // Причина сбоя видна в «Ошибках у посетителей»: по счётчику не понять, что сломалось.
+    const err = new Error(`${sourceRef.current}: ${reason}${detail ? ` (${detail})` : ''}`)
+    err.name = 'PlayerError'
+    reportError(err)
   }
 }

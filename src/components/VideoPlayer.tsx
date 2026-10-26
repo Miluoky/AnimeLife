@@ -86,7 +86,7 @@ export interface VideoPlayerProps {
   provider?: Provider
   onProviderChange?: (provider: Provider) => void
   /** Источник не может показать серию (ошибка, таймаут, серии нет): страница может сама включить запасной. */
-  onUnavailable?: (reason: string) => void
+  onUnavailable?: (reason: string, missing: boolean, detail: string) => void
   /** Источники, в которых страница точно знает этот тайтл: на них предлагаем переключиться. */
   available?: Provider[]
   /** Выбранная озвучка Kodik: ссылка на её плеер из API. Без неё Kodik ищет тайтл сам. */
@@ -132,6 +132,10 @@ function buildTabs(): ProviderTab[] {
 
 const NO_SOURCES = 'Серий этого аниме пока нет в доступных источниках'
 const PLAY_ERROR = 'Не удалось воспроизвести серию'
+
+/** Источник честно ответил, что серии у него нет (или не настроен): это пробел в каталоге, а не сбой плеера. */
+const isMissing = (reason: string) =>
+  reason === NO_SOURCES || /пока нет|^Этого аниме нет|нет плеера, который можно встроить|^Нет доступного потока|токен не настроен/.test(reason)
 const SOURCE_NAME: Record<Provider, string> = { kodik: 'Kodik', alloha: 'Alloha', anilibria: 'AniLibria', animevost: 'AnimeVost', anixart: 'Anixart', embed: 'плеера' }
 
 // Выбранный источник помним до конца сеанса: при переходе к другой серии плеер создаётся заново.
@@ -197,6 +201,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const enhance = enhanceStore.use()
   // Видео с чужого сервера для фильтра «Чётче» надо загрузить заново с crossOrigin: счётчик перезапускает поток.
   const [corsReload, setCorsReload] = useState(0)
+  // Почему поток не пошёл (ошибка hls.js или <video>): уходит в сбор ошибок вместе со сбоем источника.
+  const failDetail = useRef('')
 
   // Сброс загрузки при смене источника или серии: страница плеера при этом не пересоздаётся.
   useEffect(() => {
@@ -332,6 +338,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     const video = videoRef.current
     if (!src || !video) return
     setStreamError(null)
+    failDetail.current = ''
     let cancelled = false
 
     // Убиваем предыдущий экземпляр.
@@ -346,7 +353,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       else if (carry.current.at) video.currentTime = carry.current.at
       else resumeRef.current((t) => (video.currentTime = t))
     }
-    const onError = () => setStreamError(PLAY_ERROR)
+    const onError = () => {
+      failDetail.current = `media ${video.error?.code ?? ''} ${video.error?.message ?? ''}`.trim()
+      setStreamError(PLAY_ERROR)
+    }
     // Фильтру «Чётче» нужен доступ к кадрам: прямой файл и нативный HLS грузим с CORS (серверы его разрешают).
     // hls.js отдаёт видео через blob и в этом не нуждается.
     video.crossOrigin = enhanceStore.get() ? 'anonymous' : null
@@ -376,7 +386,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         instance.attachMedia(video)
         instance.on(Hls.Events.MANIFEST_PARSED, onLoaded)
         instance.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) setStreamError(PLAY_ERROR)
+          if (!data.fatal) return
+          failDetail.current = `hls ${data.details}${data.response?.code ? ` ${data.response.code}` : ''}`
+          setStreamError(PLAY_ERROR)
         })
       }).catch(() => {
         if (!cancelled) setStreamError('Не удалось загрузить плеер AniLibria')
@@ -1066,7 +1078,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   onUnavailable.current = props.onUnavailable
   useEffect(() => {
     if (!unavailable) return
-    const timer = window.setTimeout(() => onUnavailable.current?.(unavailable), 1200)
+    const timer = window.setTimeout(() => onUnavailable.current?.(unavailable, isMissing(unavailable), failDetail.current), 1200)
     return () => window.clearTimeout(timer)
   }, [unavailable])
   // Кнопка смены источника — только когда переключаться есть куда.
