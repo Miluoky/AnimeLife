@@ -10,6 +10,10 @@ import { animePath } from './animeUrl'
 export const SITE = 'Anime Life'
 /** Telegram-канал сайта: новые серии, анонсы сезона, итоги недели (scripts/telegram-news.mjs). */
 export const TELEGRAM_CHANNEL_URL = 'https://t.me/AnimeLifeNew'
+/** Бот сайта: вход через Telegram, уведомления о сериях, Mini App (кнопка «Смотреть»). */
+export const TELEGRAM_BOT_URL = 'https://t.me/AnimeLifeAuth_bot'
+/** Почта для писем и жалоб: в подвале и на служебных страницах (legal.ts). */
+export const CONTACT_EMAIL = 'temost04@gmail.com'
 /** Тайтлов на странице посадочной и каталога: столько же грузит сетка в приложении (CatalogGrid). */
 export const PAGE_SIZE = 24
 /** Дальше этой страницы ссылок «Следующая» нет: поисковику хватит, а лимиты Shikimori не резиновые. */

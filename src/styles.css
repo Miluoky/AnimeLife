@@ -424,45 +424,17 @@ h3 {
   color: var(--muted);
 }
 
-/* Footer */
+/* Подвал: колонки и значки — в components/footer-channel.css, грузятся вместе с FooterLinks. */
 .site-footer {
   border-top: 1px solid var(--surface-2);
   margin-top: 80px;
 }
 
 .site-footer__inner {
-  padding-top: 32px;
+  padding-top: 40px;
   padding-bottom: 32px;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
   font-size: 14px;
   color: var(--muted);
-}
-
-.site-footer__inner a {
-  color: var(--muted);
-}
-
-.footer-legal {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-}
-
-.footer-note {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: 13px;
-}
-
-.footer-links {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  font-size: 13px;
 }
 
 /* Посадочные страницы: хлебные крошки, вводный текст, ссылки на страницы списка */

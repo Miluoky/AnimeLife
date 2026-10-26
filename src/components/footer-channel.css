@@ -1,29 +1,260 @@
-/* Подвал: заметная ссылка на Telegram-канал (FooterLinks.tsx). */
-.footer-channel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 20px;
-  padding: 16px 20px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
-  color: inherit;
+/* Подвал (FooterLinks.tsx): описание и значки, карточка Telegram-канала, колонки ссылок, нижняя строка. */
+.site-footer__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+  grid-template-areas: 'logo channel' 'about channel' 'cols cols' 'bottom bottom';
+  gap: 12px 48px;
+}
+
+.site-footer__inner > .logo {
+  grid-area: logo;
+  justify-self: start;
+}
+
+.site-footer__inner a {
+  color: var(--text-soft);
   text-decoration: none;
+  transition: color 0.2s var(--ease);
+}
+
+.site-footer__inner a:hover,
+.site-footer__inner a:focus-visible {
+  color: var(--accent-soft);
+}
+
+.foot-about {
+  grid-area: about;
+  display: grid;
+  gap: 16px;
+  max-width: 460px;
+}
+
+.foot-about p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.foot-social {
+  display: flex;
+  gap: 10px;
+}
+
+.site-footer__inner .foot-social a {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-soft);
+  transition:
+    color 0.2s var(--ease),
+    border-color 0.2s var(--ease),
+    transform 0.2s var(--ease);
+}
+
+.site-footer__inner .foot-social a:hover,
+.site-footer__inner .foot-social a:focus-visible {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  transform: translateY(-2px);
+}
+
+/* Карточка канала: уголки видоискателя «Кадра» вместо скруглённой рамки. */
+.site-footer__inner .footer-channel {
+  grid-area: channel;
+  align-self: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 26px;
+  border-radius: 6px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface) 60%);
+  color: inherit;
+  --fc-inset: 6px;
+  --fc-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .footer-channel:hover .btn {
   filter: brightness(1.08);
 }
 
+.footer-channel__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
 .footer-channel__text {
   display: grid;
   gap: 4px;
   min-width: 0;
-  flex: 1 1 240px;
+  flex: 1;
+  line-height: 1.4;
+}
+
+.footer-channel__text strong {
+  color: var(--text);
 }
 
 .footer-channel__text span {
   color: var(--muted);
+  font-size: 13px;
+}
+
+.footer-channel .btn {
+  flex: none;
+}
+
+/* Колонки: заголовок — служебная надпись на плёнке с номером дорожки. */
+.foot-cols {
+  grid-area: cols;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1.2fr 1.2fr 1fr;
+  gap: 32px;
+  margin-top: 28px;
+}
+
+.foot-col {
+  min-width: 0;
+}
+
+.foot-col__title {
+  position: relative;
+  margin: 0 0 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font: 600 12px var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.foot-col__title::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 28px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.foot-col__title span {
+  margin-right: 10px;
+  color: var(--accent);
+}
+
+.foot-col__links {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.foot-col--wide .foot-col__links {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 24px;
+}
+
+.foot-bottom {
+  grid-area: bottom;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 24px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--surface-2);
+  font-size: 13px;
+}
+
+.foot-bottom__rec {
+  font: 600 12px var(--font-mono);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.foot-bottom__rec::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  vertical-align: 0.15em;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.footer-note {
+  flex: 1 1 320px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+  .site-footer__inner {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'logo' 'about' 'channel' 'cols' 'bottom';
+  }
+  .site-footer__inner .footer-channel {
+    margin-top: 8px;
+    max-width: 640px;
+  }
+  .foot-cols {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .foot-col--wide {
+    grid-column: span 2;
+  }
+}
+
+/* Телефон: две колонки, ссылки с крупной зоной нажатия; снизу место под нижнее меню даёт body. */
+@media (max-width: 640px) {
+  .site-footer__inner {
+    padding-top: 32px;
+    padding-bottom: 24px;
+  }
+  .site-footer__inner .footer-channel {
+    flex-wrap: wrap;
+    padding: 20px;
+  }
+  .footer-channel__text {
+    flex-basis: calc(100% - 60px);
+  }
+  .footer-channel .btn {
+    width: 100%;
+  }
+  .foot-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 16px;
+    margin-top: 16px;
+  }
+  /* Жанры первыми и на всю ширину, поэтому номера дорожек на телефоне не показываем: шли бы не по порядку. */
+  .foot-col--wide {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+  .foot-col__title span {
+    display: none;
+  }
+  .foot-col__links {
+    gap: 0;
+  }
+  .foot-col__links a {
+    padding: 6px 0;
+    line-height: 1.35;
+  }
+  .foot-col--wide .foot-col__links {
+    column-gap: 16px;
+  }
+  .foot-bottom {
+    margin-top: 16px;
+  }
 }
