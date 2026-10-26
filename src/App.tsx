@@ -27,6 +27,7 @@ const PublicProfile = lazy(pageChunks.publicProfile)
 const Legal = lazy(pageChunks.legal)
 const CharacterPage = lazy(pageChunks.character)
 const MangaPage = lazy(pageChunks.manga)
+const MangaHome = lazy(pageChunks.mangaHome)
 const MangaReader = lazy(pageChunks.mangaReader)
 const MangaUpload = lazy(pageChunks.mangaUpload)
 const Random = lazy(pageChunks.random)
@@ -103,6 +104,7 @@ export default function App() {
           <Route path="chat" element={<CommunityChat />} />
           <Route path="u/:id" element={<PublicProfile />} />
           <Route path="character/:id" element={<CharacterPage />} />
+          <Route path="manga" element={<MangaHome />} />
           <Route path="manga/:id" element={<MangaPage />} />
           <Route path="manga/:id/chapter/:chapter" element={<MangaReader />} />
           <Route path="manga/:id/upload" element={<MangaUpload />} />

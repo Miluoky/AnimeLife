@@ -87,8 +87,8 @@ export default function MangaReader() {
 
   useEffect(() => window.scrollTo(0, 0), [chapter])
   useEffect(() => {
-    if (current) saveProgress(id, { lang, chapterId: current.id, num: current.num, at: Date.now() })
-  }, [id, lang, current])
+    if (current) saveProgress(id, { lang, chapterId: current.id, num: current.num, at: Date.now(), title: m?.title, image: m?.image })
+  }, [id, lang, current, m])
   // Стрелки влево и вправо листают главы, как в других читалках.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

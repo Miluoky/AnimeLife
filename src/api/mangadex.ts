@@ -192,6 +192,11 @@ export interface ReadProgress {
   chapterId: string
   num: string
   at: number
+  /** название и обложка для полки «Читаю» в разделе /manga */
+  title?: string
+  image?: string
+  /** страница, на которой остановились (с 1), в постраничном режиме и в ленте */
+  page?: number
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -210,6 +215,12 @@ export function setPreferredLang(lang: string) {
     // Без хранилища язык просто не запомнится.
   }
 }
+
+/** Всё, что читали: свежее первым. */
+export const allProgress = () =>
+  Object.entries(readJson<Record<string, ReadProgress>>(PROGRESS_KEY, {}))
+    .map(([id, p]) => ({ id, ...p }))
+    .sort((a, b) => b.at - a.at)
 
 export const readProgress = (mangaId: string) => readJson<Record<string, ReadProgress>>(PROGRESS_KEY, {})[mangaId]
 export function saveProgress(mangaId: string, p: ReadProgress) {

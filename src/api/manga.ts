@@ -1,5 +1,6 @@
 import { splitDescription, type TextPart } from './character'
-import { absolute, fetchRelated, get, mangaKinds, type Related, type ShikiImage } from './shikimori'
+import { absolute, fetchRelated, fromMangaShort, get, mangaKinds, type Related, type ShikiImage, type ShikiMangaShort } from './shikimori'
+import type { Anime } from '../data/catalog'
 
 // Страница манги грузится отдельно, поэтому и запросы к Shikimori живут здесь, а не в основном бандле.
 
@@ -92,4 +93,31 @@ export async function fetchManga(id: string): Promise<MangaPage> {
     related,
     links: links.filter((l) => linkTitles[l.kind]).map((l) => ({ url: l.url, title: linkTitles[l.kind] })),
   }
+}
+
+/** Виды для раздела «Манга»: без ранобэ, новелл и додзинси. */
+export const READABLE_KINDS = 'manga,manhwa,manhua,one_shot'
+export const MANGA_PAGE_SIZE = 30
+
+export interface MangaQuery {
+  search?: string
+  kind?: string
+  order?: 'popularity' | 'ranked' | 'aired_on'
+  status?: string
+  page?: number
+}
+
+/** Список манги для раздела /manga: поиск, популярное, лучшее и выходящее. */
+export async function searchMangas(q: MangaQuery): Promise<Anime[]> {
+  const list = await get<ShikiMangaShort[]>('/mangas', {
+    search: q.search?.trim() || undefined,
+    kind: q.kind || READABLE_KINDS,
+    // При поиске Shikimori сам ставит самое похожее первым.
+    order: q.search?.trim() ? undefined : (q.order ?? 'popularity'),
+    status: q.status,
+    page: q.page ?? 1,
+    limit: MANGA_PAGE_SIZE,
+    censored: 'true',
+  })
+  return list.map(fromMangaShort)
 }

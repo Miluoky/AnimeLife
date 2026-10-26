@@ -30,6 +30,7 @@ export default function FooterLinks() {
         <Link to="/random">Случайное аниме</Link>
         <Link to="/quiz">Угадай аниме по кадру</Link>
         <Link to="/scene">Найти аниме по скриншоту</Link>
+        <Link to="/manga">Читать мангу</Link>
         <Link to="/news">Новости аниме</Link>
         <Link to="/season">Аниме сезона</Link>
         <Link to="/community">Сообщество и клубы</Link>
