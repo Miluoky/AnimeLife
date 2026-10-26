@@ -17,7 +17,8 @@ import EpisodeProgress from '../components/EpisodeProgress'
 import MyEntry from '../components/MyEntry'
 import ShareButton from '../components/ShareButton'
 import { usePageMeta } from '../data/pageMeta'
-import { ageLabel, animeHref, animeIdFromParam, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
+import { SIMILAR_MIN, ageLabel, animeHref, animeIdFromParam, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
+import { studioPath } from '../data/studios'
 import { useMyList } from '../data/myList'
 import { noSpoilersStore, useNoSpoilers } from '../data/spoilers'
 import Shelf from '../components/Shelf'
@@ -334,7 +335,11 @@ export default function TitlePage() {
       ['Осталось', leftTime],
       [
         'Студия',
-        anime.studio && anime.studioId ? <Link to={`/catalog?studio=${anime.studioId}`}>{anime.studio}</Link> : (anime.studio ?? ''),
+        anime.studio && anime.studioId ? (
+          <Link to={studioPath(anime.studioId) ?? `/catalog?studio=${anime.studioId}`}>{anime.studio}</Link>
+        ) : (
+          (anime.studio ?? '')
+        ),
       ],
       ['Сезон', anime.season ?? anime.year ?? ''],
     ] as [string, ReactNode][]
@@ -746,7 +751,11 @@ export default function TitlePage() {
         )}
 
         {similar.length > 0 && (
-          <Shelf title="Похожее" subtitle="Если понравилось это, загляните сюда">
+          <Shelf
+            title="Похожее"
+            subtitle="Если понравилось это, загляните сюда"
+            more={similar.length >= SIMILAR_MIN ? { to: animeHref(anime).replace(/^\/anime\//, '/similar/') } : undefined}
+          >
             {similar.map((a) => (
               <div key={a.id} className="row-scroll__item">
                 <PosterCard anime={a} />

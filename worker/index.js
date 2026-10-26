@@ -23,6 +23,7 @@
  * robots.txt — обычный файл public/robots.txt. Подробности и правила Cloudflare: docs/worker-limit.md.
  */
 import { CATALOG, landingFor, landingPaths } from '../src/data/landings.ts'
+import { studioPath } from '../src/data/studios.ts'
 import { CONTACT_EMAIL, LEGAL, textParts } from '../src/data/legal.ts'
 import { isShikiProxy, shikiProxy } from './shikiProxy.js'
 import { isYummyProxy, yummyProxy } from './yummyProxy.js'
@@ -46,6 +47,11 @@ import {
   genrePath,
   kindPath,
   pageParam,
+  similarPath,
+  similarPageTitle,
+  similarPageDescription,
+  SIMILAR_LIMIT,
+  SIMILAR_MIN,
   titlePageDescription,
   titlePageTitle,
   watchPageDescription,
@@ -63,11 +69,11 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|genre\/[a-z-]{2,24}|theme\/[a-z-]{2,24}|best\/(?:[a-z-]{2,24}|\d{4})|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|similar\/\d{1,10}(?:-[a-z0-9-]{1,80})?|studio\/[a-z0-9-]{2,30}|genre\/[a-z-]{2,24}|theme\/[a-z-]{2,24}|best\/(?:[a-z-]{2,24}|\d{4})|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
-const PAGED = /^\/(?:catalog$|genre\/|theme\/|best\/|type\/|year\/)/
+const PAGED = /^\/(?:catalog$|genre\/|theme\/|best\/|studio\/|type\/|year\/)/
 
 /** Список тайтлов Shikimori по фильтрам каталога, самые популярные сначала. */
 const animes = (params) =>
@@ -478,7 +484,7 @@ async function titlePage(id, path) {
     info.year && link(`/year/${info.year}`, `${info.year} год`),
     !movie && a.episodes ? escapeHtml(episodesLabel(a.episodes)) : '',
     a.status === 'ongoing' && a.episodes_aired ? `вышло ${a.episodes_aired}` : '',
-    info.studio && `студия ${escapeHtml(info.studio)}`,
+    info.studio && (studioPath(a.studios?.[0]?.id) ? link(studioPath(a.studios[0].id), `студия ${info.studio}`) : `студия ${escapeHtml(info.studio)}`),
     age && `возрастное ограничение ${age}`,
   ].filter(Boolean)
   const genres = info.genres.map((g) => {
@@ -520,7 +526,10 @@ async function titlePage(id, path) {
         : '') +
       (cast.length ? `<h2>Главные персонажи</h2><ul>${cast.map((c) => `<li>${link(`/character/${c.id}`, c.russian || c.name)}</li>`).join('')}</ul>` : '') +
       (staff.length ? `<h2>Над аниме работали</h2><ul>${staff.map(([role, people]) => `<li>${escapeHtml(role)}: ${people.map((p) => link(`/person/${p.id}`, p.russian || p.name)).join(', ')}</li>`).join('')}</ul>` : '') +
-      (similar.length ? `<h2>Похожее аниме</h2><ul>${similar.slice(0, 12).map(item).join('')}</ul>` : '') +
+      (similar.length
+        ? `<h2>Похожее аниме</h2><ul>${similar.slice(0, 12).map(item).join('')}</ul>` +
+          (similar.length >= SIMILAR_MIN ? `<p>${link(similarPath(a.id, a.name), `Все аниме, похожие на «${info.title}»`)}</p>` : '')
+        : '') +
       siteNav(),
     jsonLd: graph(crumbs.ld, {
       '@type': movie ? 'Movie' : 'TVSeries',
@@ -542,6 +551,53 @@ async function titlePage(id, path) {
       // Возрастная маркировка по рейтингу Shikimori: 0+, 6+, 12+, 16+, 18+.
       contentRating: age,
       // aggregateRating не ставим: оценки здесь от Shikimori, а Google запрещает размечать рейтинги с других сайтов.
+    }),
+  }
+}
+
+/**
+ * «Аниме, похожие на …»: похожие тайтлы Shikimori списком со ссылками. Такие запросы ищут часто
+ * («аниме похожие на Атаку титанов»), а на странице тайтла похожих только 12 и они не главное.
+ * Если похожих меньше SIMILAR_MIN, страницы нет (404): тонкая страница поиску не нужна.
+ */
+async function similarPage(id, path) {
+  const [a, similar] = await Promise.all([
+    json(`${SHIKIMORI}/api/animes/${id}`),
+    json(`${SHIKIMORI}/api/animes/${id}/similar`, undefined, DAY),
+  ])
+  const canonicalPath = similarPath(a.id, a.name)
+  if (path !== canonicalPath) throw redirectTo(canonicalPath)
+  if (similar.length < SIMILAR_MIN) throw notFound()
+  const info = titleInfo(a)
+  const items = similar.slice(0, SIMILAR_LIMIT)
+  const names = items.map((x) => x.russian || x.name)
+  const h1 = `Аниме, похожие на «${info.title}»`
+  const crumbs = breadcrumbs([[info.title, animePath(a.id, a.name)], ['Похожие аниме', canonicalPath]])
+  const about = [info.kind, info.year, info.genres.slice(0, 3).join(', ').toLowerCase()].filter(Boolean).join(', ')
+  return {
+    preload: {
+      [preloadKey(`${SHIKIMORI}/api/animes/${id}`)]: a,
+      [preloadKey(`${SHIKIMORI}/api/animes/${id}/similar`)]: similar,
+    },
+    title: `${similarPageTitle(info.title)} | ${SITE}`,
+    description: similarPageDescription(info.title, names),
+    image: absolute(a.image?.original),
+    body:
+      crumbs.html +
+      `<h1>${escapeHtml(h1)}</h1>` +
+      `<p>${escapeHtml(`Понравилось «${info.title}»${about ? ` (${about})` : ''}? Эти аниме зрители Shikimori чаще всего называют похожими: близкие по жанру, настроению и сюжету. Сначала самые похожие.`)}</p>` +
+      `<ol>${items.map(item).join('')}</ol>` +
+      `<p>${link(animePath(a.id, a.name), `Вернуться к «${info.title}»`)}</p>` +
+      siteNav(),
+    jsonLd: graph(crumbs.ld, {
+      '@type': 'ItemList',
+      name: h1,
+      itemListElement: items.map((x, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: ORIGIN + animePath(x.id, x.name),
+        name: x.russian || x.name,
+      })),
     }),
   }
 }
@@ -918,11 +974,13 @@ async function metaFor(path, params) {
   if (SECTIONS[path]) return sectionPage(path, SECTIONS[path])
   const landing = landingFor(path)
   if (landing) return listing(landing, page)
-  if (/^\/(?:genre|theme|best|type|year)\//.test(path)) throw notFound()
+  if (/^\/(?:genre|theme|best|studio|type|year)\//.test(path)) throw notFound()
   let m = path.match(/^\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
   if (m) return titlePage(m[1], path)
   m = path.match(/^\/en\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
   if (m) return enTitlePage(m[1], path)
+  m = path.match(/^\/similar\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
+  if (m) return similarPage(m[1], path)
   m = path.match(/^\/watch\/(\d{1,10})\/(\d{1,5})$/)
   if (m) return watchPage(m[1], Math.max(1, Number(m[2])))
   m = path.match(/^\/character\/(\d{1,10})$/)

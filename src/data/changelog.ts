@@ -9,6 +9,13 @@ export interface ChangelogItem {
 
 export const CHANGELOG: { date: string; items: ChangelogItem[] }[] = [
   {
+    date: '2026-10-26',
+    items: [
+      { kind: 'new', title: 'Аниме, похожие на любимое', text: 'У полки «Похожее» на странице тайтла появилась ссылка «Все»: отдельная страница до 30 похожих аниме, чтобы сразу выбрать, что смотреть после финала.', to: '/similar/52991-sousou-no-frieren' },
+      { kind: 'new', title: 'Страницы студий', text: 'Все аниме MAPPA, ufotable, Kyoto Animation, Madhouse, Ghibli и ещё 27 студий на своих страницах. Студия на странице тайтла ведёт туда.', to: '/studio/mappa' },
+    ],
+  },
+  {
     date: '2026-10-24',
     items: [
       { kind: 'new', title: 'Английская версия', text: 'Для друзей, которые не читают по-русски: animelife.top/en рассказывает о сайте по-английски, а у каждого тайтла есть английская страница с названием, жанрами и кнопкой «Смотреть». Ссылка English внизу страницы.', to: '/en' },
