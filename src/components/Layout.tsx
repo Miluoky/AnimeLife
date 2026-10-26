@@ -156,6 +156,7 @@ export default function Layout() {
       <NavLink to="/schedule">Расписание</NavLink>
       <NavLink to="/together">Вместе</NavLink>
       <NavLink to="/community">Сообщество</NavLink>
+      <NavLink to="/manga">Манга</NavLink>
       <NavLink to="/my-list">Мой список</NavLink>
     </>
   )

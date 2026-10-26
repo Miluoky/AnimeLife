@@ -23,6 +23,7 @@ export const pageChunks = {
   legal: () => import('../pages/Legal'),
   character: () => import('../pages/CharacterPage'),
   manga: () => import('../pages/MangaPage'),
+  mangaHome: () => import('../pages/MangaHome'),
   mangaReader: () => import('../pages/MangaReader'),
   mangaUpload: () => import('../pages/MangaUpload'),
   random: () => import('../pages/Random'),

@@ -136,7 +136,7 @@ h3 {
 
 .site-nav {
   display: flex;
-  gap: 24px;
+  gap: 20px;
   font-size: 15px;
   font-weight: 600;
 }
@@ -145,9 +145,9 @@ h3 {
   color: var(--muted);
   white-space: nowrap;
 }
-/* 901–1300 px: меню и поиск не помещаются вместе. Поиск сжимается до значка,
+/* 901–1440 px: меню и поиск не помещаются вместе. Поиск сжимается до значка,
    а при вводе раскрывается на месте меню — кнопка входа больше не уходит за край. */
-@media (min-width: 901px) and (max-width: 1300px) {
+@media (min-width: 901px) and (max-width: 1440px) {
   .site-header__inner {
     gap: 20px;
   }
@@ -175,6 +175,19 @@ h3 {
     display: none;
   }
 }
+@media (min-width: 901px) and (max-width: 1100px) {
+  .site-header__inner {
+    gap: 12px;
+  }
+  .site-nav {
+    gap: 12px;
+    font-size: 14px;
+  }
+  /* Манга есть в подвале и шторке, на узком экране пункт не влезает. */
+  .site-nav a[href='/manga'] {
+    display: none;
+  }
+}
 
 .site-nav a.active {
   color: var(--text);
@@ -193,7 +206,7 @@ h3 {
   border-radius: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
-  width: 300px;
+  width: 280px;
   max-width: 40vw;
 }
 
