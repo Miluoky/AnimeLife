@@ -2,8 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { MANGA_PAGE_SIZE, searchMangas, type MangaQuery } from '../api/manga'
-import { allProgress, chapterLabel } from '../api/mangadex'
+import { allProgress, chapterLabel, latestChapter } from '../api/mangadex'
 import type { Anime } from '../data/catalog'
+import { mangaProgressStore } from '../data/mangaProgress'
 import PosterCard from '../components/PosterCard'
 import { usePageMeta } from '../data/pageMeta'
 import './manga.css'
@@ -21,9 +22,47 @@ const kinds = [
   { id: 'manhua', title: 'Маньхуа' },
 ]
 
-/** «Читаю»: манга, которую уже открывали в читалке, со ссылкой на место остановки. */
+// Последние главы проверяем не чаще раза в 6 часов: каждый запрос к MangaDex идёт через наш Worker.
+const LATEST_KEY = 'anime.mangaLatest.v1'
+const LATEST_TTL = 6 * 3600_000
+
+async function latestCached(md: string, lang: string): Promise<string | undefined> {
+  const key = `${md}:${lang}`
+  let all: Record<string, { num?: string; at: number }> = {}
+  try {
+    all = JSON.parse(localStorage.getItem(LATEST_KEY) ?? '{}')
+  } catch {
+    // Без хранилища просто спросим MangaDex.
+  }
+  if (all[key] && Date.now() - all[key].at < LATEST_TTL) return all[key].num
+  const num = await latestChapter(md, lang)
+  all[key] = { num, at: Date.now() }
+  try {
+    localStorage.setItem(LATEST_KEY, JSON.stringify(all))
+  } catch {
+    // Не запомнилось: в следующий раз проверим снова.
+  }
+  return num
+}
+
+/** Сколько новых глав вышло после той, на которой остановились; 0 — новых нет или номера не числа. */
+const fresh = (num: string, latest?: string) => {
+  const d = Math.floor(Number(latest) - Number(num))
+  return Number.isFinite(d) && d > 0 ? d : 0
+}
+
+/** «Читаю»: манга, которую уже открывали в читалке, со ссылкой на место остановки и числом новых глав. */
 function Reading() {
+  // Подписка: место из аккаунта приходит после входа, полка обновляется сама.
+  mangaProgressStore.use()
   const list = allProgress().slice(0, 12)
+  const latest = useAsync(
+    () =>
+      Promise.all(list.map((p) => (p.md ? latestCached(p.md, p.lang).catch(() => undefined) : undefined))).then(
+        (nums) => new Map(list.map((p, i) => [p.id, nums[i]])),
+      ),
+    [list.map((p) => p.id).join()],
+  )
   if (!list.length) return null
   return (
     <section className="stack">
@@ -39,6 +78,9 @@ function Reading() {
                   {chapterLabel({ num: p.num })}
                   {p.page ? `, стр. ${p.page}` : ''}
                 </span>
+                {fresh(p.num, latest.value?.get(p.id)) > 0 && (
+                  <span className="manga-reading__new">Новых глав: {fresh(p.num, latest.value?.get(p.id))}</span>
+                )}
               </span>
             </Link>
           </li>
