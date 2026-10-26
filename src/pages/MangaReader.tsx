@@ -1,13 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga } from '../api/manga'
-import { chapterLabel, fallbackPage, fetchPages, findMangadex, langName, mergeChapters, preferredLang, saveProgress } from '../api/mangadex'
+import { chapterLabel, fallbackPage, fetchPages, findMangadex, langName, mergeChapters, preferredLang, readProgress, saveProgress } from '../api/mangadex'
 import { OWN_PREFIX, fetchOwnChapter, fetchOwnChapters } from '../api/mangaOwn'
 import { usePageMeta } from '../data/pageMeta'
 import './manga-reader.css'
 
 const SAVER_KEY = 'anime.mangaSaver.v1'
+// Как читать: лентой сверху вниз или по одной странице; по страницам — слева направо или справа налево, как в японской манге.
+const VIEW_KEY = 'anime.mangaView.v1'
+interface View {
+  paged: boolean
+  rtl: boolean
+}
+const loadView = (): View => {
+  try {
+    return { paged: false, rtl: false, ...(JSON.parse(localStorage.getItem(VIEW_KEY) ?? '{}') as Partial<View>) }
+  } catch {
+    return { paged: false, rtl: false }
+  }
+}
 const loadSaver = () => {
   try {
     return localStorage.getItem(SAVER_KEY) === '1'
@@ -20,13 +33,13 @@ const loadSaver = () => {
  * Страница главы. Если картинка не загрузилась (сбой Worker или узла MangaDex@Home), берём её напрямую
  * с основного сервера MangaDex, а если и он не ответил, даём повторить вручную.
  */
-function Page({ src, n }: { src: string; n: number }) {
+function Page({ src, n, eager }: { src: string; n: number; eager?: boolean }) {
   const [attempt, setAttempt] = useState(0)
   // У наших глав запасного сервера нет: сразу предлагаем повторить.
   const main = src.includes('/api/mangadex-img/') || src.includes('mangadex') ? fallbackPage(src) : src
   if (attempt > 1)
     return (
-      <button type="button" className="reader__retry" onClick={() => setAttempt(0)}>
+      <button type="button" className="reader__retry" data-n={n} onClick={() => setAttempt(0)}>
         Страница {n} не загрузилась. Нажмите, чтобы повторить
       </button>
     )
@@ -34,7 +47,10 @@ function Page({ src, n }: { src: string; n: number }) {
     <img
       src={attempt ? main : src}
       alt={`Страница ${n}`}
-      loading={n <= 3 ? 'eager' : 'lazy'}
+      data-n={n}
+      loading={eager || n <= 3 ? 'eager' : 'lazy'}
+      // Пока картинка не пришла, у неё высота почти в экран: ленивая загрузка не тянет всю главу сразу.
+      onLoad={(e) => e.currentTarget.classList.add('is-loaded')}
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setAttempt(attempt + 1)}
@@ -49,6 +65,14 @@ export default function MangaReader() {
   const lang = params.get('lang') || preferredLang()
   const navigate = useNavigate()
   const [saver, setSaver] = useState(loadSaver)
+  const [view, setView] = useState(loadView)
+  // Номер страницы с нуля; равен числу страниц — значит, глава дочитана (в постраничном режиме карточка «Дальше»).
+  const [at, setAt] = useState(0)
+  // Быстрые нажатия подряд приходят раньше перерисовки: текущую страницу берём отсюда, а не из замыкания.
+  const atRef = useRef(at)
+  atRef.current = at
+  const restore = useRef(0)
+  const touch = useRef<number>()
   const [retry, setRetry] = useState(0)
 
   const manga = useAsync(() => fetchManga(id).catch(() => undefined), [id])
@@ -85,14 +109,101 @@ export default function MangaReader() {
     m ? `«${m.title}»: читать онлайн на Anime Life.` : '',
   )
 
-  useEffect(() => window.scrollTo(0, 0), [chapter])
+  const urls = pages.value ?? []
+  const total = urls.length
+
+  // Вернулись в ту же главу («Продолжить», полка «Читаю»): открываем страницу, на которой остановились.
   useEffect(() => {
-    if (current) saveProgress(id, { lang, chapterId: current.id, num: current.num, at: Date.now(), title: m?.title, image: m?.image })
-  }, [id, lang, current, m])
-  // Стрелки влево и вправо листают главы, как в других читалках.
+    window.scrollTo(0, 0)
+    const saved = readProgress(id)
+    restore.current = saved?.chapterId === chapter && saved.page ? saved.page - 1 : 0
+    setAt(restore.current)
+  }, [chapter])
+  useEffect(() => {
+    if (!total || pages.loading || view.paged || !restore.current) return
+    const n = restore.current + 1
+    restore.current = 0
+    requestAnimationFrame(() => document.querySelector(`.reader__pages [data-n="${n}"]`)?.scrollIntoView())
+  }, [total, pages.loading, view.paged, chapter])
+  // В ленте текущая страница та, что пересекает середину экрана.
+  useEffect(() => {
+    if (view.paged || !total || typeof IntersectionObserver !== 'function') return
+    const seen = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setAt(Number((e.target as HTMLElement).dataset.n) - 1)
+      },
+      { rootMargin: '-50% 0px -50% 0px' },
+    )
+    document.querySelectorAll('.reader__pages [data-n]').forEach((el) => seen.observe(el))
+    return () => seen.disconnect()
+  }, [view.paged, total, chapter])
+  useEffect(() => {
+    if (current)
+      saveProgress(id, {
+        lang,
+        chapterId: current.id,
+        num: current.num,
+        at: Date.now(),
+        title: m?.title,
+        image: m?.image,
+        page: Math.min(at, Math.max(total - 1, 0)) + 1,
+      })
+  }, [id, lang, current, m, at, total])
+  // Следующие две страницы грузим заранее, чтобы листание было мгновенным.
+  useEffect(() => {
+    if (!view.paged) return
+    for (const src of urls.slice(at + 1, at + 3)) new Image().src = src
+  }, [view.paged, at, urls])
+
+  function changeView(next: View) {
+    setView(next)
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify(next))
+    } catch {
+      // Без хранилища режим просто не запомнится.
+    }
+    if (!next.paged) restore.current = at
+  }
+  /** Листаем на страницу вперёд (1) или назад (-1); за краем главы — соседняя глава. */
+  function turn(step: 1 | -1) {
+    const n = atRef.current + step
+    if (n < 0) {
+      if (prev) navigate(to(prev))
+      return
+    }
+    if (n > total) {
+      if (next) navigate(to(next))
+      return
+    }
+    atRef.current = n
+    setAt(n)
+    // Новая страница встаёт сразу под панелью читалки.
+    document.querySelector('.reader__paged')?.scrollIntoView({ block: 'start' })
+  }
+  // Справа налево: левая сторона страницы ведёт вперёд, как в японской книжке.
+  const forwardSide = (left: boolean) => (left === view.rtl ? 1 : -1)
+  const onTap = (e: MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('a, button')) return
+    const box = e.currentTarget.getBoundingClientRect()
+    turn(forwardSide(e.clientX - box.left < box.width / 2))
+  }
+  const onTouchStart = (e: TouchEvent) => (touch.current = e.touches[0]?.clientX)
+  const onTouchEnd = (e: TouchEvent) => {
+    const start = touch.current
+    touch.current = undefined
+    const dx = start === undefined ? 0 : (e.changedTouches[0]?.clientX ?? start) - start
+    // Свайп влево — как нажать на правую половину страницы.
+    if (Math.abs(dx) > 50) turn(forwardSide(dx > 0))
+  }
+
+  // Стрелки влево и вправо: в ленте листают главы, по страницам — страницы (с учётом направления).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.altKey || e.ctrlKey || e.metaKey) return
+      if (view.paged && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        turn(forwardSide(e.key === 'ArrowLeft'))
+        return
+      }
       if (e.key === 'ArrowLeft' && prev) navigate(to(prev))
       if (e.key === 'ArrowRight' && next) navigate(to(next))
     }
@@ -154,6 +265,19 @@ export default function MangaReader() {
           />
           Экономия трафика
         </label>
+        <div className="chips reader__view" role="group" aria-label="Как читать">
+          <button type="button" className={`pill${view.paged ? '' : ' active'}`} aria-pressed={!view.paged} onClick={() => changeView({ ...view, paged: false })}>
+            Лента
+          </button>
+          <button type="button" className={`pill${view.paged ? ' active' : ''}`} aria-pressed={view.paged} onClick={() => changeView({ ...view, paged: true })}>
+            По страницам
+          </button>
+          {view.paged && (
+            <button type="button" className={`pill${view.rtl ? ' active' : ''}`} aria-pressed={view.rtl} onClick={() => changeView({ ...view, rtl: !view.rtl })}>
+              Справа налево
+            </button>
+          )}
+        </div>
       </div>
 
       {current && (
@@ -171,8 +295,30 @@ export default function MangaReader() {
               Повторить
             </button>
           </div>
+        ) : view.paged && total ? (
+          <div className="reader__paged" onClick={onTap} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            {at < total ? (
+              <Page key={urls[at]} src={urls[at]} n={at + 1} eager />
+            ) : (
+              <div className="reader__end">
+                <p>Глава дочитана.</p>
+                {next ? (
+                  <Link className="btn btn--accent" to={to(next)}>
+                    {chapterLabel(next)} →
+                  </Link>
+                ) : (
+                  <Link className="btn btn--accent" to={`/manga/${id}`}>
+                    К манге
+                  </Link>
+                )}
+              </div>
+            )}
+            <span className="reader__count" aria-live="polite">
+              {Math.min(at + 1, total)} / {total}
+            </span>
+          </div>
         ) : (
-          (pages.value ?? []).map((src, i) => <Page key={src} src={src} n={i + 1} />)
+          urls.map((src, i) => <Page key={src} src={src} n={i + 1} />)
         )}
       </div>
 

@@ -66,6 +66,8 @@ function ReadBlock({ m }: { m: Manga }) {
   )
   const list = Array.isArray(chapters.value) ? chapters.value : []
   const progress = readProgress(m.id)
+  // Главы до той, на которой остановились, считаем прочитанными: в списке они приглушены.
+  const read = (num: string) => !!progress?.num && !!num && Number(num) < Number(progress.num)
   const { user } = useAuth()
   const canUpload = !!user?.labels?.some((l) => l === 'translator' || l === 'admin')
 
@@ -104,6 +106,7 @@ function ReadBlock({ m }: { m: Manga }) {
           {progress && (
             <Link className="btn" to={chapterUrl(m.id, progress.chapterId, progress.lang)}>
               Продолжить: {chapterLabel({ num: progress.num })}
+              {progress.page && progress.page > 1 ? `, стр. ${progress.page}` : ''}
               {progress.lang !== lang ? ` (${langName(progress.lang).toLowerCase()})` : ''}
             </Link>
           )}
@@ -111,7 +114,7 @@ function ReadBlock({ m }: { m: Manga }) {
         <ol className="manga__chapters" reversed>
           {[...list].reverse().map((c) => (
             <li key={c.id}>
-              <Link to={chapterUrl(m.id, c.id, lang)} className={c.id === progress?.chapterId ? 'is-current' : undefined}>
+              <Link to={chapterUrl(m.id, c.id, lang)} className={c.id === progress?.chapterId ? 'is-current' : read(c.num) ? 'is-read' : undefined}>
                 <span>{chapterLabel(c)}</span>
                 {c.title && c.num && <span className="muted"> · {c.title}</span>}
               </Link>
