@@ -150,3 +150,9 @@
 .manga__chapters a.is-read {
   color: var(--muted);
 }
+
+.manga-reading__new {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}

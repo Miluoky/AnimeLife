@@ -75,7 +75,7 @@ test('читалка по страницам: листание, справа н�
   // Место чтения: страница запомнилась, на странице манги «Продолжить» и прочитанная глава приглушена.
   await expect
     .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('anime.mangaProgress.v1') ?? '{}')['2']))
-    .toMatchObject({ chapterId: 'ch-2', num: '2', page: 2, title: 'Берсерк' })
+    .toMatchObject({ chapterId: 'ch-2', num: '2', page: 2, title: 'Берсерк', md: 'md-berserk' })
   await page.goto('/manga/2')
   await expect(page.getByRole('link', { name: 'Продолжить: Глава 2, стр. 2' })).toBeVisible()
   await expect(page.locator('.manga__chapters a.is-read')).toHaveText('Глава 1')

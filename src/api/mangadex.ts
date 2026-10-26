@@ -1,3 +1,7 @@
+import { mangaProgressStore, mergeMangaProgress, type ReadProgress } from '../data/mangaProgress'
+
+export type { ReadProgress }
+
 // Главы манги из MangaDex для читалки. На animelife.top и запросы, и картинки страниц идут через Worker
 // (worker/mangadexProxy.js): MangaDex не пускает браузер с чужих сайтов и заблокирован в России.
 
@@ -185,19 +189,7 @@ export const chapterLabel = (c: Pick<Chapter, 'num' | 'title'>) => (c.num ? `Г�
 
 // Выбранный язык и место чтения храним в браузере, как историю просмотра.
 const LANG_KEY = 'anime.mangaLang.v1'
-const PROGRESS_KEY = 'anime.mangaProgress.v1'
 
-export interface ReadProgress {
-  lang: string
-  chapterId: string
-  num: string
-  at: number
-  /** название и обложка для полки «Читаю» в разделе /manga */
-  title?: string
-  image?: string
-  /** страница, на которой остановились (с 1), в постраничном режиме и в ленте */
-  page?: number
-}
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -218,19 +210,28 @@ export function setPreferredLang(lang: string) {
 
 /** Всё, что читали: свежее первым. */
 export const allProgress = () =>
-  Object.entries(readJson<Record<string, ReadProgress>>(PROGRESS_KEY, {}))
+  Object.entries(mangaProgressStore.get())
     .map(([id, p]) => ({ id, ...p }))
     .sort((a, b) => b.at - a.at)
 
-export const readProgress = (mangaId: string) => readJson<Record<string, ReadProgress>>(PROGRESS_KEY, {})[mangaId]
+export const readProgress = (mangaId: string): ReadProgress | undefined => mangaProgressStore.get()[mangaId]
 export function saveProgress(mangaId: string, p: ReadProgress) {
-  try {
-    const all = readJson<Record<string, ReadProgress>>(PROGRESS_KEY, {})
-    all[mangaId] = p
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(all))
-  } catch {
-    // Без хранилища место чтения не запомнится.
-  }
+  mangaProgressStore.set(mergeMangaProgress(mangaProgressStore.get(), { [mangaId]: p }))
+}
+
+/** Номер последней главы на этом языке: для значка «новые главы» на полке «Читаю». */
+export async function latestChapter(mdId: string, lang: string): Promise<string | undefined> {
+  const res = await api<{ data: MdChapter[] }>(`manga/${mdId}/feed`, [
+    ['translatedLanguage[]', lang],
+    ['limit', '1'],
+    ['order[chapter]', 'desc'],
+    ['includeExternalUrl', '0'],
+    ['includeUnavailable', '0'],
+    ['contentRating[]', 'safe'],
+    ['contentRating[]', 'suggestive'],
+    ['contentRating[]', 'erotica'],
+  ])
+  return res.data[0]?.attributes.chapter ?? undefined
 }
 
 /**

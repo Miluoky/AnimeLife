@@ -5,6 +5,7 @@ import { listStore, removedStore, type ListEntry } from './myList'
 import { flagsStore, mergeFlags, type Flag } from './flags'
 import { telegramOnStore } from './telegramFlag'
 import { inviteStore, pendingInvite } from './inviteStore'
+import { mangaProgressStore, mergeMangaProgress, type ReadProgress } from './mangaProgress'
 
 /**
  * Аккаунт и синхронизация. «Мой список» и история просмотра лежат в настройках пользователя
@@ -18,6 +19,8 @@ interface SyncedPrefs {
   history?: HistoryEntry[]
   /** события для достижений */
   flags?: Partial<Record<Flag, number>>
+  /** где остановились в манге (id Shikimori → глава и страница) */
+  manga?: Record<string, ReadProgress>
   /** открытый профиль /u/:id */
   publicProfile?: boolean
 }
@@ -130,6 +133,7 @@ let pushTimer: ReturnType<typeof setTimeout> | undefined
 let applyingRemote = false
 
 async function push() {
+  pushTimer = undefined
   if (!state.user) return
   try {
     if (remoteListLoaded) await saveRemoteList(state.user.$id, listStore.get())
@@ -139,6 +143,7 @@ async function push() {
       removed: removedStore.get(),
       history: historyStore.get(),
       flags: flagsStore.get(),
+      manga: mangaProgressStore.get(),
     }
     const { account } = await sdk()
     const user = await account.updatePrefs({ ...state.user.prefs, ...prefs })
@@ -149,14 +154,18 @@ async function push() {
 }
 
 // Каждое изменение списка или истории уходит в аккаунт, пачкой раз в секунду.
-function schedulePush() {
+// Место в манге меняется на каждой странице, поэтому его отправляем реже: через 10 секунд после последнего листания.
+function schedulePush(delay = 1000) {
   if (!state.user || applyingRemote) return
+  // Уже назначенную отправку листание не откладывает: пока читают, место уходит не чаще раза в 10 секунд.
+  if (pushTimer && delay > 1000) return
   clearTimeout(pushTimer)
-  pushTimer = setTimeout(push, 1000)
+  pushTimer = setTimeout(push, delay)
 }
 listStore.subscribe(schedulePush)
 historyStore.subscribe(schedulePush)
 flagsStore.subscribe(schedulePush)
+mangaProgressStore.subscribe(() => schedulePush(10_000))
 
 /** После входа: объединить то, что было в браузере, с тем, что уже лежит в аккаунте. */
 async function adopt(user: User) {
@@ -176,6 +185,7 @@ async function adopt(user: User) {
   listStore.set(mergeList(remoteList, listStore.get(), removed))
   historyStore.set(mergeHistory(remote.history ?? [], historyStore.get()))
   flagsStore.set(mergeFlags(remote.flags, flagsStore.get()))
+  mangaProgressStore.set(mergeMangaProgress(remote.manga, mangaProgressStore.get()))
   applyingRemote = false
   setState({ checking: false, user })
   await push()
@@ -327,6 +337,7 @@ export async function signOut() {
  */
 export async function forgetDeletedAccount(accountDeleted: boolean) {
   clearTimeout(pushTimer)
+  pushTimer = undefined
   try {
     const { account } = await sdk()
     if (!accountDeleted) await account.updateStatus()

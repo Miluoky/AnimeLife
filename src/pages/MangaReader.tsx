@@ -77,14 +77,16 @@ export default function MangaReader() {
 
   const manga = useAsync(() => fetchManga(id).catch(() => undefined), [id])
   const m = manga.value
+  const md = useAsync(() => (m ? findMangadex(m.id, [m.originalTitle, m.english, m.title]).catch(() => null) : Promise.resolve(null)), [m?.id])
   const chapters = useAsync(
     () =>
-      m
-        ? Promise.all([findMangadex(m.id, [m.originalTitle, m.english, m.title]).catch(() => null), fetchOwnChapters(m.id).catch(() => [])])
-            .then(([t, own]) => mergeChapters(own, t?.id, lang))
+      m && !md.loading
+        ? fetchOwnChapters(m.id)
+            .catch(() => [])
+            .then((own) => mergeChapters(own, md.value?.id, lang))
             .catch(() => [])
         : Promise.resolve([]),
-    [m?.id, lang],
+    [m?.id, lang, md.loading],
   )
   // Страницы грузим сразу, не дожидаясь списка глав: id главы уже в адресе.
   // Наши главы (загруженные командами) хранятся в Appwrite: у них адреса страниц готовые.
@@ -147,8 +149,9 @@ export default function MangaReader() {
         title: m?.title,
         image: m?.image,
         page: Math.min(at, Math.max(total - 1, 0)) + 1,
+        md: md.value?.id,
       })
-  }, [id, lang, current, m, at, total])
+  }, [id, lang, current, m, at, total, md.value])
   // Следующие две страницы грузим заранее, чтобы листание было мгновенным.
   useEffect(() => {
     if (!view.paged) return
