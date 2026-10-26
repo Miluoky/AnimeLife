@@ -910,7 +910,6 @@ test('плеер: источник не может показать серию �
   )
   await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
   await mockYummy(page, [['Озвучка StudioBand', 'CVH', [1, 2]]])
-  // Сбой источника уходит в статистику качества (data/quality.ts).
   const quality: Record<string, unknown>[] = []
   await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
     const body = JSON.parse(route.request().postDataJSON().body)
@@ -921,11 +920,11 @@ test('плеер: источник не может показать серию �
   await page.goto('/watch/1/2')
   await expect(page.locator('iframe.player-iframe')).toHaveAttribute('src', /^https:\/\/cvh\.example\/.*StudioBand\/2$/, { timeout: 15000 })
   await expect(page.getByText('Плеер Kodik не грузится, включили CVH')).toBeVisible()
-  await expect.poll(() => quality.filter((q) => q.kind === 'player' && q.ok === false).length).toBe(1)
   await expect(page.getByRole('group', { name: 'Плеер' }).getByRole('button', { name: 'CVH' })).toHaveAttribute('aria-pressed', 'true')
-  // Ушли со страницы серии, а запасной плеер так и не пошёл: серия считается несработавшей.
+  // «Серии нет в этом плеере» — пробел каталога, а не сбой: в статистику качества не идёт (data/quality.ts).
   await page.getByRole('link', { name: 'Anime Life, на главную' }).first().click()
-  await expect.poll(() => quality.find((q) => q.kind === 'episode')?.result).toBe('failed')
+  await page.waitForTimeout(500)
+  expect(quality.filter((q) => q.kind === 'player' || q.kind === 'episode')).toEqual([])
 })
 
 /** Anixart с четырьмя студиями «Ковбоя Бибопа»: субтитры, Studio Band, Persona99 и Shachiburi (12 серий). */

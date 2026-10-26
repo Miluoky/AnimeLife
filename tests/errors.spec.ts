@@ -21,6 +21,9 @@ test('ошибки у посетителей: ошибка уходит в фу�
     setTimeout(boom)
     setTimeout(boom)
     void Promise.reject(new TypeError('Failed to fetch'))
+    // Прерванный View Transition и чужой скрипт встроенного браузера iOS, полезший в iframe плеера: шум.
+    void Promise.reject(new DOMException('Transition was aborted because of invalid state. Viewport size changed', 'InvalidStateError'))
+    void Promise.reject(new DOMException('Blocked a frame with origin "https://animelife.top" from accessing a cross-origin frame.', 'SecurityError'))
   })
   await expect.poll(() => reports.length).toBe(1)
   await page.waitForTimeout(300)
