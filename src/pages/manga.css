@@ -156,3 +156,44 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/* «Смотреть аниме» в шапке манги: кнопка в плеер и сезоны строкой. */
+.manga__watch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.manga__seasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.manga__seasons li {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.manga__seasons .chip {
+  max-width: 100%;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.manga__seasons .chip--accent {
+  color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .manga__watch > .btn {
+    align-self: stretch;
+  }
+}

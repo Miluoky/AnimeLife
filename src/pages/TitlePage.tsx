@@ -10,6 +10,7 @@ import { slowNetwork } from '../data/saver'
 import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeTotals, episodesLabel } from '../data/catalog'
 import { useHistory } from '../data/history'
+import { mangaProgressStore } from '../data/mangaProgress'
 import PosterCard, { Poster } from '../components/PosterCard'
 import ListButton from '../components/ListButton'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
@@ -34,6 +35,16 @@ import NotFound from './NotFound'
 import './title.css'
 
 // Отзывы ниже первого экрана: их код (с формой и модерацией) грузится отдельно и не задерживает страницу.
+/** Раскрытая книга для «Читать мангу»: значок нужен только здесь, поэтому не в общем Icons.tsx. */
+function BookIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 5c3-1.5 6.5-1.5 10 1 3.5-2.5 7-2.5 10-1v14c-3-1.5-6.5-1.5-10 1-3.5-2.5-7-2.5-10-1z" />
+      <path d="M12 6v14" />
+    </svg>
+  )
+}
+
 const Reviews = lazy(() => import('../components/Reviews'))
 const ThemeSongs = lazy(() => import('../components/ThemeSongs'))
 const BestEpisodes = lazy(() => import('../components/BestEpisodes'))
@@ -347,6 +358,10 @@ export default function TitlePage() {
 
   const shots = screenshots.value ?? []
   const related = extras.value?.related ?? []
+  // «Читать мангу»: первоисточник из «Связанного» (Shikimori отмечает его как «Адаптация»). Ранобэ на сайте не читается.
+  const source = related.find((r) => r.href && r.relation === 'Адаптация' && r.anime.kind !== 'Ранобэ' && r.anime.kind !== 'Новелла')
+  const sourceId = source?.href?.slice('/manga/'.length)
+  const reading = sourceId ? mangaProgressStore.get()[sourceId] : undefined
   const similar = extras.value?.similar ?? []
   const watchLinks = extras.value?.watchLinks ?? []
   const characters = extras.value?.characters ?? []
@@ -446,6 +461,16 @@ export default function TitlePage() {
               <Link to={`/collections/my?add=${anime.id}`} className="btn btn--ghost title-to-collection" title="Добавить в свою подборку">
                 + В подборку
               </Link>
+              {source && (
+                <Link
+                  to={reading ? `/manga/${sourceId}/chapter/${reading.chapterId}?lang=${reading.lang}` : source.href!}
+                  className="btn btn--ghost title-read"
+                  title={`${source.anime.kind}: ${source.anime.title}`}
+                >
+                  <BookIcon />
+                  {reading?.num ? `Читать: гл. ${reading.num}` : `Читать ${source.anime.kind.toLowerCase().replace(/([гв])а$/, '$1у')}`}
+                </Link>
+              )}
               <ShareButton title={anime.title} path={`/anime/${anime.id}`} className="btn btn--ghost title-share" />
             </div>
             <StickyWatch
