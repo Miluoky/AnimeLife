@@ -5,6 +5,8 @@ import { fetchManga, type MangaPage as Manga } from '../api/manga'
 import { chapterLabel, findMangadex, langName, mergeChapters, preferredLang, readProgress, setPreferredLang, sortLangs } from '../api/mangadex'
 import { fetchOwnChapters } from '../api/mangaOwn'
 import { useAuth } from '../data/auth'
+import { useHistory } from '../data/history'
+import { animeHref } from '../data/animeUrl'
 import PosterCard from '../components/PosterCard'
 import { usePageMeta } from '../data/pageMeta'
 import NotFound from './NotFound'
@@ -147,6 +149,42 @@ function ReadBlock({ m }: { m: Manga }) {
   )
 }
 
+/**
+ * «Смотреть аниме» в шапке: экранизации, которые уже вышли или выходят (анонсы без серий не показываем).
+ * Кнопка ведёт в плеер сериала, который смотрели последним, иначе в первую серию первого ТВ-сезона;
+ * при нескольких экранизациях ниже — сезоны и фильмы по порядку выхода, по ним на страницу тайтла.
+ */
+function WatchAnime({ related }: { related: Manga['related'] }) {
+  const history = useHistory()
+  // Shikimori помечает экранизации как «Адаптация»; если таких нет (спин-офф, другая часть), берём любые связанные аниме.
+  const all = related.filter((r) => !r.href && !r.anime.upcoming)
+  const adapted = all.filter((r) => r.relation === 'Адаптация')
+  const list = (adapted.length ? adapted : all).map((r) => r.anime)
+  if (!list.length) return null
+  const watched = history.find((h) => list.some((a) => a.id === h.animeId))
+  const main = list.find((a) => a.id === watched?.animeId) ?? list.find((a) => a.kind === 'ТВ-сериал') ?? list[0]
+  return (
+    <div className="manga__watch">
+      <Link className="btn btn--accent" to={`/watch/${main.id}/${watched?.episode ?? 1}`} title={main.title}>
+        {watched ? `Продолжить аниме: серия ${watched.episode}` : 'Смотреть аниме'}
+      </Link>
+      {list.length > 1 && (
+        <ul className="manga__seasons" aria-label="Экранизации">
+          {list.map((a) => (
+            <li key={a.id}>
+              <Link to={animeHref(a)} className={`chip${a.id === main.id ? ' chip--accent' : ''}`} title={a.title} aria-label={a.title}>
+                {/* Названия сезонов почти одинаковые и на телефоне обрезаются, поэтому подпись — номер сезона или вид и год. */}
+                {a.kind === 'ТВ-сериал' ? `${list.filter((x) => x.kind === a.kind).indexOf(a) + 1} сезон` : a.kind}
+                {a.year && ` · ${a.year}`}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 /** Страница манги или ранобэ: описание, тома и главы, экранизации и другие части, официальные сайты. */
 export default function MangaPage() {
   const { id = '' } = useParams()
@@ -202,6 +240,7 @@ export default function MangaPage() {
           </ul>
           {m.genres.length > 0 && <div className="muted">{m.genres.join(', ')}</div>}
           {m.publishers.length > 0 && <div className="muted">Издатель: {m.publishers.join(', ')}</div>}
+          <WatchAnime related={m.related} />
         </div>
       </section>
 
