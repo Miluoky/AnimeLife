@@ -41,7 +41,7 @@ const PATHS = [
   [new RegExp(`^/api/people/${ID}$`), () => DAY, []],
   [new RegExp(`^/api/mangas/${ID}(?:/related|/external_links)?$`), () => 12 * HOUR, []],
   // Раздел /manga: поиск и списки.
-  [/^\/api\/mangas$/, (q) => (q.has('search') ? HOUR : 6 * HOUR), ['page', 'limit', 'order', 'status', 'kind', 'search', 'censored']],
+  [/^\/api\/mangas$/, (q) => (q.has('search') ? HOUR : 6 * HOUR), ['page', 'limit', 'order', 'status', 'kind', 'search', 'censored', 'ids']],
   // Новости аниме (/news): форум новостей Shikimori.
   [/^\/api\/topics$/, () => 15 * MIN, ['forum', 'limit', 'page', 'linked_id', 'linked_type']],
 ]

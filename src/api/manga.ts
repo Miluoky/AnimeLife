@@ -107,6 +107,17 @@ export interface MangaQuery {
   page?: number
 }
 
+/** Манга по списку id Shikimori в том же порядке (не больше 50 за раз). */
+export async function mangasByIds(ids: string[]): Promise<Anime[]> {
+  if (!ids.length) return []
+  const list = await get<ShikiMangaShort[]>('/mangas', { ids: ids.join(','), limit: ids.length, censored: 'true' })
+  const byId = new Map(list.map((m) => [String(m.id), m]))
+  return ids.flatMap((id) => {
+    const m = byId.get(id)
+    return m ? [fromMangaShort(m)] : []
+  })
+}
+
 /** Список манги для раздела /manga: поиск, популярное, лучшее и выходящее. */
 export async function searchMangas(q: MangaQuery): Promise<Anime[]> {
   const list = await get<ShikiMangaShort[]>('/mangas', {

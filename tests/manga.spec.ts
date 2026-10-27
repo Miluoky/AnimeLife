@@ -16,12 +16,23 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
-test('раздел «Манга»: популярное, поиск в адресе, вид и полка «Читаю»', async ({ page }) => {
+test('раздел «Манга»: на русском, популярное, поиск в адресе, вид и полка «Читаю»', async ({ page }) => {
   const queries: URLSearchParams[] = []
+  const readable: URLSearchParams[] = []
   page.on('request', (r) => {
     const url = new URL(r.url())
     if (/\/api\/(shiki\/api\/)?mangas$/.test(url.pathname)) queries.push(url.searchParams)
+    if (url.hostname === 'api.mangadex.org' && url.pathname === '/manga' && url.searchParams.has('availableTranslatedLanguage[]')) readable.push(url.searchParams)
   })
+  // На MangaDex с русскими главами: вторая манга заготовки читается чаще первой, у третьей записи нет ссылки на MAL.
+  await page.route(/api\.mangadex\.org\/manga\?.*availableTranslatedLanguage.*/, (route) =>
+    route.fulfill({
+      json: {
+        data: [mangas[1], mangas[0], { id: 'x' }].map((m, i) => ({ id: `md${i}`, attributes: { links: m.name ? { mal: String(m.id) } : null } })),
+        total: 3,
+      },
+    }),
+  )
   await page.addInitScript(() =>
     localStorage.setItem(
       'anime.mangaProgress.v1',
@@ -33,14 +44,20 @@ test('раздел «Манга»: популярное, поиск в адре�
   await expect(page.locator('.manga-reading a')).toHaveAttribute('href', '/manga/2/chapter/abc?lang=ru')
   await expect(page.locator('.manga-reading')).toContainText('Глава 12, стр. 5')
   await expect(page.locator('.manga-reading__new')).toHaveText('Новых глав: 3')
+  // По умолчанию «На русском»: список с MangaDex в его порядке, карточки из Shikimori по id.
   const first = page.locator('.poster-card').first()
-  await expect(first).toHaveAttribute('href', `/manga/${mangas[0].id}`)
-  expect(queries[0].get('order')).toBe('popularity')
-  expect(queries[0].get('kind')).toBe('manga,manhwa,manhua,one_shot')
-
+  await expect(first).toHaveAttribute('href', `/manga/${mangas[1].id}`)
+  await expect(page.locator('.poster-card').nth(1)).toHaveAttribute('href', `/manga/${mangas[0].id}`)
+  expect(queries[0].get('ids')).toBe(`${mangas[1].id},${mangas[0].id}`)
+  expect(readable[0].get('availableTranslatedLanguage[]')).toBe('ru')
   await page.getByRole('button', { name: 'Манхва' }).click()
   await expect(page).toHaveURL(/kind=manhwa/)
-  await expect.poll(() => queries.some((q) => q.get('kind') === 'manhwa')).toBe(true)
+  await expect.poll(() => readable.some((q) => q.get('originalLanguage[]') === 'ko')).toBe(true)
+
+  await page.getByRole('tab', { name: 'Популярное' }).click()
+  await expect(page).toHaveURL(/tab=popular/)
+  await expect.poll(() => queries.some((q) => q.get('order') === 'popularity' && q.get('kind') === 'manhwa')).toBe(true)
+  await expect(page.locator('.poster-card').first()).toHaveAttribute('href', `/manga/${mangas[0].id}`)
 
   await page.getByRole('searchbox', { name: 'Название манги' }).fill('берсерк')
   await page.getByRole('button', { name: 'Найти' }).click()

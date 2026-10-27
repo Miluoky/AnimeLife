@@ -101,6 +101,8 @@ export function findMangadex(shikiId: string, names: (string | undefined)[]): Pr
         const res = await api<{ data: MdManga[] }>('manga', [
           ['title', name],
           ['limit', '20'],
+          // Без сортировки по похожести короткие названия («Monster», «Magi») тонут среди однофамильцев.
+          ['order[relevance]', 'desc'],
           ['contentRating[]', 'safe'],
           ['contentRating[]', 'suggestive'],
           ['contentRating[]', 'erotica'],
@@ -118,6 +120,29 @@ export function findMangadex(shikiId: string, names: (string | undefined)[]): Pr
     found.set(shikiId, p)
   }
   return found.get(shikiId)!
+}
+
+/** Язык оригинала на MangaDex для вида на Shikimori: манга — японская, манхва — корейская, маньхуа — китайская. */
+const ORIGINAL: Record<string, string[]> = { manga: ['ja'], manhwa: ['ko'], manhua: ['zh', 'zh-hk'] }
+export const READABLE_PAGE = 48
+
+/**
+ * Манга, которую можно прочитать на сайте на этом языке: всё, где на MangaDex есть главы на нём, самое читаемое первым.
+ * Возвращает id Shikimori (ссылка MangaDex на MyAnimeList); у кого её нет, на сайте открыть нечего, их пропускаем.
+ */
+export async function readableIds(lang: string, kind: string, page: number): Promise<{ ids: string[]; more: boolean }> {
+  const res = await api<{ data: MdManga[]; total: number }>('manga', [
+    ['availableTranslatedLanguage[]', lang],
+    ['hasAvailableChapters', 'true'],
+    ['order[followedCount]', 'desc'],
+    ['limit', String(READABLE_PAGE)],
+    ['offset', String((page - 1) * READABLE_PAGE)],
+    ...(ORIGINAL[kind] ?? []).map((l): [string, string] => ['originalLanguage[]', l]),
+    ['contentRating[]', 'safe'],
+    ['contentRating[]', 'suggestive'],
+  ])
+  const ids = res.data.map((m) => m.attributes.links?.mal).filter((id): id is string => !!id && /^\d{1,10}$/.test(id))
+  return { ids, more: page * READABLE_PAGE < res.total }
 }
 
 interface MdChapter {
