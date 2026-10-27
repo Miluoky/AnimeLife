@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 
 type ViewTransitionDoc = Document & {
-  startViewTransition?: (cb: () => void) => { finished: Promise<void> }
+  startViewTransition?: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> }
 }
 
 /** Анимации выключены системой или переключателем «Без анимаций» в профиле. */
@@ -42,14 +42,23 @@ export function useViewTransitions() {
       if (pageScope(link.pathname) === pageScope(location.pathname)) return
       e.preventDefault()
       const morph = link.querySelector<HTMLElement>('[data-morph]')
+      // Карточка на странице тайтла («Похожие», «Связанное»): у постера в шапке то же имя, а два «poster»
+      // в старом снимке браузер не принимает и бросает InvalidStateError. Шапку на время снимка выключаем.
+      const clash = morph ? [...document.querySelectorAll<HTMLElement>('[style*="view-transition-name: poster"]')] : []
+      for (const el of clash) el.style.viewTransitionName = 'none'
       if (morph) morph.style.viewTransitionName = 'poster'
       const root = document.documentElement
       root.classList.add('vt')
       const transition = doc.startViewTransition!(() => {
         if (morph) morph.style.viewTransitionName = ''
         flushSync(() => navigate(to))
+        // Та же страница тайтла осталась на месте (другой тайтл): её постер снова цель полёта.
+        for (const el of clash) if (el.isConnected) el.style.viewTransitionName = 'poster'
       })
-      void transition.finished.finally(() => root.classList.remove('vt'))
+      // Браузер сам отменяет переход (снимок не удался, повернули экран): страница всё равно сменилась,
+      // анимации просто нет. Без catch отказ ready/finished уходит в «Ошибки у посетителей».
+      transition.ready.catch(() => {})
+      void transition.finished.catch(() => {}).finally(() => root.classList.remove('vt'))
     }
     // Ловим раньше обработчика ссылок React Router: он увидит defaultPrevented и не перейдёт второй раз.
     document.addEventListener('click', onClick, true)
