@@ -119,6 +119,20 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
     const wait = () => setWaiting(true)
     const go = () => setWaiting(false)
     const fresh = () => autoSkipped.current.clear()
+    const syncAudio = () => {
+      try {
+        const savedMuted = localStorage.getItem('animelife_muted') === 'true'
+        const savedVol = localStorage.getItem('animelife_volume')
+        if (savedVol !== null) {
+          const num = Number(savedVol)
+          if (Number.isFinite(num) && num > 0) el.volume = Math.max(0, Math.min(1, num))
+        }
+        if (!savedMuted && el.muted) el.muted = false
+      } catch {}
+    }
+    el.addEventListener('loadedmetadata', syncAudio)
+    el.addEventListener('playing', syncAudio)
+    syncAudio()
     el.addEventListener('loadstart', fresh)
     el.addEventListener('waiting', wait)
     el.addEventListener('playing', go)
@@ -165,8 +179,13 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
   const toggleMute = () => {
     const el = video.current
     if (!el) return
-    el.muted = !muted
-    if (!el.muted && el.volume === 0) el.volume = 0.5
+    const nextMuted = !muted
+    el.muted = nextMuted
+    if (!nextMuted && el.volume === 0) el.volume = 0.5
+    try {
+      localStorage.setItem('animelife_muted', String(nextMuted))
+      if (!nextMuted) localStorage.setItem('animelife_volume', String(el.volume))
+    } catch {}
   }
 
   const toggleFullscreen = () => {
@@ -532,8 +551,13 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
               style={{ '--vol': muted ? 0 : v?.volume ?? 1 } as CSSProperties}
               onChange={(e) => {
                 if (!v) return
-                v.volume = Number(e.target.value)
-                v.muted = v.volume === 0
+                const val = Number(e.target.value)
+                v.volume = val
+                v.muted = val === 0
+                try {
+                  localStorage.setItem('animelife_volume', String(val))
+                  localStorage.setItem('animelife_muted', String(val === 0))
+                } catch {}
               }}
             />
           </div>

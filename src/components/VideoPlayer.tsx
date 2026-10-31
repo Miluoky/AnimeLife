@@ -2,12 +2,11 @@
  * VideoPlayer — мульти-провайдерный плеерный блок.
  *
  * Источники:
- *   1. Kodik    — iframe-балансер, основной для СНГ.
- *   2. Alloha   — iframe-балансер, резервный.
- *   3. AniLibria — HLS-поток через Hls.js со своими кнопками (PlayerControls).
- *   4. AnimeVost — прямые mp4 в том же своём плеере.
- *   5. Anixart  — каталог озвучек: серии каждой студии в плеере Kodik (iframe, без токена).
- *   6. Готовый плеер со стороны (embed) — серии из YummyAnime в Kodik, CVH, Alloha, Aksor или Sibnet.
+ *   1. «Наш плеер» — AniLibria (HLS через Hls.js) и AnimeVost (mp4), свои кнопки (PlayerControls).
+ *   2. Kodik — iframe, второй основной: свой токен, студии Anixart и Kodik из YummyAnime.
+ *   3. Alloha — iframe-балансер, резервный.
+ *   4. Anixart — каталог озвучек: серии каждой студии в плеере Kodik (iframe, без токена).
+ *   5. Готовый плеер со стороны (embed) — серии из YummyAnime в Kodik, CVH, Alloha, Aksor или Sibnet.
  *
  * Провайдер переключается табами над видео. При смене текущий поток
  * останавливается, контейнер динамически монтирует нужный плеер.
@@ -134,6 +133,11 @@ const NO_SOURCES = 'Серий этого аниме пока нет в дост
 const PLAY_ERROR = 'Не удалось воспроизвести серию'
 const SOURCE_NAME: Record<Provider, string> = { kodik: 'Kodik', alloha: 'Alloha', anilibria: 'AniLibria', animevost: 'AnimeVost', anixart: 'Anixart', embed: 'плеера' }
 
+/** Свой плеер сайта: AniLibria (HLS) и AnimeVost (mp4). Kodik и остальные — чужой iframe. */
+export function isOwnProvider(provider: Provider | undefined): provider is 'anilibria' | 'animevost' {
+  return provider === 'anilibria' || provider === 'animevost'
+}
+
 // Выбранный источник помним до конца сеанса: при переходе к другой серии плеер создаётся заново.
 const PROVIDER_KEY = 'player-provider'
 
@@ -217,7 +221,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }
 
   useEffect(() => {
-    if (!loading || provider === 'anilibria' || provider === 'animevost') return
+    if (!loading || isOwnProvider(provider)) return
     const timer = window.setTimeout(() => {
       // Новая озвучка ещё готовится, а прежняя играет: это не «плеер не ответил».
       if (pendingKey.current) return
@@ -342,6 +346,15 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
     const onLoaded = () => {
       setLoading(false)
+      try {
+        const savedMuted = localStorage.getItem('animelife_muted') === 'true'
+        const savedVol = localStorage.getItem('animelife_volume')
+        if (savedVol !== null) {
+          const num = Number(savedVol)
+          if (Number.isFinite(num) && num > 0) video.volume = Math.max(0, Math.min(1, num))
+        }
+        video.muted = savedMuted
+      } catch {}
       if (resumeAt.current) video.currentTime = resumeAt.current
       else if (carry.current.at) video.currentTime = carry.current.at
       else resumeRef.current((t) => (video.currentTime = t))
@@ -379,7 +392,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           if (data.fatal) setStreamError(PLAY_ERROR)
         })
       }).catch(() => {
-        if (!cancelled) setStreamError('Не удалось загрузить плеер AniLibria')
+        if (!cancelled) setStreamError('Не удалось загрузить плеер')
       })
     }
 
@@ -526,6 +539,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         started = true
         const source = e.source as Window
         const origin = e.origin
+        source.postMessage({ key: 'kodik_player_api', value: { method: 'unmute' } }, origin)
         // Время уже передали в адресе (start_from): перематывать на сохранённое место не нужно.
         if (!carry.current.at) resumeRef.current((t) => source.postMessage({ key: 'kodik_player_api', value: { method: 'seek', seconds: t } }, origin))
       }
@@ -865,7 +879,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     send(s, 'unmute')
     send(s, 'play')
     // Уже загружен — onLoad не будет: прежний уходит сразу, как новый проявился.
-    window.setTimeout(release, 400)
+    window.setTimeout(() => {
+      send(s, 'unmute')
+      release()
+    }, 400)
   })
   useLayoutEffect(() => {
     const held = slotOf(heldKey.current)
@@ -913,11 +930,15 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     setError(null)
     // Новый плеер показался — даём ему проявиться поверх прежнего и убираем прежний.
     window.setTimeout(release, 400)
-    // Зритель сам сменил серию или озвучку: запускаем Kodik, не заставляя жать «play» ещё раз.
-    // Kodik на «play» до загрузки сам подгружает видео; браузер пускает звук, раз клик был на этой странице.
-    if (carry.current.user && target) {
-      for (const delay of [0, 1200]) {
-        window.setTimeout(() => target.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*'), delay)
+    // Активный плеер всегда включаем со звуком (unmute); если серию сменил зритель — ещё и запускаем play.
+    if (target) {
+      for (const delay of [0, 500, 1200]) {
+        window.setTimeout(() => {
+          target.postMessage({ key: 'kodik_player_api', value: { method: 'unmute' } }, '*')
+          if (carry.current.user) {
+            target.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*')
+          }
+        }, delay)
       }
     }
   }, [])
@@ -1080,7 +1101,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const ownEpisodes = provider === 'animevost' ? avEpisodes : alRelease?.episodes
   const ownSkips = provider === 'anilibria' && alEp ? episodeSkips(alEp) : []
   const hasNext = !!onEpisodeChange && episode < totalEpisodes && !!ownEpisodes?.some((e) => e.ordinal === episode + 1)
-  useMediaSession(videoRef, !!stream && !unavailable, {
+  useMediaSession(videoRef, isOwnProvider(provider) && !!stream && !unavailable, {
     title,
     episode,
     poster: props.poster,
@@ -1116,7 +1137,22 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       </div>}
 
       {/* Контейнер плеера 16:9 */}
-      <div className="player-frame" ref={frameRef}>
+      <div
+        className="player-frame"
+        ref={frameRef}
+        onClick={() => {
+          const live = slotOf(liveKey.current)
+          if (live) send(live, 'unmute')
+          const v = videoRef.current
+          if (v && v.muted) {
+            try {
+              if (localStorage.getItem('animelife_muted') !== 'true') v.muted = false
+            } catch {
+              v.muted = false
+            }
+          }
+        }}
+      >
         {loading && !unavailable && !pending && <Spinner over={!!heldKey.current} />}
         {pending && !pending.ready && !unavailable && (
           <span className="player-tag player-tag--switch" role="status">
@@ -1126,7 +1162,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
         {renderFrames()}
         {provider === 'embed' && embed?.player === 'Aksor' && !unavailable && <AksorFullscreen frame={frameRef} />}
-        {(provider === 'anilibria' || provider === 'animevost') && renderOwn()}
+        {isOwnProvider(provider) && renderOwn()}
         {stream && !unavailable && (
           <PlayerControls
             video={videoRef}
@@ -1145,7 +1181,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           />
         )}
 
-        {shikimoriId && !unavailable && (provider !== 'anilibria' && provider !== 'animevost' ? true : !!stream) && (
+        {shikimoriId && !unavailable && (!isOwnProvider(provider) || !!stream) && (
           <Suspense fallback={null}>
             <Danmaku animeId={shikimoriId} episode={episode} />
           </Suspense>
@@ -1185,7 +1221,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         ) : (
           <div className="vp-fallback">
             <p className="vp-fallback__text" role="status">{unavailable}.</p>
-            {provider !== 'anilibria' && provider !== 'animevost' && (
+            {!isOwnProvider(provider) && (
               <button type="button" className="btn btn--ghost btn--small" onClick={() => { setError(null); setLoading(true); setFrameAttempt((n) => n + 1) }}>
                 Повторить загрузку
               </button>

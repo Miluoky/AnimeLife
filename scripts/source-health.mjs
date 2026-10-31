@@ -35,7 +35,13 @@ const CHECKS = [
     expect: (t) => t.includes('"content"'),
   },
   { name: 'YummyAnime', url: 'https://api.yani.tv/search?q=naruto&limit=1', expect: (t) => t.includes('"response"') },
-  { name: 'Appwrite (аккаунты, списки, комментарии)', url: `${APPWRITE}/health/version`, expect: (t) => t.includes('version') },
+  // Обращение с заголовком проекта не даёт бесплатному плану Appwrite Cloud уснуть от неактивности.
+  {
+    name: 'Appwrite (аккаунты, списки, комментарии)',
+    url: `${APPWRITE}/locale`,
+    init: { headers: { 'X-Appwrite-Project': PROJECT } },
+    expect: (t) => t.includes('countryCode'),
+  },
 ]
 if (process.env.KODIK_TOKEN) {
   CHECKS.push({ name: 'Kodik', url: `https://kodik-api.com/search?token=${process.env.KODIK_TOKEN}&shikimori_id=1`, expect: (t) => t.includes('"results"'), secret: true })

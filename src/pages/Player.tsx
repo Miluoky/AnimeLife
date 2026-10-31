@@ -11,7 +11,7 @@ import { usePlayerHealth } from '../data/quality'
 import { getEntry, setListStatus, setWatched, useMyList } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
-import VideoPlayer, { type Provider } from '../components/VideoPlayer'
+import VideoPlayer, { isOwnProvider, type Provider } from '../components/VideoPlayer'
 import { isBalancerAvailable } from '../api/balancers'
 import { fetchKodikTranslations, kodikTranslationUrl } from '../api/kodik'
 import { findRelease } from '../api/anilibria'
@@ -362,7 +362,7 @@ export default function Player() {
             <BulbIcon />
             <span className="sr-only">Шторка света</span>
           </button>
-          {(host?.player || (voice?.provider !== 'anilibria' && voice?.provider !== 'animevost')) && <GlowCaptureButton slot={miniPlayer.slot} />}
+          {(host?.player || !isOwnProvider(voice?.provider)) && <GlowCaptureButton slot={miniPlayer.slot} />}
           <button
             type="button"
             className="btn btn--ghost watch-moment"
@@ -607,23 +607,34 @@ interface Voice {
 }
 
 /**
- * Озвучка по умолчанию, пока зритель не выбрал свою: русская озвучка, а не субтитры; из студий, у которых
- * есть почти все серии (не меньше 90% от лидера), — самая популярная по Anixart (popular — ключи студий
- * по убыванию популярности), при равенстве та, где серий больше. Раньше первой стояла дорожка с наибольшим
+ * Озвучка по умолчанию, пока зритель не выбрал свою.
+ * Любимая студия зрителя важнее всего, если эта серия у неё вышла.
+ * Иначе «Наш плеер»: AniLibria, затем AnimeVost, когда эта серия у них точно есть.
+ * Фильтр «90% серий» к этим двум не применяется.
+ * Дальше — русская озвучка, а не субтитры; из оставшихся студий, у которых есть почти все серии
+ * (не меньше 90% от лидера), — самая популярная по Anixart (popular — ключи студий по убыванию
+ * популярности), при равенстве та, где серий больше. Раньше первой стояла дорожка с наибольшим
  * числом серий, и у Ван-Пис это были субтитры.
  */
 function defaultVoice(voices: Voice[], episode: number, popular: string[], favorites: string[] = []): Voice | undefined {
   const withEpisode = voices.filter((v) => hasEpisode(v, episode))
   const dubbed = withEpisode.filter((v) => v.kind === 'voice')
   if (!dubbed.length) return withEpisode[0] ?? voices[0]
-  // Любимая студия зрителя (выбирал её на других тайтлах) важнее популярной, если эта серия у неё вышла.
+  // Любимая студия зрителя (выбирал её на других тайтлах) важнее и «Нашего плеера», и популярной.
   for (const f of favorites) {
     const fav = dubbed.find((v) => studioKey(v.title) === f)
     if (fav) return fav
   }
+  // Серия точно есть (число серий известно): AniLibria, затем AnimeVost. Пока источник не ответил — не берём.
+  const own =
+    dubbed.find((v) => v.provider === 'anilibria' && typeof v.episodes === 'number') ??
+    dubbed.find((v) => v.provider === 'animevost' && typeof v.episodes === 'number')
+  if (own) return own
+  const pool = dubbed.filter((v) => !isOwnProvider(v.provider))
+  const ranked = pool.length ? pool : dubbed
   const count = (v: Voice) => (v.episodes ?? 0) - (v.first ?? 1) + 1
-  const most = Math.max(...dubbed.map(count))
-  const full = most > 1 ? dubbed.filter((v) => count(v) >= most * 0.9) : dubbed
+  const most = Math.max(...ranked.map(count))
+  const full = most > 1 ? ranked.filter((v) => count(v) >= most * 0.9) : ranked
   const rank = (v: Voice) => {
     const i = popular.indexOf(studioKey(v.title))
     return i < 0 ? popular.length : i
@@ -684,14 +695,20 @@ interface Host {
   player?: YummyPlayer
 }
 
+// AniLibria и AnimeVost — один плеер: в ряду плееров «Наш плеер», на карточке студии «Плеер сайта».
 const OWN_LABEL: Partial<Record<Provider, string>> = { anilibria: 'Наш плеер', animevost: 'Наш плеер', anixart: 'Kodik', kodik: 'Kodik', alloha: 'Alloha' }
 
 function hostsOf(voice: Voice): Host[] {
   const own = voice.provider === 'embed' ? undefined : OWN_LABEL[voice.provider]
   const list: Host[] = own ? [{ id: '', label: own }] : []
+  const native = isOwnProvider(voice.provider)
   for (const p of voice.yummy ?? []) {
     // Kodik у Anixart уже свой: второй такой же не показываем.
     if (p.name === own) continue
+    // «Наш плеер» (id ''), затем один Kodik из YummyAnime. Sibnet и прочие с этой сети не открываются.
+    if (native && !/kodik/i.test(p.name)) continue
+    if (native && list.some((h) => /kodik/i.test(h.label))) continue
+    if (list.some((h) => h.id === p.name)) continue
     list.push({ id: p.name, label: p.name, player: p })
   }
   return list
@@ -775,6 +792,7 @@ function HostPicker({ hosts, current, onChoose, searching }: { hosts: Host[]; cu
   )
 }
 
+/** На карточке студии. Нативные источники подписаны одинаково — «Плеер сайта» (в ряду плееров это «Наш плеер»). */
 const SOURCE_LABEL: Record<Provider, string> = {
   anilibria: 'Плеер сайта',
   animevost: 'Плеер сайта',
