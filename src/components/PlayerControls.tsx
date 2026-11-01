@@ -22,6 +22,8 @@ interface Props {
   onNext?: () => void
   /** подпись кнопки следующей серии в углу, например «3 серия» */
   nextLabel?: string
+  /** переход к предыдущей серии */
+  onPrev?: () => void
   /** размеченные опенинг и эндинг: кнопка «Пропустить», метки на полосе и автопропуск */
   skips?: SkipSpan[]
   /** длина видео, под которое размечены отрезки (разметка со стороны); у файла другой длины их не показываем */
@@ -52,10 +54,12 @@ const SLEEP_MINUTES = [15, 30, 60, 90]
 const HOTKEYS: [string, string][] = [
   ['Пробел K', 'Пауза и воспроизведение'],
   ['← →', 'Назад и вперёд на 5 секунд'],
+  ['↑ ↓', 'Громкость +5 % и −5 %'],
   ['0…9', 'К началу, 10 %, 20 % … 90 % серии'],
   ['F', 'Во весь экран'],
   ['M', 'Выключить звук'],
   ['S', 'Пропустить опенинг или эндинг'],
+  ['P Shift+N', 'Предыдущая серия'],
   ['N', 'Следующая серия'],
   ['Shift+< Shift+>', 'Медленнее и быстрее'],
   ['?', 'Эта подсказка'],
@@ -78,7 +82,19 @@ function bufferedEnd(v: HTMLVideoElement) {
   return 0
 }
 
-export default function PlayerControls({ video, frame, loading, qualities, quality, onQuality, onNext, nextLabel, skips: marked, skipsFor }: Props) {
+export default function PlayerControls({
+  video,
+  frame,
+  loading,
+  qualities,
+  quality,
+  onQuality,
+  onNext,
+  nextLabel,
+  onPrev,
+  skips: marked,
+  skipsFor,
+}: Props) {
   // Состояние берём прямо из <video>, а события лишь просят перерисовать кнопки.
   const [, refresh] = useReducer((n: number) => n + 1, 0)
   const [active, setActive] = useState(true)
@@ -190,6 +206,39 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       localStorage.setItem('animelife_muted', String(nextMuted))
       if (!nextMuted) localStorage.setItem('animelife_volume', String(el.volume))
     } catch {}
+  }
+
+  const [volNote, setVolNote] = useState<{ key: number; vol: number; muted: boolean } | null>(null)
+  const stepVolume = (delta: number) => {
+    const el = video.current
+    if (!el) return
+    const currentVol = el.muted ? 0 : el.volume
+    let nextVol = Math.round((currentVol + delta) * 100) / 100
+    nextVol = Math.max(0, Math.min(1, nextVol))
+    el.volume = nextVol
+    el.muted = nextVol === 0
+    try {
+      localStorage.setItem('animelife_volume', String(nextVol))
+      localStorage.setItem('animelife_muted', String(nextVol === 0))
+    } catch {}
+    setVolNote({ key: Date.now(), vol: Math.round(nextVol * 100), muted: nextVol === 0 })
+    poke()
+    refresh()
+  }
+  useEffect(() => {
+    if (!volNote) return
+    const t = setTimeout(() => setVolNote(null), 1200)
+    return () => clearTimeout(t)
+  }, [volNote])
+
+  const goPrev = () => {
+    if (onPrev) {
+      onPrev()
+      return
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('animelife:prev-episode'))
+    }
   }
 
   const toggleFullscreen = () => {
@@ -310,8 +359,8 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
     el.currentTime = total * part
     poke()
   }
-  const keys = useRef({ togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow, stepRate, seekToPart, onNext, setHelp })
-  keys.current = { togglePlay, seekBy, toggleFullscreen, toggleMute, skipNow, stepRate, seekToPart, onNext, setHelp }
+  const keys = useRef({ togglePlay, seekBy, stepVolume, toggleFullscreen, toggleMute, skipNow, stepRate, seekToPart, onNext, goPrev, setHelp })
+  keys.current = { togglePlay, seekBy, stepVolume, toggleFullscreen, toggleMute, skipNow, stepRate, seekToPart, onNext, goPrev, setHelp }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -324,6 +373,8 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       if ((k === ' ' && !onControl) || k === 'k' || k === 'л') run.togglePlay()
       else if (k === 'arrowleft' && !onControl) run.seekBy(-5)
       else if (k === 'arrowright' && !onControl) run.seekBy(5)
+      else if (k === 'arrowup' && !onControl) run.stepVolume(0.05)
+      else if (k === 'arrowdown' && !onControl) run.stepVolume(-0.05)
       else if (k === 'f' || k === 'а') run.toggleFullscreen()
       else if (k === 'm' || k === 'ь') run.toggleMute()
       else if (k === 's' || k === 'ы') run.skipNow()
@@ -332,7 +383,8 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
       else if (e.shiftKey && e.code === 'Comma') run.stepRate(-1)
       else if (e.shiftKey && e.code === 'Slash') run.setHelp((h) => !h)
       else if (k === 'escape') run.setHelp(false)
-      else if ((k === 'n' || k === 'т') && run.onNext) run.onNext()
+      else if (!e.shiftKey && (k === 'n' || k === 'т') && run.onNext) run.onNext()
+      else if (k === 'p' || k === 'з' || (e.shiftKey && (k === 'n' || k === 'т'))) run.goPrev()
       else if (/^Digit\d$/.test(e.code) && !e.shiftKey) run.seekToPart(Number(e.code.slice(5)) / 10)
       else return
       e.preventDefault()
@@ -418,13 +470,19 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
         )
       )}
 
-      {rateNote && (
+      {volNote && (
+        <div key={volNote.key} className="vp-rate-note" role="status" aria-label={`Громкость ${volNote.vol}%`}>
+          {volNote.muted || volNote.vol === 0 ? 'Звук выключен' : `Громкость ${volNote.vol} %`}
+        </div>
+      )}
+
+      {rateNote && !volNote && (
         <div key={rateNote.key} className="vp-rate-note" role="status">
           {rateNote.rate === 1 ? 'Обычная скорость' : `Скорость ${rateNote.rate}×`}
         </div>
       )}
 
-      {note && !rateNote && (
+      {note && !rateNote && !volNote && (
         <div key={note.key} className={`vp-rate-note${note.stay ? ' vp-rate-note--stay' : ''}`} role="status">
           {note.text}
         </div>

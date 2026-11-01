@@ -9,3 +9,5 @@ playwright-report
 lighthouse.json
 .wrangler/
 .tg-news/
+
+.agents/

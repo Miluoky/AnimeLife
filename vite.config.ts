@@ -30,5 +30,19 @@ export default defineConfig({
   build: {
     // Модули AudioWorklet (шумоподавление) всегда отдельными файлами: data:-ссылку addModule берёт не везде.
     assetsInlineLimit: (file) => (/worklet/i.test(file) ? false : undefined),
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalized = id.replace(/\\/g, '/')
+          if (
+            normalized.includes('node_modules/@remix-run') ||
+            normalized.includes('node_modules/react-router') ||
+            normalized.includes('node_modules/react-router-dom')
+          ) {
+            return 'router'
+          }
+        },
+      },
+    },
   },
 })

@@ -43,6 +43,10 @@ export async function mockServices(page: Page) {
   await page.route(/anilibria\.top\/api\/.*/, (route) => route.fulfill({ json: [] }))
   // AnimeVost по умолчанию тоже ничего не находит.
   await page.route(/api\.animevost\.org\/.*/, (route) => route.fulfill({ json: { state: { status: 'ok' } } }))
+  // Dream Cast зеркала (api.dreamerscast.com, api.dreamcast.fun, dcast.online) по умолчанию ничего не находят (устраняет задержки 9-27с).
+  await page.route(/(api\.dreamerscast\.com|api\.dreamcast\.fun|dcast\.online)\/.*/, (route) =>
+    route.fulfill({ status: 200, json: { response: [] } }),
+  )
   // Логотипы студий Anixart: прозрачный пиксель вместо картинки.
   await page.route(/s3\.anixmirai\.com\/.*/, (route) =>
     route.fulfill({ contentType: 'image/gif', body: Buffer.from('R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAIBAAA=', 'base64') }),

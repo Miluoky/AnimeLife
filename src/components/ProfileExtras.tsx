@@ -126,6 +126,7 @@ function compare(mine: ListEntry[], s: ProfileSummary) {
 
 /** Оформление профиля в аккаунте: обложка (включая GIF), аватар, цвет ника, рамка (по уровню) и витрина до 6 тайтлов. */
 export function ProfileStyleEditor() {
+  const { user } = useAuth()
   const style = profileStyleStore.use()
   const list = useMyList()
   const level = levelOf(totalXp(list, unlocked(list).size)).level
@@ -133,6 +134,14 @@ export function ProfileStyleEditor() {
   const candidates = [...list].filter((e) => e.status !== 'planned').sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 40)
   const set = (patch: Partial<typeof style>) => profileStyleStore.set({ ...profileStyleStore.get(), ...patch })
   const [saving, setSaving] = useState(false)
+
+  const displayName = user?.name || user?.email?.split('@')[0] || 'Ваш никнейм'
+  const frameName = FRAMES.find((f) => f.id === (style.frame ?? 'none'))?.title || 'Без рамки'
+  const coverBg = style.coverUrl
+    ? { backgroundImage: `url("${style.coverUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : style.cover
+      ? { background: COVERS.find((c) => c.id === style.cover)?.css }
+      : { background: 'linear-gradient(135deg, #181926 0%, #24273a 50%, #11111b 100%)' }
 
   const saveNow = async () => {
     setSaving(true)
@@ -150,6 +159,43 @@ export function ProfileStyleEditor() {
   return (
     <section className="stack pf-style">
       <h2>Оформление профиля</h2>
+
+      {/* Живой предпросмотр профиля Senku */}
+      <div className="stack" style={{ gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="muted" style={{ fontWeight: 600 }}>Живой предпросмотр Senku</span>
+          <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>Live Preview</span>
+        </div>
+        <div className="pf-hero-wrap" style={{ borderRadius: 14 }}>
+          <div
+            className="pf-hero-banner"
+            style={{ ...coverBg, height: 140 }}
+            aria-hidden="true"
+          />
+          <div className="pf-hero-body" style={{ marginTop: -46, padding: '0 16px 20px', gap: 10 }}>
+            <div className="pf-hero-avatar-box">
+              <Avatar
+                name={displayName}
+                avatarUrl={style.avatarUrl}
+                frame={style.frame}
+                size={92}
+                online={true}
+              />
+            </div>
+            <h3
+              className={`pf-hero-name ${style.nameColor ? `pf-name--${style.nameColor}` : ''}`}
+              style={{ fontSize: 24, margin: 0 }}
+            >
+              {displayName}
+            </h3>
+            <div className="pf-hero-meta" style={{ gap: 12, fontSize: 13 }}>
+              <span>Уровень {level}</span>
+              <span style={{ color: '#10b981', fontWeight: 600 }}>• В сети</span>
+              <span className="pf-streak">✨ {frameName}</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Кастомная обложка (GIF / Картинка) */}
       <div className="stack" style={{ gap: 8 }}>

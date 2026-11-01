@@ -125,6 +125,8 @@ function buildTabs(): ProviderTab[] {
     { id: 'anilibria', label: 'AniLibria', available: true },
     // AnimeVost тоже бесплатный и открытый: прямые mp4 без ключа.
     { id: 'animevost', label: 'AnimeVost', available: true },
+    { id: 'dreamcast', label: 'Dream Cast', available: true },
+    { id: 'sibnet', label: 'Sibnet', available: true },
     // Anixart включается только озвучкой из списка: без неё не знаем, какую студию показать.
     { id: 'anixart', label: 'Anixart', available: true },
     // Сторонний плеер тоже выбирается только со страницы: адрес серии приходит в embed.
@@ -145,9 +147,9 @@ const SOURCE_NAME: Record<Provider, string> = {
   embed: 'плеера',
 }
 
-/** Свой плеер сайта: AniLibria (HLS) и AnimeVost (mp4). Kodik и остальные — чужой iframe. */
-export function isOwnProvider(provider: Provider | undefined): provider is 'anilibria' | 'animevost' {
-  return provider === 'anilibria' || provider === 'animevost'
+/** Свой плеер сайта: AniLibria (HLS), AnimeVost (mp4), Dream Cast (HLS), Sibnet (mp4). Kodik и остальные — чужой iframe. */
+export function isOwnProvider(provider: Provider | undefined): provider is OwnProvider {
+  return provider === 'anilibria' || provider === 'animevost' || provider === 'dreamcast' || provider === 'sibnet'
 }
 
 // Выбранный источник помним до конца сеанса: при переходе к другой серии плеер создаётся заново.
@@ -190,6 +192,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [frameAttempt, setFrameAttempt] = useState(0)
+  const [nativeAttempt, setNativeAttempt] = useState(0)
+
+  // Sibnet Direct (MP4 через наш Worker)
+  const sibnetId = extractSibnetVideoId(embed?.url ?? '')
+  const isSibnetDirect = (provider === 'sibnet' || (provider === 'embed' && !!embed && isSibnetUrl(embed.url))) && !!sibnetId
+  const isOwn = isOwnProvider(provider) || isSibnetDirect
 
   // ─── AniLibria state ───
   const [alRelease, setAlRelease] = useState<AniLibriaRelease | null>(null)
@@ -221,11 +229,12 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     setLoading(true)
     setError(null)
     setFrameAttempt(0)
+    setNativeAttempt(0)
   }, [provider, kodikLink, anixart?.type, embed?.url, shikimoriId, episode])
 
   // Озвучку или плеер сменили посреди серии: новый источник начинает с того же места, а не с начала.
   // Считаем при отрисовке, а не в эффекте: адрес iframe с этим временем должен уйти сразу, без второй загрузки.
-  const sourceKey = `${provider}|${kodikLink}|${anixart?.type}|${embed?.url}`
+  const sourceKey = `${provider}|${kodikLink}|${anixart?.type}|${embed?.url}|${isSibnetDirect}`
   const episodeKey = `${shikimoriId}|${episode}`
   const carry = useRef({ source: sourceKey, episode: episodeKey, at: 0, user: false })
   if (carry.current.source !== sourceKey || carry.current.episode !== episodeKey) {
@@ -235,14 +244,14 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }
 
   useEffect(() => {
-    if (!loading || isOwnProvider(provider)) return
+    if (!loading || isOwn) return
     const timer = window.setTimeout(() => {
       // Новая озвучка ещё готовится, а прежняя играет: это не «плеер не ответил».
       if (pendingKey.current) return
       setError('Плеер не ответил вовремя. Возможно, источник или CDN заблокирован. Попробуйте другой плеер.')
     }, 15000)
     return () => window.clearTimeout(timer)
-  }, [loading, provider, frameAttempt])
+  }, [loading, provider, isOwn, frameAttempt])
 
   const onEpisodesRef = useRef(onEpisodes)
   onEpisodesRef.current = onEpisodes
@@ -279,7 +288,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     })()
 
     return () => { cancelled = true }
-  }, [provider, shikimoriId, title, originalTitle, englishTitle])
+  }, [provider, shikimoriId, title, originalTitle, englishTitle, nativeAttempt])
 
   /* ─── Поиск релиза AnimeVost по названию и году ─── */
   useEffect(() => {
@@ -304,7 +313,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     return () => {
       cancelled = true
     }
-  }, [provider, shikimoriId, title, originalTitle, englishTitle, year])
+  }, [provider, shikimoriId, title, originalTitle, englishTitle, year, nativeAttempt])
 
   /* ─── Поиск релиза Dream Cast ─── */
   useEffect(() => {
@@ -329,7 +338,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     return () => {
       cancelled = true
     }
-  }, [provider, shikimoriId, title, originalTitle, englishTitle, year])
+  }, [provider, shikimoriId, title, originalTitle, englishTitle, year, nativeAttempt])
 
   /* ─── Серии озвучки Anixart ─── */
   const axRelease = anixart?.release
@@ -365,8 +374,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const dcStream = provider === 'dreamcast' && dcEp?.hls ? { quality: '1080' as AniLibriaQuality, url: dcEp.hls } : null
 
   // Sibnet Direct (MP4 через наш Worker)
-  const sibnetId = extractSibnetVideoId(embed?.url ?? '')
-  const sibnetStream = (provider === 'sibnet' || (embed && isSibnetUrl(embed.url))) && sibnetId ? { quality: '720' as AniLibriaQuality, url: sibnetStreamUrl(sibnetId) } : null
+  const sibnetStream = isSibnetDirect ? { quality: '720' as AniLibriaQuality, url: sibnetStreamUrl(sibnetId) } : null
 
   const stream = alStream ?? dcStream ?? avStream ?? sibnetStream
   const src = stream?.url
@@ -437,8 +445,18 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         instance.loadSource(src)
         instance.attachMedia(video)
         instance.on(Hls.Events.MANIFEST_PARSED, onLoaded)
+        let networkRecoveries = 0
+        let mediaRecoveries = 0
         instance.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) setStreamError(PLAY_ERROR)
+          if (!data.fatal) return
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR && networkRecoveries++ < 3) {
+            instance.startLoad()
+          } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRecoveries++ < 2) {
+            instance.recoverMediaError()
+          } else {
+            instance.destroy()
+            setStreamError(PLAY_ERROR)
+          }
         })
       }).catch(() => {
         if (!cancelled) setStreamError('Не удалось загрузить плеер')
@@ -460,7 +478,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         video.load()
       }
     }
-  }, [src, corsReload])
+  }, [src, corsReload, nativeAttempt])
 
   /* ─── «Чётче»: фильтр на видеокарте поверх своего видео ─── */
   useEffect(() => {
@@ -605,6 +623,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   /* ─── Плееры в iframe (Kodik, Alloha, Anixart, YummyAnime): один слот на все ─── */
 
   const frameSrc = (ep = episode): string | null => {
+    if (isSibnetDirect) return null
     if (provider === 'kodik') {
       if (ep !== episode) return kodikLink ? kodikTranslationUrl(kodikLink, ep) : null
       return kodikLink ? kodikTranslationUrl(kodikLink, episode, props.kodikSkips?.spans) : kodikEmbedUrl({ shikimoriId, kinopoiskId, imdbId, title, episode })
@@ -617,6 +636,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     }
     if (provider === 'embed') {
       const url = ep === episode ? embed?.url : props.nextEmbedUrl
+      if (url && isSibnetUrl(url) && extractSibnetVideoId(url)) return null
       return url ? kodikHost(url) : null
     }
     return null
@@ -1000,6 +1020,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }, [])
 
   function renderFrames() {
+    if (isSibnetDirect) return null
     // Новый источник не может показать серию: на экране его пояснение, прежние и прогретые плееры убираем.
     const list = unavailable ? slots.current.filter((s) => s.key === targetKey.current) : slots.current
     const held = heldKey.current
@@ -1044,7 +1065,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
 
   function unavailableReason(): string | null {
     if (!provider) return NO_SOURCES
-    if ((provider === 'kodik' || provider === 'alloha' || provider === 'embed') && error) return error
+    if ((provider === 'kodik' || provider === 'alloha' || (provider === 'embed' && !isSibnetDirect)) && error) return error
     if (provider === 'kodik' && !kodikLink && !kodikEmbedUrl({ shikimoriId, kinopoiskId, imdbId, title, episode })) {
       return 'Kodik: токен не настроен или нет идентификатора тайтла'
     }
@@ -1059,6 +1080,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     }
     if (provider === 'embed') {
       if (!embed) return NO_SOURCES
+      if (isSibnetDirect) {
+        if (!sibnetStream) return `Серия ${episode} недоступна в Sibnet`
+        return streamError && `${streamError} из Sibnet`
+      }
       return embed.url ? null : `Серии ${episode} пока нет в плеере ${embed.player} (${embed.voice})`
     }
     if (provider === 'dreamcast') {
@@ -1096,7 +1121,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const nextSrc = episode < totalEpisodes ? frameSrc(episode + 1) : null
   const wish = useRef<{ hint?: string; next: string | null; warm: string[] }>({ next: null, warm: [] })
   wish.current = { hint: props.hint, next: nextSrc, warm: props.warm ?? [] }
-  const pooled = provider === 'kodik' || provider === 'anixart' || provider === 'embed'
+  const pooled = provider === 'kodik' || provider === 'anixart' || (provider === 'embed' && !isSibnetDirect)
   useEffect(() => {
     if (!pooled || unavailable) return
     const nextEpisode = `${shikimoriId}|${episode + 1}`
@@ -1167,15 +1192,15 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     </button>
   )
   const alAvailable = alEp ? qualities.filter((q) => alEp[`hls_${q}` as const]) : []
-  const ownEpisodes = provider === 'animevost' ? avEpisodes : alRelease?.episodes
+  const ownEpisodes = provider === 'animevost' ? avEpisodes : provider === 'dreamcast' ? dcRelease?.episodes : alRelease?.episodes
   const ownSkips = provider === 'anilibria' && alEp ? episodeSkips(alEp) : []
-  const hasNext = !!onEpisodeChange && episode < totalEpisodes && !!ownEpisodes?.some((e) => e.ordinal === episode + 1)
-  useMediaSession(videoRef, isOwnProvider(provider) && !!stream && !unavailable, {
+  const hasNext = !!onEpisodeChange && episode < totalEpisodes && (!ownEpisodes || ownEpisodes.some((e) => e.ordinal === episode + 1))
+  useMediaSession(videoRef, isOwn && !!stream && !unavailable, {
     title,
     episode,
     poster: props.poster,
     onNext: hasNext ? () => onEpisodeChange?.(episode + 1) : undefined,
-    onPrev: onEpisodeChange && episode > 1 && ownEpisodes?.some((e) => e.ordinal === episode - 1) ? () => onEpisodeChange(episode - 1) : undefined,
+    onPrev: onEpisodeChange && episode > 1 && (!ownEpisodes || ownEpisodes.some((e) => e.ordinal === episode - 1)) ? () => onEpisodeChange(episode - 1) : undefined,
   })
   const visibleTabs = tabs.filter((t) => t.available)
   const tabIndex = visibleTabs.findIndex((t) => t.id === provider)
@@ -1229,15 +1254,15 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           </span>
         )}
 
-        {renderFrames()}
+        {!isSibnetDirect && renderFrames()}
         {provider === 'embed' && embed?.player === 'Aksor' && !unavailable && <AksorFullscreen frame={frameRef} />}
-        {isOwnProvider(provider) && renderOwn()}
+        {isOwn && renderOwn()}
         {stream && !unavailable && (
           <PlayerControls
             video={videoRef}
             frame={frameRef}
             loading={loading}
-            qualities={provider === 'animevost' ? avAvailable : provider === 'dreamcast' ? (['1080', '720'] as AniLibriaQuality[]) : provider === 'sibnet' ? (['720', '480'] as AniLibriaQuality[]) : alAvailable}
+            qualities={provider === 'animevost' ? avAvailable : provider === 'dreamcast' ? (['1080', '720'] as AniLibriaQuality[]) : (provider === 'sibnet' || isSibnetDirect) ? (['720', '480'] as AniLibriaQuality[]) : alAvailable}
             quality={stream.quality}
             onQuality={(q) => {
               rememberQuality(q)
@@ -1250,7 +1275,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           />
         )}
 
-        {shikimoriId && !unavailable && (!isOwnProvider(provider) || !!stream) && (
+        {shikimoriId && !unavailable && (!isOwn || !!stream) && (
           <Suspense fallback={null}>
             <Danmaku animeId={shikimoriId} episode={episode} />
           </Suspense>
@@ -1290,11 +1315,22 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         ) : (
           <div className="vp-fallback">
             <p className="vp-fallback__text" role="status">{unavailable}.</p>
-            {!isOwnProvider(provider) && (
-              <button type="button" className="btn btn--ghost btn--small" onClick={() => { setError(null); setLoading(true); setFrameAttempt((n) => n + 1) }}>
-                Повторить загрузку
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => {
+                setError(null)
+                setStreamError(null)
+                setLoading(true)
+                if (isOwn) {
+                  setNativeAttempt((n) => n + 1)
+                } else {
+                  setFrameAttempt((n) => n + 1)
+                }
+              }}
+            >
+              Повторить загрузку
+            </button>
             {switchButton}
           </div>
         ))}

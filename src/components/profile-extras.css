@@ -638,11 +638,6 @@
   align-items: end;
   margin-bottom: 24px;
 }
-@media (max-width: 860px) {
-  .s-podium {
-    grid-template-columns: 1fr;
-  }
-}
 .s-podium__card {
   position: relative;
   border-radius: 16px;
@@ -679,6 +674,20 @@
 .s-podium__card--3 {
   border-color: rgba(208, 138, 74, 0.35);
   order: 3;
+}
+@media (max-width: 860px) {
+  .s-podium {
+    grid-template-columns: 1fr;
+  }
+  .s-podium .s-podium__card--1 {
+    order: 1;
+  }
+  .s-podium .s-podium__card--2 {
+    order: 2;
+  }
+  .s-podium .s-podium__card--3 {
+    order: 3;
+  }
 }
 .s-podium__banner {
   width: 100%;

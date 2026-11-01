@@ -6,6 +6,7 @@ import { flagsStore, mergeFlags, type Flag } from './flags'
 import { telegramOnStore } from './telegramFlag'
 import { inviteStore, pendingInvite } from './inviteStore'
 import { mangaProgressStore, mergeMangaProgress, type ReadProgress } from './mangaProgress'
+import { getRecentPositionsForSync, reconcilePositions, subscribePositions, type SyncedPlaybackPosition } from './positions'
 
 /**
  * Аккаунт и синхронизация. «Мой список» и история просмотра лежат в настройках пользователя
@@ -23,6 +24,8 @@ interface SyncedPrefs {
   manga?: Record<string, ReadProgress>
   /** открытый профиль /u/:id */
   publicProfile?: boolean
+  /** последние сохранённые позиции воспроизведения (до 20 тайтлов) */
+  positions?: Record<string, SyncedPlaybackPosition>
 }
 
 const REMOVED_TTL = 90 * 24 * 3600 * 1000
@@ -31,7 +34,7 @@ const REMOVED_TTL = 90 * 24 * 3600 * 1000
 const sdk = () => import('../api/appwrite')
 
 export type User = Models.User<Models.Preferences>
-export type { SyncedPrefs }
+export type { SyncedPrefs, SyncedPlaybackPosition }
 
 interface AuthState {
   /** true, пока не выяснили, вошёл ли пользователь */
@@ -144,6 +147,7 @@ async function push() {
       history: historyStore.get(),
       flags: flagsStore.get(),
       manga: mangaProgressStore.get(),
+      positions: getRecentPositionsForSync(),
     }
     const { account } = await sdk()
     const user = await account.updatePrefs({ ...state.user.prefs, ...prefs })
@@ -166,6 +170,7 @@ listStore.subscribe(schedulePush)
 historyStore.subscribe(schedulePush)
 flagsStore.subscribe(schedulePush)
 mangaProgressStore.subscribe(() => schedulePush(10_000))
+subscribePositions(() => schedulePush(5_000))
 
 /** После входа: объединить то, что было в браузере, с тем, что уже лежит в аккаунте. */
 async function adopt(user: User) {
@@ -186,6 +191,7 @@ async function adopt(user: User) {
   historyStore.set(mergeHistory(remote.history ?? [], historyStore.get()))
   flagsStore.set(mergeFlags(remote.flags, flagsStore.get()))
   mangaProgressStore.set(mergeMangaProgress(remote.manga, mangaProgressStore.get()))
+  if (remote.positions) reconcilePositions(remote.positions)
   applyingRemote = false
   setState({ checking: false, user })
   await push()

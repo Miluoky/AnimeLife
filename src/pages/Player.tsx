@@ -94,6 +94,7 @@ export default function Player() {
         free.value?.animeVost ?? 0,
         free.value?.anixart ?? null,
         yummyVoices,
+        free.value?.dreamCast ?? 0,
       ),
     [kodik.value, names, free.value, yummyVoices],
   )
@@ -258,6 +259,28 @@ export default function Player() {
     while (skipFillers && fillers.value?.has(n) && n < total) n++
     goTo(n)
   }
+
+  useEffect(() => {
+    const onPrevEvent = () => {
+      if (current > 1) goTo(current - 1)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (e.ctrlKey || e.metaKey || e.altKey || target?.closest('input, textarea, select, [contenteditable]')) return
+      const k = e.key.toLowerCase()
+      if ((k === 'p' || k === 'з' || (e.shiftKey && (k === 'n' || k === 'т'))) && current > 1) {
+        e.preventDefault()
+        goTo(current - 1)
+      }
+    }
+    window.addEventListener('animelife:prev-episode', onPrevEvent)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('animelife:prev-episode', onPrevEvent)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [current, anime?.id])
+
   const name = names[current]
 
   return (
@@ -485,9 +508,11 @@ function EpisodePicker({
   /** серии не по сюжету манги: их можно пропустить */
   fillers?: Set<number>
 }) {
+  const navigate = useNavigate()
   const [range, setRange] = useState(Math.floor((current - 1) / RANGE))
   const skip = skipFillersStore.use()
   const [query, setQuery] = useState('')
+  const [quickJump, setQuickJump] = useState('')
   const strip = useRef<HTMLDivElement>(null)
   const ranges = Math.ceil(total / RANGE)
   const from = range * RANGE + 1
@@ -500,6 +525,15 @@ function EpisodePicker({
   const shown = q
     ? Array.from({ length: total }, (_, i) => i + 1).filter((n) => String(n).startsWith(q) || names[n]?.toLowerCase().includes(q))
     : Array.from({ length: to - from + 1 }, (_, i) => from + i)
+
+  const onQuickJump = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ep = parseInt(quickJump.trim(), 10)
+    if (!isNaN(ep) && ep >= 1 && ep <= total) {
+      navigate(`/watch/${animeId}/${ep}`)
+      setQuickJump('')
+    }
+  }
 
   // Серию сменили кнопкой или из плеера: открываем её сотню.
   useEffect(() => setRange(Math.floor((current - 1) / RANGE)), [current])
@@ -526,6 +560,37 @@ function EpisodePicker({
           В озвучке {provider}: {voiced} из {total}. Приглушённых серий у источника нет.
         </p>
       )}
+      {total > 1 && (
+        <div className="ep-quick-bar" style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '6px 0' }}>
+          <form onSubmit={onQuickJump} style={{ display: 'flex', flex: 1, minWidth: 0 }}>
+            <label className="side-search" style={{ flex: 1, width: '100%' }}>
+              <span className="sr-only">Перейти к серии</span>
+              <input
+                type="number"
+                min={1}
+                max={total}
+                placeholder="К серии №… (Enter)"
+                aria-label="Номер серии"
+                value={quickJump}
+                onChange={(e) => setQuickJump(e.target.value)}
+              />
+            </label>
+          </form>
+          {total >= 100 && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--small ep-unwatched"
+              onClick={() => {
+                const nextEp = seen < total ? seen + 1 : 1
+                navigate(`/watch/${animeId}/${nextEp}`)
+              }}
+              title={seen < total ? `Перейти к серии ${seen + 1}` : 'Все серии просмотрены'}
+            >
+              К непросмотренной
+            </button>
+          )}
+        </div>
+      )}
       {total > 12 && (
         <label className="side-search">
           <SearchIcon size={16} />
@@ -536,6 +601,14 @@ function EpisodePicker({
             placeholder={voiced ? 'Номер или название' : 'Номер серии'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const n = parseInt(query.trim(), 10)
+                if (!isNaN(n) && n >= 1 && n <= total) {
+                  navigate(`/watch/${animeId}/${n}`)
+                }
+              }
+            }}
           />
         </label>
       )}
@@ -627,10 +700,11 @@ function defaultVoice(voices: Voice[], episode: number, popular: string[], favor
     const fav = dubbed.find((v) => studioKey(v.title) === f)
     if (fav) return fav
   }
-  // Серия точно есть (число серий известно): AniLibria, затем AnimeVost. Пока источник не ответил — не берём.
+  // Серия точно есть (число серий известно): AniLibria, затем AnimeVost, затем Dream Cast. Пока источник не ответил — не берём.
   const own =
     dubbed.find((v) => v.provider === 'anilibria' && typeof v.episodes === 'number') ??
-    dubbed.find((v) => v.provider === 'animevost' && typeof v.episodes === 'number')
+    dubbed.find((v) => v.provider === 'animevost' && typeof v.episodes === 'number') ??
+    dubbed.find((v) => v.provider === 'dreamcast' && typeof v.episodes === 'number')
   if (own) return own
   const pool = dubbed.filter((v) => !isOwnProvider(v.provider))
   const ranked = pool.length ? pool : dubbed
@@ -645,9 +719,9 @@ function defaultVoice(voices: Voice[], episode: number, popular: string[], favor
 }
 
 /**
- * Все озвучки тайтла из подключённых источников: Kodik (если есть токен), Alloha, AniLibria, AnimeVost, Anixart.
+ * Все озвучки тайтла из подключённых источников: Kodik (если есть токен), Alloha, AniLibria, AnimeVost, Dream Cast, Anixart.
  * AniLibria без релиза (0 серий) убираем, если есть другой бесплатный источник: тогда он и включается первым.
- * Студии AniLibria и AnimeVost из Anixart не дублируем: свои плееры у них лучше (качество, пропуск опенинга).
+ * Студии AniLibria, AnimeVost и Dream Cast из Anixart не дублируем: свои плееры у них лучше (качество, пропуск опенинга).
  */
 function buildVoices(
   kodik: Awaited<ReturnType<typeof fetchKodikTranslations>>,
@@ -655,16 +729,18 @@ function buildVoices(
   animeVostEpisodes: number,
   anixart: AnixartRelease | null,
   yummy: YummyVoice[] | null,
+  dreamCastEpisodes = 0,
 ): Voice[] {
   const list: Voice[] = [...kodik]
     .sort((a, b) => b.episodes - a.episodes)
     .map((t) => ({ key: `kodik:${t.id}`, provider: 'kodik', title: t.title, kind: t.kind, episodes: t.episodes, first: t.first, kodikLink: t.link }))
   if (isBalancerAvailable('alloha')) list.push({ key: 'alloha', provider: 'alloha', title: 'Alloha', kind: 'voice' })
-  const others = animeVostEpisodes > 0 || !!anixart?.voices.length || !!yummy?.length
+  const others = animeVostEpisodes > 0 || dreamCastEpisodes > 0 || !!anixart?.voices.length || !!yummy?.length
   const aniLibria: Voice = { key: 'anilibria', provider: 'anilibria', title: 'AniLibria', kind: 'voice', episodes: aniLibriaEpisodes || undefined }
   // AniLibria первой, только если релиз точно нашёлся; не ответила — ставим её в конец, чтобы не включился трейлер.
   if (aniLibriaEpisodes || !others) list.push(aniLibria)
   if (animeVostEpisodes) list.push({ key: 'animevost', provider: 'animevost', title: 'AnimeVost', kind: 'voice', episodes: animeVostEpisodes })
+  if (dreamCastEpisodes) list.push({ key: 'dreamcast', provider: 'dreamcast', title: 'Dream Cast', kind: 'voice', episodes: dreamCastEpisodes })
   const own = new Set(list.map((v) => v.title.toLowerCase()))
   for (const v of anixart?.voices ?? []) {
     if (own.has(v.title.toLowerCase())) continue

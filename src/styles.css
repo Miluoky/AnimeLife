@@ -43,6 +43,20 @@
   box-sizing: border-box;
 }
 
+[id] {
+  scroll-margin-top: calc(72px + env(safe-area-inset-top) + 12px);
+}
+
+a,
+button,
+input,
+select,
+[role='button'],
+.poster-card,
+.schedule-row {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -694,136 +708,6 @@ h3 {
   justify-content: center;
 }
 
-/* Title page */
-.banner {
-  height: 320px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: 20px 40px;
-}
-
-.title-page {
-  margin-top: -160px;
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
-}
-
-.title-head {
-  display: flex;
-  gap: 40px;
-  flex-wrap: wrap;
-  align-items: flex-end;
-}
-
-.title-head__poster {
-  flex: 0 0 260px;
-  aspect-ratio: 2 / 3;
-  border-radius: 8px;
-  border: 4px solid var(--bg);
-  display: flex;
-  align-items: flex-end;
-  padding: 14px;
-}
-
-.title-head__info {
-  flex: 1 1 480px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.title-head__title {
-  font-size: clamp(28px, 4vw, 44px);
-  line-height: 1.08;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
-}
-
-.title-body {
-  display: flex;
-  gap: 48px;
-  flex-wrap: wrap;
-  align-items: flex-start;
-}
-
-.title-body > .stack:first-child {
-  flex: 1 1 640px;
-}
-
-.title-aside {
-  flex: 0 1 340px;
-}
-
-.facts {
-  margin: 0;
-  padding: 24px;
-  border-radius: 8px;
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  font-size: 15px;
-}
-
-.facts div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.facts dt {
-  color: var(--muted);
-}
-
-.facts dd {
-  margin: 0;
-  font-weight: 600;
-  text-align: right;
-}
-
-.episode-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.episode-card__img {
-  aspect-ratio: 16 / 9;
-  border-radius: 6px;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-  padding: 10px;
-}
-
-.episode-card__num {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 22px;
-}
-
-.episode-card__meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-@media (max-width: 640px) {
-  .banner {
-    height: 200px;
-    padding: 16px;
-  }
-  .title-page {
-    margin-top: -100px;
-  }
-  .title-head__poster {
-    flex-basis: 160px;
-  }
-}
-
 /* Empty page */
 .empty-page {
   padding-top: 80px;
@@ -835,9 +719,7 @@ h3 {
 
 /* Живые данные: постеры, состояния загрузки */
 .poster-card__img,
-.title-head__poster,
-.continue-card__img,
-.banner {
+.continue-card__img {
   position: relative;
   overflow: hidden;
 }
@@ -871,35 +753,6 @@ h3 {
 
 .continue-card__img .poster-img {
   opacity: 0.55;
-}
-
-
-.banner__img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(24px) brightness(0.45);
-  transform: scale(1.2);
-}
-
-.banner .art-label {
-  position: relative;
-}
-
-/* Низ баннера уходит в фон страницы: название тайтла на светлом кадре остаётся читаемым. */
-.banner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(13, 14, 19, 0.15) 0%, rgba(13, 14, 19, 0.55) 55%, var(--bg) 100%);
-}
-
-.title-head__poster,
-.title-head__info {
-  position: relative;
-  z-index: 1;
 }
 
 .meta-dot {
@@ -1183,20 +1036,6 @@ h3 {
   max-width: 520px;
 }
 
-/* Страница тайтла: кадры, связанное и похожее */
-.banner__img--shot {
-  filter: brightness(0.55);
-  transform: none;
-}
-
-.episode-card__shot {
-  opacity: 0.6;
-}
-
-.episode-card__num {
-  position: relative;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
-}
 
 .row-scroll {
   display: grid;
@@ -1237,57 +1076,6 @@ h3 {
   position: relative;
 }
 
-/* Фильтры каталога */
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: flex-end;
-}
-
-.filter {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 150px;
-}
-
-.filter__label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.filter select {
-  height: 44px;
-  padding: 0 36px 0 14px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--surface-2)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23a3a3b2' stroke-width='2'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
-    no-repeat right 14px center;
-  appearance: none;
-  color: var(--text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.filter--set select {
-  border-color: var(--accent);
-}
-
-.filter select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.filter select option {
-  background: var(--surface);
-  color: var(--text);
-}
-
 .pill--link {
   display: inline-flex;
   align-items: center;
@@ -1295,28 +1083,8 @@ h3 {
   border-color: var(--accent);
 }
 
-@media (max-width: 640px) {
-  .filter {
-    flex: 1 1 calc(50% - 5px);
-    min-width: 0;
-  }
-}
-
 .search input::-webkit-search-cancel-button {
   display: none;
-}
-
-/* Аккаунт */
-.auth-page {
-  max-width: 460px;
-}
-
-.auth-card {
-  padding: 24px;
-  border-radius: 6px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  gap: 16px;
 }
 
 .field {
@@ -1345,10 +1113,6 @@ h3 {
   outline-offset: 1px;
 }
 
-.auth-card .btn {
-  justify-content: center;
-}
-
 .notice--error {
   border-color: var(--accent);
   color: var(--accent-soft);
@@ -1365,43 +1129,6 @@ h3 {
   color: var(--accent);
 }
 
-/* Страница тайтла: оценки, персонажи, видео, кадры */
-.score-bars {
-  display: grid;
-  gap: 6px;
-}
-
-.score-bar {
-  display: grid;
-  grid-template-columns: 22px 1fr 40px;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-}
-
-.score-bar__label {
-  font-weight: 700;
-  text-align: right;
-}
-
-.score-bar__track {
-  height: 8px;
-  border-radius: 4px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-
-.score-bar__fill {
-  display: block;
-  height: 100%;
-  border-radius: 4px;
-  background: var(--accent);
-}
-
-.score-bar__value {
-  text-align: right;
-}
-
 .row-scroll--compact {
   grid-auto-columns: 128px;
   gap: 16px;
@@ -1410,32 +1137,6 @@ h3 {
 .row-scroll--wide {
   grid-auto-columns: 260px;
   gap: 16px;
-}
-
-.character-card__img img,
-.video-card__img img,
-.shot img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.25s ease;
-}
-
-.character-card:hover img,
-.video-card:hover img,
-.shot:hover img {
-  transform: scale(1.04);
-}
-
-.shot {
-  aspect-ratio: 16 / 9;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--surface-2);
-  cursor: zoom-in;
 }
 
 @media (max-width: 720px) {
@@ -1452,31 +1153,6 @@ h3 {
   }
 }
 
-/* Отзывы */
-/* (основные стили отзывов — в components/reviews.css) */
-.field textarea {
-  padding: 12px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-  font-weight: 500;
-  font-size: 16px;
-  line-height: 1.5;
-  resize: vertical;
-  min-height: 120px;
-}
-.field textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.clamp-6 {
-  display: -webkit-box;
-  -webkit-line-clamp: 6;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
 .link-btn {
   align-self: flex-start;
   padding: 0;
@@ -2289,82 +1965,11 @@ input[type='radio'] {
   }
 }
 
-/* Фильтры каталога: сортировка и статус чипами, остальное списками. */
-.filters {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  align-items: end;
-}
-.filter {
-  min-width: 0;
-}
-.filter select {
-  width: 100%;
-  text-overflow: ellipsis;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.filter--set select {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-@media (max-width: 640px) {
-  .filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .filter {
-    flex: none;
-  }
-}
-
-/* Страница тайтла на телефоне: постер меньше и по центру, кнопки ровной сеткой. */
-@media (max-width: 640px) {
-  .title-page {
-    gap: 36px;
-  }
-  .title-head {
-    gap: 20px;
-  }
-  .title-head__poster {
-    flex: 0 0 auto;
-    width: 140px;
-    border-radius: 6px;
-  }
-  .title-head__info {
-    flex-basis: 100%;
-    min-width: 0;
-  }
-  /* Кнопки не сжимаются уже своей подписи: не влезают (крупный шрифт на iPhone) — переходят на новую строку.
-     Значки «Поделиться» и колокольчик — маленькие квадраты. Раскладка по строкам — в pages/title.css. */
-  .title-head .actions > * {
-    flex: 1 1 auto;
-    padding: 0 12px;
-  }
-  .title-head .actions > .title-share,
-  .title-head .actions > .follow-btn {
-    flex: 0 0 52px;
-    padding: 0;
-  }
-  .title-body > .stack:first-child,
-  .title-aside {
-    flex-basis: 100%;
-    min-width: 0;
-  }
-}
-.title-body > .stack:first-child,
-.title-aside {
-  min-width: 0;
-}
-.episode-card {
-  min-width: 0;
-}
 @media (hover: hover) {
-  .episode-card:hover .episode-card__img,
   .rec-card:hover .poster-card__img {
     transform: translateY(-4px);
     box-shadow: 0 16px 30px -16px rgba(0, 0, 0, 0.8);
   }
-}
-.episode-card__img {
-  transition: transform 0.3s var(--ease), box-shadow 0.3s;
 }
 
 /* Плавно раскрывающиеся окна и уведомления (подсказки поиска — в search.css). */
@@ -2387,8 +1992,7 @@ input[type='radio'] {
   .schedule {
     grid-template-columns: minmax(0, 1fr);
   }
-  .schedule-day,
-  .auth-card {
+  .schedule-day {
     padding: 16px;
   }
   .stat-tile {

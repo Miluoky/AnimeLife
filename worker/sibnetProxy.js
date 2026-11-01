@@ -54,6 +54,19 @@ async function getDirectVideoUrl(videoId) {
 }
 
 export async function sibnetProxy(request) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Range, Accept-Ranges, Content-Type',
+        'Access-Control-Expose-Headers': 'Content-Range, Content-Length, Accept-Ranges',
+        'Access-Control-Max-Age': '86400',
+      },
+    })
+  }
+
   const url = new URL(request.url)
   const rest = url.pathname.slice(PREFIX.length)
   const parts = rest.split('/')
@@ -75,12 +88,15 @@ export async function sibnetProxy(request) {
     })
   }
 
+  const isHead = request.method === 'HEAD'
+
   if (action === 'resolve') {
-    return new Response(JSON.stringify({ videoId, directUrl }), {
+    return new Response(isHead ? null : JSON.stringify({ videoId, directUrl }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Cache-Control': 'public, max-age=3600',
       },
     })
@@ -96,16 +112,18 @@ export async function sibnetProxy(request) {
 
   try {
     const upstreamRes = await fetch(directUrl, {
+      method: isHead ? 'HEAD' : 'GET',
       headers: reqHeaders,
     })
 
     const responseHeaders = new Headers(upstreamRes.headers)
     responseHeaders.set('Access-Control-Allow-Origin', '*')
+    responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
     responseHeaders.set('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Type')
     responseHeaders.set('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges')
     responseHeaders.set('Accept-Ranges', 'bytes')
 
-    return new Response(upstreamRes.body, {
+    return new Response(isHead ? null : upstreamRes.body, {
       status: upstreamRes.status,
       statusText: upstreamRes.statusText,
       headers: responseHeaders,

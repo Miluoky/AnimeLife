@@ -155,8 +155,14 @@ function Leaders() {
   const formatStat = (p: ProfileRow) => {
     const s = parseSummary(p)
     const xpVal = (period === 'week' ? p.weekXp : period === 'month' ? p.monthXp : p.xp) ?? 0
-    const eps = s.facts?.episodes ?? Math.max(1, Math.round(xpVal / 10))
-    const hours = Math.round((eps * 24) / 60) || Math.max(1, Math.round(xpVal / 25))
+    const eps =
+      period === 'week' || period === 'month'
+        ? Math.round(xpVal / 10)
+        : (s.facts?.episodes ?? Math.max(1, Math.round(xpVal / 10)))
+    const hours =
+      period === 'week' || period === 'month'
+        ? Math.round((eps * 24) / 60)
+        : (Math.round((eps * 24) / 60) || Math.max(1, Math.round(xpVal / 25)))
 
     if (metric === 'hours') return `${hours.toLocaleString('ru-RU')} ч просмотра`
     if (metric === 'episodes') return `${eps.toLocaleString('ru-RU')} серий`

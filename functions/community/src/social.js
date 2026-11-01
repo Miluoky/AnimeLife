@@ -1,5 +1,6 @@
 import { DB, UserError, hash, listRows, query } from './util.js'
 import { notify } from './notifications.js'
+import { heldReason, rejectSpam } from './automod.js'
 
 /**
  * Социальная часть: подписки на людей и лента, подборки зрителей, клубы, оценки серий, синхронизация с Shikimori.
@@ -26,6 +27,9 @@ const POSTS_PER_MINUTE = 5
 const ACTIVITY_PER_10MIN = 40
 const REPORTS_TO_HIDE = 3
 const MAX_FOLLOWS = 1000
+const WALL_POSTS_PER_10MIN = 6
+const WALL_MAX_TEXT = 500
+const WALL_MIN_TEXT = 2
 
 const ID = /^[a-zA-Z0-9._-]{1,36}$/
 const ANIME_ID = /^\d{1,10}$/
@@ -466,6 +470,165 @@ export async function shikiPush(api, req, body) {
   return { sent, nickname: link.nickname }
 }
 
+// --- Стена профиля (ProfileWall) ---
+
+export async function wallPost(api, req, body) {
+  const user = await signedIn(api, req, 'оставлять записи на стене')
+  const target = checkId(body.profileId || body.targetUserId, 'Профиль')
+  const content = text(body.text, WALL_MAX_TEXT, WALL_MIN_TEXT, 'Текст записи')
+
+  const now = Date.now()
+  const recent = await listRows(api, 'profile_wall', [
+    eq('userId', user.$id),
+    since('at', now - 10 * 60 * 1000),
+    { method: 'limit', values: [WALL_POSTS_PER_10MIN] },
+  ])
+  if (recent.length >= WALL_POSTS_PER_10MIN) {
+    throw new UserError('Слишком много записей подряд, передохните немного.')
+  }
+  rejectSpam(content, recent.map((r) => r.text))
+
+  const held = heldReason(content)
+  const hidden = !!held
+
+  const authorName = nameOf(user)
+  let avatarUrl = httpsUrl(body.avatarUrl) || ''
+  let frame = typeof body.frame === 'string' ? body.frame.slice(0, 32) : ''
+  try {
+    const prof = await api('GET', `${DB}/profiles/rows/${user.$id}`)
+    if (prof.status === 200 && prof.json.summary) {
+      const summary = JSON.parse(prof.json.summary)
+      if (summary?.style?.avatarUrl && !avatarUrl) avatarUrl = httpsUrl(summary.style.avatarUrl) || avatarUrl
+      if (summary?.style?.frame && !frame) frame = String(summary.style.frame).slice(0, 32)
+    }
+  } catch {}
+
+  const replyToName =
+    typeof body.replyToName === 'string' && body.replyToName.trim()
+      ? body.replyToName.trim().slice(0, 64)
+      : body.replyTo && typeof body.replyTo === 'string'
+        ? body.replyTo.trim().slice(0, 64)
+        : undefined
+
+  const row = await api('POST', `${DB}/profile_wall/rows`, {
+    rowId: 'unique()',
+    data: {
+      profileId: target,
+      userId: user.$id,
+      name: authorName,
+      avatarUrl,
+      frame,
+      text: content,
+      at: now,
+      likes: 0,
+      hidden,
+      ...(replyToName ? { replyToName } : {}),
+    },
+  })
+
+  if (target !== user.$id && !hidden) {
+    await notify(api, {
+      userId: target,
+      kind: 'wall-post',
+      actor: user,
+      text: content,
+      link: `/u/${target}#wall`,
+      key: `wall:${row.json.$id}`,
+    }).catch(() => {})
+  }
+
+  return { comment: row.json, ...(held ? { held } : {}) }
+}
+
+export async function wallList(api, req, body) {
+  const target = checkId(body.profileId || body.targetUserId, 'Профиль')
+  const limit = Math.max(1, Math.min(100, Number(body.limit) || 50))
+  const rows = await listRows(api, 'profile_wall', [
+    eq('profileId', target),
+    { method: 'orderDesc', attribute: 'at' },
+    { method: 'limit', values: [limit] },
+  ])
+
+  const currentUserId = req.headers['x-appwrite-user-id']
+  let myLikes = []
+  if (currentUserId) {
+    try {
+      myLikes = await listRows(api, 'profile_wall_likes', [
+        eq('userId', currentUserId),
+        { method: 'limit', values: [500] },
+      ])
+    } catch {}
+  }
+  const likedSet = new Set(myLikes.map((l) => l.commentId))
+
+  const visible = rows.filter(
+    (r) => !r.hidden || (currentUserId && (r.userId === currentUserId || r.profileId === currentUserId))
+  )
+
+  const comments = visible.map((c) => ({
+    id: c.$id,
+    $id: c.$id,
+    profileId: c.profileId,
+    userId: c.userId,
+    name: c.name,
+    avatarUrl: c.avatarUrl || '',
+    frame: c.frame || '',
+    text: c.text,
+    at: c.at,
+    likes: c.likes ?? 0,
+    liked: likedSet.has(c.$id),
+    replyToName: c.replyToName || undefined,
+    hidden: c.hidden || false,
+  }))
+
+  return { comments }
+}
+
+export async function wallDelete(api, req, body) {
+  const user = await signedIn(api, req, 'удалять записи')
+  const commentId = checkId(body.commentId || body.id, 'Запись')
+  const comment = await getRow(api, 'profile_wall', commentId, 'Запись')
+
+  const isAuthor = comment.userId === user.$id
+  const isProfileOwner = comment.profileId === user.$id
+  const isAdm = isAdmin(user)
+  if (!isAuthor && !isProfileOwner && !isAdm) {
+    throw new UserError('Удалить запись может только автор, владелец стены или администратор.')
+  }
+
+  await api('DELETE', `${DB}/profile_wall/rows/${comment.$id}`)
+  await deleteWhere(api, 'profile_wall_likes', [eq('commentId', comment.$id)]).catch(() => {})
+  return { ok: true }
+}
+
+export async function wallLike(api, req, body) {
+  const user = await signedIn(api, req, 'ставить лайки')
+  const commentId = checkId(body.commentId || body.id, 'Запись')
+  const comment = await getRow(api, 'profile_wall', commentId, 'Запись')
+
+  const likeId = `l${hash(`${comment.$id}:${user.$id}`)}`
+  const had = (await api('GET', `${DB}/profile_wall_likes/rows/${likeId}`)).status !== 404
+  if (had) {
+    await api('DELETE', `${DB}/profile_wall_likes/rows/${likeId}`)
+  } else {
+    await api('PUT', `${DB}/profile_wall_likes/rows/${likeId}`, {
+      data: { commentId: comment.$id, userId: user.$id, at: Date.now() },
+    })
+  }
+  const likes = await count(api, 'profile_wall_likes', [eq('commentId', comment.$id)])
+  await api('PATCH', `${DB}/profile_wall/rows/${comment.$id}`, { data: { likes } })
+  if (!had && comment.userId !== user.$id) {
+    await notify(api, {
+      userId: comment.userId,
+      kind: 'wall-like',
+      actor: user,
+      link: `/u/${comment.profileId}#wall`,
+      key: `wall-like:${comment.$id}:${user.$id}`,
+    }).catch(() => {})
+  }
+  return { liked: !had, likes }
+}
+
 export const socialActions = {
   follow,
   unfollow,
@@ -487,4 +650,8 @@ export const socialActions = {
   'shiki-status': shikiStatus,
   'shiki-disconnect': shikiDisconnect,
   'shiki-push': shikiPush,
+  'wall-list': wallList,
+  'wall-post': wallPost,
+  'wall-delete': wallDelete,
+  'wall-like': wallLike,
 }

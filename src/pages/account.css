@@ -324,3 +324,27 @@
   color: #fff;
   border-color: transparent;
 }
+
+/* Перенесено из styles.css: стили страницы аккаунта */
+.auth-page {
+  max-width: 460px;
+}
+
+.auth-card {
+  padding: 24px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  gap: 16px;
+}
+
+.auth-card .btn {
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .auth-card {
+    padding: 16px;
+  }
+}
+

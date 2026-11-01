@@ -82,7 +82,7 @@ export default function Layout() {
     const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && toggleMenu(false)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  })
+  }, [menuOpen])
 
   // Достижения и открытый профиль не нужны для первого экрана: подключаем, когда браузер свободен.
   const publicProfile = !!(user?.prefs as { publicProfile?: boolean } | undefined)?.publicProfile
