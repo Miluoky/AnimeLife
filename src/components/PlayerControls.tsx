@@ -126,8 +126,12 @@ export default function PlayerControls({ video, frame, loading, qualities, quali
         if (savedVol !== null) {
           const num = Number(savedVol)
           if (Number.isFinite(num) && num > 0) el.volume = Math.max(0, Math.min(1, num))
+        } else if (el.volume === 0) {
+          el.volume = 1
         }
-        if (!savedMuted && el.muted) el.muted = false
+        if (!savedMuted) {
+          el.muted = false
+        }
       } catch {}
     }
     el.addEventListener('loadedmetadata', syncAudio)

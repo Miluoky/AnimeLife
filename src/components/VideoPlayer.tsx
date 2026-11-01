@@ -399,6 +399,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         if (savedVol !== null) {
           const num = Number(savedVol)
           if (Number.isFinite(num) && num > 0) video.volume = Math.max(0, Math.min(1, num))
+        } else if (video.volume === 0) {
+          video.volume = 1
         }
         video.muted = savedMuted
       } catch {}
@@ -979,9 +981,16 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     window.setTimeout(release, 400)
     // Активный плеер всегда включаем со звуком (unmute); если серию сменил зритель — ещё и запускаем play.
     if (target) {
-      for (const delay of [0, 500, 1200]) {
+      for (const delay of [0, 200, 500, 1000, 2000]) {
         window.setTimeout(() => {
-          target.postMessage({ key: 'kodik_player_api', value: { method: 'unmute' } }, '*')
+          if (localStorage.getItem('animelife_muted') !== 'true') {
+            target.postMessage({ key: 'kodik_player_api', value: { method: 'unmute' } }, '*')
+            const savedVol = localStorage.getItem('animelife_volume')
+            const volNum = savedVol !== null ? Number(savedVol) : 1
+            if (Number.isFinite(volNum) && volNum > 0) {
+              target.postMessage({ key: 'kodik_player_api', value: { method: 'volume', value: Math.round(volNum * 100) } }, '*')
+            }
+          }
           if (carry.current.user) {
             target.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*')
           }
