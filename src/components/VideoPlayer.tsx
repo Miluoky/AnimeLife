@@ -25,6 +25,8 @@ import {
   type AniLibriaQuality,
 } from '../api/anilibria'
 import { findAnimeVost, type AnimeVostEpisode } from '../api/animevost'
+import { findDreamCast, type DreamCastRelease } from '../api/dreamcast'
+import { extractSibnetVideoId, isSibnetUrl, sibnetStreamUrl } from '../api/sibnet'
 import type { YummySkips } from '../api/yummy'
 import { anixartEpisodes } from '../api/anixart'
 import { FullscreenIcon } from './Icons'
@@ -47,7 +49,8 @@ const Danmaku = lazy(() => import('./Danmaku'))
 
 /* ──────────────── Типы ──────────────── */
 
-export type Provider = 'kodik' | 'alloha' | 'anilibria' | 'animevost' | 'anixart' | 'embed'
+export type Provider = 'kodik' | 'alloha' | 'anilibria' | 'animevost' | 'dreamcast' | 'sibnet' | 'anixart' | 'embed'
+export type OwnProvider = 'anilibria' | 'animevost' | 'dreamcast' | 'sibnet'
 
 export interface VideoPlayerProps {
   /** Название аниме для поиска в AniLibria и Kodik. */
@@ -131,7 +134,16 @@ function buildTabs(): ProviderTab[] {
 
 const NO_SOURCES = 'Серий этого аниме пока нет в доступных источниках'
 const PLAY_ERROR = 'Не удалось воспроизвести серию'
-const SOURCE_NAME: Record<Provider, string> = { kodik: 'Kodik', alloha: 'Alloha', anilibria: 'AniLibria', animevost: 'AnimeVost', anixart: 'Anixart', embed: 'плеера' }
+const SOURCE_NAME: Record<Provider, string> = {
+  kodik: 'Kodik',
+  alloha: 'Alloha',
+  anilibria: 'AniLibria',
+  animevost: 'AnimeVost',
+  dreamcast: 'Dream Cast',
+  sibnet: 'Sibnet',
+  anixart: 'Anixart',
+  embed: 'плеера',
+}
 
 /** Свой плеер сайта: AniLibria (HLS) и AnimeVost (mp4). Kodik и остальные — чужой iframe. */
 export function isOwnProvider(provider: Provider | undefined): provider is 'anilibria' | 'animevost' {
@@ -189,6 +201,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // ─── AnimeVost state ───
   const [avEpisodes, setAvEpisodes] = useState<AnimeVostEpisode[] | null>(null)
   const [avSearching, setAvSearching] = useState(false)
+  const [dcRelease, setDcRelease] = useState<DreamCastRelease | null>(null)
+  const [dcSearching, setDcSearching] = useState(false)
   // ─── Anixart state: ссылки на серии выбранной озвучки ───
   // Помечены озвучкой: пока не пришли серии новой, адреса прежней не годятся (иначе на миг включилась бы она).
   const [axState, setAxEpisodes] = useState<{ key: string; urls: Map<number, string> } | null>(null)
@@ -292,6 +306,31 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     }
   }, [provider, shikimoriId, title, originalTitle, englishTitle, year])
 
+  /* ─── Поиск релиза Dream Cast ─── */
+  useEffect(() => {
+    if (provider !== 'dreamcast') return
+    let cancelled = false
+    setDcSearching(true)
+    setError(null)
+    setDcRelease(null)
+    findDreamCast(shikimoriId ?? title, { title, originalTitle, englishTitle, year })
+      .then((rel) => {
+        if (cancelled) return
+        setDcRelease(rel)
+        if (!rel || !rel.episodes.length) setError('Этого аниме нет в Dream Cast')
+      })
+      .catch(() => !cancelled && setError('Не удалось подключиться к Dream Cast'))
+      .finally(() => {
+        if (!cancelled) {
+          setDcSearching(false)
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [provider, shikimoriId, title, originalTitle, englishTitle, year])
+
   /* ─── Серии озвучки Anixart ─── */
   const axRelease = anixart?.release
   const axType = anixart?.type
@@ -321,7 +360,15 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const avAvailable: AniLibriaQuality[] = avEp ? [...(avEp.hd ? (['720'] as const) : []), ...(avEp.std ? (['480'] as const) : [])] : []
   const avQuality = avAvailable.includes(alQuality) ? alQuality : avAvailable[0]
   const avStream = provider === 'animevost' && avEp && avQuality ? { quality: avQuality, url: (avQuality === '720' ? avEp.hd : avEp.std)! } : null
-  const stream = alStream ?? avStream
+  // Dream Cast (HLS)
+  const dcEp = dcRelease?.episodes.find((e) => e.ordinal === episode)
+  const dcStream = provider === 'dreamcast' && dcEp?.hls ? { quality: '1080' as AniLibriaQuality, url: dcEp.hls } : null
+
+  // Sibnet Direct (MP4 через наш Worker)
+  const sibnetId = extractSibnetVideoId(embed?.url ?? '')
+  const sibnetStream = (provider === 'sibnet' || (embed && isSibnetUrl(embed.url))) && sibnetId ? { quality: '720' as AniLibriaQuality, url: sibnetStreamUrl(sibnetId) } : null
+
+  const stream = alStream ?? dcStream ?? avStream ?? sibnetStream
   const src = stream?.url
 
   // Позиция переносится только при смене качества: новая серия всегда начинается с начала.
@@ -364,7 +411,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     // hls.js отдаёт видео через blob и в этом не нуждается.
     video.crossOrigin = enhanceStore.get() ? 'anonymous' : null
     // Прямой mp4 (AnimeVost) браузер играет сам.
-    if (/\.mp4(\?|$)/.test(src)) {
+    if (/\.mp4(\?|$)/.test(src) || src.includes('/api/sibnet/stream/')) {
       video.src = src
       video.addEventListener('loadedmetadata', onLoaded, { once: true })
       video.addEventListener('error', onError, { once: true })
@@ -1005,6 +1052,19 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       if (!embed) return NO_SOURCES
       return embed.url ? null : `Серии ${episode} пока нет в плеере ${embed.player} (${embed.voice})`
     }
+    if (provider === 'dreamcast') {
+      if (dcSearching) return null
+      if (error) return error
+      if (!dcRelease) return null
+      if (!dcEp) return `Серии ${episode} пока нет в Dream Cast`
+      if (!dcStream) return 'Нет доступного потока для этой серии'
+      return streamError && `${streamError} из ${SOURCE_NAME[provider]}`
+    }
+    if (provider === 'sibnet') {
+      if (error) return error
+      if (!sibnetStream) return `Серия ${episode} недоступна в Sibnet`
+      return streamError && `${streamError} из ${SOURCE_NAME[provider]}`
+    }
     if (provider === 'animevost') {
       if (avSearching) return null
       if (error) return error
@@ -1168,7 +1228,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
             video={videoRef}
             frame={frameRef}
             loading={loading}
-            qualities={provider === 'animevost' ? avAvailable : alAvailable}
+            qualities={provider === 'animevost' ? avAvailable : provider === 'dreamcast' ? (['1080', '720'] as AniLibriaQuality[]) : provider === 'sibnet' ? (['720', '480'] as AniLibriaQuality[]) : alAvailable}
             quality={stream.quality}
             onQuality={(q) => {
               rememberQuality(q)

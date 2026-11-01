@@ -4,11 +4,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const dir = new URL('../src/', import.meta.url)
 
 for (const file of readdirSync(dir).filter((f) => f.endsWith('.js'))) {
   test(`${file} без синтаксических ошибок`, () => {
-    assert.doesNotThrow(() => execFileSync(process.execPath, ['--check', new URL(file, dir).pathname], { stdio: 'pipe' }))
+    assert.doesNotThrow(() => execFileSync(process.execPath, ['--check', fileURLToPath(new URL(file, dir))], { stdio: 'pipe' }))
   })
 }

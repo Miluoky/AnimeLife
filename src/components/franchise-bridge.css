@@ -1,0 +1,29 @@
+.franchise-bridge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.franchise-bridge__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.franchise-bridge__label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.franchise-bridge__title {
+  font-weight: 700;
+}
+.franchise-bridge p {
+  margin: 0;
+}

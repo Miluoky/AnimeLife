@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { createLocalStore } from './localStore'
 import { listStore } from './myList'
 import { followStore, muteStore, site, watchingIds } from './push'
 import { telegramOnStore } from './telegramFlag'
@@ -10,6 +11,17 @@ import { telegramOnStore } from './telegramFlag'
  */
 
 export const TELEGRAM_BOT = 'AnimeLifeAuth_bot'
+
+/**
+ * «Еженедельная сводка»: локальный переключатель. Пока уведомления в боте включены, то же значение
+ * уходит в подписку (поле auth строки Telegram = weekly). Воскресное расписание читает его и шлёт
+ * одно напоминание за неделю. Ключ: anime.telegram.weekly.v1.
+ */
+export const weeklyDigestStore = createLocalStore<boolean>('anime.telegram.weekly.v1', false)
+
+export function useWeeklyDigest() {
+  return weeklyDigestStore.use()
+}
 
 /** loading — спрашиваем функцию; unavailable — бот для уведомлений ещё не настроен на сервере. */
 export type TelegramNotifyState = 'loading' | 'unavailable' | 'off' | 'on'
@@ -40,14 +52,34 @@ export const isTelegramAccount = (userId: string | undefined) => /^tg_\d+$/.test
 
 const send = async () => {
   const { callCommunity } = await community()
-  await callCommunity({ action: 'tg-subscribe', animeIds: watchingIds(), site: site() })
+  await callCommunity({
+    action: 'tg-subscribe',
+    animeIds: watchingIds(),
+    site: site(),
+    weekly: weeklyDigestStore.get(),
+  })
 }
 
 /** Спрашиваем функцию, включены ли уведомления, когда открывают профиль. */
 export async function refreshTelegramNotify() {
   const { callCommunity } = await community()
-  const reply = await callCommunity<{ configured: boolean; on: boolean }>({ action: 'tg-status' })
+  const reply = await callCommunity<{ configured: boolean; on: boolean; weekly?: boolean }>({ action: 'tg-status' })
   setState(reply.on ? 'on' : reply.configured ? 'off' : 'unavailable')
+  // Подписка есть: сервер знает, включена ли сводка. Пока бот выключен, не затираем местный выбор.
+  if (reply.on && typeof reply.weekly === 'boolean') weeklyDigestStore.set(reply.weekly)
+}
+
+/** Включить или выключить воскресную сводку. Если бот уже пишет, подписка обновляется сразу. */
+export async function setWeeklyDigest(on: boolean) {
+  const prev = weeklyDigestStore.get()
+  weeklyDigestStore.set(on)
+  if (!telegramOnStore.get()) return
+  try {
+    await send()
+  } catch (e) {
+    weeklyDigestStore.set(prev)
+    throw e
+  }
 }
 
 export async function enableTelegramNotify() {

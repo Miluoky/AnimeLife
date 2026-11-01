@@ -22,12 +22,25 @@ export interface InboxItem {
   nextAt?: number
 }
 
+/** Серия, у которой с прошлой проверки вырос счётчик вышедших. */
+export interface EpisodeArrival {
+  id: string
+  title: string
+  ep: number
+  /** когда заметили, мс */
+  at: number
+}
+
 export interface InboxState {
   /** когда последний раз проверяли Shikimori */
   checkedAt: number
   items: InboxItem[]
   /** сколько серий было вышедшими, когда зритель последний раз открывал вкладку: всё, что выше, — «новое» */
   seen: Record<string, number>
+  /** выход серий с момента, когда начали вести журнал; старше двух недель выкидываем */
+  arrived?: EpisodeArrival[]
+  /** с какого момента журнал полный: раньше этой даты «за неделю» не обещает полноту */
+  trackingSince?: number
 }
 
 export const inboxStore = createLocalStore<InboxState>('anime.inbox.v1', { checkedAt: 0, items: [], seen: {} })
@@ -44,6 +57,32 @@ export function useInboxCount() {
   const state = inboxStore.use()
   listStore.use()
   return state.items.filter((i) => isFresh(i, state)).length
+}
+
+/** Окно сводки «За неделю». */
+export const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+const ARRIVAL_KEEP_MS = 14 * 24 * 60 * 60 * 1000
+
+/**
+ * Журнал вышедших серий между двумя проверками. Первый снимок и тайтл, только что добавленный в «Смотрю»,
+ * не считаем новостью недели: иначе в сводку попало бы всё, что уже вышло.
+ */
+export function nextArrivalLog(prev: InboxState, nextItems: InboxItem[], now = Date.now()): Pick<InboxState, 'arrived' | 'trackingSince'> {
+  const trackingSince = prev.trackingSince ?? now
+  if (!prev.checkedAt) return { arrived: prev.arrived ?? [], trackingSince }
+  const had = new Map(prev.items.map((i) => [i.id, i.aired]))
+  const added: EpisodeArrival[] = []
+  for (const item of nextItems) {
+    const before = had.get(item.id)
+    if (before == null || item.aired <= before) continue
+    const to = Math.min(item.aired, before + 30)
+    for (let ep = before + 1; ep <= to; ep++) added.push({ id: item.id, title: item.title, ep, at: now })
+  }
+  const key = (a: EpisodeArrival) => `${a.id}:${a.ep}`
+  const kept = (prev.arrived ?? []).filter((a) => now - a.at < ARRIVAL_KEEP_MS && now >= a.at)
+  const seen = new Set(kept.map(key))
+  return { arrived: [...kept, ...added.filter((a) => !seen.has(key(a)))].slice(-400), trackingSince }
 }
 
 /** Зритель открыл вкладку: всё, что сейчас вышло, больше не «новое». */

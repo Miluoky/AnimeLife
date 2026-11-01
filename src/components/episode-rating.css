@@ -45,3 +45,20 @@
   font-size: 14px;
   color: var(--accent);
 }
+.episode-rating__react {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 1 0 100%;
+}
+.episode-rating__react-label {
+  margin-right: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.episode-rating__react .pill {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}

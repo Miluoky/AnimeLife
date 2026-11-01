@@ -1,13 +1,51 @@
 /* Аватар с рамкой: общие для профиля и страниц сообщества. */
+.s-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
 .s-avatar {
   flex: 0 0 auto;
+  position: relative;
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
   font-weight: 700;
   color: #fff;
   background: color-mix(in srgb, var(--accent) 55%, var(--surface-2));
+  user-select: none;
 }
+
+.s-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.s-avatar__online {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 24%;
+  height: 24%;
+  min-width: 9px;
+  min-height: 9px;
+  max-width: 16px;
+  max-height: 16px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 8px #10b981dd;
+  animation: online-pulse 2s ease-in-out infinite;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Статические рамки */
 .s-avatar--accent {
   box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 0 4px var(--accent);
 }
@@ -24,6 +62,155 @@
   box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 0 4px #fff, 0 0 22px var(--accent);
   background: linear-gradient(135deg, var(--accent), #7c3aed);
 }
+
+/* Анимированные шейдерные рамки */
+@keyframes frame-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes flame-pulse {
+  0% { transform: scale(0.96); opacity: 0.7; }
+  100% { transform: scale(1.05); opacity: 1; }
+}
+@keyframes online-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.85; }
+}
+@keyframes live-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.55; }
+}
+
+.s-avatar--inferno {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 18px rgba(255, 69, 0, 0.85), 0 0 32px rgba(255, 140, 0, 0.5);
+}
+.s-avatar--inferno::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from 0deg, #ff1a1a, #ff7a00, #ffd700, #ff4500, #ff0055, #ff1a1a);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: frame-spin 3.5s linear infinite;
+  pointer-events: none;
+}
+
+.s-avatar--cyber {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 16px rgba(0, 242, 254, 0.85), 0 0 28px rgba(255, 0, 128, 0.5);
+}
+.s-avatar--cyber::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from 45deg, #00f2fe, #4facfe, #ff0844, #ffb199, #00f2fe);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: frame-spin 3s linear infinite reverse;
+  pointer-events: none;
+}
+
+.s-avatar--sakura_anim {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 15px rgba(255, 183, 197, 0.85), 0 0 26px rgba(244, 114, 182, 0.45);
+}
+.s-avatar--sakura_anim::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from 180deg, #ffb7c5, #f472b6, #fda4af, #fce7f3, #ffb7c5);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: frame-spin 5.5s linear infinite;
+  pointer-events: none;
+}
+
+.s-avatar--crown {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 18px rgba(250, 204, 21, 0.85), 0 0 32px rgba(234, 179, 8, 0.45);
+}
+.s-avatar--crown::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from 0deg, #ffd700, #ffae19, #fff275, #b8860b, #ffd700);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: frame-spin 4.5s linear infinite;
+  pointer-events: none;
+}
+
+.s-avatar--void {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 18px rgba(139, 92, 246, 0.85), 0 0 32px rgba(99, 102, 241, 0.5);
+}
+.s-avatar--void::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from 90deg, #8b5cf6, #3b82f6, #6366f1, #4c1d95, #8b5cf6);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: frame-spin 4s linear infinite;
+  pointer-events: none;
+}
+
+.s-avatar--lightning {
+  box-shadow: 0 0 0 2px var(--bg, #0a0a0c), 0 0 16px rgba(56, 189, 248, 0.9), 0 0 28px rgba(14, 165, 233, 0.55);
+}
+.s-avatar--lightning::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from 0deg, #38bdf8, #818cf8, #06b6d4, #e0f2fe, #38bdf8);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: frame-spin 2.2s linear infinite;
+  pointer-events: none;
+}
+
+/* Цвета никнеймов */
+.pf-name--neon-red {
+  color: #ff3366 !important;
+  text-shadow: 0 0 14px rgba(255, 51, 102, 0.75), 0 0 26px rgba(255, 51, 102, 0.35);
+}
+.pf-name--cyber-purple {
+  color: #b24bf3 !important;
+  text-shadow: 0 0 14px rgba(178, 75, 243, 0.75), 0 0 26px rgba(178, 75, 243, 0.35);
+}
+.pf-name--gold {
+  color: #ffd700 !important;
+  text-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 0 26px rgba(255, 215, 0, 0.4);
+}
+.pf-name--emerald {
+  color: #10b981 !important;
+  text-shadow: 0 0 14px rgba(16, 185, 129, 0.75), 0 0 26px rgba(16, 185, 129, 0.35);
+}
+.pf-name--ice-blue {
+  color: #38bdf8 !important;
+  text-shadow: 0 0 14px rgba(56, 189, 248, 0.8), 0 0 26px rgba(56, 189, 248, 0.4);
+}
+.pf-name--sunset {
+  background: linear-gradient(135deg, #f97316, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.6));
+}
+
 .s-level {
   font-size: 12px;
   padding: 2px 8px;
@@ -34,6 +221,541 @@
   width: fit-content;
 }
 
+/* Статус "Смотрит сейчас" и стрик */
+.pf-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(220, 38, 38, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fff;
+  text-decoration: none;
+  font-size: 13.5px;
+  transition: all 0.25s ease;
+  width: fit-content;
+  max-width: 100%;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.2);
+}
+.pf-live-pill:hover {
+  background: rgba(220, 38, 38, 0.3);
+  border-color: rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
+}
+.pf-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: live-pulse 1.8s infinite ease-in-out;
+  flex-shrink: 0;
+}
+.pf-live-play {
+  font-size: 11px;
+  background: #ef4444;
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+.pf-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.12);
+  border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+/* Senku Hero Banner */
+.pf-hero-wrap {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+}
+.pf-hero-banner {
+  height: 240px;
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: filter 0.3s ease;
+}
+.pf-hero-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 10, 12, 0.15) 0%, rgba(10, 10, 12, 0.85) 80%, var(--surface) 100%);
+  pointer-events: none;
+}
+.pf-hero-body {
+  position: relative;
+  padding: 0 28px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-top: -64px;
+  gap: 16px;
+}
+.pf-hero-avatar-box {
+  position: relative;
+  z-index: 2;
+}
+.pf-hero-name {
+  font: 800 32px var(--font-display, sans-serif);
+  margin: 0;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.pf-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.pf-hero-bio {
+  max-width: 680px;
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Статистическая сводка профиля */
+.pf-summary-bar {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, 1fr);
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: var(--surface-2, #14151a);
+  border: 1px solid rgb(255 255 255 / 0.06);
+}
+@media (max-width: 768px) {
+  .pf-summary-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pf-summary-xp {
+    grid-column: 1 / -1;
+  }
+}
+.pf-summary-xp {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+}
+.pf-xp-ring-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+.pf-xp-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.pf-xp-ring__bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 5;
+}
+.pf-xp-ring__fill {
+  fill: none;
+  stroke: var(--accent, #e53e3e);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease;
+}
+.pf-xp-ring__lvl {
+  position: absolute;
+  font: 800 16px var(--font-display, sans-serif);
+  color: #fff;
+}
+.pf-summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pf-summary-stat__val {
+  font: 700 20px var(--font-display, sans-serif);
+  color: #fff;
+}
+.pf-summary-stat__lbl {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Вкладки профиля */
+.pf-nav-tabs {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+.pf-nav-tab {
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  color: var(--muted);
+  font: 600 14px var(--font-display, sans-serif);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pf-nav-tab:hover {
+  color: #fff;
+  border-color: rgb(255 255 255 / 0.25);
+}
+.pf-nav-tab.is-active {
+  background: #fff;
+  color: #0d0e13;
+  border-color: #fff;
+}
+
+/* Блоки Списки / Жанры / Активность (Сенку 3) */
+.pf-senku-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 900px) {
+  .pf-senku-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.pf-panel {
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pf-panel__title {
+  font: 700 17px var(--font-display, sans-serif);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pf-seg-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  gap: 2px;
+}
+.pf-seg-bar__slice {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.pf-seg-legend {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pf-seg-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+}
+.pf-seg-item__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pf-seg-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Любимые жанры */
+.pf-genre-list {
+  display: grid;
+  gap: 10px;
+}
+.pf-genre-row {
+  display: grid;
+  grid-template-columns: 20px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+}
+.pf-genre-num {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 12px;
+}
+.pf-genre-bar-box {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  grid-column: 1 / -1;
+  margin-top: -2px;
+}
+.pf-genre-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.5s ease;
+}
+
+/* Активность метрики */
+.pf-act-list {
+  display: grid;
+  gap: 10px;
+  font-size: 13.5px;
+}
+.pf-act-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pf-act-val {
+  font-weight: 700;
+}
+
+/* Стена профиля (Сенку 4) */
+.pf-wall-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pf-wall-form {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.08);
+}
+.pf-wall-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 48px;
+}
+.pf-wall-comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.pf-wall-comment {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.05);
+}
+.pf-wall-comment__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pf-wall-comment__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.pf-wall-comment__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.pf-wall-comment__actions {
+  display: flex;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.pf-wall-comment__act {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pf-wall-comment__act:hover {
+  color: #fff;
+}
+
+/* Топ пьедестал (Сенку 1) */
+.s-podium {
+  display: grid;
+  grid-template-columns: 1fr 1.08fr 1fr;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 24px;
+}
+@media (max-width: 860px) {
+  .s-podium {
+    grid-template-columns: 1fr;
+  }
+}
+.s-podium__card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  align-items: center;
+  padding: 0 0 16px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  text-decoration: none;
+  color: inherit;
+}
+.s-podium__card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+}
+.s-podium__card--1 {
+  border-color: rgba(232, 184, 74, 0.45);
+  box-shadow: 0 8px 30px rgba(232, 184, 74, 0.15);
+  order: 2;
+}
+.s-podium__card--1:hover {
+  box-shadow: 0 14px 40px rgba(232, 184, 74, 0.3);
+  border-color: #e8b84a;
+}
+.s-podium__card--2 {
+  border-color: rgba(201, 209, 217, 0.35);
+  order: 1;
+}
+.s-podium__card--3 {
+  border-color: rgba(208, 138, 74, 0.35);
+  order: 3;
+}
+.s-podium__banner {
+  width: 100%;
+  height: 90px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+.s-podium__banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(10, 10, 12, 0.8) 100%);
+}
+.s-podium__badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font: 800 15px var(--font-display, sans-serif);
+  color: #fff;
+  z-index: 3;
+}
+.s-podium__card--1 .s-podium__badge {
+  background: #e8b84a;
+  color: #0d0e13;
+}
+.s-podium__card--2 .s-podium__badge {
+  background: #c9d1d9;
+  color: #0d0e13;
+}
+.s-podium__card--3 .s-podium__badge {
+  background: #d08a4a;
+  color: #fff;
+}
+.s-podium__crown {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 18px;
+  z-index: 3;
+  filter: drop-shadow(0 0 8px rgba(232, 184, 74, 0.8));
+}
+.s-podium__avatar-box {
+  position: relative;
+  margin-top: -32px;
+  margin-bottom: 8px;
+  z-index: 2;
+}
+.s-podium__name {
+  font: 700 16px var(--font-display, sans-serif);
+  margin: 4px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 85%;
+}
+.s-podium__pill {
+  margin-top: 10px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.s-podium__card--1 .s-podium__pill {
+  background: rgba(232, 184, 74, 0.2);
+  color: #e8b84a;
+  border: 1px solid rgba(232, 184, 74, 0.35);
+}
+
+/* Оформление профиля в настройках (ProfileStyleEditor) */
 .pf-cover {
   height: 140px;
   border-radius: 12px 12px 0 0;
@@ -66,6 +788,47 @@
     conic-gradient(var(--accent) calc(var(--p) * 1%), rgb(255 255 255 / 0.08) 0);
   font-size: 20px;
 }
+.pf-style__input-box {
+  display: flex;
+  gap: 8px;
+}
+.pf-style__input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 13.5px;
+}
+.pf-style__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pf-style__color-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: var(--surface);
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pf-style__color-btn[aria-pressed='true'] {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+}
+.pf-style__color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
 .pf-style__covers {
   display: flex;
   flex-wrap: wrap;
@@ -84,26 +847,28 @@
 .pf-style__frames {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 .pf-style__frames button {
   display: grid;
   justify-items: center;
   gap: 6px;
-  padding: 10px;
-  min-width: 84px;
+  padding: 12px 10px;
+  min-width: 90px;
   font-size: 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid rgb(255 255 255 / 0.08);
   background: var(--surface);
   color: inherit;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 .pf-style__frames button[aria-pressed='true'] {
   border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
 }
 .pf-style__frames button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 .pf-style__pick {

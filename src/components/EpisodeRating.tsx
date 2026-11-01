@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../data/auth'
+import { REACTIONS, reactionKey, toggleEpisodeReaction, useEpisodeReactions } from '../data/episodeReactions'
 import { loadEpisodeScore, myEpisodeRate, rateEpisode } from '../data/social'
 import { toast } from '../data/toast'
 import './episode-rating.css'
@@ -14,6 +15,8 @@ export default function EpisodeRating({ animeId, episode }: { animeId: string; e
   const [hover, setHover] = useState(0)
   const [agg, setAgg] = useState<{ avg: number; votes: number } | null>(null)
   const [busy, setBusy] = useState(false)
+  const reactions = useEpisodeReactions()
+  const mine = reactions[reactionKey(animeId, episode)]
 
   useEffect(() => {
     let alive = true
@@ -78,6 +81,20 @@ export default function EpisodeRating({ animeId, episode }: { animeId: string; e
           Войдите, чтобы оценить
         </Link>
       )}
+      <div className="episode-rating__react" role="group" aria-label="Личная реакция">
+        <span className="episode-rating__react-label">Реакция</span>
+        {REACTIONS.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            className={`pill${mine === r.id ? ' active' : ''}`}
+            aria-pressed={mine === r.id}
+            onClick={() => toggleEpisodeReaction(animeId, episode, r.id)}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
     </section>
   )
 }

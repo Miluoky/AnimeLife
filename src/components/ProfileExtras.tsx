@@ -5,7 +5,8 @@ import { useAuth } from '../data/auth'
 import { ShareIcon } from './Icons'
 import { listStore, useMyList, type ListEntry } from '../data/myList'
 import { STATUS_ORDER, type ProfileSummary } from '../data/profile'
-import { COVERS, FRAMES, profileStyleStore } from '../data/profileStyle'
+import { COVERS, FRAMES, NAME_COLORS, profileStyleStore } from '../data/profileStyle'
+import { Avatar } from './socialUi'
 import { follow, followCounts, isFollowing, unfollow } from '../data/social'
 import { SHIKI_CLIENT_ID, disconnectShikimori, pullAll, pushAll, restoreLink, shikiAuthorizeUrl, shikiLinkStore } from '../data/shikiSync'
 import { toast } from '../data/toast'
@@ -123,7 +124,7 @@ function compare(mine: ListEntry[], s: ProfileSummary) {
   return { percent, common, tips }
 }
 
-/** Оформление профиля в аккаунте: обложка, рамка (по уровню) и витрина до 6 тайтлов. */
+/** Оформление профиля в аккаунте: обложка (включая GIF), аватар, цвет ника, рамка (по уровню) и витрина до 6 тайтлов. */
 export function ProfileStyleEditor() {
   const style = profileStyleStore.use()
   const list = useMyList()
@@ -131,34 +132,129 @@ export function ProfileStyleEditor() {
   const showcase = style.showcase ?? []
   const candidates = [...list].filter((e) => e.status !== 'planned').sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 40)
   const set = (patch: Partial<typeof style>) => profileStyleStore.set({ ...profileStyleStore.get(), ...patch })
+  const [saving, setSaving] = useState(false)
+
+  const saveNow = async () => {
+    setSaving(true)
+    try {
+      const { publishProfile } = await import('../data/profile')
+      await publishProfile()
+      toast('Оформление сохранено и опубликовано!')
+    } catch {
+      toast('Оформление сохранено локально')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <section className="stack pf-style">
       <h2>Оформление профиля</h2>
+
+      {/* Кастомная обложка (GIF / Картинка) */}
       <div className="stack" style={{ gap: 8 }}>
-        <span className="muted">Обложка</span>
+        <span className="muted">Кастомная обложка профиля (GIF, WebP, PNG, JPG)</span>
+        <div className="pf-style__input-box">
+          <input
+            type="url"
+            className="pf-style__input"
+            placeholder="Вставьте ссылку на GIF или картинку (например: https://...)"
+            value={style.coverUrl ?? ''}
+            onChange={(e) => set({ coverUrl: e.target.value.trim() || undefined })}
+          />
+          {style.coverUrl && (
+            <button type="button" className="btn btn--ghost btn--small" onClick={() => set({ coverUrl: undefined })}>
+              Сбросить
+            </button>
+          )}
+        </div>
+        {style.coverUrl && (
+          <div
+            className="pf-cover"
+            style={{ backgroundImage: `url(${style.coverUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', height: 100, borderRadius: 10, marginBottom: 0 }}
+          />
+        )}
+      </div>
+
+      {/* Стандартные градиенты обложки */}
+      <div className="stack" style={{ gap: 8 }}>
+        <span className="muted">Или выберите стандартную тему обложки</span>
         <div className="pf-style__covers">
           {COVERS.map((c) => (
-            <button key={c.id} type="button" title={c.title} aria-pressed={style.cover === c.id} style={{ background: c.css }} onClick={() => set({ cover: c.id })}>
+            <button
+              key={c.id}
+              type="button"
+              title={c.title}
+              aria-pressed={style.cover === c.id && !style.coverUrl}
+              style={{ background: c.css }}
+              onClick={() => set({ cover: c.id, coverUrl: undefined })}
+            >
               <span className="sr-only">{c.title}</span>
             </button>
           ))}
         </div>
       </div>
+
+      {/* Кастомный аватар (GIF / Картинка) */}
+      <div className="stack" style={{ gap: 8 }}>
+        <span className="muted">Кастомный аватар (GIF, WebP, PNG, JPG)</span>
+        <div className="pf-style__input-box">
+          <input
+            type="url"
+            className="pf-style__input"
+            placeholder="Вставьте ссылку на аватарку или анимированную GIF..."
+            value={style.avatarUrl ?? ''}
+            onChange={(e) => set({ avatarUrl: e.target.value.trim() || undefined })}
+          />
+          {style.avatarUrl && (
+            <button type="button" className="btn btn--ghost btn--small" onClick={() => set({ avatarUrl: undefined })}>
+              Сбросить
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Цвет и свечение ника */}
+      <div className="stack" style={{ gap: 8 }}>
+        <span className="muted">Цвет и неоновое свечение никнейма</span>
+        <div className="pf-style__colors">
+          {NAME_COLORS.map((nc) => (
+            <button
+              key={nc.id}
+              type="button"
+              className="pf-style__color-btn"
+              aria-pressed={(style.nameColor ?? 'default') === nc.id}
+              onClick={() => set({ nameColor: nc.id === 'default' ? undefined : nc.id })}
+            >
+              <span className="pf-style__color-dot" style={{ background: nc.color, boxShadow: `0 0 8px ${nc.color}aa` }} />
+              <span>{nc.title}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Рамка аватара */}
       <div className="stack" style={{ gap: 8 }}>
         <span className="muted">Рамка аватара (открываются уровнем, у вас {level})</span>
         <div className="pf-style__frames">
           {FRAMES.map((f) => (
-            <button key={f.id} type="button" disabled={level < f.level} aria-pressed={(style.frame ?? 'none') === f.id} onClick={() => set({ frame: f.id })}>
-              <span className={`s-avatar s-avatar--${f.id}`} style={{ width: 36, height: 36 }} aria-hidden="true">
-                A
-              </span>
+            <button
+              key={f.id}
+              type="button"
+              disabled={level < f.level}
+              aria-pressed={(style.frame ?? 'none') === f.id}
+              onClick={() => set({ frame: f.id })}
+              title={f.desc}
+            >
+              <Avatar name="A" avatarUrl={style.avatarUrl} frame={f.id} size={38} />
               <span>{f.title}</span>
               {level < f.level && <span className="muted">ур. {f.level}</span>}
             </button>
           ))}
         </div>
       </div>
+
+      {/* Витрина тайтлов */}
       <div className="stack" style={{ gap: 8 }}>
         <span className="muted">Витрина: до 6 любимых тайтлов на видном месте ({showcase.length}/6)</span>
         <div className="pf-style__pick">
@@ -180,7 +276,13 @@ export function ProfileStyleEditor() {
           {!candidates.length && <span className="muted">Добавьте тайтлы в список, и их можно будет выставить на витрину.</span>}
         </div>
       </div>
-      <p className="muted pf-note">Изменения появятся в открытом профиле в течение минуты.</p>
+
+      <div className="actions" style={{ marginTop: 6 }}>
+        <button type="button" className="btn btn--accent btn--small" disabled={saving} onClick={saveNow}>
+          {saving ? 'Сохраняем…' : 'Применить и сохранить сейчас'}
+        </button>
+      </div>
+      <p className="muted pf-note">Изменения также автоматически отправляются в профиль в течение минуты.</p>
     </section>
   )
 }

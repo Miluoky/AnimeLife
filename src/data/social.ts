@@ -1,6 +1,7 @@
 import { Query } from 'appwrite'
 import { COMMUNITY_DB, tablesDB } from '../api/appwrite'
 import { callCommunity } from './community'
+import { createLocalStore } from './localStore'
 import type { ProfileSummary } from './profile'
 import { weekKey, monthKey } from './xp'
 
@@ -189,6 +190,64 @@ export const leaveClub = (clubId: string) => callCommunity<{ members: number }>(
 export const postToClub = (clubId: string, text: string) => callCommunity<{ post: ClubPost }>({ action: 'club-post', clubId, text }).then((r) => r.post)
 export const deleteClubPost = (postId: string) => callCommunity({ action: 'club-post-delete', postId })
 export const reportClubPost = (postId: string) => callCommunity<{ hidden?: boolean; already?: boolean }>({ action: 'club-post-report', postId })
+
+/** Цель клуба на этом устройстве. Общая для участников копия — запись на стене с меткой #цель. */
+export interface ClubGoal {
+  animeId: string
+  title: string
+  episode: number
+  /** ГГГГ-ММ-ДД, если срок задан */
+  deadline?: string
+  setAt: number
+}
+
+export const clubGoalStore = createLocalStore<Record<string, ClubGoal>>('anime.club.goal.v1', {})
+
+export function saveClubGoal(clubId: string, goal: ClubGoal) {
+  clubGoalStore.set({ ...clubGoalStore.get(), [clubId]: goal })
+}
+
+function ruDay(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return iso
+  return new Date(y, m - 1, d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/** Текст записи на стене: первая строка для людей, вторая — чтобы цель можно было прочитать с любой стены. */
+export function clubGoalText(g: Pick<ClubGoal, 'animeId' | 'title' | 'episode' | 'deadline'>) {
+  const title = g.title.replace(/[«»\r\n]/g, '').trim().slice(0, 120) || 'Аниме'
+  const when = g.deadline ? ` Срок: ${ruDay(g.deadline)}.` : ''
+  const mark = `#цель anime:${g.animeId} ep:${g.episode}${g.deadline ? ` until:${g.deadline}` : ''}`
+  return `Цель клуба: «${title}» — досмотреть до серии ${g.episode}.${when}\n${mark}`
+}
+
+const GOAL_MARK = /#цель\s+anime:(\d+)\s+ep:(\d+)(?:\s+until:(\d{4}-\d{2}-\d{2}))?/
+
+export function parseClubGoal(text: string, at: number): ClubGoal | null {
+  const m = GOAL_MARK.exec(text)
+  if (!m) return null
+  const episode = Number(m[2])
+  if (!Number.isFinite(episode) || episode < 1) return null
+  const title = /«([^»]+)»/.exec(text)?.[1]?.trim() || 'Аниме'
+  return { animeId: m[1], title, episode, deadline: m[3] || undefined, setAt: at }
+}
+
+/** Самая свежая цель среди записей (они приходят от новых к старым). */
+export function goalFromPosts(posts: { text: string; at: number }[]): ClubGoal | null {
+  for (const p of posts) {
+    const g = parseClubGoal(p.text, p.at)
+    if (g) return g
+  }
+  return null
+}
+
+/** Локальная цель и цель со стены: показываем ту, что поставили позже. Пока стена грузится — локальную. */
+export function activeClubGoal(local: ClubGoal | undefined, posts: { text: string; at: number }[] | null): ClubGoal | null {
+  const wall = posts ? goalFromPosts(posts) : null
+  if (!local) return wall
+  if (!wall) return local
+  return local.setAt >= wall.setAt ? local : wall
+}
 
 // --- Оценки серий ---
 

@@ -17,6 +17,7 @@ import {
 import { prefetchTitle } from '../api/prefetch'
 import { fadeIn } from '../components/PosterCard'
 import { listStatuses, setListStatus, useMyList } from '../data/myList'
+import { toggleSeasonPlan, useSeasonPlan } from '../data/seasonPlan'
 import { usePageMeta } from '../data/pageMeta'
 import { toast } from '../data/toast'
 import './season.css'
@@ -82,6 +83,25 @@ function useMinuteClock() {
  * Сезонный чарт, как на AniChart и LiveChart: все тайтлы сезона по форматам, большие карточки с описанием,
  * студией, жанрами и обратным отсчётом до следующей серии. Сезон листается стрелками, всё состояние — в адресе.
  */
+function SeasonPlanBar({ seasonId }: { seasonId: string; catalog?: SeasonAnime[] }) {
+  const plan = useSeasonPlan()[seasonId] ?? []
+  if (!plan.length) return null
+  return (
+    <section className="season-plan-bar" aria-label="Сетка сезона">
+      <div className="season-plan-bar__head">
+        <strong>Моя сетка сезона: {plan.length} тайтл{plan.length === 1 ? '' : plan.length < 5 ? 'а' : 'ов'}</strong>
+      </div>
+      <div className="season-plan-bar__items">
+        {plan.map((p) => (
+          <span key={p.id} className="pill season-plan-pill">
+            {p.title}
+          </span>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export default function Season() {
   const [params, setParams] = useSearchParams()
   const season = parseSeason(params.get('s')) ?? currentSeason()
@@ -93,6 +113,7 @@ export default function Season() {
   const now = useMinuteClock()
   const list = useMyList()
   const status = new Map(list.map((e) => [e.anime.id, e.status]))
+  const planIds = new Set((useSeasonPlan()[code] ?? []).map((p) => p.id))
 
   const [retry, setRetry] = useState(0)
   const result = useAsync(
@@ -142,6 +163,10 @@ export default function Season() {
     const next = prev ? undefined : 'planned'
     setListStatus(card, next)
     toast(next ? `${a.title}: «Буду смотреть»` : `${a.title} убран из списка`, { label: 'Отменить', onClick: () => setListStatus(card, prev) })
+  }
+
+  const onPlan = (a: SeasonAnime) => {
+    toggleSeasonPlan(code, { id: a.id, title: a.title, episodes: a.episodes || a.episodesAired || undefined })
   }
 
   return (
@@ -216,6 +241,8 @@ export default function Season() {
         </div>
       </div>
 
+      <SeasonPlanBar seasonId={code} catalog={all} />
+
       {result.loading && !result.value ? (
         <div className="season-grid" aria-busy="true">
           {Array.from({ length: 6 }, (_, i) => (
@@ -281,9 +308,21 @@ export default function Season() {
                         </li>
                       ))}
                     </ul>
-                    <button type="button" className={`season-card__add${st ? ' is-in' : ''}`} onClick={() => toggle(a)} aria-label={st ? `Убрать «${a.title}» из списка` : `Добавить «${a.title}» в «Буду смотреть»`}>
-                      {st ? `✓ ${listStatuses.find((s) => s.id === st)?.title}` : '+ В список'}
-                    </button>
+                    <div className="season-card__actions">
+                      {a.status !== 'released' && (
+                        <button
+                          type="button"
+                          className={`season-card__add${planIds.has(a.id) ? ' is-in' : ''}`}
+                          aria-pressed={planIds.has(a.id)}
+                          onClick={() => onPlan(a)}
+                        >
+                          {planIds.has(a.id) ? '✓ В сетке' : 'В сетку'}
+                        </button>
+                      )}
+                      <button type="button" className={`season-card__add${st ? ' is-in' : ''}`} onClick={() => toggle(a)} aria-label={st ? `Убрать «${a.title}» из списка` : `Добавить «${a.title}» в «Буду смотреть»`}>
+                        {st ? `✓ ${listStatuses.find((s) => s.id === st)?.title}` : '+ В список'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </li>

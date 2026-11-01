@@ -166,6 +166,10 @@ export default function Quiz() {
             <dd>{best}</dd>
           </div>
         </dl>
+        <p className="quiz-aside">
+          <Link to="/duel">Дуэль вкуса</Link>
+          <span> — кто ближе по пятёрке тайтлов</span>
+        </p>
       </header>
 
       {error ? (

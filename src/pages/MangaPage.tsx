@@ -6,6 +6,8 @@ import { chapterLabel, findMangadex, langName, mergeChapters, preferredLang, rea
 import { fetchOwnChapters } from '../api/mangaOwn'
 import { useAuth } from '../data/auth'
 import PosterCard from '../components/PosterCard'
+import FranchiseBridge from '../components/FranchiseBridge'
+import { animeHref } from '../data/animeUrl'
 import { usePageMeta } from '../data/pageMeta'
 import NotFound from './NotFound'
 import './character.css'
@@ -186,6 +188,7 @@ export default function MangaPage() {
   // Сначала экранизации: ради них сюда и приходят со страницы аниме.
   const animes = m.related.filter((r) => !r.href)
   const mangas = m.related.filter((r) => r.href)
+  const watch = animes.find((r) => /адаптац/i.test(r.relation)) ?? animes[0]
 
   return (
     <main className="container character">
@@ -204,6 +207,16 @@ export default function MangaPage() {
           {m.publishers.length > 0 && <div className="muted">Издатель: {m.publishers.join(', ')}</div>}
         </div>
       </section>
+
+      {watch && (
+        <FranchiseBridge
+          kind="anime"
+          title={watch.anime.title}
+          href={animeHref(watch.anime)}
+          animeId={watch.anime.id}
+          relation={watch.relation}
+        />
+      )}
 
       {m.description.length > 0 && <Description parts={m.description} />}
 

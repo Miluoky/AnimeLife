@@ -28,6 +28,7 @@ import { CONTACT_EMAIL, LEGAL, textParts } from '../src/data/legal.ts'
 import { isShikiProxy, shikiProxy } from './shikiProxy.js'
 import { isYummyProxy, yummyProxy } from './yummyProxy.js'
 import { isMangadexProxy, mangadexProxy } from './mangadexProxy.js'
+import { isSibnetProxy, sibnetProxy } from './sibnetProxy.js'
 import { guard } from './guard.js'
 import { EN_HOME, enDescription, enFacts, enName, enPath, enTitle } from '../src/data/en.ts'
 import {
@@ -69,7 +70,7 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|chat|community|news|manga|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|similar\/\d{1,10}(?:-[a-z0-9-]{1,80})?|studio\/[a-z0-9-]{2,30}|genre\/[a-z-]{2,24}|theme\/[a-z-]{2,24}|best\/(?:[a-z-]{2,24}|\d{4})|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|duel(?:/[A-Za-z0-9_-]+)?|chat|community|news|manga|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|similar\/\d{1,10}(?:-[a-z0-9-]{1,80})?|studio\/[a-z0-9-]{2,30}|genre\/[a-z-]{2,24}|theme\/[a-z-]{2,24}|best\/(?:[a-z-]{2,24}|\d{4})|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
@@ -1323,6 +1324,7 @@ export default {
     if (isYummyProxy(url.pathname)) return yummyProxy(request, ctx)
     // Главы манги из MangaDex для читалки (worker/mangadexProxy.js).
     if (isMangadexProxy(url.pathname)) return mangadexProxy(request, ctx)
+    if (isSibnetProxy(url.pathname)) return sibnetProxy(request, ctx)
     if (url.pathname === '/sitemap.xml') return sitemapIndex()
     if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')

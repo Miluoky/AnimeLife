@@ -1,5 +1,5 @@
 import { fetchAnimesByIds, fetchSchedule } from '../api/shikimori'
-import { inboxStore, type InboxItem } from './inbox'
+import { inboxStore, nextArrivalLog, type InboxItem } from './inbox'
 import { watchingIds } from './push'
 
 /** Чаще раза в 20 минут Shikimori не спрашиваем: серии выходят раз в неделю. */
@@ -44,5 +44,6 @@ async function run() {
   // Новый тайтл в «Смотрю»: уже вышедшие серии не считаем новостью, ждём следующую.
   const seen = { ...prev.seen }
   for (const i of items) if (!(i.id in seen) && prev.checkedAt) seen[i.id] = i.aired
-  inboxStore.set({ checkedAt: Date.now(), items, seen })
+  const log = nextArrivalLog(prev, items)
+  inboxStore.set({ checkedAt: Date.now(), items, seen, arrived: log.arrived, trackingSince: log.trackingSince })
 }

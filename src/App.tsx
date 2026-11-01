@@ -35,6 +35,7 @@ const Top = lazy(pageChunks.top)
 const Changelog = lazy(pageChunks.changelog)
 const Collections = lazy(pageChunks.collections)
 const Quiz = lazy(pageChunks.quiz)
+const TasteDuel = lazy(() => import('./pages/TasteDuel'))
 const AdminAnalytics = lazy(() => import('./pages/AdminAnalytics'))
 const Community = lazy(pageChunks.community)
 const ClubPage = lazy(pageChunks.club)
@@ -117,6 +118,8 @@ export default function App() {
           <Route path="changelog" element={<Changelog />} />
           <Route path="collections" element={<Collections />} />
           <Route path="quiz" element={<Quiz />} />
+          <Route path="duel" element={<TasteDuel />} />
+          <Route path="duel/:code" element={<TasteDuel />} />
           <Route path="community" element={<Community />} />
           <Route path="club/:id" element={<ClubPage />} />
           <Route path="c/:id" element={<UserCollectionPage />} />

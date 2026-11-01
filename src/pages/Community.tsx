@@ -1,3 +1,4 @@
+import { COVERS } from '../data/profileStyle'
 import './top.css'
 import './social.css'
 import { useState, type FormEvent } from 'react'
@@ -144,42 +145,124 @@ function Feed() {
 
 function Leaders() {
   const [period, setPeriod] = useState<'week' | 'month' | 'all'>('week')
+  const [metric, setMetric] = useState<'hours' | 'episodes' | 'xp'>('hours')
   const rows = useAsync(() => loadLeaders(period).catch(() => []), [period])
   const list = rows.value ?? []
+
+  const top3 = list.slice(0, 3)
+  const rest = list.slice(3)
+
+  const formatStat = (p: ProfileRow) => {
+    const s = parseSummary(p)
+    const xpVal = (period === 'week' ? p.weekXp : period === 'month' ? p.monthXp : p.xp) ?? 0
+    const eps = s.facts?.episodes ?? Math.max(1, Math.round(xpVal / 10))
+    const hours = Math.round((eps * 24) / 60) || Math.max(1, Math.round(xpVal / 25))
+
+    if (metric === 'hours') return `${hours.toLocaleString('ru-RU')} ч просмотра`
+    if (metric === 'episodes') return `${eps.toLocaleString('ru-RU')} серий`
+    return `${xpVal.toLocaleString('ru-RU')} XP`
+  }
+
+  // Порядок для пьедестала: 2 место слева, 1 место по центру, 3 место справа
+  const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3
+
   return (
     <section className="stack">
-      <div className="s-chips">
-        <button type="button" className={period === 'week' ? 'is-on' : undefined} onClick={() => setPeriod('week')}>
-          Эта неделя
-        </button>
-        <button type="button" className={period === 'month' ? 'is-on' : undefined} onClick={() => setPeriod('month')}>
-          Этот месяц
-        </button>
-        <button type="button" className={period === 'all' ? 'is-on' : undefined} onClick={() => setPeriod('all')}>
-          За всё время
-        </button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+        <div className="s-chips">
+          <button type="button" className={period === 'week' ? 'is-on' : undefined} onClick={() => setPeriod('week')}>
+            Эта неделя
+          </button>
+          <button type="button" className={period === 'month' ? 'is-on' : undefined} onClick={() => setPeriod('month')}>
+            Этот месяц
+          </button>
+          <button type="button" className={period === 'all' ? 'is-on' : undefined} onClick={() => setPeriod('all')}>
+            За всё время
+          </button>
+        </div>
+
+        <div className="s-chips">
+          <button type="button" className={metric === 'hours' ? 'is-on' : undefined} onClick={() => setMetric('hours')}>
+            Часы
+          </button>
+          <button type="button" className={metric === 'episodes' ? 'is-on' : undefined} onClick={() => setMetric('episodes')}>
+            Серии
+          </button>
+          <button type="button" className={metric === 'xp' ? 'is-on' : undefined} onClick={() => setMetric('xp')}>
+            Уровень
+          </button>
+        </div>
       </div>
+
       <p className="muted s-note">
         Опыт: 10 за серию, 50 за досмотренный тайтл, 5 за оценку, 100 за достижение. В топ попадают зрители с открытым профилем.
         {period === 'month' && ' Неделя и месяц считаются по сериям; лучших за месяц в последний день называем в нашем Telegram-канале.'}
       </p>
+
       {rows.loading && <p className="muted" aria-busy="true">Считаем опыт…</p>}
+
       {!rows.loading && !list.length && (
-        <div className="s-empty">{period === 'month' ? 'В этом месяце' : 'На этой неделе'} ещё никто не набрал опыта. Самое время стать первым!</div>
+        <div className="s-empty">
+          {period === 'month' ? 'В этом месяце' : 'На этой неделе'} ещё никто не набрал опыта. Самое время стать первым!
+        </div>
       )}
-      <ol className="s-leaders">
-        {list.map((p, i) => (
-          <li key={p.$id} className={`s-leaders__row${i < 3 ? ` s-leaders__row--${i + 1}` : ''}`}>
-            <span className="s-leaders__place">{i + 1}</span>
-            <Avatar name={p.name} frame={parseSummary(p).style?.frame} size={36} />
-            <Link to={`/u/${p.$id}`} className="s-leaders__name">
-              {p.name}
-            </Link>
-            <LevelBadge xp={p.xp} />
-            <b className="s-leaders__xp">{(period === 'week' ? p.weekXp : period === 'month' ? p.monthXp : p.xp) ?? 0} XP</b>
-          </li>
-        ))}
-      </ol>
+
+      {/* Топ-3 пьедестал по референсу Senku */}
+      {top3.length > 0 && (
+        <div className="s-podium">
+          {podiumOrder.map((p) => {
+            const rank = list.indexOf(p) + 1
+            const s = parseSummary(p)
+            const coverBg = s.style?.coverUrl
+              ? { backgroundImage: `url("${s.style.coverUrl}")` }
+              : s.style?.cover
+                ? { background: COVERS.find((c) => c.id === s.style?.cover)?.css }
+                : { background: 'linear-gradient(135deg, #1f1d2e, #14131d)' }
+
+            return (
+              <Link
+                key={p.$id}
+                to={`/u/${p.$id}`}
+                className={`s-podium__card s-podium__card--${rank}`}
+              >
+                <div className="s-podium__banner" style={coverBg}>
+                  <span className="s-podium__badge">{rank}</span>
+                  {rank === 1 && <span className="s-podium__crown" title="Лидер топа">👑</span>}
+                </div>
+                <div className="s-podium__avatar-box">
+                  <Avatar name={p.name} avatarUrl={s.style?.avatarUrl} frame={s.style?.frame} size={58} online={true} />
+                </div>
+                <span className={`s-podium__name ${s.style?.nameColor ? `pf-name--${s.style.nameColor}` : ''}`}>
+                  {p.name}
+                </span>
+                <LevelBadge xp={p.xp} />
+                <span className="s-podium__pill">{formatStat(p)}</span>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Ранги 4+ */}
+      {rest.length > 0 && (
+        <ol className="s-leaders" start={4}>
+          {rest.map((p, i) => {
+            const rank = i + 4
+            const s = parseSummary(p)
+            return (
+              <li key={p.$id} className="s-leaders__row">
+                <span className="s-leaders__place">{rank}</span>
+                <Avatar name={p.name} avatarUrl={s.style?.avatarUrl} frame={s.style?.frame} size={38} online={true} />
+                <Link to={`/u/${p.$id}`} className={`s-leaders__name ${s.style?.nameColor ? `pf-name--${s.style.nameColor}` : ''}`}>
+                  {p.name}
+                </Link>
+                <LevelBadge xp={p.xp} />
+                <b className="s-leaders__xp">{formatStat(p)}</b>
+              </li>
+            )
+          })}
+        </ol>
+      )}
     </section>
   )
 }

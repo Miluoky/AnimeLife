@@ -38,6 +38,9 @@ test('«Смотрю»: вышедшая серия открывается ср�
   await expect(ready.locator('.ep-card')).toHaveCount(1)
   await expect(ready).toContainText('Серия 7 · ещё 1 после неё')
   await expect(ready).toContainText('Новая серия')
+  const digest = page.getByRole('region', { name: 'За неделю' })
+  await expect(digest.getByRole('heading', { name: 'Не досмотрено' })).toBeVisible()
+  await expect(digest.getByRole('link', { name: /Блич/ })).toContainText('2 серии')
   // Ближайшая серия онгоинга, у которого всё посмотрено.
   await expect(page.locator('.soon-list')).toContainText('Серия 24')
 

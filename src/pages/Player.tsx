@@ -16,6 +16,7 @@ import { isBalancerAvailable } from '../api/balancers'
 import { fetchKodikTranslations, kodikTranslationUrl } from '../api/kodik'
 import { findRelease } from '../api/anilibria'
 import { findAnimeVost } from '../api/animevost'
+import { findDreamCast } from '../api/dreamcast'
 import { anixartEpisodes, findAnixart, type AnixartRelease } from '../api/anixart'
 import { findYummy, voiceKey, type YummyPlayer, type YummyVoice } from '../api/yummy'
 import { favoriteStudios, playerVoiceKey, rememberVoice, savedVoice, voiceKey as studioKey } from '../api/voiceKey'
@@ -68,12 +69,13 @@ export default function Player() {
   const free = useAsync(async () => {
     if (!anime) return undefined
     const q = { title: anime.title, originalTitle: anime.originalTitle, englishTitle: anime.englishTitle, year: anime.year }
-    const [al, av, ax] = await Promise.all([
+    const [al, av, ax, dc] = await Promise.all([
       findRelease(anime.id, [anime.title, anime.originalTitle, anime.englishTitle]).catch(() => undefined),
       findAnimeVost(anime.id, q).catch(() => null),
       findAnixart(anime.id, q).catch(() => null),
+      findDreamCast(anime.id, q).catch(() => null),
     ])
-    return { aniLibria: al === null ? 0 : al?.episodes.length, animeVost: av?.length ?? 0, anixart: ax }
+    return { aniLibria: al === null ? 0 : al?.episodes.length, animeVost: av?.length ?? 0, dreamCast: dc?.episodes.length ?? 0, anixart: ax }
   }, [anime?.id])
   // YummyAnime: те же студии в других плеерах (CVH, Alloha…) и студии, которых нет больше нигде. Плеер его не ждёт.
   // Ответ помечен id тайтла: пока он не про этот тайтл (ещё грузится или остался от прошлого), строка плееров ждёт его.
@@ -100,7 +102,7 @@ export default function Player() {
   // Счёт общий со страницей тайтла (episodeTotals): номера серий и таймера там и тут совпадают.
   const { total, next } = anime ? episodeTotals(anime, available) : { total: 1, next: 2 }
   // Своих источников нет: ждём YummyAnime, иначе сначала включится трейлер, а потом серия.
-  const hasOwn = !!kodik.value?.length || !!free.value?.aniLibria || !!free.value?.animeVost || !!free.value?.anixart?.voices.length
+  const hasOwn = !!kodik.value?.length || !!free.value?.aniLibria || !!free.value?.animeVost || !!free.value?.dreamCast || !!free.value?.anixart?.voices.length
   const waitYummy = yummyPending && !hasOwn
   // Филлеры размечены в Anixart: берём их из самой популярной озвучки, у всех студий номера одни.
   const axRelease = free.value?.anixart
@@ -696,7 +698,15 @@ interface Host {
 }
 
 // AniLibria и AnimeVost — один плеер: в ряду плееров «Наш плеер», на карточке студии «Плеер сайта».
-const OWN_LABEL: Partial<Record<Provider, string>> = { anilibria: 'Наш плеер', animevost: 'Наш плеер', anixart: 'Kodik', kodik: 'Kodik', alloha: 'Alloha' }
+const OWN_LABEL: Partial<Record<Provider, string>> = {
+  anilibria: 'Наш плеер',
+  dreamcast: 'Наш плеер',
+  animevost: 'Наш плеер',
+  sibnet: 'Наш плеер',
+  anixart: 'Kodik',
+  kodik: 'Kodik',
+  alloha: 'Alloha',
+}
 
 function hostsOf(voice: Voice): Host[] {
   const own = voice.provider === 'embed' ? undefined : OWN_LABEL[voice.provider]
@@ -706,7 +716,7 @@ function hostsOf(voice: Voice): Host[] {
     // Kodik у Anixart уже свой: второй такой же не показываем.
     if (p.name === own) continue
     // «Наш плеер» (id ''), затем один Kodik из YummyAnime. Sibnet и прочие с этой сети не открываются.
-    if (native && !/kodik/i.test(p.name)) continue
+    if (native && !/kodik|sibnet/i.test(p.name)) continue
     if (native && list.some((h) => /kodik/i.test(h.label))) continue
     if (list.some((h) => h.id === p.name)) continue
     list.push({ id: p.name, label: p.name, player: p })
@@ -794,8 +804,10 @@ function HostPicker({ hosts, current, onChoose, searching }: { hosts: Host[]; cu
 
 /** На карточке студии. Нативные источники подписаны одинаково — «Плеер сайта» (в ряду плееров это «Наш плеер»). */
 const SOURCE_LABEL: Record<Provider, string> = {
-  anilibria: 'Плеер сайта',
-  animevost: 'Плеер сайта',
+  anilibria: 'Наш плеер (без рекламы)',
+  dreamcast: 'Наш плеер (без рекламы)',
+  animevost: 'Наш плеер (без рекламы)',
+  sibnet: 'Наш плеер (без рекламы)',
   anixart: 'Kodik',
   kodik: 'Kodik',
   alloha: 'Alloha',

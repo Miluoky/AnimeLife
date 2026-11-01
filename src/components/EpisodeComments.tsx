@@ -51,6 +51,48 @@ function WithTimecodes({ text }: { text: string }) {
   return <>{out}</>
 }
 
+interface Moment {
+  seconds: number
+  stamp: string
+  count: number
+  snippet: string
+}
+
+/** Короткий кусок комментария вокруг таймкода. */
+function snippetAround(text: string, index: number, length: number) {
+  const start = Math.max(0, index - 28)
+  const end = Math.min(text.length, index + length + 28)
+  let s = text.slice(start, end).replace(/\s+/g, ' ').trim()
+  if (start > 0) s = `…${s}`
+  if (end < text.length) s = `${s}…`
+  return s
+}
+
+function mentions(n: number) {
+  const form = new Intl.PluralRules('ru').select(n)
+  const word = form === 'one' ? 'упоминание' : form === 'few' ? 'упоминания' : 'упоминаний'
+  return `${n} ${word}`
+}
+
+/** Уникальные моменты из уже загруженных комментариев: одно время — одна строка, по возрастанию. */
+function collectMoments(items: EpisodeComment[]): Moment[] {
+  const map = new Map<number, Moment>()
+  const re = new RegExp(TIMECODE.source, 'g')
+  for (const c of items) {
+    re.lastIndex = 0
+    for (const m of c.text.matchAll(re)) {
+      const seconds = Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3])
+      const snippet = c.spoiler ? 'Спойлер' : snippetAround(c.text, m.index ?? 0, m[0].length)
+      const prev = map.get(seconds)
+      if (prev) {
+        prev.count += 1
+        if (prev.snippet === 'Спойлер' && snippet !== 'Спойлер') prev.snippet = snippet
+      } else map.set(seconds, { seconds, stamp: m[0], count: 1, snippet })
+    }
+  }
+  return [...map.values()].sort((a, b) => a.seconds - b.seconds)
+}
+
 /**
  * Ветки обсуждения: комментарии верхнего уровня (свежие сверху), под каждым ответы по порядку.
  * Ответ на ответ встаёт в ту же ветку; если исходный комментарий убрали, ответ показывается сам по себе.
@@ -256,6 +298,7 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
           , чтобы обсуждать серии.
         </p>
       )}
+      {items !== null && <Moments items={items} />}
       {items === null ? (
         <div className="skeleton skeleton--line" style={{ height: 64 }} aria-busy="true" />
       ) : items.length === 0 ? (
@@ -266,6 +309,31 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
             <li key={comment.$id} className="comment-thread">
               {renderComment(comment)}
               {replies.length > 0 && <ul className="comments__replies">{replies.map((r) => <li key={r.$id}>{renderComment(r)}</li>)}</ul>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+/** «Моменты серии»: таймкоды из комментариев. Пустой список — отдельная подсказка, а не пропавшая секция. */
+function Moments({ items }: { items: EpisodeComment[] }) {
+  const moments = collectMoments(items)
+  return (
+    <section className="comments__moments" aria-label="Моменты серии">
+      <h3>Моменты серии</h3>
+      {moments.length === 0 ? (
+        <p className="muted">В комментариях пока нет моментов.</p>
+      ) : (
+        <ul>
+          {moments.map((m) => (
+            <li key={m.seconds} className="comments__moment">
+              <button type="button" className="comment__time" onClick={() => seek(m.seconds)} aria-label={`Перейти к ${m.stamp}`}>
+                {m.stamp}
+              </button>
+              <span className="muted">{mentions(m.count)}</span>
+              <span className="comments__snippet">{m.snippet}</span>
             </li>
           ))}
         </ul>

@@ -29,7 +29,7 @@ import {
   profileSave,
 } from './profile.js'
 import { takedownCreate, takedownList, takedownStatus } from './takedowns.js'
-import { TG_PREFIX, telegramReady, tgSendEpisode, tgStatus, tgSubscribe, tgUnsubscribe } from './telegram.js'
+import { TG_PREFIX, telegramReady, tgSendEpisode, tgSendWeekly, tgStatus, tgSubscribe, tgUnsubscribe } from './telegram.js'
 import { analyticsStats, analyticsTrack } from './analytics.js'
 import { errorClear, errorList, errorReport } from './errors.js'
 import { qualityStats, qualityTrack } from './quality.js'
@@ -56,7 +56,10 @@ import { inviteActions } from './invites.js'
  *   list-init, profile-*, comment-*  список, открытый профиль и обсуждение серий, см. profile.js;
  *   takedown-*  жалобы правообладателей и обратная связь (без входа), для админов — список и статус, см. takedowns.js.
  * По расписанию (каждые 15 минут) функция смотрит календарь Shikimori и шлёт пуш или сообщение в Telegram
- * подписчикам, у которых вышла новая серия.
+ * подписчикам, у которых вышла новая серия. Отдельно, только по воскресеньям 07:00–09:00 UTC
+ * (около 10:00–12:00 мск), тем, у кого в подписке Telegram auth === 'weekly', уходит одно напоминание
+ * открыть сводку на сайте. Ключ в sent: w + хеш «подписка:номер недели», чтобы повтор за ту же неделю не ушёл.
+ * Ошибка сводки не отменяет уже отправленные уведомления о сериях.
  *
  * Данные лежат в базе anime (TablesDB): reviews, votes, push, sent, takedowns. Читать отзывы может кто угодно,
  * а пишет в таблицы только эта функция, поэтому имя автора и его ID подделать нельзя.
@@ -437,20 +440,71 @@ async function notifyEpisodes(api, log) {
   return { due: due.length, sent }
 }
 
+/** Номер недели ГГГГНН по ISO (UTC), как weekKey на сайте. */
+function weekKey(t = Date.now()) {
+  const d = new Date(t)
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
+  const week = Math.ceil(((date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7)
+  return date.getUTCFullYear() * 100 + week
+}
+
+/**
+ * Воскресная сводка в Telegram. Не смотрит календарь и не пишет в те же ключи sent, что уведомления о сериях.
+ * Вне окна сразу выходит, не читая подписки.
+ */
+async function notifyWeeklyDigests(api, log) {
+  const now = new Date()
+  if (now.getUTCDay() !== 0 || now.getUTCHours() < 7 || now.getUTCHours() >= 9) return { skipped: true }
+  if (!telegramReady()) return { skipped: true, reason: 'telegram' }
+  let sent = 0
+  let failed = 0
+  for (const sub of await allSubscriptions(api)) {
+    try {
+      if (!String(sub.endpoint ?? '').startsWith(TG_PREFIX) || sub.auth !== 'weekly') continue
+      const sentId = `w${hash(`${sub.$id}:${weekKey(now.getTime())}`)}`
+      if ((await api('GET', `${DB}/sent/rows/${sentId}`)).status !== 404) continue
+      const result = await tgSendWeekly(sub)
+      if (result === 'sent') {
+        await api('PUT', `${DB}/sent/rows/${sentId}`, { data: { count: 1 } })
+        sent++
+      } else if (result === 'gone') {
+        await api('DELETE', `${DB}/push/rows/${sub.$id}`)
+      } else {
+        failed++
+        log(`weekly telegram failed for ${sub.$id}`)
+      }
+    } catch (e) {
+      failed++
+      log(`weekly digest ${e}`)
+    }
+  }
+  return { sent, failed }
+}
+
 export default async ({ req, res, log, error }) => {
   const api = appwrite(req)
 
   if (req.headers['x-appwrite-trigger'] === 'schedule') {
+    const result = {}
     try {
       const cleaned = await cleanRooms(api)
       cleaned.communityChat = await cleanCommunityChat(api)
-      const result = { ...(await notifyEpisodes(api, log)), cleaned }
-      log(JSON.stringify(result))
-      return res.json(result)
+      Object.assign(result, await notifyEpisodes(api, log), { cleaned })
     } catch (e) {
       error(String(e))
-      return res.json({ error: 'notify failed' }, 500)
+      result.error = 'notify failed'
     }
+    // Сводка отдельно: сбой календаря или пушей не отменяет её, и она не отменяет ответ про серии.
+    try {
+      result.weekly = await notifyWeeklyDigests(api, log)
+    } catch (e) {
+      log(`weekly digest ${e}`)
+      result.weekly = { error: true }
+    }
+    log(JSON.stringify(result))
+    if (result.error) return res.json(result, 500)
+    return res.json(result)
   }
 
   if (req.method !== 'POST') return res.json({ error: 'Нужен POST.' }, 405)

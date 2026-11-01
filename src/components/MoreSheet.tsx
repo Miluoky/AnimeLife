@@ -22,6 +22,7 @@ const LINKS = [
   { to: '/manga', title: 'Манга', hint: 'Читать онлайн', icon: <Svg d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 1-2-2zM13 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /> },
   { to: '/collections', title: 'Подборки', hint: 'По настроению', icon: <Svg d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /> },
   { to: '/quiz', title: 'Викторина', hint: 'Угадай аниме', icon: <SparkIcon size={22} /> },
+  { to: '/duel', title: 'Дуэль', hint: 'Чей вкус ближе', icon: <Svg d="M4 5h6v14H4zM14 5h6v14h-6z" /> },
   { to: '/community', title: 'Сообщество', hint: 'Лента, клубы, топ', icon: <PeopleIcon /> },
   { to: '/chat', title: 'Чат', hint: 'Общий разговор', icon: <Svg d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /> },
   { to: '/news', title: 'Новости', hint: 'Анонсы и премьеры', icon: <Svg d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5" /> },

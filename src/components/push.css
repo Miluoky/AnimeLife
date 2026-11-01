@@ -1,4 +1,10 @@
 /* Уведомления о сериях */
+.tg-notify {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .push-card {
   display: flex;
   align-items: center;

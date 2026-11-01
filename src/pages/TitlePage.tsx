@@ -26,6 +26,7 @@ import { PlayIcon } from '../components/Icons'
 import NextEpisode from '../components/NextEpisode'
 import FollowButton from '../components/FollowButton'
 import WatchOrder from '../components/WatchOrder'
+import FranchiseBridge from '../components/FranchiseBridge'
 import { fetchStaff } from '../api/staff'
 import { findAnixart } from '../api/anixart'
 import { choosePlayerVoice, voiceKey } from '../api/voiceKey'
@@ -347,6 +348,7 @@ export default function TitlePage() {
 
   const shots = screenshots.value ?? []
   const related = extras.value?.related ?? []
+  const mangaRel = related.find((r) => r.href && r.anime.kind !== 'Ранобэ' && r.anime.kind !== 'Новелла')
   const similar = extras.value?.similar ?? []
   const watchLinks = extras.value?.watchLinks ?? []
   const characters = extras.value?.characters ?? []
@@ -465,6 +467,15 @@ export default function TitlePage() {
               </dl>
             )}
             <TitleProgress animeId={anime.id} />
+            {mangaRel?.href && (
+              <FranchiseBridge
+                kind="manga"
+                title={mangaRel.anime.title}
+                href={mangaRel.href}
+                mangaId={/(\d+)/.exec(mangaRel.href)?.[1] ?? mangaRel.anime.id.replace(/^manga-/, '')}
+                relation={mangaRel.relation}
+              />
+            )}
             {anime.description && <About text={anime.description} />}
           </div>
         </section>

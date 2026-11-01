@@ -3,8 +3,10 @@ import { DB, UserError, hash } from './util.js'
 /**
  * Уведомления о новых сериях в Telegram, через того же бота, которым входят на сайт (@AnimeLifeAuth_bot).
  *   tg-status                      включены ли уведомления у вошедшего через Telegram пользователя;
- *   tg-subscribe {animeIds, site}  включить или обновить список тайтлов (бот пишет «Уведомления включены» в первый раз);
+ *   tg-subscribe {animeIds, site, weekly?}  включить или обновить список тайтлов (бот пишет «Уведомления включены» в первый раз);
  *   tg-unsubscribe                 выключить.
+ * У строк Telegram поле auth не ключ пуша, а флаг сводки: «weekly» или «-». Браузерные подписки это поле не трогают.
+ * Воскресное напоминание читает auth === 'weekly' и не входит в рассылку отдельных серий.
  * Подписка лежит в той же таблице push, что и браузерные: ID строки t<хеш ID пользователя>,
  * endpoint = tg:<ID чата>. Писать боту можно только тем, кто сам открыл его, а вошедшие через Telegram
  * уже нажимали в нём Start, поэтому уведомления доступны аккаунтам tg_<ID>.
@@ -47,7 +49,8 @@ const rowId = (userId) => 't' + hash(userId)
 export async function tgStatus(api, req) {
   const { userId } = await telegramUser(api, req)
   const row = await api('GET', `${DB}/push/rows/${rowId(userId)}`)
-  return { configured: telegramReady(), on: row.status !== 404 }
+  const on = row.status !== 404
+  return { configured: telegramReady(), on, weekly: on && row.json?.auth === 'weekly' }
 }
 
 export async function tgSubscribe(api, req, body, sites) {
@@ -58,6 +61,8 @@ export async function tgSubscribe(api, req, body, sites) {
   const animeIds = [...new Set((body.animeIds ?? []).map(String).filter((id) => /^\d{1,10}$/.test(id)))].slice(0, 200)
   const id = rowId(userId)
   const existing = await api('GET', `${DB}/push/rows/${id}`)
+  // Явный true/false с сайта. Старый клиент поле не шлёт — не сбрасываем уже включённую сводку.
+  const auth = body.weekly === true ? 'weekly' : body.weekly === false ? '-' : existing.status !== 404 && existing.json?.auth === 'weekly' ? 'weekly' : '-'
   if (existing.status === 404) {
     // Первое включение: заодно проверяем, что бот может писать в этот чат.
     const sent = await bot('sendMessage', {
@@ -72,7 +77,7 @@ export async function tgSubscribe(api, req, body, sites) {
     }
   }
   await api('PUT', `${DB}/push/rows/${id}`, {
-    data: { endpoint: `${TG_PREFIX}${chatId}`, p256dh: '-', auth: '-', userId, animeIds, site },
+    data: { endpoint: `${TG_PREFIX}${chatId}`, p256dh: '-', auth, userId, animeIds, site },
   })
   return { ok: true, count: animeIds.length }
 }
@@ -95,6 +100,34 @@ export async function tgSendEpisode(sub, e) {
     parse_mode: 'HTML',
     text: `🎬 <b>Новая серия: ${escapeHtml(title)}</b>\nВышла ${Number(e.next_episode)}-я серия.`,
     reply_markup: { inline_keyboard: [[{ text: '▶️ Смотреть', url: `${publicSite(sub.site)}watch/${e.anime.id}/${e.next_episode}` }]] },
+  })
+  if (res.ok) return 'sent'
+  if (res.status === 403 || /chat not found/i.test(res.description)) return 'gone'
+  return 'failed'
+}
+
+function titlesInList(n) {
+  const abs = Math.abs(n) % 100
+  const last = abs % 10
+  const word = abs > 10 && abs < 20 ? 'тайтлов' : last === 1 ? 'тайтл' : last >= 2 && last <= 4 ? 'тайтла' : 'тайтлов'
+  return `${n} ${word}`
+}
+
+/**
+ * Короткое воскресное напоминание открыть сводку на сайте. Список серий здесь не собираем:
+ * прогресс «посмотрел / вышло» живёт в браузере, а календарь на сервере помнит только свежие часы.
+ */
+export async function tgSendWeekly(sub) {
+  const chatId = sub.endpoint.slice(TG_PREFIX.length)
+  const count = Array.isArray(sub.animeIds) ? sub.animeIds.length : 0
+  const line = count ? `В подписке ${titlesInList(count)}.` : 'Список «Смотрю» пока пуст.'
+  const res = await bot('sendMessage', {
+    chat_id: chatId,
+    parse_mode: 'HTML',
+    text:
+      `📅 <b>Сводка «Смотрю» за неделю</b>\n${line}\n` +
+      'На сайте — серии, которые вышли, и то, что ещё не досмотрели.',
+    reply_markup: { inline_keyboard: [[{ text: 'Открыть «Смотрю»', url: `${publicSite(sub.site)}watching` }]] },
   })
   if (res.ok) return 'sent'
   if (res.status === 403 || /chat not found/i.test(res.description)) return 'gone'

@@ -1,4 +1,5 @@
 import './profile-extras.css'
+import { useState } from 'react'
 import type { AnimeCard } from '../data/catalog'
 import type { CollectionItem } from '../data/social'
 import { levelOf } from '../data/xp'
@@ -16,10 +17,42 @@ export function ago(t: number) {
   return new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 }
 
-export function Avatar({ name, frame, size = 40 }: { name: string; frame?: string; size?: number }) {
+export function Avatar({
+  name,
+  avatarUrl,
+  frame = 'none',
+  size = 40,
+  online,
+}: {
+  name: string
+  avatarUrl?: string
+  frame?: string
+  size?: number
+  online?: boolean
+}) {
+  const [imgError, setImgError] = useState(false)
+  const showImg = Boolean(avatarUrl && !imgError)
+
   return (
-    <span className={`s-avatar s-avatar--${frame || 'none'}`} style={{ width: size, height: size, fontSize: size * 0.42 }} aria-hidden="true">
-      {(name || '?').slice(0, 1).toUpperCase()}
+    <span className="s-avatar-wrap" style={{ width: size, height: size }}>
+      <span
+        className={`s-avatar s-avatar--${frame || 'none'}`}
+        style={{ width: size, height: size, fontSize: size * 0.42 }}
+        aria-hidden="true"
+      >
+        {showImg ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            className="s-avatar__img"
+            loading="lazy"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          (name || '?').slice(0, 1).toUpperCase()
+        )}
+      </span>
+      {online && <span className="s-avatar__online" title="В сети" aria-label="В сети" />}
     </span>
   )
 }
