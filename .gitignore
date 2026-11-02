@@ -18,5 +18,6 @@ lighthouse.json
 service_account.json
 *service_account*.json
 credentials.json
+.yandex_token
 __pycache__/
 *.pyc
