@@ -1,0 +1,70 @@
+name: Ежедневное SEO-индексирование (Google & Yandex)
+
+on:
+  schedule:
+    # Каждый день в 12:00 МСК (09:00 UTC), когда Google сбрасывает суточный лимит Indexing API
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      quota_limit:
+        description: 'Лимит URL для Google Indexing API'
+        required: false
+        default: '180'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: seo-indexing
+  cancel-in-progress: false
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Проверить репозиторий
+        uses: actions/checkout@v4
+
+      - name: Настроить Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Установить зависимости
+        run: |
+          pip install google-auth requests
+
+      - name: Развернуть ключ Google Service Account (если задан в Secrets)
+        env:
+          GOOGLE_SA_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SA_KEY" ]; then
+            echo "$GOOGLE_SA_KEY" > scripts/seo_ops/service_account.json
+            echo "Google Service Account key deployed from secrets."
+          else
+            echo "::notice::Секрет GOOGLE_SERVICE_ACCOUNT_JSON не найден, отправка в Google будет пропущена."
+          fi
+
+      - name: Отправка очереди в Google Indexing API
+        run: |
+          if [ -f scripts/seo_ops/service_account.json ]; then
+            python scripts/seo_ops/daily_quota_indexer.py ${{ github.event.inputs.quota_limit || '180' }}
+          else
+            echo "Пропуск Google Indexing API (нет ключа)."
+          fi
+
+      - name: Отправка очереди в Яндекс и Bing (IndexNow)
+        run: |
+          python scripts/seo_ops/yandex_indexnow_push.py
+
+      - name: Сохранить историю индексации в репозитории
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -f scripts/seo_ops/indexed_urls_history.json ]; then
+            git add scripts/seo_ops/indexed_urls_history.json
+            git diff --staged --quiet || (git commit -m "chore(seo): update Google Indexing API state [skip ci]" && git push origin main)
+          fi
