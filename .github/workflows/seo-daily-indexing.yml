@@ -32,10 +32,11 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
+          cache-dependency-path: 'scripts/seo_ops/requirements.txt'
 
       - name: Установить зависимости
         run: |
-          pip install google-auth requests
+          pip install -r scripts/seo_ops/requirements.txt
 
       - name: Развернуть ключ Google Service Account (если задан в Secrets)
         env:
