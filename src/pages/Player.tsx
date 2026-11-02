@@ -23,7 +23,8 @@ import { favoriteStudios, playerVoiceKey, rememberVoice, savedVoice, voiceKey as
 import { markFlag } from '../data/flags'
 import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
-import { usePageMeta } from '../data/pageMeta'
+import { usePageMeta, useJsonLd } from '../data/pageMeta'
+import { buildJsonLdEpisode } from '../data/seoEngine'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
@@ -225,6 +226,33 @@ export default function Player() {
     anime && watchPageTitle(animeInfo(anime), current),
     anime && watchPageDescription(animeInfo(anime), current, total),
   )
+
+  const episodeJsonLd = useMemo(() => {
+    if (!anime) return null
+    return buildJsonLdEpisode(
+      {
+        id: anime.id,
+        title: anime.title,
+        originalTitle: anime.originalTitle,
+        posterUrl: anime.posterUrl,
+        year: anime.year,
+        episodesTotal: anime.episodes,
+        episodesAired: anime.episodesAired,
+        durationMinutes: anime.episodeMinutes,
+        studio: anime.studio,
+        genres: anime.genres ?? [],
+        kind: (anime.kind as any) || 'tv',
+        status: anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes ? 'ongoing' : 'released',
+        description: anime.description,
+      },
+      {
+        episodeNumber: current,
+        title: names[current],
+      }
+    )
+  }, [anime, current, names])
+
+  useJsonLd(episodeJsonLd as unknown as Record<string, any>)
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   if (!anime) return <NotFound title="Тайтл не найден" />
