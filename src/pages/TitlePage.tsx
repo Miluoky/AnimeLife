@@ -38,6 +38,7 @@ import './title.css'
 const Reviews = lazy(() => import('../components/Reviews'))
 const ThemeSongs = lazy(() => import('../components/ThemeSongs'))
 const BestEpisodes = lazy(() => import('../components/BestEpisodes'))
+const TitleFaq = lazy(() => import('../components/TitleFaq'))
 
 const MAX_SHOTS = 8
 
@@ -748,6 +749,18 @@ export default function TitlePage() {
         )}
 
         <Suspense fallback={null}>
+          <TitleFaq
+            title={anime.title}
+            originalTitle={anime.originalTitle}
+            episodesTotal={anime.episodes}
+            episodesAired={anime.episodesAired}
+            year={anime.year}
+            genres={anime.genres}
+            studio={anime.studio}
+            status={anime.ongoing ? 'ongoing' : 'released'}
+            ageRating={ageLabel(anime.rating)}
+            mangaTitle={mangaRel?.anime.title}
+          />
           <Reviews animeId={anime.id} />
         </Suspense>
 
