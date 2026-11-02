@@ -13,3 +13,8 @@ lighthouse.json
 .agents/
 
 .health/
+
+# Security & Keys
+service_account.json
+*service_account*.json
+credentials.json
