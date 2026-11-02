@@ -1100,7 +1100,7 @@ async function render(env, url, status = 200, asset) {
   // Коды подтверждения для Google Search Console и Яндекс Вебмастера (переменные Worker, см. README).
   const verification = [
     ['google-site-verification', env.GOOGLE_SITE_VERIFICATION],
-    ['yandex-verification', env.YANDEX_VERIFICATION],
+    ['yandex-verification', env.YANDEX_VERIFICATION || '55f906a71e246741'],
   ]
   const extra = verification.map(([name, value]) => (value ? `<meta name="${name}" content="${escapeHtml(value)}" />` : ''))
   let rewriter = new HTMLRewriter()
