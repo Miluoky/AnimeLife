@@ -1,49 +1,222 @@
-# Обычный файл без Worker: его чтение роботами не тратит лимит вызовов (docs/worker-limit.md).
+# ==============================================================================
+# AnimeLife (https://animelife.top) — Production robots.txt
+# Architecture: Technical SEO & Crawlability Optimization
+# Protects serverless limits, isolates player embeds/balancers, maximizes crawl budget.
+# ==============================================================================
 
-# Сборщики данных для обучения ИИ и SEO-сервисы: сайту от них только расход лимита.
+# ------------------------------------------------------------------------------
+# 1. AI Scrapers & LLM Training Bots (Disallow All)
+# These crawlers consume excessive Cloudflare Worker requests and bandwidth
+# without generating direct search referral traffic.
+# ------------------------------------------------------------------------------
 User-agent: Amazonbot
-User-agent: meta-externalagent
-User-agent: meta-externalfetcher
-User-agent: GPTBot
-User-agent: CCBot
-User-agent: ClaudeBot
 User-agent: anthropic-ai
-User-agent: Google-Extended
 User-agent: Applebot-Extended
 User-agent: Bytespider
-User-agent: PerplexityBot
+User-agent: CCBot
+User-agent: Claude-Web
+User-agent: ClaudeBot
 User-agent: cohere-ai
 User-agent: Diffbot
+User-agent: FacebookBot
+User-agent: FriendlyCrawler
+User-agent: Google-Extended
+User-agent: GPTBot
 User-agent: ImagesiftBot
-User-agent: Timpibot
-User-agent: omgili
-User-agent: SemrushBot
-User-agent: AhrefsBot
-User-agent: MJ12bot
-User-agent: DotBot
+User-agent: meta-externalagent
+User-agent: meta-externalfetcher
+User-agent: Omgilibot
+User-agent: PerplexityBot
 User-agent: PetalBot
-User-agent: DataForSeoBot
-User-agent: BLEXBot
-User-agent: serpstatbot
-User-agent: Barkrowler
-User-agent: MegaIndex
-User-agent: Seekport
+User-agent: Scrapy
+User-agent: Timpibot
+User-agent: VelenPublicWebCrawler
+User-agent: YouBot
 Disallow: /
 
-# Поисковики и все остальные. /api/ — данные для приложения, роботам там делать нечего.
-User-agent: *
+# ------------------------------------------------------------------------------
+# 2. Commercial SEO Audit Bots & Content Scrapers (Disallow All)
+# Aggressive crawling of pagination, filters, and dynamic media pages.
+# ------------------------------------------------------------------------------
+User-agent: AhrefsBot
+User-agent: Barkrowler
+User-agent: BLEXBot
+User-agent: DataForSeoBot
+User-agent: DotBot
+User-agent: LinkpadBot
+User-agent: MegaIndex
+User-agent: MegaIndex.ru
+User-agent: MJ12bot
+User-agent: Nimbostratus-Bot
+User-agent: Rogerbot
+User-agent: Seekport
+User-agent: SemrushBot
+User-agent: SemrushBot-SA
+User-agent: serpstatbot
+User-agent: Spinn3r
+User-agent: ZoominfoBot
+Disallow: /
+
+# ------------------------------------------------------------------------------
+# 3. Yandex Search Crawler (Yandex, YandexBot, YandexMedia)
+# Customized for optimal indexing of anime titles, genres, and landing hubs.
+# ------------------------------------------------------------------------------
+User-agent: Yandex
+User-agent: YandexBot
+User-agent: YandexMedia
 Allow: /
+# Public landing and media assets
+Allow: /anime/
+Allow: /watch/
+Allow: /catalog
+Allow: /genre/
+Allow: /theme/
+Allow: /studio/
+Allow: /year/
+Allow: /type/
+Allow: /ongoing
+Allow: /schedule
+Allow: /collections
+Allow: /character/
+Allow: /person/
+Allow: /manga
+Allow: /news
+Allow: /about
+Allow: /rightholders
+Allow: /terms
+Allow: /privacy
+# Disallow Internal APIs & Service Endpoints
 Disallow: /api/
+Disallow: /appwrite/
+Disallow: /functions/
+# Disallow Balancer Proxies, Stream Pipes & Raw Embeds
+Disallow: /proxy/
+Disallow: /stream/
+Disallow: /balancer/
+Disallow: /embed/
+Disallow: /player/embed/
+# Disallow User Accounts, Private Walls & Auth
 Disallow: /account
+Disallow: /account/*
+Disallow: /auth/
+Disallow: /auth/*
+Disallow: /my-list
+Disallow: /watching
+# Disallow Moderation & Admin Consoles
+Disallow: /moderation
+Disallow: /moderation/*
+Disallow: /admin/
+Disallow: /admin/*
+# Disallow Realtime Interaction & Interactive Rooms
+Disallow: /together/
+Disallow: /chat
+Disallow: /duel/
+Disallow: /duel/*
+Disallow: /quiz
+# Disallow Creation/Editing routes and dynamic uploads
+Disallow: /c/*/edit
+Disallow: /collections/new
+Disallow: /collections/my
+Disallow: /manga/*/upload
+Disallow: /recap
+Disallow: /search*
+# Clean-param for Yandex: collapse duplicate query strings and tracking parameters
+Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&utm_referrer&yclid&gclid&fbclid&_openstat&openstat&from&ref&ysclid /
+Clean-param: t&time&start /watch/*
+Clean-param: voice&player&dub /watch/*
+Clean-param: q /catalog
+
+# ------------------------------------------------------------------------------
+# 4. Google Search Crawlers (Googlebot, Googlebot-Image, Googlebot-Video)
+# Ensuring media pages index while blocking API calls and dynamic traps.
+# ------------------------------------------------------------------------------
+User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Googlebot-Video
+Allow: /
+Allow: /assets/*.js
+Allow: /assets/*.css
+Allow: /assets/*.webp
+Allow: /assets/*.png
+Allow: /assets/*.svg
+Allow: /assets/*.jpg
+Allow: /anime/
+Allow: /watch/
+Allow: /catalog
+Allow: /genre/
+Allow: /theme/
+Allow: /studio/
+Allow: /year/
+Allow: /type/
+Allow: /ongoing
+Allow: /schedule
+Allow: /character/
+Allow: /person/
+Allow: /manga
+Allow: /news
+# API and dynamic balancers
+Disallow: /api/
+Disallow: /proxy/
+Disallow: /stream/
+Disallow: /balancer/
+Disallow: /embed/
+# User and moderation sections
+Disallow: /account
+Disallow: /account/*
 Disallow: /auth/
 Disallow: /moderation
-Disallow: /watching
-Disallow: /my-list
+Disallow: /admin/
 Disallow: /together/
-Disallow: /recap
+Disallow: /my-list
+Disallow: /watching
+Disallow: /chat
+Disallow: /duel/
 Disallow: /c/*/edit
+Disallow: /collections/new
 Disallow: /manga/*/upload
-# Яндекс склеивает адреса с метками рекламы и рассылок с основным адресом страницы.
-Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&yclid&gclid&fbclid
+Disallow: /recap
+Disallow: /search*
 
+# ------------------------------------------------------------------------------
+# 5. Default Rules for All Other Legitimate Crawlers (Bing, Mail.ru, DuckDuckGo, etc.)
+# ------------------------------------------------------------------------------
+User-agent: *
+Allow: /
+# Disallow Backend APIs & Media Proxies
+Disallow: /api/
+Disallow: /proxy/
+Disallow: /stream/
+Disallow: /balancer/
+Disallow: /embed/
+# Disallow User Accounts & Auth
+Disallow: /account
+Disallow: /account/*
+Disallow: /auth/
+Disallow: /auth/*
+Disallow: /my-list
+Disallow: /watching
+# Disallow Moderation & Admin
+Disallow: /moderation
+Disallow: /moderation/*
+Disallow: /admin/
+Disallow: /admin/*
+# Disallow Real-time & Multiplayer rooms
+Disallow: /together/
+Disallow: /together/*
+Disallow: /chat
+Disallow: /duel/
+Disallow: /duel/*
+Disallow: /quiz
+# Disallow Editor actions
+Disallow: /c/*/edit
+Disallow: /collections/new
+Disallow: /collections/my
+Disallow: /manga/*/upload
+Disallow: /recap
+Disallow: /search*
+
+# ------------------------------------------------------------------------------
+# 6. Crawl Host & Dynamic Sitemap Index
+# ------------------------------------------------------------------------------
+Host: animelife.top
 Sitemap: https://animelife.top/sitemap.xml
