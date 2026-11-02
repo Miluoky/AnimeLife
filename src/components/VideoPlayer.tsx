@@ -36,6 +36,7 @@ import { getPosition, savePosition } from '../data/positions'
 import { emitPlayerTime, playerTime } from '../data/playerTime'
 import { useMediaSession } from './mediaSession'
 import './player.css'
+import BufferTrivia from './BufferTrivia'
 import {
   kodikEmbedUrl,
   kodikHost,
@@ -193,6 +194,16 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [error, setError] = useState<string | null>(null)
   const [frameAttempt, setFrameAttempt] = useState(0)
   const [nativeAttempt, setNativeAttempt] = useState(0)
+  const [showTrivia, setShowTrivia] = useState(false)
+  useEffect(() => {
+    if (loading) {
+      const t = window.setTimeout(() => setShowTrivia(true), 2500)
+      return () => window.clearTimeout(t)
+    } else {
+      setShowTrivia(false)
+    }
+  }, [loading])
+
 
   // Sibnet Direct (MP4 через наш Worker)
   const sibnetId = extractSibnetVideoId(embed?.url ?? '')
@@ -206,6 +217,23 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [alSearching, setAlSearching] = useState(false)
   // Ошибка воспроизведения текущего потока (сбрасывается при смене потока).
   const [streamError, setStreamError] = useState<string | null>(null)
+
+  // 3.5s auto-failover to next available provider on stream error
+  useEffect(() => {
+    if ((error || streamError) && tabs.length > 1) {
+      const availableTabs = tabs.filter((t) => t.available && t.id !== provider)
+      if (availableTabs.length > 0) {
+        const next = availableTabs[0]
+        const timer = window.setTimeout(() => {
+          toast(`Переключаем на резервный плеер (${next.label})...`)
+          setProvider(next.id)
+          setError(null)
+          setStreamError(null)
+        }, 3500)
+        return () => window.clearTimeout(timer)
+      }
+    }
+  }, [error, streamError, tabs, provider])
   // ─── AnimeVost state ───
   const [avEpisodes, setAvEpisodes] = useState<AnimeVostEpisode[] | null>(null)
   const [avSearching, setAvSearching] = useState(false)
@@ -1275,6 +1303,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           />
         )}
 
+        <BufferTrivia visible={showTrivia && !unavailable} />
         {shikimoriId && !unavailable && (!isOwn || !!stream) && (
           <Suspense fallback={null}>
             <Danmaku animeId={shikimoriId} episode={episode} />

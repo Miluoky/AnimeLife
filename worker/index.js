@@ -1227,6 +1227,43 @@ const xmlResponse = (xml, ttl) =>
 // Части карты сайта: разделы и посадочные, тайтлы, серии онгоингов.
 const SITEMAPS = ['/sitemap-pages.xml', '/sitemap-titles.xml', '/sitemap-episodes.xml']
 
+/** Динамический RSS-фид для Яндекс.Вебмастера и читалок: последние серии онгоингов. */
+async function rssFeed(ctx) {
+  const key = new Request(`${ORIGIN}/rss.xml`)
+  const hit = await caches.default.match(key)
+  if (hit) return hit
+  const list = await json(ONGOING, undefined, 1800).catch(() => [])
+  const now = new Date().toUTCString()
+  const items = (list ?? []).slice(0, 40).map((a) => {
+    const title = escapeHtml(a.russian || a.name)
+    const ep = a.episodes_aired || 1
+    const link = `${ORIGIN}/watch/${a.id}/${ep}`
+    const desc = escapeHtml(`Смотрите ${ep} серию аниме «${a.russian || a.name}» онлайн бесплатно с русской озвучкой на AnimeLife.`)
+    const img = absolute(a.image?.original)
+    return `    <item>\n      <title>${title} — ${ep} серия</title>\n      <link>${link}</link>\n      <guid isPermaLink="true">${link}</guid>\n      <pubDate>${now}</pubDate>\n      <description>${desc}</description>${img ? `\n      <enclosure url="${img}" type="image/jpeg" />` : ''}\n    </item>`
+  })
+  const xml =
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n' +
+    '  <channel>\n' +
+    '    <title>Anime Life — Новые серии аниме</title>\n' +
+    `    <link>${ORIGIN}</link>\n` +
+    '    <description>Свежие серии онгоингов и новинки аниме с русской озвучкой онлайн на AnimeLife</description>\n' +
+    '    <language>ru</language>\n' +
+    `    <lastBuildDate>${now}</lastBuildDate>\n` +
+    `    <atom:link href="${ORIGIN}/rss.xml" rel="self" type="application/rss+xml" />\n` +
+    items.join('\n') +
+    '\n  </channel>\n</rss>\n'
+  const res = new Response(xml, {
+    headers: {
+      'Content-Type': 'application/rss+xml; charset=utf-8',
+      'Cache-Control': 'public, max-age=1800, s-maxage=1800',
+    },
+  })
+  ctx.waitUntil(caches.default.put(key, res.clone()))
+  return res
+}
+
 /** /sitemap.xml — индекс: поисковик сам заберёт части. Сюда указывает robots.txt. */
 function sitemapIndex() {
   const day = today()
@@ -1329,6 +1366,7 @@ export default {
     if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')
     if (url.pathname === '/sitemap-episodes.xml') return sitemapTitles(ctx, 'episodes')
+    if (url.pathname === '/rss.xml') return rssFeed(ctx)
     if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request)
     // Поддельный браузер получает обычный index.html: без запросов к Shikimori и без места в кэше.
     if (verdict === 'plain' && (request.method === 'GET' || request.method === 'HEAD')) return plain(env, url)

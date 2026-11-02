@@ -30,6 +30,7 @@ import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, SkipIcon, WideIco
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
 import { calm } from '../components/morph'
 import VoiceLogo from '../components/VoiceLogo'
+import FollowButton from '../components/FollowButton'
 import PlayerGlow, { GlowCaptureButton } from '../components/PlayerGlow'
 import NextEpisode from '../components/NextEpisode'
 import { blurPoster } from '../api/shikimori'
@@ -426,6 +427,9 @@ export default function Player() {
             <span className="sr-only">Поделиться моментом</span>
           </button>
           <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
+          {(anime.ongoing || (anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes)) && (
+            <FollowButton animeId={anime.id} title={anime.title} />
+          )}
           <button
             type="button"
             className="btn btn--ghost"
