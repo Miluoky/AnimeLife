@@ -18,6 +18,9 @@ const LINKS = [
   { to: '/season', title: 'Сезон', hint: 'Чарт сезона', icon: <Svg d="M12 3v2M12 19v2M5 12H3M21 12h-2M7 7 5.6 5.6M18.4 18.4 17 17M7 17l-1.4 1.4M18.4 5.6 17 7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8" /> },
   { to: '/ongoing', title: 'Онгоинги', hint: 'Выходят сейчас', icon: <ClockIcon size={22} /> },
   { to: '/top', title: 'Топ', hint: 'Лучшие тайтлы', icon: <TrophyIcon size={22} /> },
+  { to: '/chronology/fate', title: 'Хронологии', hint: 'Порядок сезонов', icon: <ClockIcon size={22} /> },
+  { to: '/trope/op-from-start', title: 'Тропы', hint: 'Темы и микро-жанры', icon: <SparkIcon size={22} /> },
+  { to: '/voice/anilibria', title: 'Озвучка', hint: 'Студии дубляжа', icon: <Svg d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8" /> },
   { to: '/random', title: 'Случайное', hint: 'Испытать удачу', icon: <Svg d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /> },
   { to: '/manga', title: 'Манга', hint: 'Читать онлайн', icon: <Svg d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 1-2-2zM13 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /> },
   { to: '/collections', title: 'Подборки', hint: 'По настроению', icon: <Svg d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /> },
@@ -36,6 +39,57 @@ export default function MoreSheet({ onClose }: { onClose: () => void }) {
   const { user } = useAuth()
   const { pathname } = useLocation()
   const sheet = useRef<HTMLDivElement>(null)
+  const touchStartY = useRef(0)
+  const touchCurrentY = useRef(0)
+  const touchStartTime = useRef(0)
+  const isDragging = useRef(false)
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    const isGrip = target.classList.contains('sheet__grip') || target.closest('.sheet__grip')
+    const sheetEl = sheet.current
+    if (isGrip || (sheetEl && sheetEl.scrollTop <= 0)) {
+      touchStartY.current = e.touches[0].clientY
+      touchCurrentY.current = e.touches[0].clientY
+      touchStartTime.current = Date.now()
+      isDragging.current = true
+      if (sheetEl) {
+        sheetEl.style.transition = 'none'
+      }
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragging.current || !sheet.current) return
+    const currentY = e.touches[0].clientY
+    touchCurrentY.current = currentY
+    const deltaY = currentY - touchStartY.current
+
+    if (deltaY > 0) {
+      sheet.current.style.transform = `translateY(${deltaY}px)`
+    } else {
+      sheet.current.style.transform = ''
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (!isDragging.current || !sheet.current) return
+    isDragging.current = false
+    const sheetEl = sheet.current
+    const deltaY = touchCurrentY.current - touchStartY.current
+    const elapsed = Math.max(1, Date.now() - touchStartTime.current)
+    const velocity = deltaY / elapsed
+
+    if (deltaY > 80 || (deltaY > 30 && velocity > 0.4)) {
+      sheetEl.style.transition = 'transform 0.22s var(--ease), opacity 0.2s ease'
+      sheetEl.style.transform = 'translateY(100%)'
+      sheetEl.style.opacity = '0'
+      setTimeout(onClose, 200)
+    } else {
+      sheetEl.style.transition = 'transform 0.22s var(--ease)'
+      sheetEl.style.transform = ''
+    }
+  }
 
   useEffect(() => {
     const root = document.documentElement
@@ -53,8 +107,19 @@ export default function MoreSheet({ onClose }: { onClose: () => void }) {
   return (
     <>
       <div className="sheet-backdrop" onClick={onClose} aria-hidden="true" />
-      <div ref={sheet} id="more-sheet" className="sheet" role="dialog" aria-modal="true" aria-label="Ещё разделы">
-        <span className="sheet__grip" aria-hidden="true" />
+      <div
+        ref={sheet}
+        id="more-sheet"
+        className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ещё разделы"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      >
+        <span className="sheet__grip" aria-hidden="true" style={{ cursor: 'grab', touchAction: 'none' }} />
         <Link to="/account" className={`sheet__me${pathname === '/account' ? ' is-here' : ''}`}>
           <span className="sheet__avatar">{user ? <span className="avatar">{name.charAt(0).toUpperCase()}</span> : <UserIcon />}</span>
           <span className="sheet__me-text">

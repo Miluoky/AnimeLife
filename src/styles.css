@@ -17,6 +17,14 @@
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, monospace;
   /* японские названия: системный шрифт с засечками (минтё), без загрузки */
   --font-jp: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP', 'Noto Serif JP', serif;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+  --glow-accent: 0 0 24px color-mix(in srgb, var(--accent) 35%, transparent);
+  --glass-blur: blur(18px) saturate(145%);
   /* плавное торможение для всех анимаций */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   scrollbar-color: var(--accent) var(--surface-2);
@@ -57,6 +65,10 @@ select,
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -64,6 +76,8 @@ body {
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.5;
+  overflow-x: clip;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 a {
@@ -96,6 +110,20 @@ h3 {
   margin: 0 auto;
   /* Повёрнутый боком iPhone шире 640 px, а вырез экрана у него сбоку: отступ не меньше выреза. */
   padding: 0 max(40px, env(safe-area-inset-right)) 0 max(40px, env(safe-area-inset-left));
+}
+
+@media (min-width: 1920px) {
+  .container {
+    max-width: 1800px;
+    padding: 0 max(48px, env(safe-area-inset-right)) 0 max(48px, env(safe-area-inset-left));
+  }
+}
+
+@media (min-width: 2560px) {
+  .container {
+    max-width: 2300px;
+    padding: 0 max(64px, env(safe-area-inset-right)) 0 max(64px, env(safe-area-inset-left));
+  }
 }
 
 @media (max-width: 900px) {
@@ -602,10 +630,31 @@ h3 {
   gap: 16px;
 }
 
+@media (min-width: 1920px) {
+  .grid--posters {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 32px 24px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .grid--posters {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 36px 28px;
+  }
+}
+
 @media (max-width: 640px) {
   .grid--posters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* Закреплённые боковые панели: фиксированный/внутренний размер исключает сдвиги макета (CLS = 0) */
+.watch-side,
+.title-aside,
+.sticky-sidebar {
+  contain-intrinsic-size: auto 600px;
 }
 
 /* Home */
@@ -1197,6 +1246,38 @@ h3 {
   font-size: 14px;
 }
 
+/* Мобильная эргономика (360px–430px и touch-экраны): интерактивные зоны ≥ 44px */
+@media (max-width: 640px), (pointer: coarse) {
+  .btn--small,
+  .pill {
+    min-height: 44px;
+    height: auto;
+  }
+  .chip-btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .chip:is(button, a, [role='button']) {
+    min-height: 44px;
+    position: relative;
+  }
+  .chip:is(button, a, [role='button'])::before,
+  .chip-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
+    width: 100%;
+    height: 100%;
+  }
+}
+
 
 
 /* Место под страницу, пока её код едет по сети (см. Suspense в App.tsx). */
@@ -1319,15 +1400,24 @@ h3 {
   }
 }
 
-/* Скелетоны: перелив вместо мигания. */
+/* Скелетоны: аппаратный GPU-перелив на transform: translateX() без перерисовки слоёв. */
 .skeleton {
-  background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%);
-  background-size: 300% 100%;
-  animation: shimmer 1.6s linear infinite;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
 }
-@keyframes shimmer {
-  to {
-    background-position: -300% 0;
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--text) 8%, transparent) 50%, transparent 100%);
+  animation: shimmer-gpu 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+@keyframes shimmer-gpu {
+  100% {
+    transform: translateX(100%);
   }
 }
 
@@ -1355,8 +1445,8 @@ h3 {
 @media (hover: hover) {
   .poster-card:hover .poster-card__img,
   .poster-card:focus-visible .poster-card__img {
-    transform: translateY(-6px) scale(1.02);
-    box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8);
+    transform: translateY(-6px) scale(1.03) translateZ(0);
+    box-shadow: var(--glow-accent), 0 20px 48px -12px rgba(0, 0, 0, 0.85);
     filter: saturate(1.1);
   }
   .poster-card:hover .poster-card__img::after {

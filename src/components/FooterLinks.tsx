@@ -27,6 +27,9 @@ export default function FooterLinks() {
       <nav className="footer-links" aria-label="Подборки">
         <Link to="/top">Топ-100 аниме</Link>
         <Link to="/collections">Подборки</Link>
+        <Link to="/chronology/fate">Хронологии франшиз</Link>
+        <Link to="/trope/op-from-start">Тропы и темы</Link>
+        <Link to="/voice/anilibria">Студии озвучки</Link>
         <Link to="/random">Случайное аниме</Link>
         <Link to="/quiz">Угадай аниме по кадру</Link>
         <Link to="/scene">Найти аниме по скриншоту</Link>

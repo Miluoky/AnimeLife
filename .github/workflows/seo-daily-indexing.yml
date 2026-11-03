@@ -49,6 +49,18 @@ jobs:
             echo "::notice::Секрет GOOGLE_SERVICE_ACCOUNT_JSON не найден, отправка в Google будет пропущена."
           fi
 
+      - name: Развернуть токен Яндекс (если задан в Secrets)
+        env:
+          YANDEX_TOKEN: ${{ secrets.YANDEX_TOKEN }}
+        run: |
+          if [ -n "$YANDEX_TOKEN" ]; then
+            echo "$YANDEX_TOKEN" > scripts/seo_ops/.yandex_token
+            chmod 600 scripts/seo_ops/.yandex_token || true
+            echo "Yandex token deployed from secrets."
+          else
+            echo "::notice::Секрет YANDEX_TOKEN не найден."
+          fi
+
       - name: Отправка очереди в Google Indexing API
         run: |
           if [ -f scripts/seo_ops/service_account.json ]; then
@@ -60,6 +72,11 @@ jobs:
       - name: Отправка очереди в Яндекс и Bing (IndexNow)
         run: |
           python scripts/seo_ops/yandex_indexnow_push.py
+
+      - name: Очистить локальные секреты
+        if: always()
+        run: |
+          rm -f scripts/seo_ops/service_account.json scripts/seo_ops/.yandex_token
 
       - name: Сохранить историю индексации в репозитории
         run: |

@@ -8,7 +8,7 @@ import { listStore } from '../data/myList'
 const MoreSheet = lazy(() => import('./MoreSheet'))
 
 /** Разделы, которые живут в шторке «Ещё»: на них подсвечивается пункт «Ещё». */
-const IN_MORE = /^\/(schedule|together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga)/
+const IN_MORE = /^\/(schedule|together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice)/
 
 /** Раз в 20 минут (и когда вкладку снова открыли) проверяем новые серии тайтлов из «Смотрю». */
 function useInboxCheck() {

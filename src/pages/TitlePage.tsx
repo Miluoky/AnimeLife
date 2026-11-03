@@ -1,6 +1,6 @@
 import '../components/profile-stats.css'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { type CSSProperties, type ReactNode, type RefObject, Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, type ReactNode, type RefObject, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import type { ScoreStats } from '../api'
 import Lightbox from '../components/Lightbox'
 import { useAmbient } from '../components/ambient'
@@ -16,6 +16,8 @@ import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import EpisodeProgress from '../components/EpisodeProgress'
 import MyEntry from '../components/MyEntry'
 import ShareButton from '../components/ShareButton'
+import SeoMeta from '../components/SeoMeta'
+import { buildJsonLdSeries, buildJsonLdMovie } from '../data/seoEngine'
 import { usePageMeta } from '../data/pageMeta'
 import { SIMILAR_MIN, ageLabel, animeHref, animeIdFromParam, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { studioPath } from '../data/studios'
@@ -288,6 +290,84 @@ export default function TitlePage() {
     [id, loaded?.id],
   )
   usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info))
+
+  const isMovie = loaded?.kind === 'Фильм' || loaded?.kind === 'movie'
+  const kindKind = isMovie ? 'movie' : loaded?.kind === 'OVA' ? 'ova' : 'tv'
+  const scores = extras.value?.scores
+
+  const ratingData = useMemo(() => {
+    if (!loaded?.score) return undefined
+    return {
+      ratingValue: loaded.score,
+      bestRating: 10,
+      worstRating: 1,
+      ratingCount: scores?.votes || 1000,
+      reviewCount: scores?.votes ? Math.round(scores.votes * 0.1) : 100,
+    }
+  }, [loaded?.score, scores?.votes])
+
+  const seriesSchema = useMemo(() => {
+    if (!loaded || isMovie) return null
+    return buildJsonLdSeries({
+      id: loaded.id,
+      title: loaded.title,
+      originalTitle: loaded.originalTitle,
+      japaneseTitle: loaded.japaneseTitle,
+      kind: kindKind as any,
+      status: (loaded.ongoing ? 'ongoing' : loaded.upcoming ? 'anons' : 'released') as any,
+      year: loaded.year,
+      episodesTotal: loaded.episodes,
+      episodesAired: loaded.episodesAired,
+      durationMinutes: loaded.episodeMinutes,
+      studio: loaded.studio,
+      genres: loaded.genres ?? [],
+      description: loaded.description,
+      posterUrl: loaded.posterUrl,
+      rating: ratingData,
+    })
+  }, [loaded, isMovie, kindKind, ratingData])
+
+  const movieSchema = useMemo(() => {
+    if (!loaded || !isMovie) return null
+    return buildJsonLdMovie({
+      id: loaded.id,
+      title: loaded.title,
+      originalTitle: loaded.originalTitle,
+      japaneseTitle: loaded.japaneseTitle,
+      kind: 'movie',
+      status: (loaded.ongoing ? 'ongoing' : loaded.upcoming ? 'anons' : 'released') as any,
+      year: loaded.year,
+      durationMinutes: loaded.episodeMinutes || 90,
+      studio: loaded.studio,
+      genres: loaded.genres ?? [],
+      description: loaded.description,
+      posterUrl: loaded.posterUrl,
+      rating: ratingData,
+    })
+  }, [loaded, isMovie, ratingData])
+
+  const breadcrumbs = useMemo(() => {
+    if (!loaded) return null
+    return [
+      { name: 'Главная', url: '/' },
+      { name: 'Каталог', url: '/catalog' },
+      ...(loaded.genres?.[0]
+        ? [{ name: loaded.genres[0], url: genrePath(loaded.genres[0]) || `/catalog?genre=${encodeURIComponent(loaded.genres[0])}` }]
+        : []),
+      { name: loaded.title, url: animeHref(loaded) },
+    ]
+  }, [loaded])
+
+  const ratingSchema = useMemo(() => {
+    if (!loaded?.score) return null
+    return {
+      ratingValue: loaded.score,
+      bestRating: 10,
+      worstRating: 1,
+      ratingCount: scores?.votes || 1000,
+    }
+  }, [loaded?.score, scores?.votes])
+
   // Старый адрес /anime/6 (или с прежним названием) меняется на /anime/6-trigun без новой записи в истории.
   const navigate = useNavigate()
   const location = useLocation()
@@ -357,7 +437,6 @@ export default function TitlePage() {
   // Виды видео для фильтра (трейлеры, опенинги, эндинги…), как на AniLife; при одном виде фильтр не нужен.
   const videoKinds = [...new Set(allVideos.map((v) => v.kind))]
   const videos = videoKind ? allVideos.filter((v) => v.kind === videoKind) : allVideos
-  const scores = extras.value?.scores
   const gallery = shots.slice(0, MAX_SHOTS)
 
   function rangeLabel(i: number) {
@@ -375,6 +454,12 @@ export default function TitlePage() {
 
   return (
     <>
+      <SeoMeta
+        series={seriesSchema}
+        movie={movieSchema}
+        breadcrumbs={breadcrumbs}
+        rating={ratingSchema}
+      />
       <div className="banner" style={{ background: anime.posterFill }}>
         {shots.length ? (
           <img

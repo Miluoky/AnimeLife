@@ -5,8 +5,9 @@
 
 const KEY = 'anime.positions.v1'
 const MAX = 300
-// Меньше 30 секунд — не стоит продолжать; последние полторы минуты — эндинг, серию считаем досмотренной.
-const MIN = 30
+// Точная секунда: сохраняем с 1-й секунды для безупречного возобновления и шаринга моментов.
+// Последние полторы минуты — эндинг, при обычном просмотре серию считаем досмотренной.
+const MIN = 1
 const TAIL = 90
 
 interface Entry {
@@ -61,12 +62,18 @@ export function getPosition(animeId: string, episode: number): number | null {
   return e && e.t >= MIN && (!e.d || e.t < e.d - TAIL) ? e.t : null
 }
 
-/** Запоминает место в серии; в начале и в самом конце серии запись удаляется. */
-export function savePosition(animeId: string, episode: number, t: number, d = 0) {
+/** Точная сохраненная секунда (включая шаринг моментов в хвосте серии). */
+export function getExactPosition(animeId: string, episode: number): number | null {
+  const e = read()[key(animeId, episode)]
+  return e && e.t >= MIN ? e.t : null
+}
+
+/** Запоминает точное место в серии; в самом конце серии запись удаляется, если не exact. */
+export function savePosition(animeId: string, episode: number, t: number, d = 0, exact = false) {
   const all = read()
   const k = key(animeId, episode)
   let changed = false
-  if (!Number.isFinite(t) || t < MIN || (d > 0 && t >= d - TAIL)) {
+  if (!Number.isFinite(t) || t < MIN || (!exact && d > 0 && t >= d - TAIL)) {
     if (k in all) {
       delete all[k]
       changed = true

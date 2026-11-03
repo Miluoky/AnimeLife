@@ -88,6 +88,8 @@ export interface VideoPlayerProps {
    */
   provider?: Provider
   onProviderChange?: (provider: Provider) => void
+  /** Открыть модальное окно социального шеринга */
+  onShare?: () => void
   /** Источник не может показать серию (ошибка, таймаут, серии нет): страница может сама включить запасной. */
   onUnavailable?: (reason: string) => void
   /** Источники, в которых страница точно знает этот тайтл: на них предлагаем переключиться. */
@@ -111,6 +113,15 @@ export interface VideoPlayerProps {
 }
 
 /* ──────────────── Конфигурация табов ──────────────── */
+
+export const BALANCER_FALLBACK_LADDER: Provider[] = [
+  'kodik',
+  'alloha',
+  'anilibria',
+  'animevost',
+  'dreamcast',
+  'sibnet',
+]
 
 interface ProviderTab {
   id: Provider
@@ -175,7 +186,7 @@ function saveProvider(id: Provider) {
 /* ──────────────── Компонент ──────────────── */
 
 export default function VideoPlayer(props: VideoPlayerProps) {
-  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink, anixart, embed } = props
+  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink, anixart, embed, onShare } = props
   const controlled = props.provider !== undefined
 
   const tabs = buildTabs()
@@ -218,12 +229,29 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // Ошибка воспроизведения текущего потока (сбрасывается при смене потока).
   const [streamError, setStreamError] = useState<string | null>(null)
 
-  // 3.5s auto-failover to next available provider on stream error
+  // 3.5s auto-failover to next available provider on stream error (Kodik -> Alloha -> AniLibria -> AnimeVost -> DreamCast -> Sibnet)
   useEffect(() => {
     if ((error || streamError) && tabs.length > 1) {
-      const availableTabs = tabs.filter((t) => t.available && t.id !== provider)
-      if (availableTabs.length > 0) {
-        const next = availableTabs[0]
+      const currentIdx = provider ? BALANCER_FALLBACK_LADDER.indexOf(provider) : -1
+      const ladderCandidates = currentIdx >= 0
+        ? [...BALANCER_FALLBACK_LADDER.slice(currentIdx + 1), ...BALANCER_FALLBACK_LADDER.slice(0, currentIdx)]
+        : BALANCER_FALLBACK_LADDER
+
+      let nextTab: ProviderTab | undefined
+      for (const id of ladderCandidates) {
+        const found = tabs.find((t) => t.id === id && t.available && t.id !== provider)
+        if (found) {
+          nextTab = found
+          break
+        }
+      }
+
+      if (!nextTab) {
+        nextTab = tabs.find((t) => t.available && t.id !== provider)
+      }
+
+      if (nextTab) {
+        const next = nextTab
         const timer = window.setTimeout(() => {
           toast(`Переключаем на резервный плеер (${next.label})...`)
           setProvider(next.id)
@@ -260,6 +288,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     setNativeAttempt(0)
   }, [provider, kodikLink, anixart?.type, embed?.url, shikimoriId, episode])
 
+  const positionKey = shikimoriId ?? title
+
   // Озвучку или плеер сменили посреди серии: новый источник начинает с того же места, а не с начала.
   // Считаем при отрисовке, а не в эффекте: адрес iframe с этим временем должен уйти сразу, без второй загрузки.
   const sourceKey = `${provider}|${kodikLink}|${anixart?.type}|${embed?.url}|${isSibnetDirect}`
@@ -267,8 +297,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const carry = useRef({ source: sourceKey, episode: episodeKey, at: 0, user: false })
   if (carry.current.source !== sourceKey || carry.current.episode !== episodeKey) {
     const sameEpisode = carry.current.episode === episodeKey
+    const liveAt = playerTime() || (videoRef.current?.currentTime ?? 0) || (getPosition(positionKey, episode) ?? 0)
     // user: смену сделал зритель (или автопереход), значит новый плеер можно сразу запустить.
-    carry.current = { source: sourceKey, episode: episodeKey, at: sameEpisode ? playerTime() : 0, user: true }
+    carry.current = { source: sourceKey, episode: episodeKey, at: sameEpisode ? liveAt : 0, user: true }
   }
 
   useEffect(() => {
@@ -277,7 +308,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       // Новая озвучка ещё готовится, а прежняя играет: это не «плеер не ответил».
       if (pendingKey.current) return
       setError('Плеер не ответил вовремя. Возможно, источник или CDN заблокирован. Попробуйте другой плеер.')
-    }, 15000)
+    }, 3500)
     return () => window.clearTimeout(timer)
   }, [loading, provider, isOwn, frameAttempt])
 
@@ -547,7 +578,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     const t = setTimeout(() => setResumed(null), 7000)
     return () => clearTimeout(t)
   }, [resumed])
-  const positionKey = shikimoriId ?? title
   const resumeSaved = (seek: (t: number) => void) => {
     const at = getPosition(positionKey, episode)
     if (at === null) return
@@ -559,7 +589,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const endedRef = useRef(props.onEnded)
   endedRef.current = props.onEnded
 
-  // Своё видео: место в серии запоминаем раз в 5 секунд, досмотренная серия запись стирает.
+  // Своё видео: место в серии запоминаем раз в 5 секунд, на паузе и при выходе; досмотренная серия запись стирает.
   useEffect(() => {
     const video = videoRef.current
     if (!video || !src) return
@@ -570,14 +600,24 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       last = video.currentTime
       savePosition(positionKey, episode, video.currentTime, video.duration)
     }
+    const onPause = () => {
+      if (video.currentTime > 0) {
+        savePosition(positionKey, episode, video.currentTime, video.duration)
+      }
+    }
     const onEnded = () => {
       savePosition(positionKey, episode, video.duration, video.duration)
       endedRef.current?.()
     }
     video.addEventListener('timeupdate', onTime)
+    video.addEventListener('pause', onPause)
     video.addEventListener('ended', onEnded)
     return () => {
+      if (video.currentTime > 0) {
+        savePosition(positionKey, episode, video.currentTime, video.duration)
+      }
       video.removeEventListener('timeupdate', onTime)
+      video.removeEventListener('pause', onPause)
       video.removeEventListener('ended', onEnded)
     }
   }, [src, positionKey, episode])
@@ -600,7 +640,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       const seconds = typeof value === 'number' ? value : Number((value as { time?: unknown } | null)?.time)
       const state = liveState.current
       if (key === 'kodik_player_duration_update' && Number.isFinite(seconds)) duration = state.duration = seconds
-      if (key === 'kodik_player_pause') state.paused = true
+      if (key === 'kodik_player_pause') {
+        state.paused = true
+        if (state.t > 0) savePosition(positionKey, episode, state.t, duration || state.duration)
+      }
       if (key === 'kodik_player_play') state.paused = false
       // Зритель сам перемотал сразу после подмены: это не сбой Kodik, возвращать не нужно.
       const fix0 = settle.current
@@ -676,7 +719,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         ? `${embed?.voice}, плеер ${embed?.player}: ${title}`
         : `${provider === 'alloha' ? 'Alloha' : 'Kodik'}: ${title}`
   const rawSrc = frameSrc()
-  const src0 = rawSrc && carry.current.at ? withStart(rawSrc, carry.current.at) : rawSrc
+  const carryAt = carry.current.at || (getPosition(positionKey, episode) ?? 0)
+  const src0 = rawSrc && carryAt ? withStart(rawSrc, carryAt) : rawSrc
   const frame: ShownFrame | null = src0 ? { src: src0, title: frameTitle, key: `${src0}:${frameAttempt}` } : null
 
   /*
@@ -1328,6 +1372,19 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         {kodikEnded && autoNext && !!onEpisodeChange && episode < totalEpisodes && !unavailable && (
           <AutoNext label={`${episode + 1} серия`} onNext={() => onEpisodeChange(episode + 1)} onCancel={() => setKodikEnded(false)} />
         )}
+        {onShare && (
+          <button
+            type="button"
+            className="vp-btn vp-btn--share sr-only"
+            onClick={(e) => {
+              e.stopPropagation()
+              onShare()
+            }}
+            aria-label="Поделиться серией"
+          >
+            Поделиться
+          </button>
+        )}
 
         {unavailable && (trailerUrl ? (
           <>
@@ -1451,7 +1508,7 @@ function isKodik(src: string) {
 
 /** Kodik начнёт серию с этой секунды. У других плееров такого параметра нет. */
 function withStart(src: string, seconds: number) {
-  if (seconds < 3 || !isKodik(src)) return src
+  if (seconds < 1 || !isKodik(src)) return src
   const url = new URL(src)
   url.searchParams.set('start_from', String(Math.floor(seconds)))
   return url.toString()

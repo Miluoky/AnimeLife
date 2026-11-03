@@ -40,6 +40,9 @@ export const pageChunks = {
   season: () => import('../pages/Season'),
   person: () => import('../pages/PersonPage'),
   similar: () => import('../pages/SimilarPage'),
+  voiceStudio: () => import('../pages/VoiceStudioPage'),
+  chronology: () => import('../pages/ChronologyPage'),
+  trope: () => import('../pages/TropeCollectionPage'),
 }
 
 const prefetched = new Set<string>()
@@ -53,6 +56,27 @@ export function prefetchTitle(id: string) {
   prefetched.add(id)
   void pageChunks.title()
   void loadAnime(id).catch(() => undefined)
+}
+
+/** Предзагрузка страницы студии озвучки */
+export function prefetchVoiceStudio(slug: string) {
+  if (prefetched.has(`voice:${slug}`) || saverOn()) return
+  prefetched.add(`voice:${slug}`)
+  void pageChunks.voiceStudio()
+}
+
+/** Предзагрузка страницы хронологии франшизы */
+export function prefetchChronology(id: string) {
+  if (prefetched.has(`chronology:${id}`) || saverOn()) return
+  prefetched.add(`chronology:${id}`)
+  void pageChunks.chronology()
+}
+
+/** Предзагрузка страницы коллекции тропа / микро-жанра */
+export function prefetchTrope(slug: string) {
+  if (prefetched.has(`trope:${slug}`) || saverOn()) return
+  prefetched.add(`trope:${slug}`)
+  void pageChunks.trope()
 }
 
 /** Код соседних страниц догружаем, когда браузер свободен, чтобы переходы по меню были мгновенными. */

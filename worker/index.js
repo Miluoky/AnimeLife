@@ -70,11 +70,11 @@ const MIRRORS = new Set(['www.animelife.top', 'anime.artemdrr61f9.workers.dev'])
 
 // Адреса приложения (src/App.tsx). Что сюда не подходит и не нашлось среди файлов сборки, получает 404.
 const ROUTES =
-  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|duel(?:\/[A-Za-z0-9_-]+)?|chat|community|news|manga|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|similar\/\d{1,10}(?:-[a-z0-9-]{1,80})?|studio\/[a-z0-9-]{2,30}|genre\/[a-z-]{2,24}|theme\/[a-z-]{2,24}|best\/(?:[a-z-]{2,24}|\d{4})|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?)\/?$/
+  /^\/(?:|en|en\/anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|catalog|ongoing|schedule|random|top|changelog|collections|quiz|duel(?:\/[A-Za-z0-9_-]+)?|chat|community|news|manga|season|scene|recap|collections\/(?:my|new)|together|my-list|watching|moderation|about|app|admin\/analytics|rightholders|contacts|privacy|terms|account(?:\/recovery)?|auth\/(?:callback|vk)|anime\/\d{1,10}(?:-[a-z0-9-]{1,80})?|watch\/\d{1,10}\/\d{1,5}|together\/[A-Za-z0-9]{6}|u\/[A-Za-z0-9_.-]{1,36}|club\/[A-Za-z0-9_.-]{1,36}|c\/[A-Za-z0-9_.-]{1,36}(?:\/edit)?|auth\/shikimori|character\/\d{1,10}|person\/\d{1,10}|manga\/\d{1,10}(?:\/chapter\/(?:[0-9a-f-]{36}|al-[A-Za-z0-9]{1,36})|\/upload)?|similar\/\d{1,10}(?:-[a-z0-9-]{1,80})?|studio\/[a-z0-9-]{2,30}|genre\/[a-z-]{2,24}|theme\/[a-z-]{2,24}|best\/(?:[a-z-]{2,24}|\d{4})|type\/[a-z]{2,10}|year\/\d{4}(?:\/[a-z]{4,6})?|voice\/[a-z0-9-]{2,40}|chronology\/[a-z0-9-]{2,50}|trope\/[a-z0-9-]{2,50})\/?$/
 // Временные комнаты и личные страницы: в поиске им делать нечего.
 const PRIVATE = /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
 // Списки со страницами ?page=N: у каждой страницы свой canonical.
-const PAGED = /^\/(?:catalog$|genre\/|theme\/|best\/|studio\/|type\/|year\/)/
+const PAGED = /^\/(?:catalog$|genre\/|theme\/|best\/|studio\/|type\/|year\/|voice\/|trope\/)/
 
 /** Список тайтлов Shikimori по фильтрам каталога, самые популярные сначала. */
 const animes = (params) =>
@@ -972,6 +972,190 @@ async function enTitlePage(id, path) {
   }
 }
 
+const VOICE_STUDIO_NAMES = {
+  'anilibria': 'AniLibria',
+  'studio-band': 'Студийная Банда',
+  'anidub': 'AniDUB',
+  'dream-cast': 'Dream Cast',
+  'reanimedia': 'Реанимедиа',
+  'shiza-project': 'SHIZA Project',
+  'soviet-romantica': 'Soviet Romantica',
+  'voik-in-the-dark': 'Голос из Темноты',
+  'persona99': 'Persona99',
+  'kansai': 'Kansai Studio',
+  'flarrow-films': 'Flarrow Films',
+  'force-media': 'Force Media',
+  'anistar': 'AniStar',
+  'aniplay': 'AniPlay',
+  'anifilm': 'AniFilm',
+  'steponee': 'StepOnee',
+  'jam-club': 'Jam Club',
+  'amber': 'Amber',
+  'devochki': 'Девочки',
+  'onwave': 'OnWave',
+  'anirise': 'AniRise',
+  'youmita': 'YoumiTa',
+  'youmiteam': 'Youmi Team',
+  'focasteam': 'FocasTeam',
+  'subtitry': 'Русские субтитры',
+}
+const VOICE_STUDIO_LIST = Object.keys(VOICE_STUDIO_NAMES)
+
+const FRANCHISE_NAMES = {
+  'fate': 'Судьба (Fate)',
+  'monogatari': 'Истории (Monogatari Series)',
+  'jojo': 'Невероятные приключения ДжоДжо (JoJo)',
+  'attack-on-titan': 'Атака титанов (Attack on Titan)',
+  'steins-gate': 'Врата Штейна (Steins;Gate)',
+  'sword-art-online': 'Мастера Меча Онлайн (Sword Art Online)',
+  'naruto': 'Наруто (Naruto)',
+  'bleach': 'Блич (Bleach)',
+  'one-piece': 'Ван-Пис (One Piece)',
+  'dragon-ball': 'Драконий жемчуг (Dragon Ball)',
+  'gundam': 'Гандам (Mobile Suit Gundam)',
+  'sailor-moon': 'Сейлор Мун (Sailor Moon)',
+  'evangelion': 'Евангелион (Neon Genesis Evangelion)',
+  'code-geass': 'Код Гиас (Code Geass)',
+  'fullmetal-alchemist': 'Стальной алхимик (Fullmetal Alchemist)',
+  'hunter-x-hunter': 'Хантер х Хантер (Hunter x Hunter)',
+  'fairy-tail': 'Хвост Феи (Fairy Tail)',
+  'gintama': 'Гинтама (Gintama)',
+  'baki': 'Боец Баки (Baki)',
+  'psycho-pass': 'Психопаспорт (Psycho-Pass)',
+  'to-aru': 'Индекс волшебства (Toaru Series)',
+  'madoka-magica': 'Девочка-волшебница Мадока (Madoka Magica)',
+  'demon-slayer': 'Клинок, рассекающий демонов (Demon Slayer)',
+  'jujutsu-kaisen': 'Магическая битва (Jujutsu Kaisen)',
+  'tokyo-ghoul': 'Токийский гуль (Tokyo Ghoul)',
+  're-zero': 'Re:Zero — Жизнь с нуля в другом мире',
+  'overlord': 'Владыка (Overlord)',
+  'konosuba': 'Этот замечательный мир! (KonoSuba)',
+  'danmachi': 'В подземелье я пойду (DanMachi)',
+}
+const FRANCHISE_LIST = Object.keys(FRANCHISE_NAMES)
+
+const TROPE_NAMES = {
+  'op-from-start': 'ГГ силен с самого начала (Overpowered)',
+  'mc-hides-strength': 'ГГ скрывает свою силу',
+  'reborn-as-monster': 'Перерождение в монстра или существо',
+  'enemies-to-lovers': 'От врагов к любви (Enemies to Lovers)',
+  'isekai-cheat-skills': 'Исэкай с читерскими навыками',
+  'revenge-betrayal': 'Предательство и месть',
+  'tsundere-romance': 'Цундэрэ романтика',
+  'childhood-friend': 'Подруга детства',
+  'anti-hero': 'Главный герой — антигерой',
+  'time-loop': 'Петля времени',
+  'tournament-arc': 'Турнирная арка',
+  'magic-academy': 'Магическая академия',
+  'dungeon-crawl': 'Исследование подземелий',
+  'virtual-reality': 'Виртуальная реальность и VRMMO',
+  'mecha-pilots': 'Пилоты гигантских роботов',
+  'yandere': 'Яндэрэ — безумная любовь',
+  'demon-lord': 'Повелитель демонов',
+  'slow-life': 'Медленная жизнь в деревне',
+  'otome-isekai': 'Отоме-исэкай и злодейки',
+  'villainess-redemption': 'Искупление злодейки',
+  'hidden-identity': 'Тайная личность героя',
+  'dark-fantasy': 'Тёмное фэнтези',
+  'super-smart-mc': 'Гениальный главный герой',
+  'weak-to-strong': 'От слабого к сильнейшему',
+  'death-game': 'Смертельные игры на выживание',
+}
+const TROPE_LIST = Object.keys(TROPE_NAMES)
+
+function formatStudioName(slug) {
+  return VOICE_STUDIO_NAMES[slug] || slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+function formatFranchiseName(id) {
+  return FRANCHISE_NAMES[id] || id.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+function formatTropeName(slug) {
+  return TROPE_NAMES[slug] || slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+function voiceStudioPage(slug, page = 1) {
+  const name = formatStudioName(slug)
+  const crumbs = breadcrumbs([['Студии озвучки', '/catalog'], [name, `/voice/${slug}`]])
+  const desc = `Смотрите аниме в русской озвучке «${name}» онлайн бесплатно в хорошем качестве 1080p: новинки онгоингов и завершённые сериалы на Anime Life.`
+  return {
+    title: `Аниме в озвучке ${name} смотреть онлайн бесплатно | ${SITE}`,
+    description: desc,
+    canonical: `${ORIGIN}/voice/${slug}${page > 1 ? `?page=${page}` : ''}`,
+    body:
+      crumbs.html +
+      `<h1>Аниме в озвучке ${escapeHtml(name)}</h1>` +
+      `<p>${desc}</p>` +
+      siteNav(),
+    jsonLd: graph(
+      crumbs.ld,
+      {
+        '@type': 'CollectionPage',
+        name: `Аниме в озвучке ${name}`,
+        description: desc,
+        url: `${ORIGIN}/voice/${slug}`,
+        inLanguage: 'ru',
+      }
+    ),
+  }
+}
+
+function chronologyPage(id) {
+  const name = formatFranchiseName(id)
+  const crumbs = breadcrumbs([['Хронологии франшиз', '/catalog'], [name, `/chronology/${id}`]])
+  const desc = `В каком порядке смотреть аниме «${name}»: полная хронологическая последовательность сезонов, фильмов и спецвыпусков без спойлеров на Anime Life.`
+  return {
+    title: `Порядок просмотра «${name}»: правильная хронология всех частей | ${SITE}`,
+    description: desc,
+    canonical: `${ORIGIN}/chronology/${id}`,
+    body:
+      crumbs.html +
+      `<h1>Порядок просмотра аниме «${escapeHtml(name)}»</h1>` +
+      `<p>${desc}</p>` +
+      siteNav(),
+    jsonLd: graph(
+      crumbs.ld,
+      {
+        '@type': 'ItemList',
+        name: `Хронология и порядок просмотра «${name}»`,
+        description: desc,
+        url: `${ORIGIN}/chronology/${id}`,
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: `${name} — 1 сезон`, url: `${ORIGIN}/chronology/${id}#part-1` },
+          { '@type': 'ListItem', position: 2, name: `${name} — продолжение`, url: `${ORIGIN}/chronology/${id}#part-2` },
+        ],
+      }
+    ),
+  }
+}
+
+function tropePage(slug, page = 1) {
+  const name = formatTropeName(slug)
+  const crumbs = breadcrumbs([['Тропы и микро-жанры', '/catalog'], [name, `/trope/${slug}`]])
+  const desc = `Подборка лучших аниме с тропом «${name}» онлайн бесплатно в хорошем качестве: популярные тайтлы и описания сюжета на Anime Life.`
+  return {
+    title: `Аниме про «${name}» — лучшие тайтлы смотреть онлайн | ${SITE}`,
+    description: desc,
+    canonical: `${ORIGIN}/trope/${slug}${page > 1 ? `?page=${page}` : ''}`,
+    body:
+      crumbs.html +
+      `<h1>Аниме про «${escapeHtml(name)}»</h1>` +
+      `<p>${desc}</p>` +
+      siteNav(),
+    jsonLd: graph(
+      crumbs.ld,
+      {
+        '@type': 'CollectionPage',
+        name: `Аниме с тропом «${name}»`,
+        description: desc,
+        url: `${ORIGIN}/trope/${slug}`,
+        inLanguage: 'ru',
+      }
+    ),
+  }
+}
+
 async function metaFor(path, params) {
   const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
   if (path === '/') return home()
@@ -983,7 +1167,13 @@ async function metaFor(path, params) {
   const landing = landingFor(path)
   if (landing) return listing(landing, page)
   if (/^\/(?:genre|theme|best|studio|type|year)\//.test(path)) throw notFound()
-  let m = path.match(/^\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
+  let m = path.match(/^\/voice\/([a-z0-9-]{2,40})$/)
+  if (m) return voiceStudioPage(m[1], page)
+  m = path.match(/^\/chronology\/([a-z0-9-]{2,50})$/)
+  if (m) return chronologyPage(m[1])
+  m = path.match(/^\/trope\/([a-z0-9-]{2,50})$/)
+  if (m) return tropePage(m[1], page)
+  m = path.match(/^\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
   if (m) return titlePage(m[1], path)
   m = path.match(/^\/en\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
   if (m) return enTitlePage(m[1], path)
@@ -1224,10 +1414,17 @@ const urlset = (urls) =>
 const xmlResponse = (xml, ttl) =>
   new Response(xml, { headers: { 'Content-Type': XML, 'Cache-Control': `public, max-age=${Math.min(ttl, 3600)}, s-maxage=${ttl}` } })
 
-// Части карты сайта: разделы и посадочные, тайтлы, серии онгоингов.
-const SITEMAPS = ['/sitemap-pages.xml', '/sitemap-titles.xml', '/sitemap-episodes.xml']
+// Части карты сайта: разделы и посадочные, тайтлы, серии онгоингов, студии, хронологии, тропы.
+const SITEMAPS = [
+  '/sitemap-pages.xml',
+  '/sitemap-titles.xml',
+  '/sitemap-episodes.xml',
+  '/sitemap-voices.xml',
+  '/sitemap-chronology.xml',
+  '/sitemap-tropes.xml',
+]
 
-/** Динамический RSS-фид для Яндекс.Вебмастера и читалок: последние серии онгоингов. */
+/** Динамический RSS-фид для Яндекс.Вебмастера и читалок с разметкой Турбо-страниц Яндекса. */
 async function rssFeed(ctx) {
   const key = new Request(`${ORIGIN}/rss.xml`)
   const hit = await caches.default.match(key)
@@ -1240,11 +1437,11 @@ async function rssFeed(ctx) {
     const link = `${ORIGIN}/watch/${a.id}/${ep}`
     const desc = escapeHtml(`Смотрите ${ep} серию аниме «${a.russian || a.name}» онлайн бесплатно с русской озвучкой на AnimeLife.`)
     const img = absolute(a.image?.original)
-    return `    <item>\n      <title>${title} — ${ep} серия</title>\n      <link>${link}</link>\n      <guid isPermaLink="true">${link}</guid>\n      <pubDate>${now}</pubDate>\n      <description>${desc}</description>${img ? `\n      <enclosure url="${img}" type="image/jpeg" />` : ''}\n    </item>`
+    return `    <item turbo="true">\n      <title>${title} — ${ep} серия</title>\n      <link>${link}</link>\n      <guid isPermaLink="true">${link}</guid>\n      <pubDate>${now}</pubDate>\n      <description>${desc}</description>${img ? `\n      <enclosure url="${img}" type="image/jpeg" />` : ''}\n      <turbo:content><![CDATA[\n        <header>\n          <h1>${title} — ${ep} серия</h1>\n        </header>\n        ${img ? `<figure><img src="${img}" alt="${title}" /></figure>` : ''}\n        <p>${desc}</p>\n        <p><a href="${link}">Смотреть онлайн бесплатно в 1080p на AnimeLife</a></p>\n      ]]></turbo:content>\n    </item>`
   })
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
-    '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n' +
+    '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:turbo="http://turbo.yandex.ru" xmlns:yandex="http://news.yandex.ru">\n' +
     '  <channel>\n' +
     '    <title>Anime Life — Новые серии аниме</title>\n' +
     `    <link>${ORIGIN}</link>\n` +
@@ -1272,6 +1469,21 @@ function sitemapIndex() {
     SITEMAPS.map((p) => `  <sitemap><loc>${ORIGIN}${p}</loc><lastmod>${day}</lastmod></sitemap>`).join('\n') +
     '\n</sitemapindex>\n'
   return xmlResponse(xml, 3600)
+}
+
+function sitemapVoices() {
+  const day = today()
+  return xmlResponse(urlset(VOICE_STUDIO_LIST.map((slug) => [`/voice/${slug}`, day])), DAY)
+}
+
+function sitemapChronology() {
+  const day = today()
+  return xmlResponse(urlset(FRANCHISE_LIST.map((id) => [`/chronology/${id}`, day])), DAY)
+}
+
+function sitemapTropes() {
+  const day = today()
+  return xmlResponse(urlset(TROPE_LIST.map((slug) => [`/trope/${slug}`, day])), DAY)
 }
 
 /** Разделы и посадочные страницы: без запросов к Shikimori. Дата изменения — у того, что обновляется каждый день. */
@@ -1366,6 +1578,9 @@ export default {
     if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')
     if (url.pathname === '/sitemap-episodes.xml') return sitemapTitles(ctx, 'episodes')
+    if (url.pathname === '/sitemap-voices.xml') return sitemapVoices()
+    if (url.pathname === '/sitemap-chronology.xml') return sitemapChronology()
+    if (url.pathname === '/sitemap-tropes.xml') return sitemapTropes()
     if (url.pathname === '/rss.xml') return rssFeed(ctx)
     if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request)
     // Поддельный браузер получает обычный index.html: без запросов к Shikimori и без места в кэше.

@@ -11,7 +11,7 @@ import { usePlayerHealth } from '../data/quality'
 import { getEntry, setListStatus, setWatched, useMyList } from '../data/myList'
 import NotFound from './NotFound'
 import WatchTogetherButton from '../components/together/WatchTogetherButton'
-import VideoPlayer, { isOwnProvider, type Provider } from '../components/VideoPlayer'
+import VideoPlayer, { isOwnProvider, type Provider, BALANCER_FALLBACK_LADDER } from '../components/VideoPlayer'
 import { isBalancerAvailable } from '../api/balancers'
 import { fetchKodikTranslations, kodikTranslationUrl } from '../api/kodik'
 import { findRelease } from '../api/anilibria'
@@ -26,7 +26,9 @@ import { createLocalStore } from '../data/localStore'
 import { usePageMeta, useJsonLd } from '../data/pageMeta'
 import { buildJsonLdEpisode } from '../data/seoEngine'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
-import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, SkipIcon, WideIcon } from '../components/Icons'
+import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, ShareIcon, SkipIcon, WideIcon } from '../components/Icons'
+import ShareModal from '../components/ShareModal'
+import WatchStreak from '../components/WatchStreak'
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
 import { calm } from '../components/morph'
 import VoiceLogo from '../components/VoiceLogo'
@@ -52,8 +54,9 @@ export default function Player() {
   // Ссылка на момент (?t=секунды): кладём его как место, где остановились, и плеер начнёт оттуда.
   const [params] = useSearchParams()
   const startAt = Number(params.get('t'))
+  const [shareOpen, setShareOpen] = useState(false)
   useMemo(() => {
-    if (startAt > 0) savePosition(id, Math.max(1, Number(episode) || 1), startAt)
+    if (startAt > 0) savePosition(id, Math.max(1, Number(episode) || 1), startAt, 0, true)
   }, [id, episode, startAt])
   const result = useAsync(() => loadAnime(id), [id])
   const anime = result.value?.data
@@ -230,7 +233,12 @@ export default function Player() {
 
   const episodeJsonLd = useMemo(() => {
     if (!anime) return null
-    return buildJsonLdEpisode(
+    const origin = typeof location !== 'undefined' ? location.origin : 'https://animelife.top'
+    const baseUrl = `${origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
+    const episodeUrl = `${baseUrl}/watch/${anime.id}/${current}`
+    const animeUrl = `${baseUrl}/anime/${anime.id}`
+
+    const episodeSchema = buildJsonLdEpisode(
       {
         id: anime.id,
         title: anime.title,
@@ -245,12 +253,73 @@ export default function Player() {
         kind: (anime.kind as any) || 'tv',
         status: anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes ? 'ongoing' : 'released',
         description: anime.description,
+        rating: anime.score
+          ? {
+              ratingValue: anime.score,
+              bestRating: 10,
+              worstRating: 1,
+              ratingCount: 100,
+            }
+          : undefined,
       },
       {
         episodeNumber: current,
         title: names[current],
-      }
+      },
+      undefined,
+      baseUrl
     )
+
+    const aggregateRating = anime.score
+      ? {
+          '@type': 'AggregateRating',
+          ratingValue: anime.score,
+          bestRating: 10,
+          worstRating: 1,
+          ratingCount: 100,
+        }
+      : undefined
+
+    if (aggregateRating) {
+      ;(episodeSchema as any).aggregateRating = aggregateRating
+      if ((episodeSchema as any).partOfSeries) {
+        ;(episodeSchema as any).partOfSeries.aggregateRating = aggregateRating
+      }
+    }
+
+    const breadcrumbs = {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'Главная',
+          item: `${baseUrl}/`,
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: anime.title,
+          item: animeUrl,
+        },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: `Серия ${current}`,
+          item: episodeUrl,
+        },
+      ],
+    }
+
+    ;(episodeSchema as any).breadcrumb = breadcrumbs
+
+    return {
+      '@context': 'https://schema.org',
+      '@graph': [
+        episodeSchema,
+        breadcrumbs,
+      ],
+    }
   }, [anime, current, names])
 
   useJsonLd(episodeJsonLd as unknown as Record<string, any>)
@@ -368,6 +437,7 @@ export default function Player() {
           const next = voices.find((v) => v.provider === p)
           if (next) chooseVoice(next.key)
         }}
+        onShare={() => setShareOpen(true)}
       />
       )}
       </div>
@@ -393,6 +463,7 @@ export default function Player() {
               {ageLabel(anime.rating)}
             </span>
           )}
+          <WatchStreak compact />
           {name && <p className="watch-head__name">{name}</p>}
         </div>
         <div className="watch-actions">
@@ -421,10 +492,19 @@ export default function Player() {
             type="button"
             className="btn btn--ghost watch-moment"
             title="Поделиться моментом: ссылка откроет серию с этого места"
-            onClick={() => shareMoment(anime.title, anime.id, current)}
+            onClick={() => setShareOpen(true)}
           >
             <ClockIcon size={18} />
             <span className="sr-only">Поделиться моментом</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost watch-share"
+            title="Поделиться серией в соцсетях или QR-кодом"
+            onClick={() => setShareOpen(true)}
+          >
+            <ShareIcon size={18} />
+            <span className="sr-only">Поделиться</span>
           </button>
           <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
           {(anime.ongoing || (anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes)) && (
@@ -483,6 +563,7 @@ export default function Player() {
           provider="AniLibria"
           fillers={fillers.value}
         />
+        <WatchStreak currentAnimeId={anime.id} />
       </div>
 
       <Suspense fallback={null}>
@@ -491,6 +572,14 @@ export default function Player() {
         <EpisodeRating animeId={anime.id} episode={current} />
         <EpisodeComments animeId={anime.id} episode={current} />
       </Suspense>
+
+      <ShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title={anime.title}
+        animeId={anime.id}
+        episode={current}
+      />
     </main>
   )
 }
@@ -499,7 +588,7 @@ const two = (n: number) => String(Math.floor(n)).padStart(2, '0')
 const stamp = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}:${two((s % 3600) / 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`)
 
 /** Ссылка на серию с текущего места: на телефоне системное меню, на компьютере копируем. */
-async function shareMoment(title: string, animeId: string, episode: number) {
+export async function shareMoment(title: string, animeId: string, episode: number) {
   const t = Math.floor(playerTime())
   const url = `${location.origin}${import.meta.env.BASE_URL}watch/${animeId}/${episode}${t > 0 ? `?t=${t}` : ''}`
   const text = `${title}, серия ${episode}${t > 0 ? `, с ${stamp(t)}` : ''}`
@@ -845,7 +934,14 @@ function sourceSlot(voice: Voice, host?: Host) {
  * и то, где этой серии заведомо нет.
  */
 function nextSource(voices: Voice[], from: Voice, episode: number, tried: Set<string>): { voice: Voice; host: Host } | undefined {
-  const order = [from, ...voices.filter((v) => v !== from && v.kind === from.kind), ...voices.filter((v) => v !== from && v.kind !== from.kind)]
+  // Строгий порядок каскада балансеров: Kodik -> Alloha -> AniLibria -> AnimeVost -> DreamCast -> Sibnet
+  const ladderRank = (v: Voice) => {
+    const idx = BALANCER_FALLBACK_LADDER.indexOf(v.provider)
+    return idx >= 0 ? idx : 99
+  }
+  const sameKind = voices.filter((v) => v !== from && v.kind === from.kind).sort((a, b) => ladderRank(a) - ladderRank(b))
+  const otherKind = voices.filter((v) => v !== from && v.kind !== from.kind).sort((a, b) => ladderRank(a) - ladderRank(b))
+  const order = [from, ...sameKind, ...otherKind]
   for (const voice of order) {
     if (!hasEpisode(voice, episode)) continue
     const hosts = hostsOf(voice)

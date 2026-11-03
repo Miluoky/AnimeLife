@@ -47,6 +47,9 @@ const News = lazy(pageChunks.news)
 const Season = lazy(pageChunks.season)
 const PersonPage = lazy(pageChunks.person)
 const SimilarPage = lazy(pageChunks.similar)
+const VoiceStudioPage = lazy(pageChunks.voiceStudio)
+const ChronologyPage = lazy(pageChunks.chronology)
+const TropeCollectionPage = lazy(pageChunks.trope)
 
 // key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
@@ -93,6 +96,12 @@ export default function App() {
           <Route path="theme/:slug" element={<Landing />} />
           <Route path="best/:slug" element={<Landing />} />
           <Route path="studio/:slug" element={<Landing />} />
+          {/* SEO Landing Pages (Division I): студии озвучки, хронологии франшиз и тропы */}
+          <Route path="voice/:studio_slug" element={<VoiceStudioPage />} />
+          <Route path="chronology" element={<ChronologyPage />} />
+          <Route path="chronology/:id" element={<ChronologyPage />} />
+          <Route path="trope" element={<TropeCollectionPage />} />
+          <Route path="trope/:slug" element={<TropeCollectionPage />} />
           <Route path="similar/:id" element={<SimilarPage />} />
           <Route path="type/:kind" element={<Landing />} />
           <Route path="year/:year" element={<Landing />} />
