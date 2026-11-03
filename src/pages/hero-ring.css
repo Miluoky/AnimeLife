@@ -3,10 +3,12 @@
    Кольцо поворачивается на --turn, каждый постер стоит на своём угле --a и разворачивается к зрителю;
    --depth (1 — впереди, 0 — сзади) приглушает дальние. Только трансформации: дёшево для видеокарты. */
 @media (min-width: 1101px) {
-  .hero--ring .hero__art-poster {
+  .hero--ring .hero__art-poster,
+  .hero .hero__art-poster {
     display: none;
   }
-  .hero--ring .hero__thumbs {
+  .hero--ring .hero__thumbs,
+  .hero .hero__thumbs {
     --card: clamp(100px, 9vw, 132px);
     --r: clamp(140px, 14.5vw, 215px);
     position: relative;
@@ -23,7 +25,8 @@
     transform: translateY(14px) rotateX(-16deg);
     gap: 0;
   }
-  .hero--ring .hero__thumb {
+  .hero--ring .hero__thumb,
+  .hero .hero__thumb {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -40,15 +43,18 @@
       filter 1s var(--ease),
       border-color 0.3s;
   }
-  .hero--ring .hero__thumb:hover {
+  .hero--ring .hero__thumb:hover,
+  .hero .hero__thumb:hover {
     opacity: 1;
     filter: none;
   }
-  .hero--ring .hero__thumb--on {
+  .hero--ring .hero__thumb--on,
+  .hero .hero__thumb--on {
     transform: rotateY(calc(var(--a) - var(--turn))) translateZ(var(--r)) rotateY(calc(var(--turn) - var(--a))) scale(1.08);
   }
   /* Отражение-подсветка под кольцом: сцена «стоит» на полу кинозала. */
-  .hero--ring .hero__thumbs::before {
+  .hero--ring .hero__thumbs::before,
+  .hero .hero__thumbs::before {
     content: '';
     position: absolute;
     left: 50%;
@@ -62,10 +68,12 @@
   }
 }
 @media (min-width: 1101px) and (prefers-reduced-motion: reduce) {
-  .hero--ring .hero__thumb {
+  .hero--ring .hero__thumb,
+  .hero .hero__thumb {
     transition: none;
   }
 }
-:root[data-calm='1'] .hero--ring .hero__thumb {
+:root[data-calm='1'] .hero--ring .hero__thumb,
+:root[data-calm='1'] .hero .hero__thumb {
   transition: none;
 }

@@ -23,6 +23,7 @@ const HomeBento = lazy(() => import('../components/HomeShelves').then((m) => ({ 
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 const CatalogSection = lazy(() => import('../components/CatalogSection'))
 
+import './hero.css'
 if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
 
 const HERO_COUNT = 5
@@ -74,11 +75,24 @@ function Hero() {
   const shot = shots.value && !shots.loading ? shots.value : undefined
   useAmbient(current?.posterSmall)
 
+  // Listen for media query change to ensure hero-ring.css is loaded on desktop
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 1101px)')
+    if (mql.matches) {
+      void import('./hero-ring.css')
+    }
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) void import('./hero-ring.css')
+    }
+    mql.addEventListener?.('change', handler)
+    return () => mql.removeEventListener?.('change', handler)
+  }, [])
+
   const pausedNow = useRef(paused)
   pausedNow.current = paused
   useEffect(() => {
     if (items.length < 2 || paused) return
-    const timer = setInterval(() => !pausedNow.current && setStep((s) => s + 1), HERO_INTERVAL)
+    const timer = setInterval(() => !document.hidden && !pausedNow.current && setStep((s) => s + 1), HERO_INTERVAL)
     return () => clearInterval(timer)
   }, [items.length, paused])
 
@@ -88,21 +102,47 @@ function Hero() {
 
   const when = current.nextEpisodeAt
   return (
-    <section className="hero" aria-label="Популярное аниме">
-      {shot && (
-        <img
-          key={shot}
-          className="hero__art"
-          src={shotSrc(shot)}
-          alt=""
-          aria-hidden="true"
-          decoding="async"
-        />
+    <section
+      className={`hero hero--ring${paused ? ' hero--paused' : ''}`}
+      style={{ '--glow': anime.posterFill, '--hero-ms': `${HERO_INTERVAL}ms` } as CSSProperties}
+      aria-label="Популярное аниме"
+    >
+      <div className="hero__backdrop" aria-hidden="true">
+        {shot ? (
+          <img
+            key={shot}
+            className="hero__art"
+            src={shotSrc(shot)}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+          />
+        ) : anime.posterUrl ? (
+          <img
+            key={`backdrop-fallback-${anime.id}`}
+            className="hero__art hero__art--fallback"
+            src={anime.posterSmall ?? anime.posterUrl}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+          />
+        ) : null}
+        <div className="hero__scrim" aria-hidden="true" />
+      </div>
+      {anime.japaneseTitle && /[\u3040-\u30ff\u4e00-\u9fff]/.test(anime.japaneseTitle) && (
+        <span key={`jp-${anime.id}`} className="hero__jp" lang="ja" aria-hidden="true">
+          {anime.japaneseTitle}
+        </span>
       )}
-      <div className="hero__scrim" aria-hidden="true" />
       <div className="hero__content">
         <div className="hero__meta">
-          <span className="eyebrow">{heroLabel(when)}</span>
+          <span className="hero__rec" aria-hidden="true">
+            <i /> REC
+          </span>
+          <span className="eyebrow">
+            {airsToday(when) && <span className="live-dot" aria-hidden="true" />}
+            {heroLabel(when)}
+          </span>
           {items.length > 1 && (
             <button
               type="button"
@@ -118,10 +158,12 @@ function Hero() {
         <h2 className="hero__title">{anime.title}</h2>
         <div className="hero__info">
           {anime.episodes ? <span>EP {anime.episodes}</span> : null}
-          {anime.score && <span>★ {anime.score}</span>}
-          {anime.year && <span>{anime.year}</span>}
-          {anime.kind && <span>{anime.kind.toUpperCase()}</span>}
-          {anime.studio && <span>{anime.studio}</span>}
+          {anime.score && !Number.isNaN(Number(anime.score)) ? (
+            <span>★ {Number(anime.score).toFixed(1)}</span>
+          ) : null}
+          {anime.year ? <span>{anime.year}</span> : null}
+          {anime.kind ? <span>{anime.kind.toUpperCase()}</span> : null}
+          {anime.studio ? <span>{anime.studio}</span> : null}
         </div>
         {anime.genres && (
           <div className="hero__genres">

@@ -5,6 +5,8 @@ import { SearchIcon } from './Icons'
 // Подсказки — отдельный файл: он грузится при первом фокусе на поле, а не с каждой страницей.
 const SearchHints = lazy(() => import('./SearchHints'))
 
+const isMac = typeof navigator !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)
+
 interface Props {
   className: string
   /** вызывается после перехода, например чтобы закрыть мобильное меню */
@@ -92,7 +94,7 @@ export default function SearchBox({ className, onDone }: Props) {
         onClick={show}
         onKeyDown={onKeyDown}
       />
-      {!query && <kbd className="search__kbd" aria-hidden="true">Ctrl K</kbd>}
+      {!query && <kbd className="search__kbd" aria-hidden="true">{isMac ? '⌘K' : 'Ctrl+K'}</kbd>}
       {wanted && open && (
         <Suspense fallback={null}>
           <SearchHints query={query} listId={listId} keys={keys} onGo={go} onState={onState} />

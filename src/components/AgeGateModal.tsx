@@ -60,7 +60,7 @@ export default function AgeGateModal({ onVerified }: { onVerified?: () => void }
           maxWidth: '460px',
           background: 'var(--surface)',
           border: '1px solid var(--line)',
-          borderRadius: 'var(--radius-lg)',
+          borderRadius: '4px',
           padding: '32px 28px',
           boxShadow: 'var(--glass-shadow), 0 0 32px color-mix(in srgb, var(--accent) 25%, transparent)',
           textAlign: 'center',

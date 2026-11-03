@@ -49,7 +49,16 @@ export default function BottomNav() {
 
   return (
     <>
-      <nav className="dock" aria-label="Разделы сайта" style={{ '--i': active } as CSSProperties}>
+      <nav
+        className="dock"
+        aria-label="Разделы сайта"
+        style={
+          {
+            '--i': active,
+            paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
+          } as CSSProperties
+        }
+      >
         {active >= 0 && <span className="dock__glider" aria-hidden="true" />}
         {items.map((i) => (
           <NavLink

@@ -54,6 +54,11 @@
 [id] {
   scroll-margin-top: calc(72px + env(safe-area-inset-top) + 12px);
 }
+@media (max-width: 640px) {
+  [id] {
+    scroll-margin-top: calc(60px + env(safe-area-inset-top) + 12px);
+  }
+}
 
 a,
 button,
@@ -67,17 +72,18 @@ select,
 
 html {
   overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.5;
-  overflow-x: clip;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
 a {
@@ -114,21 +120,28 @@ h3 {
 
 @media (min-width: 1920px) {
   .container {
-    max-width: 1800px;
+    max-width: 1600px;
     padding: 0 max(48px, env(safe-area-inset-right)) 0 max(48px, env(safe-area-inset-left));
   }
 }
 
 @media (min-width: 2560px) {
   .container {
-    max-width: 2300px;
+    max-width: 1720px;
+    padding: 0 max(56px, env(safe-area-inset-right)) 0 max(56px, env(safe-area-inset-left));
+  }
+}
+
+@media (min-width: 3440px) {
+  .container {
+    max-width: 1720px;
     padding: 0 max(64px, env(safe-area-inset-right)) 0 max(64px, env(safe-area-inset-left));
   }
 }
 
 @media (max-width: 900px) {
   .container {
-    padding: 0 max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
+    padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
   }
 }
 
@@ -138,11 +151,20 @@ h3 {
   }
 }
 
+@media (max-width: 360px) {
+  .container {
+    padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  }
+}
+
 /* Header */
 .site-header {
   border-bottom: 1px solid var(--surface-2);
-  /* В установленном приложении на iPhone шапка уходит под вырез экрана. */
-  padding-top: env(safe-area-inset-top);
+  /* В установленном приложении и мобильном браузере на iPhone шапка уходит под вырез экрана / Dynamic Island. */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: max(0px, env(safe-area-inset-top));
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 .site-header__inner {
@@ -178,15 +200,28 @@ h3 {
 
 .site-nav {
   display: flex;
+  align-items: center;
   gap: 20px;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
+  height: 100%;
 }
 
 .site-nav a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
   white-space: nowrap;
+  padding: 8px 4px;
+  text-decoration: none;
+  transition: color 0.18s ease;
 }
+
+.site-nav a:hover {
+  color: var(--text);
+}
+
 /* 901–1440 px: меню и поиск не помещаются вместе. Поиск сжимается до значка,
    а при вводе раскрывается на месте меню — кнопка входа больше не уходит за край. */
 @media (min-width: 901px) and (max-width: 1440px) {
@@ -197,8 +232,8 @@ h3 {
     gap: 16px;
   }
   .search:not(:focus-within) {
-    width: 44px;
-    padding: 0 13px;
+    width: 42px;
+    padding: 0 12px;
     cursor: text;
   }
   /* Невидимое поле на весь значок: нажатие по значку сразу ставит курсор в поиск. */
@@ -235,21 +270,47 @@ h3 {
   color: var(--text);
 }
 .site-nav a.active::before {
-  content: '▸ ';
-  color: var(--accent);
+  display: none;
+  content: none;
+}
+.site-nav a.active::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 
 .search {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 44px;
+  height: 42px;
   padding: 0 16px;
-  border-radius: 6px;
-  background: var(--surface);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
   border: 1px solid var(--line);
   width: 280px;
   max-width: 40vw;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, width 0.3s var(--ease);
+}
+
+.search:hover {
+  border-color: color-mix(in srgb, var(--text) 24%, transparent);
+  background: var(--surface);
+}
+
+.search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 75%, var(--line));
+  background: color-mix(in srgb, var(--surface) 96%, var(--accent) 4%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 0 18px -4px color-mix(in srgb, var(--accent) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .search input {
@@ -260,7 +321,7 @@ h3 {
   outline: none;
   color: var(--text);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14.5px;
 }
 
 .icon-btn {
@@ -353,14 +414,19 @@ h3 {
 }
 
 .pill {
-  height: 40px;
-  padding: 0 16px;
+  min-height: 44px;
+  min-width: 44px;
+  height: auto;
+  padding: 8px 16px;
   border-radius: 6px;
   border: 1px solid var(--line);
   background: transparent;
   color: var(--text);
   font-weight: 600;
   font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pill.active {
@@ -523,15 +589,15 @@ h3 {
 /* Посадочные страницы: хлебные крошки, вводный текст, ссылки на страницы списка */
 .home-title {
   /* «Кадр»: заголовок страницы — служебная строка над кадром, как надпись на хлопушке */
-  font: 600 13px var(--font-mono);
+  font: 600 13px/1.4 var(--font-mono);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: -40px;
+  margin: 0 0 14px;
 }
-/* Перед «Продолжить просмотр» строка не заезжает под заголовок полки. */
+/* Перед «Продолжить просмотр» строка сохраняет чистый кинематографичный ритм. */
 .home__intro--personal .home-title {
-  margin: 0;
+  margin: 0 0 16px;
 }
 
 .crumbs {
@@ -659,24 +725,28 @@ h3 {
 
 /* Home */
 .home {
-  padding-top: 40px;
+  padding-top: 28px;
   display: flex;
   flex-direction: column;
-  gap: 56px;
 }
-.home__intro {
+.home > * + * {
+  margin-top: 48px;
+}
+.home > .home__intro {
   display: flex;
   flex-direction: column;
-  gap: 0;
+}
+.home > .home__intro:not(.home__intro--personal) + .hero {
+  margin-top: 0;
 }
 .home__intro--personal {
-  gap: 24px;
+  gap: 20px;
 }
 .home__personal {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  margin-bottom: -32px;
+  margin-bottom: 0;
 }
 .home__personal > .stack {
   min-width: 0;
@@ -891,6 +961,7 @@ h3 {
 
 @media (max-width: 900px) {
   .site-header__inner {
+    height: 60px;
     gap: 12px;
   }
   .menu-btn {
@@ -1332,25 +1403,26 @@ h3 {
   transition-duration: 0.01ms !important;
 }
 
-/* Шапка остаётся наверху и становится полупрозрачной при прокрутке. */
+/* Шапка остаётся наверху и становится полупрозрачной при прокрутке: frosted glass backdrop. */
 .site-header {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  background: color-mix(in srgb, var(--bg) 76%, transparent);
   border-bottom-color: var(--glass-edge);
-  backdrop-filter: blur(18px) saturate(145%);
-  -webkit-backdrop-filter: blur(18px) saturate(145%);
-  transition: background 0.3s, border-color 0.3s, transform 0.3s var(--ease);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s, transform 0.3s var(--ease);
 }
 :root:not(.scroll-lock) .site-header--hidden:not(:focus-within) {
   transform: translateY(-100%);
 }
 .site-header--scrolled {
-  background: color-mix(in srgb, var(--surface) 76%, transparent);
-  backdrop-filter: blur(24px) saturate(155%);
-  -webkit-backdrop-filter: blur(24px) saturate(155%);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.16);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--line) 80%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
 }
 
 /* Переходы между страницами (см. morph.ts): старая страница уходит, новая поднимается снизу,
@@ -1557,14 +1629,19 @@ h3 {
   }
 }
 
-/* Поиск: подсказка горячей клавиши. */
+/* Поиск: подсказка горячей клавиши */
 .search__kbd {
-  font: 600 11px/1 var(--font-body);
+  font: 600 11px/1.2 var(--font-mono);
+  letter-spacing: 0.04em;
   color: var(--muted);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px 6px;
+  background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-radius: 5px;
+  padding: 3px 6px;
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  pointer-events: none;
+  transition: opacity 0.15s ease;
 }
 .search--mobile .search__kbd {
   display: none;
@@ -2195,19 +2272,14 @@ input[type='radio'] {
   min-height: 100vh;
   min-height: 100dvh;
 }
-/* Баннер «Сейчас в эфире»: кадр из аниме во всю правую часть, текст слева, внизу постеры для переключения. */
-.hero {
+/* «Кадр»: контейнер видоискателя */
+.frame-corners {
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  min-height: 500px;
-  display: grid;
-  grid-template-columns: minmax(0, 560px) 1fr;
-  align-items: center;
-  padding: 56px 56px 48px;
-  background: color-mix(in srgb, var(--glow, var(--surface)) 22%, transparent);
 }
-/* «Кадр»: вместо рамки со скруглением — уголки видоискателя. */
+
+/* «Кадр»: вместо рамки со скруглением — уголки видоискателя.
+   Четырёхточечная маска: безупречная привязка к углам без субпиксельных
+   артефактов и смещений на 1080p, 1440p, 4K и Ultrawide дисплеях. */
 .hero::before,
 .frame-corners::before {
   content: '';
@@ -2215,316 +2287,20 @@ input[type='radio'] {
   inset: var(--fc-inset, 14px);
   z-index: 2;
   pointer-events: none;
+  box-sizing: border-box;
   border: 2px solid var(--fc-color, color-mix(in srgb, var(--text) 60%, transparent));
-  -webkit-mask: conic-gradient(at 22px 22px, #0000 75%, #000 0) 0 0 / calc(100% - 22px) calc(100% - 22px);
-  mask: conic-gradient(at 22px 22px, #0000 75%, #000 0) 0 0 / calc(100% - 22px) calc(100% - 22px);
+  -webkit-mask:
+    linear-gradient(#000 0 0) top left / var(--fc-size, 22px) var(--fc-size, 22px) no-repeat,
+    linear-gradient(#000 0 0) top right / var(--fc-size, 22px) var(--fc-size, 22px) no-repeat,
+    linear-gradient(#000 0 0) bottom left / var(--fc-size, 22px) var(--fc-size, 22px) no-repeat,
+    linear-gradient(#000 0 0) bottom right / var(--fc-size, 22px) var(--fc-size, 22px) no-repeat;
+  mask:
+    linear-gradient(#000 0 0) top left / var(--fc-size, 22px) var(--fc-size, 22px) no-repeat,
+    linear-gradient(#000 0 0) top right / var(--fc-size, 22px) var(--fc-size, 22px) no-repeat,
+    linear-gradient(#000 0 0) bottom left / var(--fc-size, 22px) var(--fc-size, 22px) no-repeat,
+    linear-gradient(#000 0 0) bottom right / var(--fc-size, 22px) var(--fc-size, 22px) no-repeat;
 }
-/* Оригинальное название вертикально, как на японском постере. */
-.hero__jp {
-  position: absolute;
-  z-index: 1;
-  top: 84px;
-  right: 34px;
-  max-height: calc(100% - 140px);
-  overflow: hidden;
-  writing-mode: vertical-rl;
-  font: 600 26px/1 var(--font-jp);
-  letter-spacing: 0.22em;
-  white-space: nowrap;
-  color: color-mix(in srgb, var(--text) 78%, transparent);
-  text-shadow: 0 2px 16px rgb(0 0 0 / 0.6);
-  animation: fade-in 0.8s var(--ease) both;
-}
-.hero__jp::after {
-  content: '';
-  display: inline-block;
-  width: 1px;
-  height: 56px;
-  margin-top: 14px;
-  background: var(--accent);
-}
-.hero__backdrop {
-  position: absolute;
-  inset: 0 0 0 30%;
-  z-index: -1;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 40%);
-  mask-image: linear-gradient(90deg, transparent, #000 40%);
-}
-.hero__backdrop::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(0deg, var(--bg), transparent 45%);
-  opacity: 0.85;
-}
-.hero__backdrop img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  animation: ken-burns 18s ease-in-out infinite alternate;
-}
-.hero__blur {
-  filter: blur(30px) brightness(0.55);
-}
-.hero__blur--next {
-  animation:
-    fade-in 0.6s var(--ease) both,
-    ken-burns 18s ease-in-out infinite alternate;
-}
-.hero__shot {
-  opacity: 0;
-  transition: opacity 0.8s var(--ease);
-}
-.hero__shot.is-on {
-  opacity: 1;
-}
-@keyframes ken-burns {
-  from {
-    transform: scale(1.04);
-  }
-  to {
-    transform: scale(1.14) translate(-2%, 1%);
-  }
-}
-.hero__text {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  animation: page-in 0.5s var(--ease) both;
-}
-.hero__title {
-  font-size: clamp(32px, 4.8vw, 64px);
-  font-weight: 800;
-  line-height: 0.98;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-  text-shadow: 0 4px 30px rgb(0 0 0 / 0.5);
-}
-/* Метаданные — таймкод: ячейки через тонкие линии. */
-.hero .meta-line {
-  gap: 0;
-  width: fit-content;
-  max-width: 100%;
-  border-block: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
-  font-size: 13px;
-  color: var(--text-soft);
-}
-.hero .meta-line > span {
-  padding: 7px 12px;
-}
-.hero .meta-line > span + span {
-  border-left: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
-}
-.hero .meta-line .meta-dot {
-  display: none;
-}
-.hero .chip {
-  background: color-mix(in srgb, var(--text) 6%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
-}
-.hero__desc {
-  margin: 0;
-  max-width: 520px;
-  font-size: 17px;
-  line-height: 1.6;
-  color: var(--text-soft);
-}
-.hero__art-poster {
-  justify-self: center;
-  width: min(240px, 60%);
-  aspect-ratio: 2 / 3;
-  object-fit: cover;
-  border-radius: 6px;
-  box-shadow: 0 24px 60px rgb(0 0 0 / 0.5);
-  animation: page-in 0.5s var(--ease) both;
-}
-.hero__toggle {
-  position: absolute;
-  z-index: 1;
-  top: 20px;
-  right: 20px;
-  background: var(--glass-surface);
-  border-color: var(--glass-edge);
-  box-shadow: var(--glass-shadow), inset 0 1px 0 color-mix(in srgb, var(--text) 9%, transparent);
-  backdrop-filter: blur(16px) saturate(145%);
-  -webkit-backdrop-filter: blur(16px) saturate(145%);
-}
-.hero__thumbs {
-  position: absolute;
-  right: 32px;
-  bottom: 28px;
-  display: flex;
-  gap: 10px;
-}
-.hero__thumb {
-  position: relative;
-  width: 54px;
-  height: 78px;
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--surface-2);
-  opacity: 0.6;
-  transition:
-    opacity 0.3s,
-    transform 0.3s var(--ease),
-    border-color 0.3s;
-}
-.hero__thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.hero__thumb:hover {
-  opacity: 0.9;
-}
-.hero__thumb--on {
-  opacity: 1;
-  border-color: var(--accent);
-  transform: translateY(-6px);
-}
-/* Полоска на активном постере: сколько осталось до смены тайтла. */
-.hero__thumb--on::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 3px;
-  width: 100%;
-  background: var(--accent);
-  transform-origin: left;
-  animation: hero-timer var(--hero-ms, 8s) linear both;
-}
-.hero--paused .hero__thumb--on::after {
-  animation: none;
-  transform: scaleX(0);
-}
-@keyframes hero-timer {
-  from {
-    transform: scaleX(0);
-  }
-}
-.hero--loading {
-  display: block;
-  min-height: 500px;
-}
-@media (max-width: 1100px) {
-  .hero {
-    --fc-inset: 8px;
-    grid-template-columns: 1fr;
-    padding: 220px 20px 24px;
-    min-height: 0;
-    align-items: end;
-  }
-  .hero__backdrop {
-    inset: 0 0 auto;
-    height: 300px;
-    -webkit-mask-image: linear-gradient(0deg, transparent, #000 40%);
-    mask-image: linear-gradient(0deg, transparent, #000 40%);
-  }
-  .hero__art-poster {
-    display: none;
-  }
-  .hero__toggle {
-    top: 12px;
-    right: 12px;
-  }
-  .hero__thumbs {
-    position: static;
-    padding: 14px 2px 6px;
-    overflow-x: auto;
-  }
-  .hero__thumb {
-    flex: 0 0 44px;
-    height: 62px;
-  }
-  .hero__title {
-    font-size: 30px;
-  }
-  .hero .meta-line {
-    gap: 2px 14px;
-    border: 0;
-  }
-  .hero .meta-line > span {
-    padding: 0;
-  }
-  .hero .meta-line > span + span {
-    border: 0;
-  }
-  .hero__jp {
-    top: 22px;
-    left: 22px;
-    right: auto;
-    max-height: 190px;
-    font-size: 18px;
-  }
-  .hero__jp::after {
-    height: 32px;
-  }
-  .hero__text {
-    gap: 14px;
-  }
-  /* Баннер листается каждые 8 секунд: высота текста одна для любого тайтла, страница под ним не прыгает. */
-  .hero__title {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    min-height: 1.96em;
-  }
-  .hero .chips {
-    flex-wrap: nowrap;
-    overflow: hidden;
-  }
-  .hero__desc {
-    font-size: 15px;
-    -webkit-line-clamp: 3;
-    min-height: 4.8em;
-  }
-  .hero .actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .hero .actions .btn {
-    padding: 0 12px;
-  }
-  .hero--loading {
-    min-height: 560px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero__backdrop img,
-  .hero__thumb--on::after {
-    animation: none;
-  }
-}
-:root[data-calm='1'] .hero__backdrop img,
-:root[data-calm='1'] .hero__thumb--on::after,
-:root[data-lite='1'] .hero__backdrop img {
-  animation: none;
-}
-/* Телефон: кнопка «Смотреть» видна на первом экране, над нижним меню. */
-@media (max-width: 640px) {
-  .hero {
-    padding-top: 168px;
-  }
-  .hero__backdrop {
-    height: 250px;
-  }
-  .hero__desc {
-    -webkit-line-clamp: 2;
-  }
-}
-/* Телефон: медленный зум баннера под размытием перерисовывал большую картинку на каждом кадре прокрутки. */
-@media (max-width: 900px) {
-  .hero__backdrop img {
-    animation: none;
-  }
-}
+
 
 /* «Кадр»: свет постера. Размытая копия постера открытого тайтла подсвечивает страницу сверху,
    как экран с подсветкой стены. Под ней — неподвижное плёночное зерно. См. components/ambient.ts. */
@@ -2644,3 +2420,8 @@ img.img--broken {
     transform: none;
   }
 }
+
+
+
+
+

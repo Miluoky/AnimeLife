@@ -5,7 +5,7 @@ import Shelf from './Shelf'
 import PosterCard, { Poster } from './PosterCard'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
-import { CalendarIcon, ClockIcon, ListIcon, PlayIcon, SparkIcon, TrophyIcon } from './Icons'
+import { CalendarIcon, ClockIcon, FilmIcon, ListIcon, PlayIcon, SparkIcon, TrophyIcon } from './Icons'
 import { GENRES } from '../data/seo'
 import './genres.css'
 import './bento.css'
@@ -133,19 +133,43 @@ export function NewEpisodesShelf() {
 const FILM_FRAMES = 10
 const pad = (n: number) => String(n).padStart(2, '0')
 
-function FilmStrip({ items }: { items: ScheduleItem[] }) {
+function FilmStrip({
+  items,
+  isUpcoming = false,
+  badge,
+}: {
+  items: ScheduleItem[]
+  isUpcoming?: boolean
+  badge?: string
+}) {
   const rest = items.length - FILM_FRAMES
+  const now = Date.now()
+  const nextIdx = items.findIndex((i) => i.at.getTime() >= now)
+
   return (
-    <div className="film-strip" tabIndex={0} aria-label="Кадры онгоингов">
-      <ol className="film">
-        {items.slice(0, FILM_FRAMES).map((i) => {
-          const at = hhmm(i.at)
+    <div className="film" tabIndex={0} aria-label="Кадры онгоингов">
+      <ol className="film__frames">
+        {items.slice(0, FILM_FRAMES).map((i, index) => {
+          const at = isUpcoming ? whenLabel(i.at) : hhmm(i.at)
+          const isAired = !isUpcoming && i.at.getTime() < now
+          const isNext = isUpcoming ? index === 0 : index === nextIdx
+          const frameClass = [
+            'film__frame',
+            isAired && 'film__frame--aired',
+            isNext && 'film__frame--next',
+          ]
+            .filter(Boolean)
+            .join(' ')
+
+          const badgeLabel = isNext && !isUpcoming ? 'REC' : badge ?? (isUpcoming ? 'Скоро' : undefined)
+
           return (
-            <li key={`${i.anime.id}-${i.episode}`} className="film__frame">
+            <li key={`${i.anime.id}-${i.episode}`} className={frameClass}>
               <Link to={`/anime/${i.anime.id}`}>
                 <span className="film__shot" style={{ background: i.anime.posterFill }}>
                   <Poster anime={i.anime} className="poster-img--cover" />
-                  <time className="film__time" dateTime={i.at.toISOString()}>
+                  {badgeLabel && <span className="film__badge">{badgeLabel}</span>}
+                  <time className="film__tc" dateTime={i.at.toISOString()}>
                     {at}
                   </time>
                 </span>
@@ -178,57 +202,170 @@ export function HomeBento() {
   const list = useMyList()
   const today = new Date()
   const items = (schedule.value?.data ?? []).filter((i) => sameDay(i.at, today)).sort((a, b) => +a.at - +b.at)
+  const upcoming = (schedule.value?.data ?? []).filter((i) => i.at.getTime() > Date.now()).sort((a, b) => +a.at - +b.at)
   const watching = list.filter((e) => e.status === 'watching').length
   const planned = list.filter((e) => e.status === 'planned').length
 
+  const hasItems = items.length > 0
+  const hasUpcoming = upcoming.length > 0
+  const nextItem = upcoming[0]
+  const nextDayText = nextItem ? whenLabel(nextItem.at) : ''
+
   return (
     <section className="bento" aria-label="Сводка на сегодня">
-      <div className="bento__tile bento__tile--today">
+      <div className={`bento__tile bento__tile--today ${!hasItems ? 'bento__tile--intermission' : ''}`}>
         <div className="bento__head">
           <span className="shelf__icon" aria-hidden="true">
             <CalendarIcon size={18} />
           </span>
           <div className="bento__titles">
             <h2>Сегодня в эфире</h2>
-            {items.length > 0 && <span className="film__count">{pad(items.length)} релизов</span>}
+            {hasItems ? (
+              <span className="film__count">{pad(items.length)} релизов</span>
+            ) : (
+              <span className="film__count film__count--pause">
+                <span className="film__count-dot" aria-hidden="true" />
+                Эфирная пауза
+              </span>
+            )}
           </div>
           <Link to="/schedule" className="shelf__more">
             Расписание
           </Link>
         </div>
+
         {schedule.loading && !schedule.value ? (
           <div className="bento__skeleton skeleton" aria-busy="true" />
-        ) : items.length ? (
+        ) : hasItems ? (
           <FilmStrip items={items} />
+        ) : hasUpcoming ? (
+          <div className="bento-pause">
+            <div className="bento-pause__banner">
+              <div className="bento-pause__banner-left">
+                <div className="bento-pause__badge">
+                  <span className="bento-pause__dot" aria-hidden="true" />
+                  ЭФИРНАЯ ПАУЗА
+                </div>
+                <div className="bento-pause__msg">
+                  <h3 className="bento-pause__title">Сегодня нет новых серий</h3>
+                  <p className="bento-pause__desc">
+                    Свежие серии появятся по расписанию (ближайшие — {nextDayText}). Ознакомьтесь с графиком недели или доверьтесь случайному выбору.
+                  </p>
+                </div>
+              </div>
+              <div className="bento-pause__actions">
+                <Link to="/schedule" className="btn btn--ghost btn--small bento-pause__btn">
+                  <CalendarIcon size={15} />
+                  <span>Открыть расписание</span>
+                </Link>
+                <Link to="/random" className="btn btn--ghost btn--small bento-pause__btn">
+                  <SparkIcon size={15} />
+                  <span>Что посмотреть?</span>
+                </Link>
+              </div>
+            </div>
+
+            <div className="bento-pause__upcoming">
+              <div className="bento-pause__upcoming-head">
+                <span className="bento-pause__upcoming-title">
+                  Ближайшие релизы ({nextDayText})
+                </span>
+                <Link to="/schedule" className="bento-pause__upcoming-link">
+                  Всё расписание →
+                </Link>
+              </div>
+              <FilmStrip items={upcoming} isUpcoming badge="Скоро" />
+            </div>
+          </div>
         ) : (
-          <p className="muted bento__empty">Сегодня новых серий нет. Загляните в расписание на неделю.</p>
+          <div className="bento-pause bento-pause--standalone frame-corners">
+            <div className="bento-pause__test-bar" aria-hidden="true">
+              <span style={{ background: '#dcdcdc' }} />
+              <span style={{ background: '#dcdc00' }} />
+              <span style={{ background: '#00dcdc' }} />
+              <span style={{ background: '#00dc00' }} />
+              <span style={{ background: '#dc00dc' }} />
+              <span style={{ background: '#dc0000' }} />
+              <span style={{ background: '#0000dc' }} />
+            </div>
+            <div className="bento-pause__icon-box" aria-hidden="true">
+              <FilmIcon size={28} />
+            </div>
+            <div className="bento-pause__badge">
+              <span className="bento-pause__dot" aria-hidden="true" />
+              ЭФИРНАЯ ПАУЗА
+            </div>
+            <h3 className="bento-pause__title">Сегодня нет новых серий</h3>
+            <p className="bento-pause__desc">
+              Свежие серии появятся по расписанию. Вы можете ознакомиться с расписанием на неделю или довериться случайному выбору.
+            </p>
+            <div className="bento-pause__actions">
+              <Link to="/schedule" className="btn btn--accent btn--small bento-pause__btn">
+                <CalendarIcon size={15} />
+                <span>Открыть расписание</span>
+              </Link>
+              <Link to="/random" className="btn btn--ghost btn--small bento-pause__btn">
+                <SparkIcon size={15} />
+                <span>Что посмотреть?</span>
+              </Link>
+            </div>
+          </div>
         )}
       </div>
+
       {list.length ? (
-        <Link to="/library" className="bento__tile bento__tile--link bento__tile--list">
-          <span className="shelf__icon" aria-hidden="true">
-            <ListIcon size={18} />
-          </span>
-          <strong>Моя библиотека</strong>
-          <span className="muted">
-            {[watching && `${watching} смотрю`, planned && `${planned} в планах`].filter(Boolean).join(' • ') || 'Открыть списки'}
-          </span>
+        <Link to="/library" className="bento__tile bento__tile--link bento__tile--list frame-corners">
+          <div className="bento__link-top">
+            <span className="shelf__icon" aria-hidden="true">
+              <ListIcon size={18} />
+            </span>
+            <span className="bento__link-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </span>
+          </div>
+          <div className="bento__link-body">
+            <strong>Моя библиотека</strong>
+            <span className="muted">
+              {[watching && `${watching} смотрю`, planned && `${planned} в планах`].filter(Boolean).join(' • ') || 'Открыть списки'}
+            </span>
+          </div>
         </Link>
       ) : (
-        <Link to="/top" className="bento__tile bento__tile--link bento__tile--list">
-          <span className="shelf__icon" aria-hidden="true">
-            <TrophyIcon size={18} />
-          </span>
-          <strong>Топ аниме</strong>
-          <span className="muted">Шедевры с высоким рейтингом</span>
+        <Link to="/top" className="bento__tile bento__tile--link bento__tile--list frame-corners">
+          <div className="bento__link-top">
+            <span className="shelf__icon" aria-hidden="true">
+              <TrophyIcon size={18} />
+            </span>
+            <span className="bento__link-arrow" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </span>
+          </div>
+          <div className="bento__link-body">
+            <strong>Топ аниме</strong>
+            <span className="muted">Шедевры с высоким рейтингом</span>
+          </div>
         </Link>
       )}
+
       <Link to="/random" className="bento__tile bento__tile--link frame-corners bento__tile--accent">
-        <span className="shelf__icon" aria-hidden="true">
-          <SparkIcon size={18} />
-        </span>
-        <strong>Что посмотреть?</strong>
-        <span className="muted">Случайный тайтл под настроение</span>
+        <div className="bento__link-top">
+          <span className="shelf__icon" aria-hidden="true">
+            <SparkIcon size={18} />
+          </span>
+          <span className="bento__link-arrow" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </span>
+        </div>
+        <div className="bento__link-body">
+          <strong>Что посмотреть?</strong>
+          <span className="muted">Случайный тайтл под настроение</span>
+        </div>
       </Link>
     </section>
   )

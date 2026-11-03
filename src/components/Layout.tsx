@@ -1,9 +1,8 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { CloseIcon, MenuIcon, UserIcon } from './Icons'
 import { useInboxCount } from '../data/inbox'
-import SearchBox from './SearchBox'
 import BottomNav from './BottomNav'
+import Navbar, { Logo } from './Navbar'
 import Toasts from './Toasts'
 import NetworkStatus from './NetworkStatus'
 import PageErrorBoundary from './PageErrorBoundary'
@@ -14,21 +13,13 @@ import { useScrollRestore } from './scrollRestore'
 import { useCanonical } from '../data/pageMeta'
 import { trackPage } from '../data/analytics'
 import { useAmbientSrc } from './ambient'
-import NavMoreDropdown from './NavMoreDropdown'
+
+export { Logo }
 
 const InstallBanner = lazy(() => import('./InstallBanner'))
 const FooterLinks = lazy(() => import('./FooterLinks'))
 const BackToTop = lazy(() => import('./BackToTop'))
 const HoverCards = lazy(() => import('./HoverCards'))
-const NotificationBell = lazy(() => import('./NotificationBell'))
-
-export function Logo() {
-  return (
-    <Link to="/" className="logo" aria-label="Anime Life, на главную">
-      Anime <span>Life</span>
-    </Link>
-  )
-}
 
 function Ambient() {
   const src = useAmbientSrc()
@@ -93,7 +84,7 @@ export default function Layout() {
       const y = window.scrollY
       header.current?.classList.toggle('site-header--scrolled', y > 8)
       if (Math.abs(y - last) < 8) return
-      const hide = y > last && y > 240
+      const hide = y > last && y > 80
       last = y
       if (hide === hidden) return
       hidden = hide
@@ -111,83 +102,27 @@ export default function Layout() {
       const combo = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'
       if (!combo && (e.key !== '/' || typing)) return
       e.preventDefault()
-      const desktop = header.current?.querySelector<HTMLInputElement>('.search:not(.search--mobile) input')
-      if (desktop && desktop.offsetParent) return desktop.focus()
+      const desktop = (header.current ?? document).querySelector<HTMLInputElement>('.search:not(.search--mobile) input')
+      if (desktop && (desktop.offsetWidth > 0 || desktop.offsetParent !== null)) return desktop.focus()
       toggleMenu(true)
-      setTimeout(() => header.current?.querySelector<HTMLInputElement>('.search--mobile input')?.focus(), 50)
+      setTimeout(() => (header.current ?? document).querySelector<HTMLInputElement>('.search--mobile input')?.focus(), 50)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const navLinks = (
-    <>
-      <NavLink to="/" end>
-        Главная
-      </NavLink>
-      <NavLink to="/catalog">Каталог</NavLink>
-      <NavLink to="/library" className={fresh ? 'has-fresh' : undefined} aria-label={fresh ? `Библиотека: новые серии ${fresh}` : undefined}>
-        Моя библиотека
-      </NavLink>
-      <NavLink to="/schedule">Расписание</NavLink>
-      <NavLink to="/together">Вместе</NavLink>
-      <NavLink to="/manga">Манга</NavLink>
-      <NavLink to="/hentai">Хентай</NavLink>
-      <NavLink to="/hentai-manga">Хентай Манга</NavLink>
-      <NavMoreDropdown />
-    </>
-  )
-
   return (
     <>
       <Ambient />
-      <header ref={header} className="site-header">
-        <div className="container site-header__inner">
-          <Logo />
-          <nav className="site-nav" aria-label="Основное меню">
-            {navLinks}
-          </nav>
-          <div style={{ flexGrow: 1 }} />
-          <SearchBox className="search" />
-          {user && (
-            <Suspense fallback={<span className="icon-btn" aria-hidden="true" />}>
-              <NotificationBell />
-            </Suspense>
-          )}
-          <Link
-            to="/account"
-            className={`icon-btn${user ? ' icon-btn--active' : ''}`}
-            aria-label={user ? `Профиль: ${user.name || user.email}` : 'Войти'}
-            title={user ? user.name || user.email : 'Войти'}
-          >
-            {user ? <span className="avatar">{(user.name || user.email).charAt(0).toUpperCase()}</span> : <UserIcon />}
-          </Link>
-          <button
-            type="button"
-            className="icon-btn menu-btn"
-            aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
-            aria-expanded={menuOpen}
-            aria-controls="mobile-menu"
-            onClick={() => toggleMenu(!menuOpen)}
-          >
-            <span className="menu-btn__icon" key={String(menuOpen)}>
-              {menuOpen ? <CloseIcon /> : <MenuIcon />}
-            </span>
-          </button>
-        </div>
-        {(menuOpen || menuClosing) && (
-          <div
-            id="mobile-menu"
-            className={`mobile-menu container${menuOpen ? '' : ' mobile-menu--closing'}`}
-            onAnimationEnd={(e) => e.target === e.currentTarget && !menuOpen && setMenuClosing(false)}
-          >
-            <SearchBox className="search search--mobile" onDone={() => toggleMenu(false)} />
-            <nav className="mobile-menu__nav" aria-label="Основное меню">
-              {navLinks}
-            </nav>
-          </div>
-        )}
-      </header>
+      <Navbar
+        ref={header}
+        user={user}
+        fresh={fresh}
+        menuOpen={menuOpen}
+        menuClosing={menuClosing}
+        onToggleMenu={toggleMenu}
+        onMenuClosingEnd={() => setMenuClosing(false)}
+      />
       {(menuOpen || menuClosing) && (
         <div className={`menu-backdrop${menuOpen ? '' : ' menu-backdrop--closing'}`} onClick={() => toggleMenu(false)} />
       )}

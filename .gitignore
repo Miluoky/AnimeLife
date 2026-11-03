@@ -6,6 +6,7 @@ dist
 functions/*.tar.gz
 test-results
 playwright-report
+audit-screenshots/
 lighthouse.json
 .wrangler/
 .tg-news/
