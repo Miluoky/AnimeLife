@@ -50,8 +50,11 @@ const SimilarPage = lazy(pageChunks.similar)
 const VoiceStudioPage = lazy(pageChunks.voiceStudio)
 const ChronologyPage = lazy(pageChunks.chronology)
 const TropeCollectionPage = lazy(pageChunks.trope)
+// Разделы 18+ и объединенная библиотека
+const HentaiCatalog = lazy(pageChunks.hentai)
+const HentaiMangaHome = lazy(pageChunks.hentaiManga)
+const LibraryPage = lazy(pageChunks.library)
 
-// key сбрасывает состояние страницы (например, выбранную страницу серий) при переходе к другому тайтлу.
 function TitlePageRoute() {
   const { id } = useParams()
   return <TitlePage key={animeIdFromParam(id ?? '')} />
@@ -62,8 +65,6 @@ function TogetherRoute() {
   return <Together key={code} />
 }
 
-// Переходы людей по страницам отдаются без Worker (ради лимита вызовов), поэтому его постоянные редиректы
-// повторены здесь: /search?q= ведёт в каталог с запросом, убранный жанр — на тот, куда его перенесли.
 function SearchRedirect() {
   const params = new URLSearchParams(useLocation().search)
   const q = (params.get('q') ?? params.get('query') ?? '').trim().slice(0, 200)
@@ -77,7 +78,6 @@ function GenreRoute() {
   return moved ? <Navigate replace to={`/genre/${moved}${search}`} /> : <Landing />
 }
 
-// Пока часть страницы едет по сети, место под неё уже занято: вёрстка не прыгает.
 const PageFallback = () => <main className="container page-fallback" aria-busy="true" />
 
 export default function App() {
@@ -90,13 +90,11 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="anime/:id" element={<TitlePageRoute />} />
           <Route path="watch/:id/:episode" element={<Player />} />
-          {/* Посадочные страницы для поиска: онгоинги, жанры, темы, студии, типы, годы и сезоны (src/data/landings.ts). */}
           <Route path="ongoing" element={<Landing />} />
           <Route path="genre/:slug" element={<GenreRoute />} />
           <Route path="theme/:slug" element={<Landing />} />
           <Route path="best/:slug" element={<Landing />} />
           <Route path="studio/:slug" element={<Landing />} />
-          {/* SEO Landing Pages (Division I): студии озвучки, хронологии франшиз и тропы */}
           <Route path="voice/:studio_slug" element={<VoiceStudioPage />} />
           <Route path="chronology" element={<ChronologyPage />} />
           <Route path="chronology/:id" element={<ChronologyPage />} />
@@ -106,7 +104,6 @@ export default function App() {
           <Route path="type/:kind" element={<Landing />} />
           <Route path="year/:year" element={<Landing />} />
           <Route path="year/:year/:season" element={<Landing />} />
-          {/* Английская версия: о сайте и страницы тайтлов (src/pages/En.tsx, тексты в src/data/en.ts). */}
           <Route path="en" element={<En />} />
           <Route path="en/anime/:id" element={<En />} />
           <Route path="together" element={<TogetherHome />} />
@@ -117,6 +114,15 @@ export default function App() {
           <Route path="manga/:id" element={<MangaPage />} />
           <Route path="manga/:id/chapter/:chapter" element={<MangaReader />} />
           <Route path="manga/:id/upload" element={<MangaUpload />} />
+          {/* Изолированные разделы 18+ Хентай и Хентай Манга */}
+          <Route path="hentai" element={<HentaiCatalog />} />
+          <Route path="hentai/:id" element={<TitlePageRoute />} />
+          <Route path="hentai/watch/:id/:episode" element={<Player />} />
+          <Route path="hentai-manga" element={<HentaiMangaHome />} />
+          <Route path="hentai-manga/:id" element={<MangaPage />} />
+          <Route path="hentai-manga/:id/chapter/:chapter" element={<MangaReader />} />
+          {/* Объединенный хаб Библиотеки */}
+          <Route path="library" element={<LibraryPage />} />
           <Route path="together/:code" element={<TogetherRoute />} />
           <Route path="catalog" element={<Catalog />} />
           <Route path="search" element={<SearchRedirect />} />
@@ -148,7 +154,6 @@ export default function App() {
           <Route path="watching" element={<Watching />} />
           <Route path="moderation" element={<Moderation />} />
           <Route path="admin/analytics" element={<AdminAnalytics />} />
-          {/* Служебные страницы: тексты в src/data/legal.ts, у двух первых форма обращения. */}
           <Route path="about" element={<Legal />} />
           <Route path="app" element={<Legal />} />
           <Route path="rightholders" element={<Legal />} />

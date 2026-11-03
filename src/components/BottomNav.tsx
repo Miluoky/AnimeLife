@@ -4,13 +4,10 @@ import { CompassIcon, HomeIcon, ListIcon, MoreIcon, ScreenPlayIcon } from './Ico
 import { useInboxCount } from '../data/inbox'
 import { listStore } from '../data/myList'
 
-// Шторка «Ещё» с остальными разделами нужна по нажатию: отдельная маленькая часть.
 const MoreSheet = lazy(() => import('./MoreSheet'))
 
-/** Разделы, которые живут в шторке «Ещё»: на них подсвечивается пункт «Ещё». */
-const IN_MORE = /^\/(schedule|together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice)/
+const IN_MORE = /^\/(schedule|together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice|hentai|hentai-manga)/
 
-/** Раз в 20 минут (и когда вкладку снова открыли) проверяем новые серии тайтлов из «Смотрю». */
 function useInboxCheck() {
   useEffect(() => {
     const check = () => {
@@ -28,17 +25,13 @@ function useInboxCheck() {
   }, [])
 }
 
-/**
- * Нижнее меню на телефоне: пять пунктов под большим пальцем, «Смотрю» в центре со счётчиком
- * вышедших серий, остальные разделы в шторке «Ещё». На компьютере скрыто стилями.
- */
 export default function BottomNav() {
   const { pathname } = useLocation()
   const fresh = useInboxCount()
   const [more, setMore] = useState(false)
   useInboxCheck()
   useEffect(() => setMore(false), [pathname])
-  // Установленное приложение: число тайтлов с новыми сериями — на значке на рабочем столе (Android, Windows, macOS).
+
   useEffect(() => {
     const nav = navigator as Navigator & { setAppBadge?: (n: number) => Promise<void> }
     nav.setAppBadge?.(fresh).catch(() => {})
@@ -47,16 +40,16 @@ export default function BottomNav() {
   const items = [
     { to: '/', title: 'Главная', icon: <HomeIcon />, end: true },
     { to: '/catalog', title: 'Каталог', icon: <CompassIcon /> },
-    { to: '/watching', title: 'Смотрю', icon: <ScreenPlayIcon />, main: true },
-    { to: '/my-list', title: 'Список', label: 'Мой список', icon: <ListIcon /> },
+    { to: '/library', title: 'Библиотека', icon: <ListIcon />, main: true },
+    { to: '/together', title: 'Вместе', icon: <ScreenPlayIcon /> },
   ]
-  // Уголки активного раздела переезжают от пункта к пункту (--i — номер пункта, 4 — «Ещё»).
+
   let active = more ? 4 : items.findIndex((i) => (i.end ? pathname === i.to : pathname.startsWith(i.to)))
   if (active < 0 && IN_MORE.test(pathname)) active = 4
 
   return (
     <>
-      <nav className="dock" aria-label="Разделы сайта" style={{ '--i': active } as CSSProperties}>
+      <nav className="dock" aria-label="Нижнее меню" style={{ '--i': active } as CSSProperties}>
         {active >= 0 && <span className="dock__glider" aria-hidden="true" />}
         {items.map((i) => (
           <NavLink
@@ -64,7 +57,7 @@ export default function BottomNav() {
             to={i.to}
             end={i.end}
             className={`dock__item${i.main ? ' dock__item--main' : ''}`}
-            aria-label={i.main && fresh ? `${i.title}: новых серий ${fresh}` : i.label}
+            aria-label={i.main && fresh ? `${i.title}: новые серии ${fresh}` : i.title}
           >
             <span className="dock__icon">
               {i.icon}
@@ -79,10 +72,10 @@ export default function BottomNav() {
         ))}
         <button
           type="button"
-          className={`dock__item${!more && active === 4 ? ' active' : ''}`}
+          className={`dock__item dock__item--more${more || (active === 4 && !items.some((i) => pathname === i.to)) ? ' is-active' : ''}`}
+          aria-label="Ещё разделы"
           aria-expanded={more}
-          aria-controls="more-sheet"
-          onClick={() => setMore(!more)}
+          onClick={() => setMore((v) => !v)}
         >
           <span className="dock__icon">
             <MoreIcon />

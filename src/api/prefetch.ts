@@ -1,7 +1,7 @@
 import { loadAnime } from './index'
 import { saverOn } from '../data/saver'
 
-// Код страниц, которые грузятся отдельными частями (см. App.tsx). Повторный вызов import() ничего не стоит.
+// Имена чанков, которые динамически загружаются (см. App.tsx).
 export const pageChunks = {
   title: () => import('../pages/TitlePage'),
   player: () => import('../pages/Player'),
@@ -43,14 +43,14 @@ export const pageChunks = {
   voiceStudio: () => import('../pages/VoiceStudioPage'),
   chronology: () => import('../pages/ChronologyPage'),
   trope: () => import('../pages/TropeCollectionPage'),
+  // Разделы 18+ и объединенной библиотеки
+  hentai: () => import('../pages/HentaiCatalog'),
+  hentaiManga: () => import('../pages/HentaiMangaHome'),
+  library: () => import('../pages/LibraryPage'),
 }
 
 const prefetched = new Set<string>()
 
-/**
- * Пока курсор на карточке, заранее тянем код страницы тайтла и данные о нём:
- * к моменту клика всё уже в кэше, и страница открывается без ожидания.
- */
 export function prefetchTitle(id: string) {
   if (prefetched.has(id) || saverOn()) return
   prefetched.add(id)
@@ -58,34 +58,30 @@ export function prefetchTitle(id: string) {
   void loadAnime(id).catch(() => undefined)
 }
 
-/** Предзагрузка страницы студии озвучки */
 export function prefetchVoiceStudio(slug: string) {
   if (prefetched.has(`voice:${slug}`) || saverOn()) return
   prefetched.add(`voice:${slug}`)
   void pageChunks.voiceStudio()
 }
 
-/** Предзагрузка страницы хронологии франшизы */
 export function prefetchChronology(id: string) {
   if (prefetched.has(`chronology:${id}`) || saverOn()) return
   prefetched.add(`chronology:${id}`)
   void pageChunks.chronology()
 }
 
-/** Предзагрузка страницы коллекции тропа / микро-жанра */
 export function prefetchTrope(slug: string) {
   if (prefetched.has(`trope:${slug}`) || saverOn()) return
   prefetched.add(`trope:${slug}`)
   void pageChunks.trope()
 }
 
-/** Код соседних страниц догружаем, когда браузер свободен, чтобы переходы по меню были мгновенными. */
 export function prefetchNavigation() {
   if (saverOn()) return
   const run = () => {
     void pageChunks.catalog()
     void pageChunks.schedule()
-    void pageChunks.myList()
+    void pageChunks.library()
   }
   if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 4000 })
   else setTimeout(run, 2000)

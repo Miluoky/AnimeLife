@@ -1,6 +1,8 @@
 import { COVERS } from '../data/profileStyle'
 import './top.css'
 import './social.css'
+import './together.css'
+import './community-cinema.css'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
@@ -20,46 +22,61 @@ import {
   type ProfileRow,
 } from '../data/social'
 import { Avatar, LevelBadge, ago, plural } from '../components/socialUi'
-import { PeopleIcon } from '../components/Icons'
 
 const TABS = [
-  { id: 'feed', title: 'Лента' },
+  { id: 'feed', title: 'Лента активности' },
+  { id: 'clubs', title: 'Клубы по интересам' },
   { id: 'top', title: 'Топ зрителей' },
-  { id: 'clubs', title: 'Клубы' },
-  { id: 'people', title: 'Люди' },
+  { id: 'people', title: 'Участники' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
 
-/** Сообщество: лента друзей, топ зрителей недели, клубы по интересам и открытые профили. */
 export default function Community() {
   const [params, setParams] = useSearchParams()
   const tab = (TABS.find((t) => t.id === params.get('tab'))?.id ?? 'feed') as Tab
-  usePageMeta('Сообщество зрителей', 'Лента друзей, топ зрителей недели, клубы по интересам и открытые профили Anime Life.')
+  usePageMeta('Сообщество зрителей — AnimeLife', 'Общение, клубы по интересам, топ зрителей и лента активности друзей на AnimeLife.')
 
   return (
-    <main className="container top-page social-page">
-      <header className="top-head">
-        <span className="top-head__icon" aria-hidden="true">
-          <PeopleIcon />
-        </span>
-        <div>
-          <h1 className="page-title">Сообщество</h1>
-          <p className="muted top-head__lead">
-            Что смотрят друзья, кто больше всех смотрел на этой неделе и клубы по интересам. Поговорить сразу со всеми можно в{' '}
-            <Link to="/chat" className="link-accent">общем чате</Link>.
+    <main className="container top-page social-page community-cinema">
+      <section className="community-hero frame-corners">
+        <div className="stack" style={{ gap: 12 }}>
+          <span className="eyebrow together-rec">
+            <i aria-hidden="true" />
+            <b aria-hidden="true">LIVE</b> СООБЩЕСТВО
+            <span aria-hidden="true">• КЛУБЫ • ОБЩЕНИЕ • ТОП ЗРИТЕЛЕЙ</span>
+          </span>
+          <h1>Сообщество зрителей</h1>
+          <p className="muted" style={{ maxWidth: 560, lineHeight: 1.6 }}>
+            Обсуждайте любимые онгоинги, вступайте в клубы по жанрам, находите единомышленников и делитесь впечатлениями в режиме реального времени.
           </p>
         </div>
-      </header>
-      <nav className="s-tabs" aria-label="Разделы сообщества">
+
+        <div className="community-hero__chat-box">
+          <h3>Общий чат онлайн</h3>
+          <p>Живое обсуждение свежих серий, спойлеров и теорий прямо сейчас.</p>
+          <Link to="/chat" className="btn btn--accent" style={{ width: '100%' }}>
+            Войти в общий чат →
+          </Link>
+        </div>
+      </section>
+
+      <nav className="s-tabs" aria-label="Вкладки сообщества" style={{ marginBottom: 20 }}>
         {TABS.map((t) => (
-          <button key={t.id} type="button" className={t.id === tab ? 'is-on' : undefined} aria-pressed={t.id === tab} onClick={() => setParams(t.id === 'feed' ? {} : { tab: t.id }, { replace: true })}>
+          <button
+            key={t.id}
+            type="button"
+            className={t.id === tab ? 'is-on' : undefined}
+            aria-pressed={t.id === tab}
+            onClick={() => setParams(t.id === 'feed' ? {} : { tab: t.id }, { replace: true })}
+          >
             {t.title}
           </button>
         ))}
       </nav>
+
       {tab === 'feed' && <Feed />}
-      {tab === 'top' && <Leaders />}
       {tab === 'clubs' && <Clubs />}
+      {tab === 'top' && <Leaders />}
       {tab === 'people' && <People />}
     </main>
   )
@@ -78,7 +95,10 @@ function Feed() {
   const [mode, setMode] = useState<'friends' | 'all'>('friends')
   const ids = useAsync(() => (user ? followingIds(user.$id).catch(() => []) : Promise.resolve(undefined)), [user?.$id])
   const friends = mode === 'friends' && !!user
-  const feed = useAsync(() => (ids.loading ? new Promise<Activity[]>(() => undefined) : loadFeed(friends ? ids.value : undefined).catch(() => [])), [friends, ids.value, ids.loading])
+  const feed = useAsync(
+    () => (ids.loading ? new Promise<Activity[]>(() => undefined) : loadFeed(friends ? ids.value : undefined).catch(() => [])),
+    [friends, ids.value, ids.loading],
+  )
   const items = feed.value ?? []
 
   return (
@@ -89,25 +109,53 @@ function Feed() {
             Мои подписки
           </button>
           <button type="button" className={mode === 'all' ? 'is-on' : undefined} onClick={() => setMode('all')}>
-            Все
+            Все зрители
           </button>
         </div>
       )}
-      {feed.loading && <p className="muted" aria-busy="true">Загружаем ленту…</p>}
+
+      {feed.loading && <p className="muted" aria-busy="true">Загрузка ленты активности...</p>}
+
       {!feed.loading && !items.length && (
-        <div className="s-empty">
-          {friends ? (
-            <>
-              <p>Вы пока ни на кого не подписаны. Загляните во вкладку «Люди» и подпишитесь на тех, чей вкус вам близок.</p>
-              <button type="button" className="btn btn--ghost" onClick={() => setMode('all')}>
-                Показать всех
-              </button>
-            </>
-          ) : (
-            <p>Здесь появятся новости зрителей с открытым профилем: что начали смотреть, досмотрели и как оценили.</p>
-          )}
+        <div className="stack" style={{ gap: 20 }}>
+          <div className="s-empty">
+            {friends ? (
+              <>
+                <p>Вы пока ни на кого не подписаны. Переключитесь на «Все зрители» или найдите друзей среди активных участников.</p>
+                <button type="button" className="btn btn--accent" onClick={() => setMode('all')}>
+                  Показать общую ленту
+                </button>
+              </>
+            ) : (
+              <p>Здесь появится лента активности зрителей: просмотры, оценки и новые серии.</p>
+            )}
+          </div>
+
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '16px 0 12px' }}>
+              Популярные разделы сообщества
+            </h3>
+            <div className="community-showcase">
+              <Link to="/community?tab=clubs" className="community-showcase-card">
+                <span className="community-showcase-card__tag">Клубы</span>
+                <div className="community-showcase-card__title">Клубы по интересам</div>
+                <p className="community-showcase-card__desc">Вступайте в тематические сообщества по сёненам, романтике и олдскулу.</p>
+              </Link>
+              <Link to="/community?tab=top" className="community-showcase-card">
+                <span className="community-showcase-card__tag">Лидерборд</span>
+                <div className="community-showcase-card__title">Топ зрителей недели</div>
+                <p className="community-showcase-card__desc">Смотрите аниме, получайте XP и поднимайтесь на пьедестал почета.</p>
+              </Link>
+              <Link to="/chat" className="community-showcase-card">
+                <span className="community-showcase-card__tag">Чат</span>
+                <div className="community-showcase-card__title">Общий чат зрителей</div>
+                <p className="community-showcase-card__desc">Делитесь мнениями об онгоингах и находите компанию для совместного просмотра.</p>
+              </Link>
+            </div>
+          </div>
         </div>
       )}
+
       <ul className="s-feed">
         {items.map((a) => (
           <li key={a.$id} className="s-feed__item">
@@ -134,9 +182,10 @@ function Feed() {
           </li>
         ))}
       </ul>
+
       {!user && (
-        <p className="muted">
-          <Link to="/account" className="link-accent">Войдите</Link> и откройте профиль, чтобы ваши новости видели подписчики.
+        <p className="muted" style={{ marginTop: 12 }}>
+          <Link to="/account" className="link-accent">Войдите</Link> в аккаунт, чтобы сохранять подписки и делиться своей активностью.
         </p>
       )}
     </section>
@@ -164,12 +213,11 @@ function Leaders() {
         ? Math.round((eps * 24) / 60)
         : (Math.round((eps * 24) / 60) || Math.max(1, Math.round(xpVal / 25)))
 
-    if (metric === 'hours') return `${hours.toLocaleString('ru-RU')} ч просмотра`
-    if (metric === 'episodes') return `${eps.toLocaleString('ru-RU')} серий`
+    if (metric === 'hours') return `${hours.toLocaleString('ru-RU')} ч`
+    if (metric === 'episodes') return `${eps.toLocaleString('ru-RU')} эп`
     return `${xpVal.toLocaleString('ru-RU')} XP`
   }
 
-  // Порядок для пьедестала: 2 место слева, 1 место по центру, 3 место справа
   const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3
 
   return (
@@ -177,10 +225,10 @@ function Leaders() {
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
         <div className="s-chips">
           <button type="button" className={period === 'week' ? 'is-on' : undefined} onClick={() => setPeriod('week')}>
-            Эта неделя
+            За неделю
           </button>
           <button type="button" className={period === 'month' ? 'is-on' : undefined} onClick={() => setPeriod('month')}>
-            Этот месяц
+            За этот месяц
           </button>
           <button type="button" className={period === 'all' ? 'is-on' : undefined} onClick={() => setPeriod('all')}>
             За всё время
@@ -195,25 +243,19 @@ function Leaders() {
             Серии
           </button>
           <button type="button" className={metric === 'xp' ? 'is-on' : undefined} onClick={() => setMetric('xp')}>
-            Уровень
+            Опыт XP
           </button>
         </div>
       </div>
 
-      <p className="muted s-note">
-        Опыт: 10 за серию, 50 за досмотренный тайтл, 5 за оценку, 100 за достижение. В топ попадают зрители с открытым профилем.
-        {period === 'month' && ' Неделя и месяц считаются по сериям; лучших за месяц в последний день называем в нашем Telegram-канале.'}
-      </p>
-
-      {rows.loading && <p className="muted" aria-busy="true">Считаем опыт…</p>}
+      {rows.loading && <p className="muted" aria-busy="true">Загрузка рейтинга...</p>}
 
       {!rows.loading && !list.length && (
         <div className="s-empty">
-          {period === 'month' ? 'В этом месяце' : 'На этой неделе'} ещё никто не набрал опыта. Самое время стать первым!
+          Пока никто не попал в лидеры за этот период. Смотрите серии и станьте первым!
         </div>
       )}
 
-      {/* Топ-3 пьедестал по референсу Senku */}
       {top3.length > 0 && (
         <div className="s-podium">
           {podiumOrder.map((p) => {
@@ -249,7 +291,6 @@ function Leaders() {
         </div>
       )}
 
-      {/* Ранги 4+ */}
       {rest.length > 0 && (
         <ol className="s-leaders" start={4}>
           {rest.map((p, i) => {
@@ -290,7 +331,7 @@ function Clubs() {
       const club = await createClub(title, about)
       navigate(`/club/${club.$id}`)
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Не получилось')
+      toast(err instanceof Error ? err.message : 'Не удалось создать клуб')
     } finally {
       setBusy(false)
     }
@@ -304,37 +345,57 @@ function Clubs() {
             Активные
           </button>
           <button type="button" className={order === 'big' ? 'is-on' : undefined} onClick={() => setOrder('big')}>
-            Большие
+            Крупные
           </button>
         </div>
         {user ? (
           <button type="button" className="btn btn--accent btn--small" onClick={() => setCreating(!creating)}>
-            Создать клуб
+            {creating ? 'Отмена' : 'Создать клуб'}
           </button>
         ) : (
           <Link to="/account" className="btn btn--ghost btn--small">
-            Войти, чтобы создать клуб
+            Войдите, чтобы создать клуб
           </Link>
         )}
       </div>
+
       {creating && (
         <form className="s-form" onSubmit={submit}>
-          <input value={title} onChange={(e) => setTitle(e.currentTarget.value)} placeholder="Название, например «Фанаты Фрирен»" maxLength={60} required minLength={3} />
-          <textarea value={about} onChange={(e) => setAbout(e.currentTarget.value)} placeholder="О чём клуб" maxLength={500} rows={3} />
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.currentTarget.value)}
+            placeholder="Название клуба (например, Любители Сёненов)"
+            maxLength={60}
+            required
+            minLength={3}
+          />
+          <textarea
+            value={about}
+            onChange={(e) => setAbout(e.currentTarget.value)}
+            placeholder="Краткое описание клуба..."
+            maxLength={500}
+            rows={3}
+          />
           <button type="submit" className="btn btn--accent" disabled={busy}>
             Создать
           </button>
         </form>
       )}
-      {clubs.loading && <p className="muted" aria-busy="true">Загружаем клубы…</p>}
-      {!clubs.loading && !clubs.value?.length && <div className="s-empty">Клубов пока нет. Создайте первый: по любимому тайтлу, жанру или студии.</div>}
+
+      {clubs.loading && <p className="muted" aria-busy="true">Загрузка клубов...</p>}
+      {!clubs.loading && !clubs.value?.length && (
+        <div className="s-empty">
+          Клубов пока нет. Станьте первым и создайте клуб по своему любимому тайтлу!
+        </div>
+      )}
+
       <div className="s-cards">
         {(clubs.value ?? []).map((c) => (
           <Link key={c.$id} to={`/club/${c.$id}`} className="s-card">
             <b className="s-card__title">{c.title}</b>
             {c.about && <p className="muted s-card__about">{c.about}</p>}
             <span className="muted s-card__meta">
-              {c.members} {plural(c.members, 'участник', 'участника', 'участников')} · {c.posts} {plural(c.posts, 'запись', 'записи', 'записей')} · {ago(c.lastAt)}
+              {c.members} {plural(c.members, 'участник', 'участника', 'участников')} • {c.posts} {plural(c.posts, 'запись', 'записи', 'записей')} • {ago(c.lastAt)}
             </span>
           </Link>
         ))}
@@ -348,9 +409,9 @@ function People() {
   return (
     <section className="stack">
       <p className="muted s-note">
-        Зрители с открытым профилем. Свой профиль можно открыть в <Link to="/account" className="link-accent">аккаунте</Link>.
+        Список зрителей с открытыми профилями. Свой профиль можно открыть в <Link to="/account" className="link-accent">настройках</Link>.
       </p>
-      {people.loading && <p className="muted" aria-busy="true">Загружаем…</p>}
+      {people.loading && <p className="muted" aria-busy="true">Загрузка участников...</p>}
       <div className="s-cards">
         {(people.value ?? []).map((p: ProfileRow) => {
           const s = parseSummary(p)

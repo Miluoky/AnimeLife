@@ -1,0 +1,120 @@
+.hentai-page {
+  padding-bottom: 48px;
+}
+
+.hentai-header {
+  position: relative;
+  padding: 32px 24px;
+  background: radial-gradient(circle at 10% 20%, color-mix(in srgb, #ff2a6d 18%, transparent), transparent 50%),
+              radial-gradient(circle at 90% 80%, color-mix(in srgb, #9d4edd 14%, transparent), transparent 60%),
+              var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+}
+
+.hentai-header__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: color-mix(in srgb, #ff2a6d 20%, transparent);
+  border: 1px solid color-mix(in srgb, #ff2a6d 40%, transparent);
+  color: #ff5470;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.hentai-header__title {
+  font-size: clamp(24px, 3.5vw, 36px);
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.hentai-header__desc {
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 680px;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.hentai-switch {
+  display: inline-flex;
+  gap: 8px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+}
+
+.hentai-switch__btn {
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  transition: all 0.2s var(--ease);
+}
+
+.hentai-switch__btn.is-active,
+.hentai-switch__btn:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.hentai-switch__btn.is-active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.hentai-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.hentai-tag-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hentai-tag-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.hentai-tag-btn.is-active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.hentai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 20px 16px;
+}
+
+@media (max-width: 640px) {
+  .hentai-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px 10px;
+  }
+}

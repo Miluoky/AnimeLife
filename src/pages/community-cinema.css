@@ -1,0 +1,119 @@
+/* Dark Cinema Community styling matching /together aesthetics */
+.community-cinema {
+  padding-bottom: 60px;
+}
+
+.community-hero {
+  --fc-inset: 10px;
+  --fc-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 36px;
+  background: radial-gradient(circle at 10% 20%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+              radial-gradient(circle at 90% 80%, color-mix(in srgb, #7928ca 12%, transparent), transparent 70%),
+              var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  margin-bottom: 28px;
+}
+
+.community-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 3px);
+}
+
+.community-hero h1 {
+  font-size: clamp(24px, 3.5vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.community-hero__chat-box {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.community-hero__chat-box h3 {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.community-hero__chat-box p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 860px) {
+  .community-hero {
+    grid-template-columns: 1fr;
+    padding: 24px 20px;
+    gap: 20px;
+  }
+}
+
+.community-showcase {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.community-showcase-card {
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s var(--ease);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.community-showcase-card:hover {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.community-showcase-card__tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.community-showcase-card__title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.community-showcase-card__desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.4;
+}

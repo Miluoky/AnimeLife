@@ -14,48 +14,32 @@ import { useScrollRestore } from './scrollRestore'
 import { useCanonical } from '../data/pageMeta'
 import { trackPage } from '../data/analytics'
 import { useAmbientSrc } from './ambient'
+import NavMoreDropdown from './NavMoreDropdown'
 
-// Баннер установки нужен не всем и не сразу: отдельная маленькая часть.
 const InstallBanner = lazy(() => import('./InstallBanner'))
-// Ссылки на документы, жанры и годы в подвале тоже не нужны для первого экрана.
 const FooterLinks = lazy(() => import('./FooterLinks'))
-// Кнопка «Наверх» нужна только на длинных страницах и после прокрутки.
 const BackToTop = lazy(() => import('./BackToTop'))
-// Карточки при наведении на постер нужны только мыши: грузим, когда браузер свободен.
 const HoverCards = lazy(() => import('./HoverCards'))
-// Колокольчик уведомлений: только для вошедших, отдельной частью вместе с запросами к функции.
 const NotificationBell = lazy(() => import('./NotificationBell'))
 
 export function Logo() {
   return (
-    // Пробел настоящий, а не отступ: так видимый текст входит в название ссылки для экранного диктора.
     <Link to="/" className="logo" aria-label="Anime Life, на главную">
       Anime <span>Life</span>
     </Link>
   )
 }
 
-/** Свет постера под всей страницей (см. ambient.ts). Новый постер проявляется поверх старого. */
 function Ambient() {
   const src = useAmbientSrc()
   return <div className="ambient" aria-hidden="true">{src && <img key={src} src={src} alt="" decoding="async" />}</div>
 }
 
-/** «Смотрю» в меню шапки: красная точка, если у тайтлов из «Смотрю» вышли новые серии. */
-function WatchingLink() {
-  const fresh = useInboxCount()
-  return (
-    <NavLink to="/watching" className={fresh ? 'has-fresh' : undefined} aria-label={fresh ? `Смотрю: новых серий ${fresh}` : undefined}>
-      Смотрю
-    </NavLink>
-  )
-}
-
 export default function Layout() {
   const location = useLocation()
   const { user } = useAuth()
+  const fresh = useInboxCount()
   const [menuOpen, setMenuOpen] = useState(false)
-  // Меню закрывается с анимацией: пока она идёт, оно ещё на экране.
   const [menuClosing, setMenuClosing] = useState(false)
   const header = useRef<HTMLElement>(null)
   const [hoverCards, setHoverCards] = useState(false)
@@ -70,12 +54,9 @@ export default function Layout() {
     setMenuClosing(!open)
   }
 
-  // При переходе на другую страницу: закрыть мобильное меню. Прокрутку (наверх или, по «назад»,
-  // туда, где зритель был) ведёт useScrollRestore.
   useScrollRestore()
   useEffect(() => setMenuOpen(false), [location.pathname])
 
-  // Пока меню открыто, страница под ним не прокручивается; Esc закрывает меню.
   useEffect(() => {
     document.documentElement.classList.toggle('scroll-lock', menuOpen)
     if (!menuOpen) return
@@ -84,7 +65,6 @@ export default function Layout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [menuOpen])
 
-  // Достижения и открытый профиль не нужны для первого экрана: подключаем, когда браузер свободен.
   const publicProfile = !!(user?.prefs as { publicProfile?: boolean } | undefined)?.publicProfile
   useEffect(() => {
     const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500))
@@ -98,7 +78,6 @@ export default function Layout() {
     if (publicProfile) void import('../data/profile').then((m) => m.autoPublish())
   }, [publicProfile])
   useEffect(() => {
-    // Список связан с Shikimori: изменения уходят туда сами.
     try {
       if (localStorage.getItem('anime.shiki.v1')?.startsWith('{')) void import('../data/shikiSync').then((m) => m.autoSync())
     } catch {
@@ -106,10 +85,6 @@ export default function Layout() {
     }
   }, [])
 
-  // Оформление из настроек (тема, акцент) и шапка, которая становится полупрозрачной при прокрутке.
-  // Как на AniLife, при прокрутке вниз шапка и нижнее меню уезжают и возвращаются, стоит прокрутить чуть вверх.
-  // Классы ставим прямо на элементы, без состояния React: иначе каждая смена направления прокрутки
-  // перерисовывала бы шапку, меню и подвал посреди жеста, и на слабых телефонах прокрутка дёргалась.
   useEffect(() => {
     applyAppearance()
     let last = window.scrollY
@@ -130,7 +105,6 @@ export default function Layout() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Ctrl+K (⌘K на Mac) или «/» вне поля ввода: курсор в поиск из любого места сайта.
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       const typing = (e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable]')
@@ -152,12 +126,15 @@ export default function Layout() {
         Главная
       </NavLink>
       <NavLink to="/catalog">Каталог</NavLink>
-      <WatchingLink />
+      <NavLink to="/library" className={fresh ? 'has-fresh' : undefined} aria-label={fresh ? `Библиотека: новые серии ${fresh}` : undefined}>
+        Моя библиотека
+      </NavLink>
       <NavLink to="/schedule">Расписание</NavLink>
       <NavLink to="/together">Вместе</NavLink>
-      <NavLink to="/community">Сообщество</NavLink>
       <NavLink to="/manga">Манга</NavLink>
-      <NavLink to="/my-list">Мой список</NavLink>
+      <NavLink to="/hentai">Хентай</NavLink>
+      <NavLink to="/hentai-manga">Хентай Манга</NavLink>
+      <NavMoreDropdown />
     </>
   )
 
@@ -180,7 +157,7 @@ export default function Layout() {
           <Link
             to="/account"
             className={`icon-btn${user ? ' icon-btn--active' : ''}`}
-            aria-label={user ? `Аккаунт: ${user.name || user.email}` : 'Войти'}
+            aria-label={user ? `Профиль: ${user.name || user.email}` : 'Войти'}
             title={user ? user.name || user.email : 'Войти'}
           >
             {user ? <span className="avatar">{(user.name || user.email).charAt(0).toUpperCase()}</span> : <UserIcon />}
@@ -217,7 +194,6 @@ export default function Layout() {
 
       <div className="page" key={pageScope(location.pathname)}>
         <PageErrorBoundary>
-          {/* Пока код страницы едет по сети, шапка и меню остаются на месте. */}
           <Suspense fallback={<main className="container page-fallback" aria-busy="true" />}>
             <Outlet />
           </Suspense>
@@ -230,22 +206,13 @@ export default function Layout() {
       </Suspense>
       <Toasts />
       <NetworkStatus />
-      {/* В плеере и комнатах своя прокрутка и свои кнопки в углу. */}
       {!/^\/(watch|together)\//.test(location.pathname) && (
         <Suspense fallback={null}>
           <BackToTop />
         </Suspense>
       )}
       <BottomNav />
-
-      <footer className="site-footer">
-        <div className="container site-footer__inner">
-          <Logo />
-          <Suspense fallback={null}>
-            <FooterLinks />
-          </Suspense>
-        </div>
-      </footer>
+      <FooterLinks />
     </>
   )
 }
