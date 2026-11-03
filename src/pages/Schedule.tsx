@@ -10,8 +10,8 @@ import './schedule.css'
 
 const dayFormat = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
 const timeFormat = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
-const weekdayShort = new Intl.DateTimeFormat('ru-RU', { weekday: 'short' })
-const dateShort = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' })
+const chipFormat = new Intl.DateTimeFormat('ru-RU', { weekday: 'short', day: 'numeric' })
+const OUT_SHOWN = 2
 
 function untilLabel(ms: number) {
   const min = Math.max(1, Math.round(ms / 60_000))
@@ -53,9 +53,6 @@ export default function Schedule() {
   const result = useAsync(loadSchedule, [])
   const [params, setParams] = useSearchParams()
 
-  const [viewMode, setViewMode] = useState<'day' | 'week'>('day')
-  const [selectedDayKey, setSelectedDayKey] = useState<string>('')
-
   const mine = new Set(useMyList().filter((e) => e.status !== 'dropped' && e.status !== 'completed').map((e) => e.anime.id))
   const all = useMemo(() => (result.value ? groupByDay(result.value.data) : []), [result.value])
   const mineCount = useMemo(() => all.reduce((n, d) => n + d.items.filter((i) => mine.has(i.anime.id)).length, 0), [all, mine])
@@ -67,11 +64,9 @@ export default function Schedule() {
       : all
   }, [all, onlyMine, mine])
 
-  const todayKey = dayKey(new Date())
-  const activeDayKey = selectedDayKey || (days.some((d) => dayKey(d.date) === todayKey) ? todayKey : dayKey(days[0]?.date || new Date()))
-  const activeDay = days.find((d) => dayKey(d.date) === activeDayKey) || days[0]
-
   const now = Date.now()
+  const next = days.flatMap((d) => d.items).find((i) => i.at.getTime() >= now)
+  const [showOut, setShowOut] = useState(false)
 
   return (
     <main className="container home">
@@ -81,14 +76,14 @@ export default function Schedule() {
             <div>
               <h1 className="page-title">Расписание выхода серий</h1>
               <p className="muted" style={{ margin: '4px 0 0' }}>
-                Время указано по вашему местному часовому поясу • Смотрите также <Link to="/season" className="link-accent">аниме сезона</Link>
+                Новые серии онгоингов на неделю, время ваше местное · <Link to="/season" className="link-accent">весь сезон</Link>
               </p>
             </div>
           </div>
         </header>
 
-        <div className="schedule-controls">
-          <div className="schedule-filter" role="group" aria-label="Фильтрация">
+        {mineCount > 0 && (
+          <div className="schedule-filter" role="group" aria-label="Какие серии показать">
             <button
               type="button"
               className={`pill${onlyMine ? '' : ' active'}`}
@@ -97,197 +92,130 @@ export default function Schedule() {
             >
               Все онгоинги
             </button>
-            {mineCount > 0 && (
-              <button
-                type="button"
-                className={`pill${onlyMine ? ' active' : ''}`}
-                aria-pressed={onlyMine}
-                onClick={() => setParams({ mine: '1' }, { replace: true })}
-              >
-                Из моего списка <span className="pill__count">{mineCount}</span>
-              </button>
-            )}
+            <button
+              type="button"
+              className={`pill${onlyMine ? ' active' : ''}`}
+              aria-pressed={onlyMine}
+              onClick={() => setParams({ mine: '1' }, { replace: true })}
+            >
+              Из моего списка <span className="pill__count">{mineCount}</span>
+            </button>
           </div>
+        )}
 
-          <div className="schedule-view-mode" role="group" aria-label="Режим отображения">
-            <button
-              type="button"
-              className={viewMode === 'day' ? 'is-active' : ''}
-              onClick={() => setViewMode('day')}
-            >
-              По дням
-            </button>
-            <button
-              type="button"
-              className={viewMode === 'week' ? 'is-active' : ''}
-              onClick={() => setViewMode('week')}
-            >
-              Вся неделя
-            </button>
-          </div>
-        </div>
+        {result.loading && !result.value && <div className="schedule-days skeleton" style={{ height: 42 }} aria-hidden="true" />}
 
         {days.length > 1 && (
-          <nav className="schedule-tabs" aria-label="Выбор дня недели">
+          <nav className="schedule-days" aria-label="Дни недели">
             {days.map((day) => {
               const k = dayKey(day.date)
-              const isToday = k === todayKey
-              const isActive = k === activeDayKey
+              const isToday = k === dayKey(new Date())
               return (
-                <button
+                <a
                   key={k}
-                  type="button"
-                  className={`schedule-tab ${isToday ? 'is-today' : ''} ${isActive ? 'is-active' : ''}`}
-                  onClick={() => {
-                    setSelectedDayKey(k)
-                    if (viewMode === 'week') {
-                      document.getElementById(`day-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
+                  href={`#day-${k}`}
+                  className="pill"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    document.getElementById(`day-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }}
                 >
-                  <span className="schedule-tab__weekday">
-                    {isToday ? 'Сегодня' : weekdayShort.format(day.date)}
-                  </span>
-                  <span className="schedule-tab__date">{dateShort.format(day.date)}</span>
-                  <span className="schedule-tab__badge">{day.items.length}</span>
-                </button>
+                  {isToday ? 'Сегодня' : chipFormat.format(day.date)}
+                  <span className="pill__count">{day.items.length}</span>
+                </a>
               )
             })}
           </nav>
         )}
 
         {result.loading && !result.value ? (
-          <div className="schedule-grid" aria-busy="true">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="skeleton" style={{ height: 140, borderRadius: 'var(--radius-lg)' }} />
+          <div className="schedule" aria-busy="true">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="schedule-day skeleton" style={{ height: 180 }} />
             ))}
           </div>
         ) : result.value?.demo ? (
           <p className="notice" role="status">
-            Не удалось загрузить живые данные Shikimori. Используются резервные данные расписания.
+            Не получилось загрузить расписание Shikimori. Попробуйте обновить страницу позже.
           </p>
-        ) : days.length === 0 ? (
-          <div className="empty-card">
-            <Mascot />
-            <h2>В выбранные дни релизов нет</h2>
-            <p className="muted">Попробуйте отключить фильтр «Из моего списка» или проверьте каталог.</p>
-            <div className="actions">
-              <button type="button" className="btn btn--accent" onClick={() => setParams({}, { replace: true })}>
-                Показать все онгоинги
-              </button>
-              <Link to="/catalog" className="btn btn--ghost">
-                Каталог
-              </Link>
-            </div>
-          </div>
-        ) : viewMode === 'day' && activeDay ? (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>
-                {dayTitle(activeDay.date)}
-              </h2>
-              <span className="muted" style={{ fontSize: '13px' }}>
-                {activeDay.items.length} релизов
-              </span>
-            </div>
+        ) : days.length ? (
+          <div className="schedule">
+            {days.map((day) => {
+              const out = day.items.filter((i) => i.at.getTime() < now)
+              const hidden = !showOut && out.length > OUT_SHOWN ? out.length - OUT_SHOWN : 0
+              const items = day.items.slice(hidden)
 
-            <div className="schedule-grid">
-              {activeDay.items.map((item) => {
-                const isPast = item.at.getTime() < now
-                const isSoon = !isPast && item.at.getTime() - now < 3 * 3600_000
-                const isMine = mine.has(item.anime.id)
+              return (
+                <section
+                  key={dayKey(day.date)}
+                  id={`day-${dayKey(day.date)}`}
+                  className="schedule-day"
+                  aria-label={dayTitle(day.date)}
+                >
+                  <div className="schedule-day__head">
+                    <h2 className="schedule-day__title">{dayTitle(day.date)}</h2>
+                    <span className="schedule-day__badge">{day.items.length} релизов</span>
+                  </div>
 
-                return (
-                  <Link
-                    key={`${item.anime.id}-${item.episode}`}
-                    to={`/anime/${item.anime.id}`}
-                    className={`schedule-card ${isMine ? 'schedule-card--mine' : ''}`}
-                  >
-                    <div className="schedule-card__art" style={{ background: item.anime.posterFill }}>
-                      <Poster anime={item.anime} />
-                    </div>
-                    <div className="schedule-card__body">
-                      <div>
-                        <div className="schedule-card__top">
-                          <span className="schedule-card__time">
-                            ⏱ {timeFormat.format(item.at)}
-                          </span>
-                          <span className={`schedule-card__status ${isSoon ? 'schedule-card__status--soon' : ''}`}>
-                            {isPast ? 'Вышла' : isSoon ? untilLabel(item.at.getTime() - now) : 'Ожидается'}
-                          </span>
-                        </div>
-                        <h3 className="schedule-card__title">{item.anime.title}</h3>
-                      </div>
-                      <div className="schedule-card__bottom">
-                        <span className="schedule-card__episode">
-                          Серия {item.episode}
-                          {item.anime.episodes ? ` из ${item.anime.episodes}` : ''}
-                        </span>
-                        {isMine && (
-                          <span className="schedule-card__mine-tag">
-                            ✓ В списке
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
+                  {hidden > 0 && (
+                    <button type="button" className="schedule-more" onClick={() => setShowOut(true)}>
+                      Уже вышли сегодня: {out.length} · показать все
+                    </button>
+                  )}
+
+                  <ul className="schedule-list">
+                    {items.map((item) => {
+                      const isPast = item.at.getTime() < now
+                      const isMine = mine.has(item.anime.id)
+                      const isNext = item === next
+
+                      return (
+                        <li key={`${item.anime.id}-${item.episode}`}>
+                          <Link
+                            to={`/anime/${item.anime.id}`}
+                            className={`schedule-row${isMine ? ' schedule-row--mine' : ''}${isPast ? ' schedule-row--out' : ''}`}
+                          >
+                            <time className="schedule-row__time" dateTime={item.at.toISOString()}>
+                              {timeFormat.format(item.at)}
+                            </time>
+                            <span className="schedule-row__poster" style={{ background: item.anime.posterFill }}>
+                              <Poster anime={item.anime} />
+                            </span>
+                            <span className="schedule-row__info">
+                              <span className="schedule-row__title">{item.anime.title}</span>
+                              <span className="muted">
+                                Серия {item.episode}
+                                {item.anime.episodes ? ` из ${item.anime.episodes}` : ''}
+                                {isPast ? ' · вышла' : ''}
+                              </span>
+                            </span>
+                            {isNext ? (
+                              <span className="schedule-row__soon">{untilLabel(item.at.getTime() - now)}</span>
+                            ) : (
+                              isMine && <span className="schedule-row__mine">В списке</span>
+                            )}
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              )
+            })}
           </div>
         ) : (
-          <div className="schedule-week">
-            {days.map((day) => (
-              <section key={dayKey(day.date)} id={`day-${dayKey(day.date)}`} className="schedule-week-day">
-                <h2 className="schedule-week-day__title">
-                  <span>{dayTitle(day.date)}</span>
-                  <span className="schedule-week-day__badge">{day.items.length}</span>
-                </h2>
-                <div className="schedule-grid">
-                  {day.items.map((item) => {
-                    const isPast = item.at.getTime() < now
-                    const isSoon = !isPast && item.at.getTime() - now < 3 * 3600_000
-                    const isMine = mine.has(item.anime.id)
-
-                    return (
-                      <Link
-                        key={`${item.anime.id}-${item.episode}`}
-                        to={`/anime/${item.anime.id}`}
-                        className={`schedule-card ${isMine ? 'schedule-card--mine' : ''}`}
-                      >
-                        <div className="schedule-card__art" style={{ background: item.anime.posterFill }}>
-                          <Poster anime={item.anime} />
-                        </div>
-                        <div className="schedule-card__body">
-                          <div>
-                            <div className="schedule-card__top">
-                              <span className="schedule-card__time">
-                                ⏱ {timeFormat.format(item.at)}
-                              </span>
-                              <span className={`schedule-card__status ${isSoon ? 'schedule-card__status--soon' : ''}`}>
-                                {isPast ? 'Вышла' : isSoon ? untilLabel(item.at.getTime() - now) : 'Ожидается'}
-                              </span>
-                            </div>
-                            <h3 className="schedule-card__title">{item.anime.title}</h3>
-                          </div>
-                          <div className="schedule-card__bottom">
-                            <span className="schedule-card__episode">
-                              Серия {item.episode}
-                              {item.anime.episodes ? ` из ${item.anime.episodes}` : ''}
-                            </span>
-                            {isMine && (
-                              <span className="schedule-card__mine-tag">
-                                ✓ В списке
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </section>
-            ))}
+          <div className="empty-card">
+            <Mascot />
+            <h2>На этой неделе новых серий нет</h2>
+            <p className="muted">Онгоинги на перерыве. Загляните в каталог или посмотрите, что уже вышло целиком.</p>
+            <div className="actions">
+              <Link to="/catalog" className="btn btn--accent">
+                Открыть каталог
+              </Link>
+              <Link to="/random" className="btn btn--ghost">
+                Что посмотреть?
+              </Link>
+            </div>
           </div>
         )}
       </section>

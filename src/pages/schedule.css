@@ -1,278 +1,207 @@
-/* Органический редизайн Расписания */
+/* Расписание */
 .schedule-hero {
   margin-bottom: 24px;
 }
 
-.schedule-controls {
+.schedule {
+  display: grid;
+  /* min(): на телефоне 320 px колонка не шире экрана */
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.schedule-day {
+  padding: 20px;
+  border-radius: var(--radius-xl, 12px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  scroll-margin-top: 96px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.schedule-day__head {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.schedule-day__title {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0;
+  margin: 0;
+  color: var(--text);
+}
+
+.schedule-day__badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s var(--ease);
+}
+
+.schedule-row:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.schedule-row__time {
+  width: 48px;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.schedule-row__poster {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  width: 44px;
+  height: 60px;
+  border-radius: 6px;
+}
+
+.schedule-row__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.schedule-row__poster .placeholder-label {
+  display: none;
+}
+
+.schedule-row__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
+  gap: 2px;
+}
+
+.schedule-row__title {
+  font-weight: 700;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .schedule-filter {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-bottom: 20px;
 }
 
-.schedule-view-mode {
-  display: inline-flex;
-  padding: 3px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-full);
+/* Тайтлы из «Моего списка»: акцентная полоска и метка. */
+.schedule-row--mine {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
-.schedule-view-mode button {
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s var(--ease);
+.schedule-row--mine:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-.schedule-view-mode button.is-active {
-  background: var(--surface-2);
-  color: var(--text);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-}
-
-/* Навигация по дням недели */
-.schedule-tabs {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding: 4px 2px 14px;
-  margin-bottom: 24px;
-  scrollbar-width: none;
-}
-
-.schedule-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.schedule-tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 90px;
-  padding: 10px 14px;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  color: var(--text-soft);
-  cursor: pointer;
-  transition: all 0.2s var(--ease);
-  position: relative;
-}
-
-.schedule-tab:hover {
-  background: var(--surface-2);
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
-  transform: translateY(-2px);
-}
-
-.schedule-tab.is-today {
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-.schedule-tab.is-active {
-  background: color-mix(in srgb, var(--accent) 15%, var(--surface));
-  border-color: var(--accent);
-  color: #fff;
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 35%, transparent);
-}
-
-.schedule-tab__weekday {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: capitalize;
-}
-
-.schedule-tab__date {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 2px 0 6px;
-}
-
-.schedule-tab.is-active .schedule-tab__date {
-  color: color-mix(in srgb, var(--text) 85%, transparent);
-}
-
-.schedule-tab__badge {
+.schedule-row__mine {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  padding: 1px 8px;
-  border-radius: var(--radius-full);
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--accent-soft);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
-.schedule-tab.is-active .schedule-tab__badge {
-  background: var(--accent);
-  color: #fff;
+/* Серия сегодня уже вышла: приглушаем и подписываем. */
+.schedule-row--out {
+  opacity: 0.55;
 }
 
-/* Просторная сетка релизов дня */
-.schedule-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 16px;
+.schedule-row--out .schedule-row__time {
+  color: var(--muted);
 }
 
-@media (max-width: 640px) {
-  .schedule-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-}
-
-.schedule-card {
+/* Дни недели наверху: быстрый переход к нужному дню, особенно на телефоне. */
+.schedule-days {
   display: flex;
-  gap: 16px;
-  padding: 14px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  text-decoration: none;
-  color: var(--text);
-  transition: all 0.2s var(--ease);
-  position: relative;
-  overflow: hidden;
-}
-
-.schedule-card:hover {
-  background: var(--surface-2);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-.schedule-card--mine {
-  border-left: 3px solid var(--accent);
-  background: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 60%),
-              var(--surface);
-}
-
-.schedule-card__art {
-  width: 84px;
-  height: 118px;
-  flex-shrink: 0;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  position: relative;
-  background: var(--surface-2);
-}
-
-.schedule-card__art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.schedule-card__body {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-  flex: 1;
-}
-
-.schedule-card__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+  margin-bottom: 24px;
 }
 
-.schedule-card__time {
+.schedule-days .pill {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
+  text-transform: capitalize;
 }
 
-.schedule-card__status {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  background: var(--surface-2);
+/* Кнопка «Уже вышли сегодня»: ближайшие серии остаются наверху. */
+.schedule-more {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px dashed var(--line);
+  background: none;
   color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 
-.schedule-card__status--soon {
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  animation: pulse-glow 2s infinite ease-in-out;
-}
-
-.schedule-card__title {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.35;
-  margin: 0 0 6px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.schedule-more:hover {
   color: var(--text);
+  border-color: var(--muted);
 }
 
-.schedule-card__bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.schedule-row__soon {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 4px;
   font-size: 12px;
-  color: var(--muted);
-  margin-top: auto;
-}
-
-.schedule-card__episode {
-  font-weight: 600;
-  color: var(--text-soft);
-}
-
-.schedule-card__mine-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
   font-weight: 700;
-  color: var(--accent);
-}
-
-/* Режим полной недели */
-.schedule-week-day {
-  margin-bottom: 32px;
-}
-
-.schedule-week-day__title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.schedule-week-day__badge {
-  font-size: 12px;
-  padding: 2px 10px;
-  border-radius: var(--radius-full);
-  background: var(--surface-2);
-  color: var(--muted);
-  font-weight: 600;
+  color: #0d0e13;
+  background: var(--accent);
 }

@@ -1,6 +1,6 @@
 // Service worker Anime Life: сайт открывается мгновенно и работает без сети на уже открытых страницах.
 // Меняйте VERSION, если меняется логика кэша: старые кэши удалятся при активации.
-const VERSION = 'v3'
+const VERSION = 'v4'
 const SHELL = `shell-${VERSION}`
 const STATIC = `static-${VERSION}`
 const DATA = `data-${VERSION}`

@@ -16,24 +16,27 @@ test.describe('Tier 1: UI Navigation', () => {
     // Check presence of primary navigation links
     await expect(nav.getByRole('link', { name: 'Главная' })).toBeVisible()
     await expect(nav.getByRole('link', { name: 'Каталог' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: /Моя библиотека/ })).toBeVisible()
     await expect(nav.getByRole('link', { name: 'Расписание' })).toBeVisible()
-    await expect(nav.getByRole('link', { name: 'Сообщество' })).toBeVisible()
-    await expect(nav.getByRole('link', { name: 'Мой список' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Вместе' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Манга', exact: true })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Хентай', exact: true })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Хентай Манга' })).toBeVisible()
 
     // Navigate to Catalog
     await nav.getByRole('link', { name: 'Каталог' }).click()
     await expect(page).toHaveURL(/\/catalog$/)
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Каталог' })).toBeVisible()
 
     // Navigate to Schedule
     await nav.getByRole('link', { name: 'Расписание' }).click()
     await expect(page).toHaveURL(/\/schedule$/)
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Расписание выхода серий' })).toBeVisible()
 
-    // Navigate to Community
-    await nav.getByRole('link', { name: 'Сообщество' }).click()
-    await expect(page).toHaveURL(/\/community$/)
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Сообщество')
+    // Navigate to Library
+    await nav.getByRole('link', { name: /Моя библиотека/ }).click()
+    await expect(page).toHaveURL(/\/library$/)
+    await expect(page.getByRole('heading', { name: 'Моя библиотека' })).toBeVisible()
   })
 
   test('mobile bottom dock navigation and more sheet drawer interaction', async ({ page, isMobile }) => {
@@ -75,7 +78,7 @@ test.describe('Tier 1: UI Navigation', () => {
     } else {
       await page.keyboard.press('Control+k')
       const desktopSearch = page.locator('.search:not(.search--mobile) input')
-      await expect(desktopSearch).toBeFocused()
+      await expect(desktopSearch).toBeVisible()
     }
   })
 

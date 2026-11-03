@@ -6,7 +6,7 @@ import { listStore } from '../data/myList'
 
 const MoreSheet = lazy(() => import('./MoreSheet'))
 
-const IN_MORE = /^\/(schedule|together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice|hentai|hentai-manga)/
+const IN_MORE = /^\/(schedule|together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice|hentai|hentai-manga|library)/
 
 function useInboxCheck() {
   useEffect(() => {
@@ -40,8 +40,8 @@ export default function BottomNav() {
   const items = [
     { to: '/', title: 'Главная', icon: <HomeIcon />, end: true },
     { to: '/catalog', title: 'Каталог', icon: <CompassIcon /> },
-    { to: '/library', title: 'Библиотека', icon: <ListIcon />, main: true },
-    { to: '/together', title: 'Вместе', icon: <ScreenPlayIcon /> },
+    { to: '/watching', title: 'Смотрю', label: 'Смотрю', icon: <ScreenPlayIcon />, main: true },
+    { to: '/my-list', title: 'Список', label: 'Мой список', icon: <ListIcon /> },
   ]
 
   let active = more ? 4 : items.findIndex((i) => (i.end ? pathname === i.to : pathname.startsWith(i.to)))
@@ -49,7 +49,7 @@ export default function BottomNav() {
 
   return (
     <>
-      <nav className="dock" aria-label="Нижнее меню" style={{ '--i': active } as CSSProperties}>
+      <nav className="dock" aria-label="Разделы сайта" style={{ '--i': active } as CSSProperties}>
         {active >= 0 && <span className="dock__glider" aria-hidden="true" />}
         {items.map((i) => (
           <NavLink
@@ -57,7 +57,7 @@ export default function BottomNav() {
             to={i.to}
             end={i.end}
             className={`dock__item${i.main ? ' dock__item--main' : ''}`}
-            aria-label={i.main && fresh ? `${i.title}: новые серии ${fresh}` : i.title}
+            aria-label={i.main && fresh ? `${i.title}: новых серий ${fresh}` : i.label || i.title}
           >
             <span className="dock__icon">
               {i.icon}
@@ -72,10 +72,10 @@ export default function BottomNav() {
         ))}
         <button
           type="button"
-          className={`dock__item dock__item--more${more || (active === 4 && !items.some((i) => pathname === i.to)) ? ' is-active' : ''}`}
-          aria-label="Ещё разделы"
+          className={`dock__item${!more && active === 4 ? ' active' : ''}`}
           aria-expanded={more}
-          onClick={() => setMore((v) => !v)}
+          aria-controls="more-sheet"
+          onClick={() => setMore(!more)}
         >
           <span className="dock__icon">
             <MoreIcon />
