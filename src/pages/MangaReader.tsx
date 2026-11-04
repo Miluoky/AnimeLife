@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga } from '../api/manga'
 import { chapterLabel, fallbackPage, fetchPages, findMangadex, langName, mergeChapters, preferredLang, readProgress, saveProgress } from '../api/mangadex'
+import { CheckIcon, DownloadIcon } from '../components/Icons'
+import { isChapterOffline, saveChapterOffline, getOfflinePages } from '../data/mangaOffline'
 import { OWN_PREFIX, fetchOwnChapter, fetchOwnChapters } from '../api/mangaOwn'
 import { usePageMeta } from '../data/pageMeta'
 import './manga-reader.css'
@@ -74,6 +76,29 @@ export default function MangaReader() {
   const restore = useRef(0)
   const touch = useRef<number>()
   const [retry, setRetry] = useState(0)
+  const [offlineSaved, setOfflineSaved] = useState(false)
+  const [offlineLoading, setOfflineLoading] = useState(false)
+  const [offlineProgress, setOfflineProgress] = useState(0)
+
+  useEffect(() => {
+    if (chapter) {
+      void isChapterOffline(chapter).then(setOfflineSaved)
+    }
+  }, [chapter])
+
+  const onDownloadOffline = async () => {
+    if (!urls.length || offlineLoading || offlineSaved) return
+    setOfflineLoading(true)
+    setOfflineProgress(0)
+    try {
+      await saveChapterOffline(chapter, urls, m?.title, (p) => setOfflineProgress(p))
+      setOfflineSaved(true)
+    } catch {
+      // ignore
+    } finally {
+      setOfflineLoading(false)
+    }
+  }
 
   const manga = useAsync(() => fetchManga(id).catch(() => undefined), [id])
   const m = manga.value
@@ -91,11 +116,14 @@ export default function MangaReader() {
   // Страницы грузим сразу, не дожидаясь списка глав: id главы уже в адресе.
   // Наши главы (загруженные командами) хранятся в Appwrite: у них адреса страниц готовые.
   const pages = useAsync(
-    () =>
-      (chapter.startsWith(OWN_PREFIX)
+    async () => {
+      const offline = await getOfflinePages(chapter)
+      if (offline && offline.length) return offline
+      return (chapter.startsWith(OWN_PREFIX)
         ? fetchOwnChapter(chapter.slice(OWN_PREFIX.length)).then((c) => c?.pageUrls ?? null)
         : fetchPages(chapter, saver)
-      ).catch(() => null),
+      ).catch(() => null)
+    },
     [chapter, saver, retry],
   )
 
@@ -253,6 +281,25 @@ export default function MangaReader() {
           </select>
         )}
         <span className="muted reader__lang">{langName(lang)}</span>
+                <button
+          type="button"
+          className={`pill reader__offline${offlineSaved ? ' active' : ''}`}
+          disabled={offlineLoading || !total}
+          title={offlineSaved ? 'Глава сохранена в памяти устройства' : 'Скачать главу для чтения без интернета'}
+          onClick={onDownloadOffline}
+        >
+          {offlineSaved ? (
+            <>
+              <CheckIcon size={14} /> В оффлайне
+            </>
+          ) : offlineLoading ? (
+            `Скачиваем ${offlineProgress}%`
+          ) : (
+            <>
+              <DownloadIcon size={14} /> Скачать
+            </>
+          )}
+        </button>
         <label className="reader__saver">
           <input
             type="checkbox"

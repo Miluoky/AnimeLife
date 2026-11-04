@@ -186,3 +186,16 @@
   padding: 48px 16px;
   cursor: default;
 }
+
+.reader__offline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.reader__offline.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}

@@ -4,7 +4,7 @@
  * полный экран, «картинка в картинке», двойное касание для перемотки и горячие клавиши.
  */
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type PointerEvent, type RefObject } from 'react'
-import { FullscreenIcon, PauseIcon, PlayIcon, SkipIcon, VolumeIcon } from './Icons'
+import { FullscreenIcon, PauseIcon, PlayIcon, SkipIcon, SunIcon, VolumeIcon } from './Icons'
 import type { AniLibriaQuality, SkipSpan } from '../api/anilibria'
 import { createLocalStore } from '../data/localStore'
 import { toast } from '../data/toast'
@@ -105,6 +105,18 @@ export default function PlayerControls({
   // Подсказки: вспышка значка по центру и волна при перемотке двойным касанием.
   const [flash, setFlash] = useState<{ key: number; play: boolean } | null>(null)
   const [ripple, setRipple] = useState<{ key: number; side: 'back' | 'fwd' } | null>(null)
+  const [brightness, setBrightness] = useState(1)
+  const [gestureOsd, setGestureOsd] = useState<{ type: 'brightness' | 'volume'; value: number } | null>(null)
+  const osdTimer = useRef<ReturnType<typeof setTimeout>>()
+  const touchState = useRef<{
+    startX: number
+    startY: number
+    side: 'left' | 'right'
+    startVol: number
+    startBright: number
+    isDragging: boolean
+    pointerId: number
+  } | null>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout>>()
   const lastTap = useRef(0)
   const autoSkip = autoSkipStore.use()
@@ -415,6 +427,66 @@ export default function PlayerControls({
     if (e.pointerType !== 'mouse') setPreview(null)
   }
 
+  const onSurfaceDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const side = (e.clientX - rect.left) < rect.width / 2 ? 'left' : 'right'
+    touchState.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      side,
+      startVol: v?.volume ?? 1,
+      startBright: brightness,
+      isDragging: false,
+      pointerId: e.pointerId,
+    }
+  }
+
+  const onSurfaceMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') {
+      poke()
+      return
+    }
+    const ts = touchState.current
+    if (!ts || ts.pointerId !== e.pointerId) return
+    const dy = ts.startY - e.clientY
+    const dx = Math.abs(e.clientX - ts.startX)
+    const absDy = Math.abs(dy)
+    if (!ts.isDragging && absDy > 14 && absDy > dx) {
+      ts.isDragging = true
+    }
+    if (ts.isDragging) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const delta = dy / (rect.height * 0.6)
+      if (ts.side === 'left') {
+        const b = Math.max(0.3, Math.min(1.5, ts.startBright + delta))
+        setBrightness(b)
+        if (v) v.style.filter = `brightness(${b})`
+        setGestureOsd({ type: 'brightness', value: Math.round(b * 100) })
+      } else {
+        const vol = Math.max(0, Math.min(1, ts.startVol + delta))
+        if (v) {
+          v.muted = false
+          v.volume = vol
+          try {
+            localStorage.setItem('animelife_volume', String(vol))
+            localStorage.setItem('animelife_muted', 'false')
+          } catch {}
+        }
+        setGestureOsd({ type: 'volume', value: Math.round(vol * 100) })
+      }
+      clearTimeout(osdTimer.current)
+      osdTimer.current = setTimeout(() => setGestureOsd(null), 1200)
+    }
+  }
+
+  const onSurfaceUp = (e: PointerEvent<HTMLDivElement>) => {
+    const ts = touchState.current
+    touchState.current = null
+    if (ts?.isDragging) return
+    onSurface(e)
+  }
+
   /* ─── Касания и клики по самому видео ─── */
   const onSurface = (e: PointerEvent<HTMLDivElement>) => {
     if (menu) return setMenu(false)
@@ -447,7 +519,37 @@ export default function PlayerControls({
       onPointerMove={(e) => e.pointerType === 'mouse' && poke()}
       onMouseLeave={() => !paused && setActive(false)}
     >
-      <div className="vp-surface" onPointerUp={onSurface} onDoubleClick={toggleFullscreen} aria-hidden="true" />
+      <div
+        className="vp-surface"
+        onPointerDown={onSurfaceDown}
+        onPointerMove={onSurfaceMove}
+        onPointerUp={onSurfaceUp}
+        onPointerCancel={() => { touchState.current = null }}
+        onDoubleClick={toggleFullscreen}
+        aria-hidden="true"
+      />
+
+      {gestureOsd && (
+        <div className="vp-gesture-osd" role="status" aria-live="polite">
+          <div className="vp-gesture-osd__icon">
+            {gestureOsd.type === 'brightness' ? <SunIcon size={24} /> : <VolumeIcon size={24} />}
+          </div>
+          <div className="vp-gesture-osd__info">
+            <span className="vp-gesture-osd__label">
+              {gestureOsd.type === 'brightness' ? 'Яркость' : 'Громкость'}
+            </span>
+            <span className="vp-gesture-osd__value">{gestureOsd.value}%</span>
+          </div>
+          <div className="vp-gesture-osd__meter">
+            <div
+              className="vp-gesture-osd__fill"
+              style={{
+                width: `${gestureOsd.type === 'brightness' ? Math.round(((gestureOsd.value - 30) / 120) * 100) : gestureOsd.value}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {ripple && (
         <span key={ripple.key} className={`vp-ripple vp-ripple--${ripple.side}`} aria-hidden="true">

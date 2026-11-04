@@ -393,9 +393,28 @@ export default function Player() {
       >
       <PlayerGlow slot={miniPlayer.slot} poster={anime.posterSmall ?? blurPoster(anime.posterUrl)} animeId={anime.id} />
       {miniPlayer.mini && (
-        <button type="button" className="video-slot__close" aria-label="Закрыть мини-плеер" onClick={miniPlayer.close}>
-          <CloseIcon size={16} />
-        </button>
+        <div className="video-slot__actions">
+          <button
+            type="button"
+            className="video-slot__btn video-slot__btn--expand"
+            aria-label="Вернуться к плееру"
+            title="Вернуться к плееру"
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' })
+            }}
+          >
+            <WideIcon size={14} />
+          </button>
+          <button
+            type="button"
+            className="video-slot__btn video-slot__btn--close"
+            aria-label="Закрыть мини-плеер"
+            title="Закрыть мини-плеер"
+            onClick={miniPlayer.close}
+          >
+            <CloseIcon size={16} />
+          </button>
+        </div>
       )}
       {/* Мульти-провайдерный плеер; если серию взять негде — трейлер */}
       {/* Пока не знаем озвучки Kodik, плеер не включаем: иначе он начнёт с одной озвучки и тут же сменит её. */}

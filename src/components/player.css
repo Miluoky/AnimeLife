@@ -1895,3 +1895,83 @@
   border: 1px solid rgba(240, 160, 40, 0.3);
   font-size: 13px;
 }
+
+/* Жесты мобильного плеера (OSD громкости и яркости) */
+.vp-gesture-osd {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: rgba(10, 10, 14, 0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  min-width: 140px;
+}
+.vp-gesture-osd__icon {
+  color: var(--accent);
+}
+.vp-gesture-osd__info {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 8px;
+}
+.vp-gesture-osd__meter {
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+.vp-gesture-osd__fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.08s ease;
+}
+
+/* Действия мини-плеера */
+.video-slot__actions {
+  position: fixed;
+  right: max(22px, calc(env(safe-area-inset-right) + 6px));
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + min(360px, 46vw) * 9 / 16 - 40px);
+  z-index: 46;
+  display: flex;
+  gap: 6px;
+}
+.video-slot__btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--text);
+  background: rgb(0 0 0 / 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+}
+.video-slot__btn:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.2);
+}
+@media (max-width: 1099px) {
+  .video-slot__actions {
+    bottom: calc(84px + env(safe-area-inset-bottom) + min(300px, 58vw) * 9 / 16 - 40px);
+  }
+}
