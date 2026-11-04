@@ -437,7 +437,6 @@ export default function Player() {
           const next = voices.find((v) => v.provider === p)
           if (next) chooseVoice(next.key)
         }}
-        onShare={() => setShareOpen(true)}
       />
       )}
       </div>

@@ -88,8 +88,6 @@ export interface VideoPlayerProps {
    */
   provider?: Provider
   onProviderChange?: (provider: Provider) => void
-  /** Открыть модальное окно социального шеринга */
-  onShare?: () => void
   /** Источник не может показать серию (ошибка, таймаут, серии нет): страница может сама включить запасной. */
   onUnavailable?: (reason: string) => void
   /** Источники, в которых страница точно знает этот тайтл: на них предлагаем переключиться. */
@@ -186,7 +184,7 @@ function saveProvider(id: Provider) {
 /* ──────────────── Компонент ──────────────── */
 
 export default function VideoPlayer(props: VideoPlayerProps) {
-  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink, anixart, embed, onShare } = props
+  const { title, originalTitle, englishTitle, year, shikimoriId, kinopoiskId, imdbId, episode, totalEpisodes, onEpisodeChange, onEpisodes, trailerUrl, kodikLink, anixart, embed } = props
   const controlled = props.provider !== undefined
 
   const tabs = buildTabs()
@@ -1371,19 +1369,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         )}
         {kodikEnded && autoNext && !!onEpisodeChange && episode < totalEpisodes && !unavailable && (
           <AutoNext label={`${episode + 1} серия`} onNext={() => onEpisodeChange(episode + 1)} onCancel={() => setKodikEnded(false)} />
-        )}
-        {onShare && (
-          <button
-            type="button"
-            className="vp-btn vp-btn--share sr-only"
-            onClick={(e) => {
-              e.stopPropagation()
-              onShare()
-            }}
-            aria-label="Поделиться серией"
-          >
-            Поделиться
-          </button>
         )}
 
         {unavailable && (trailerUrl ? (
