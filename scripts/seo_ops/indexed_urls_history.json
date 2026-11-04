@@ -1,902 +1,902 @@
 {
   "https://animelife.top/": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:47.885845",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:40.828903",
     "status": 200
   },
   "https://animelife.top/catalog": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:48.093108",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:41.059184",
     "status": 200
   },
   "https://animelife.top/top": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:48.312857",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:41.268045",
     "status": 200
   },
   "https://animelife.top/schedule": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:48.538828",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:41.476001",
     "status": 200
   },
   "https://animelife.top/collections": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:48.757952",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:41.661355",
     "status": 200
   },
   "https://animelife.top/season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:48.959527",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:41.866984",
     "status": 200
   },
   "https://animelife.top/community": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:49.124842",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:42.057303",
     "status": 200
   },
   "https://animelife.top/random": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:49.317165",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:42.237299",
     "status": 200
   },
   "https://animelife.top/scene": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:49.512710",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:42.411807",
     "status": 200
   },
   "https://animelife.top/changelog": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:49.682915",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:42.604876",
     "status": 200
   },
   "https://animelife.top/genre/action": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:49.854857",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:42.809137",
     "status": 200
   },
   "https://animelife.top/genre/adventure": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:50.025556",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:42.977751",
     "status": 200
   },
   "https://animelife.top/genre/comedy": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:50.196602",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:43.147185",
     "status": 200
   },
   "https://animelife.top/genre/drama": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:50.376421",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:43.353606",
     "status": 200
   },
   "https://animelife.top/genre/fantasy": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:50.545550",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:43.559475",
     "status": 200
   },
   "https://animelife.top/genre/romance": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:50.737566",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:43.785058",
     "status": 200
   },
   "https://animelife.top/genre/sci-fi": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:50.902658",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:43.953529",
     "status": 200
   },
   "https://animelife.top/genre/mystery": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:51.071862",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:44.133977",
     "status": 200
   },
   "https://animelife.top/genre/horror": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:51.237669",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:44.308743",
     "status": 200
   },
   "https://animelife.top/genre/thriller": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:51.405789",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:44.520337",
     "status": 200
   },
   "https://animelife.top/genre/psychological": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:51.602261",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:44.690842",
     "status": 200
   },
   "https://animelife.top/genre/slice-of-life": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:51.768104",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:44.879836",
     "status": 200
   },
   "https://animelife.top/genre/supernatural": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:51.940614",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:45.049708",
     "status": 200
   },
   "https://animelife.top/genre/school": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:52.110281",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:45.248865",
     "status": 200
   },
   "https://animelife.top/genre/sports": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:52.280231",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:45.425959",
     "status": 200
   },
   "https://animelife.top/genre/mecha": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:52.453406",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:45.593700",
     "status": 200
   },
   "https://animelife.top/theme/isekai": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:52.685309",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:45.760238",
     "status": 200
   },
   "https://animelife.top/theme/reincarnation": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:52.853106",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:45.933983",
     "status": 200
   },
   "https://animelife.top/theme/time-travel": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:53.026027",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:46.110247",
     "status": 200
   },
   "https://animelife.top/theme/survival": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:53.203834",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:46.287091",
     "status": 200
   },
   "https://animelife.top/best/2026": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:53.368487",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:46.485150",
     "status": 200
   },
   "https://animelife.top/best/2025": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:53.533304",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:46.654319",
     "status": 200
   },
   "https://animelife.top/best/2024": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:53.738000",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:46.833043",
     "status": 200
   },
   "https://animelife.top/year/2026": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:53.907356",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:47.006397",
     "status": 200
   },
   "https://animelife.top/year/2025": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:54.095772",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:47.185766",
     "status": 200
   },
   "https://animelife.top/year/2024": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:54.261647",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:47.362065",
     "status": 200
   },
   "https://animelife.top/type/tv": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:54.429366",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:47.531108",
     "status": 200
   },
   "https://animelife.top/type/movie": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:54.602020",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:47.703858",
     "status": 200
   },
   "https://animelife.top/type/ova": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:54.768847",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:47.880859",
     "status": 200
   },
   "https://animelife.top/anime/6149-chibi-maruko-chan-1995": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:54.953710",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:48.054899",
     "status": 200
   },
   "https://animelife.top/anime/29643-6hp-six-hearts-princess": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:55.119250",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:48.220273",
     "status": 200
   },
   "https://animelife.top/anime/63240-fanren-xiu-xian-zhuan-mulan-zhi-zhan": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:55.292844",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:48.390661",
     "status": 200
   },
   "https://animelife.top/anime/61214-aotu-shijie-reborn": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:55.457107",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:48.565522",
     "status": 200
   },
   "https://animelife.top/anime/30151-kamiusagi-rope-warau-asa-ni-wa-fukuraitaru-tte-maji-ssuka": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:55.996387",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:49.079962",
     "status": 200
   },
   "https://animelife.top/anime/35312-kamiusagi-rope-x-toho-cinemas-movies": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:56.165174",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:49.251637",
     "status": 200
   },
   "https://animelife.top/anime/30154-kamiusagi-rope-ona": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:56.333111",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:49.421185",
     "status": 200
   },
   "https://animelife.top/anime/35311-kamiusagi-rope-x-toho-cinemas": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:56.524576",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:49.594667",
     "status": 200
   },
   "https://animelife.top/anime/55351-azur-lane-cms": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:56.695321",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:49.771338",
     "status": 200
   },
   "https://animelife.top/anime/37290-ani-x-para-anata-no-hero-wa-dare-desu-ka": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:56.860787",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:49.943197",
     "status": 200
   },
   "https://animelife.top/anime/63818-battle-spirits-re-zekkai-no-kuu": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:57.030271",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:50.112907",
     "status": 200
   },
   "https://animelife.top/anime/56566-beyblade-x": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:57.202544",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:50.291118",
     "status": 200
   },
   "https://animelife.top/anime/61967-black-clover-2nd-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:57.371200",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:50.473230",
     "status": 200
   },
   "https://animelife.top/anime/48824-blue-archive-pvs": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:57.546021",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:50.643902",
     "status": 200
   },
   "https://animelife.top/anime/61323-ao-no-hako-season-2": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:57.711518",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:50.819863",
     "status": 200
   },
   "https://animelife.top/anime/32353-bonobono-tv-2016": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:57.879736",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:50.989117",
     "status": 200
   },
   "https://animelife.top/anime/58431-bt21-pvs": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:58.054983",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:51.165759",
     "status": 200
   },
   "https://animelife.top/anime/62651-cang-yuan-tu-3": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:58.225887",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:51.332422",
     "status": 200
   },
   "https://animelife.top/anime/64718-ghost-meets-gal": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:58.394981",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:51.513067",
     "status": 200
   },
   "https://animelife.top/anime/59088-tokyo-revengers-santen-sensou-hen": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:58.560363",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:51.689926",
     "status": 200
   },
   "https://animelife.top/anime/50250-chiikawa": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:58.727665",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:51.859459",
     "status": 200
   },
   "https://animelife.top/anime/60598-da-li-si-rizhi-3rd-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:58.899295",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:52.021680",
     "status": 200
   },
   "https://animelife.top/anime/60597-da-wang-rao-ming-3": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:59.070363",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:52.194819",
     "status": 200
   },
   "https://animelife.top/anime/235-meitantei-conan": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:59.249906",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:52.367199",
     "status": 200
   },
   "https://animelife.top/anime/64505-diamond-no-ace-act-ii-second-season-part-2": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:59.422554",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:52.537010",
     "status": 200
   },
   "https://animelife.top/anime/65216-dinoster-gonglyongsuhodae-4th-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:59.587232",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:52.706360",
     "status": 200
   },
   "https://animelife.top/anime/59831-matsuo-no-anime": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:59.758081",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:52.875711",
     "status": 200
   },
   "https://animelife.top/anime/53443-dongitsune-cms": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:59.923655",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:53.051240",
     "status": 200
   },
   "https://animelife.top/anime/8687-doraemon-2005": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:00.096514",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:53.220532",
     "status": 200
   },
   "https://animelife.top/anime/35686-doraemon-2005-specials": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:00.269856",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:53.389872",
     "status": 200
   },
   "https://animelife.top/anime/61556-da-zhuzai-nian-fan-2": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:00.437093",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:53.559431",
     "status": 200
   },
   "https://animelife.top/anime/51039-doupo-cangqiong-nian-fan": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:00.608951",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:53.742091",
     "status": 200
   },
   "https://animelife.top/anime/63367-dragon-ball-super-beerus": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:00.782073",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:53.921255",
     "status": 200
   },
   "https://animelife.top/anime/64848-duel-masters-lost-danzai-no-shounen": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:00.957587",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:54.097982",
     "status": 200
   },
   "https://animelife.top/anime/40393-taka-no-tsumedan-no-ike-odaman": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:01.123001",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:54.269578",
     "status": 200
   },
   "https://animelife.top/anime/36064-fate-grand-order": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:01.294759",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:54.440550",
     "status": 200
   },
   "https://animelife.top/anime/64725-fate-grand-order-fujimaru-ritsuka-wa-wakaranai-season-4": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:01.465486",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:54.613274",
     "status": 200
   },
   "https://animelife.top/anime/34454-granblue-fantasy-cms": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:01.633841",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:54.783567",
     "status": 200
   },
   "https://animelife.top/anime/8336-hanakappa": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:01.801795",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:54.952628",
     "status": 200
   },
   "https://animelife.top/anime/52100-haru-ni-nattara-koguma-no-yugo-monogatari": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:01.972681",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:55.128912",
     "status": 200
   },
   "https://animelife.top/anime/9874-touhou-niji-sousaku-doujin-anime-musou-kakyou": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:02.156087",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:55.297302",
     "status": 200
   },
   "https://animelife.top/anime/36686-hifuu-katsudou-kiroku-the-sealed-esoteric-history": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:02.322388",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:55.467689",
     "status": 200
   },
   "https://animelife.top/anime/57314-benghuai-xing-qiong-tiedao-qian-xing-ji-you-pvs": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:02.495752",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:55.639760",
     "status": 200
   },
   "https://animelife.top/anime/53408-i-love-me-2nd-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:02.673661",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:55.812725",
     "status": 200
   },
   "https://animelife.top/anime/65006-inko-colors-mini": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:02.839363",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:55.981462",
     "status": 200
   },
   "https://animelife.top/anime/61469-steel-ball-run-jojo-no-kimyou-na-bouken": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:03.002773",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:56.148304",
     "status": 200
   },
   "https://animelife.top/anime/63157-keroro-gunsou": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:03.170201",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:56.319903",
     "status": 200
   },
   "https://animelife.top/anime/57612-kikansha-no-mahou-wa-tokubetsu-desu-2nd-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:03.345397",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:56.495223",
     "status": 200
   },
   "https://animelife.top/anime/16498-shingeki-no-kyojin": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:03.516356",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:56.667602",
     "status": 200
   },
   "https://animelife.top/anime/1535-death-note": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:03.685988",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:56.841154",
     "status": 200
   },
   "https://animelife.top/anime/5114-fullmetal-alchemist-brotherhood": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:03.857272",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:57.013837",
     "status": 200
   },
   "https://animelife.top/anime/30276-one-punch-man": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:04.063617",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:57.192141",
     "status": 200
   },
   "https://animelife.top/anime/38000-kimetsu-no-yaiba": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:04.230390",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:57.367768",
     "status": 200
   },
   "https://animelife.top/anime/31964-boku-no-hero-academia": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:04.405521",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:57.542213",
     "status": 200
   },
   "https://animelife.top/anime/11757-sword-art-online": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:04.580523",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:57.713816",
     "status": 200
   },
   "https://animelife.top/anime/11061-hunter-x-hunter-2011": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:04.748860",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:57.883428",
     "status": 200
   },
   "https://animelife.top/anime/20-naruto": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:04.920736",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:58.060110",
     "status": 200
   },
   "https://animelife.top/anime/40748-jujutsu-kaisen": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:05.092403",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:58.230586",
     "status": 200
   },
   "https://animelife.top/anime/22319-tokyo-ghoul": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:05.263401",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:58.406079",
     "status": 200
   },
   "https://animelife.top/anime/32281-kimi-no-na-wa": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:05.429068",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:58.578790",
     "status": 200
   },
   "https://animelife.top/anime/25777-shingeki-no-kyojin-season-2": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:05.611020",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:58.755331",
     "status": 200
   },
   "https://animelife.top/anime/9253-steins-gate": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:05.781771",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:58.924322",
     "status": 200
   },
   "https://animelife.top/anime/1735-naruto-shippuuden": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:05.947551",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:59.092879",
     "status": 200
   },
   "https://animelife.top/anime/33486-boku-no-hero-academia-2nd-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:06.127529",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:59.266286",
     "status": 200
   },
   "https://animelife.top/anime/21-one-piece": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:06.301337",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:59.438299",
     "status": 200
   },
   "https://animelife.top/anime/35760-shingeki-no-kyojin-season-3": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:06.469966",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:59.617419",
     "status": 200
   },
   "https://animelife.top/anime/28851-koe-no-katachi": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:06.646851",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:59.784943",
     "status": 200
   },
   "https://animelife.top/anime/38524-shingeki-no-kyojin-season-3-part-2": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:06.825535",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:59.958430",
     "status": 200
   },
   "https://animelife.top/anime/19815-no-game-no-life": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:06.998081",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:00.125022",
     "status": 200
   },
   "https://animelife.top/anime/1575-code-geass-hangyaku-no-lelouch": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:07.173220",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:00.295754",
     "status": 200
   },
   "https://animelife.top/anime/31240-re-zero-kara-hajimeru-isekai-seikatsu": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:07.338049",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:00.468247",
     "status": 200
   },
   "https://animelife.top/anime/23273-shigatsu-wa-kimi-no-uso": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:07.510607",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:00.641575",
     "status": 200
   },
   "https://animelife.top/anime/36456-boku-no-hero-academia-3rd-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:07.681590",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:00.815846",
     "status": 200
   },
   "https://animelife.top/anime/4224-toradora": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:07.848984",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:00.987911",
     "status": 200
   },
   "https://animelife.top/anime/32182-mob-psycho-100": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:08.022739",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:01.155185",
     "status": 200
   },
   "https://animelife.top/anime/20507-noragami": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:08.189802",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:01.320766",
     "status": 200
   },
   "https://animelife.top/anime/40028-shingeki-no-kyojin-the-final-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:08.358379",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:01.493555",
     "status": 200
   },
   "https://animelife.top/anime/31043-boku-dake-ga-inai-machi": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:08.526631",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:01.662821",
     "status": 200
   },
   "https://animelife.top/anime/22199-akame-ga-kill": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:08.701935",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:01.845449",
     "status": 200
   },
   "https://animelife.top/anime/24833-ansatsu-kyoushitsu": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:08.875733",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:02.015076",
     "status": 200
   },
   "https://animelife.top/anime/269-bleach": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:09.041920",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:02.183211",
     "status": 200
   },
   "https://animelife.top/anime/23755-nanatsu-no-taizai": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:09.209494",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:02.354798",
     "status": 200
   },
   "https://animelife.top/anime/6547-angel-beats": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:09.378309",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:02.526874",
     "status": 200
   },
   "https://animelife.top/anime/20583-haikyuu": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:09.549273",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:02.707028",
     "status": 200
   },
   "https://animelife.top/anime/37779-yakusoku-no-neverland": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:09.717547",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:02.881290",
     "status": 200
   },
   "https://animelife.top/anime/30831-kono-subarashii-sekai-ni-shukufuku-wo": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:09.885981",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:03.050153",
     "status": 200
   },
   "https://animelife.top/anime/10620-mirai-nikki-tv": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:10.063867",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:03.219280",
     "status": 200
   },
   "https://animelife.top/anime/21881-sword-art-online-ii": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:10.236718",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:03.395513",
     "status": 200
   },
   "https://animelife.top/anime/1-cowboy-bebop": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:10.405733",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:03.565226",
     "status": 200
   },
   "https://animelife.top/anime/9919-ao-no-exorcist": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:10.571591",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:03.731619",
     "status": 200
   },
   "https://animelife.top/anime/22535-kiseijuu-sei-no-kakuritsu": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:10.736746",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:03.901988",
     "status": 200
   },
   "https://animelife.top/anime/30-shinseiki-evangelion": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:10.904939",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:04.071910",
     "status": 200
   },
   "https://animelife.top/anime/199-sen-to-chihiro-no-kamikakushi": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:11.077552",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:04.251643",
     "status": 200
   },
   "https://animelife.top/anime/33352-violet-evergarden": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:11.251653",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:04.424275",
     "status": 200
   },
   "https://animelife.top/anime/44511-chainsaw-man": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:11.415182",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:04.593404",
     "status": 200
   },
   "https://animelife.top/anime/37450-seishun-buta-yarou-wa-bunny-girl-senpai-no-yume-wo-minai": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:11.578301",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:04.760865",
     "status": 200
   },
   "https://animelife.top/anime/38691-dr-stone": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:11.747003",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:04.933255",
     "status": 200
   },
   "https://animelife.top/anime/2904-code-geass-hangyaku-no-lelouch-r2": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:11.918493",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:05.109417",
     "status": 200
   },
   "https://animelife.top/anime/37999-kaguya-sama-wa-kokurasetai-tensai-tachi-no-renai-zunousen": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:12.089521",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:05.279076",
     "status": 200
   },
   "https://animelife.top/anime/28223-death-parade": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:12.262367",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:05.447222",
     "status": 200
   },
   "https://animelife.top/anime/42163-arknights": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:55.653259",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:48.734225",
     "status": 200
   },
   "https://animelife.top/anime/65261-luo-de-dao-xueyuan": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:51:55.827697",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:55:48.910411",
     "status": 200
   },
   "https://animelife.top/anime/34572-black-clover": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:12.428430",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:05.616753",
     "status": 200
   },
   "https://animelife.top/anime/38408-boku-no-hero-academia-4th-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:12.601409",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:05.792564",
     "status": 200
   },
   "https://animelife.top/anime/50265-spy-x-family": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:12.770122",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:05.965615",
     "status": 200
   },
   "https://animelife.top/anime/27899-tokyo-ghoul-a": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:12.938170",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:06.131135",
     "status": 200
   },
   "https://animelife.top/anime/34134-one-punch-man-2nd-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:13.107722",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:06.297272",
     "status": 200
   },
   "https://animelife.top/anime/14719-jojo-no-kimyou-na-bouken-tv": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:13.283103",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:06.470173",
     "status": 200
   },
   "https://animelife.top/anime/18679-kill-la-kill": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:13.450553",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:06.637296",
     "status": 200
   },
   "https://animelife.top/anime/6702-fairy-tail": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:13.619739",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:06.810994",
     "status": 200
   },
   "https://animelife.top/anime/37521-vinland-saga": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:13.787557",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:06.984716",
     "status": 200
   },
   "https://animelife.top/anime/35849-darling-in-the-franxx": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:13.955670",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:07.149891",
     "status": 200
   },
   "https://animelife.top/anime/40456-kimetsu-no-yaiba-movie-mugen-ressha-hen": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:14.121276",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:07.318253",
     "status": 200
   },
   "https://animelife.top/anime/11111-another": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:14.298301",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:07.482868",
     "status": 200
   },
   "https://animelife.top/anime/3588-soul-eater": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:14.469716",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:07.651732",
     "status": 200
   },
   "https://animelife.top/anime/2001-tengen-toppa-gurren-lagann": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:14.636278",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:07.820512",
     "status": 200
   },
   "https://animelife.top/anime/35790-tate-no-yuusha-no-nariagari": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:14.804928",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:07.991999",
     "status": 200
   },
   "https://animelife.top/anime/28999-charlotte": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:14.984976",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:08.163734",
     "status": 200
   },
   "https://animelife.top/anime/29803-overlord": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:15.152733",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:08.331571",
     "status": 200
   },
   "https://animelife.top/anime/47778-kimetsu-no-yaiba-yuukaku-hen": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:15.322505",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:08.497664",
     "status": 200
   },
   "https://animelife.top/anime/13601-psycho-pass": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:15.490042",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:08.663051",
     "status": 200
   },
   "https://animelife.top/anime/28171-shokugeki-no-souma": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:15.659261",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:08.839199",
     "status": 200
   },
   "https://animelife.top/anime/37510-mob-psycho-100-ii": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:15.828906",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:09.009183",
     "status": 200
   },
   "https://animelife.top/anime/9989-ano-hi-mita-hana-no-namae-wo-bokutachi-wa-mada-shiranai": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:15.993705",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:09.180900",
     "status": 200
   },
   "https://animelife.top/anime/42897-horimiya": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:16.158506",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:09.354970",
     "status": 200
   },
   "https://animelife.top/anime/37430-tensei-shitara-slime-datta-ken": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:16.337880",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:09.524036",
     "status": 200
   },
   "https://animelife.top/anime/32937-kono-subarashii-sekai-ni-shukufuku-wo-2": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:16.502598",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:09.690275",
     "status": 200
   },
   "https://animelife.top/anime/15809-hataraku-maou-sama": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:16.671386",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:09.871971",
     "status": 200
   },
   "https://animelife.top/anime/28121-dungeon-ni-deai-wo-motomeru-no-wa-machigatteiru-darou-ka": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:16.843598",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:10.044280",
     "status": 200
   },
   "https://animelife.top/anime/34933-kakegurui": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:17.013940",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:10.219440",
     "status": 200
   },
   "https://animelife.top/anime/226-elfen-lied": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:17.193764",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:10.390667",
     "status": 200
   },
   "https://animelife.top/anime/8074-highschool-of-the-dead": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:17.365233",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:10.555932",
     "status": 200
   },
   "https://animelife.top/anime/10087-fate-zero": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:17.532826",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:10.725777",
     "status": 200
   },
   "https://animelife.top/anime/39535-mushoku-tensei-isekai-ittara-honki-dasu": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:17.697042",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:10.901888",
     "status": 200
   },
   "https://animelife.top/anime/48583-shingeki-no-kyojin-the-final-season-part-2": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:17.865648",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:11.077121",
     "status": 200
   },
   "https://animelife.top/anime/14813-yahari-ore-no-seishun-love-comedy-wa-machigatteiru": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:18.039637",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:11.245475",
     "status": 200
   },
   "https://animelife.top/anime/30654-ansatsu-kyoushitsu-2nd-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:18.204117",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:11.411028",
     "status": 200
   },
   "https://animelife.top/anime/28891-haikyuu-second-season": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:18.371632",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:11.579702",
     "status": 200
   },
   "https://animelife.top/anime/34599-made-in-abyss": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:18.544552",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:11.752943",
     "status": 200
   },
   "https://animelife.top/anime/31478-bungou-stray-dogs": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:18.711106",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:11.922112",
     "status": 200
   },
   "https://animelife.top/anime/121-fullmetal-alchemist": {
-    "date": "2026-11-03",
-    "timestamp": "2026-11-03T09:52:18.883102",
+    "date": "2026-11-04",
+    "timestamp": "2026-11-04T09:56:12.091056",
     "status": 200
   }
 }
