@@ -38,10 +38,18 @@ const CATEGORIES: DropdownCategory[] = [
   {
     title: 'Сообщество и Сервис',
     items: [
+      { to: '/together', title: 'Вместе', desc: 'Синхронный просмотр с друзьями', icon: '📺' },
       { to: '/community', title: 'Сообщество', desc: 'Клубы и топ зрителей', icon: '👥' },
       { to: '/chat', title: 'Общий чат', desc: 'Живое обсуждение онлайн', icon: '💬' },
       { to: '/collections', title: 'Подборки пользователей', desc: 'Списки от зрителей', icon: '📚' },
       { to: '/changelog', title: 'История обновлений', desc: 'Что нового на сайте', icon: '⚡' },
+    ],
+  },
+  {
+    title: '18+',
+    items: [
+      { to: '/hentai', title: 'Хентай', desc: 'Аниме 18+', icon: '🔞' },
+      { to: '/hentai-manga', title: 'Хентай Манга', desc: 'Додзинси 18+', icon: '📖' },
     ],
   },
 ]

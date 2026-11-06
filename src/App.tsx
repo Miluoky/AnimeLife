@@ -13,7 +13,6 @@ const Landing = lazy(pageChunks.landing)
 const En = lazy(pageChunks.en)
 const Schedule = lazy(pageChunks.schedule)
 const MyList = lazy(pageChunks.myList)
-const Watching = lazy(pageChunks.watching)
 const Account = lazy(pageChunks.account)
 const PasswordRecovery = lazy(pageChunks.passwordRecovery)
 const Moderation = lazy(pageChunks.moderation)
@@ -166,7 +165,7 @@ export default function App() {
           <Route path="auth/vk" element={<AuthCallback />} />
           <Route path="auth/shikimori" element={<AuthCallback />} />
           <Route path="my-list" element={<MyList />} />
-          <Route path="watching" element={<Watching />} />
+          <Route path="watching" element={<Navigate replace to="/library?tab=new" />} />
           <Route path="moderation" element={<Moderation />} />
           <Route path="admin/analytics" element={<AdminAnalytics />} />
           <Route path="about" element={<Legal />} />

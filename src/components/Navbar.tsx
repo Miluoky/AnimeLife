@@ -1,5 +1,5 @@
 import { forwardRef, Suspense, lazy, type ReactNode } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { CloseIcon, MenuIcon, UserIcon } from './Icons'
 import SearchBox from './SearchBox'
 import type { User } from '../data/auth'
@@ -34,6 +34,8 @@ export const Navbar = forwardRef<HTMLElement, NavbarProps>(function Navbar(
   { user, fresh = 0, menuOpen, menuClosing, onToggleMenu, onMenuClosingEnd, navExtra },
   ref,
 ) {
+  const { pathname } = useLocation()
+  const libraryActive = pathname === '/library' || pathname === '/watching' || pathname === '/my-list'
   const navLinks = (
     <>
       <NavLink to="/" end>
@@ -41,24 +43,14 @@ export const Navbar = forwardRef<HTMLElement, NavbarProps>(function Navbar(
       </NavLink>
       <NavLink to="/catalog">Каталог</NavLink>
       <NavLink
-        to="/watching"
-        className={fresh ? 'has-fresh' : undefined}
-        aria-label={fresh ? `Смотрю: новых серий ${fresh}` : undefined}
+        to={fresh ? '/library?tab=new' : '/library'}
+        className={() => [libraryActive ? 'active' : '', fresh ? 'has-fresh' : ''].filter(Boolean).join(' ') || undefined}
+        aria-label={fresh ? `Библиотека: новых серий ${fresh}` : 'Библиотека'}
       >
-        Смотрю
-      </NavLink>
-      <NavLink
-        to="/library"
-        className={fresh ? 'has-fresh' : undefined}
-        aria-label={fresh ? `Библиотека: новые серии ${fresh}` : undefined}
-      >
-        Моя библиотека
+        Библиотека
       </NavLink>
       <NavLink to="/schedule">Расписание</NavLink>
-      <NavLink to="/together">Вместе</NavLink>
       <NavLink to="/manga">Манга</NavLink>
-      <NavLink to="/hentai">Хентай</NavLink>
-      <NavLink to="/hentai-manga">Хентай Манга</NavLink>
       <Suspense fallback={null}>
         <NavMoreDropdown />
       </Suspense>

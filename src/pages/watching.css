@@ -6,6 +6,10 @@
   padding-top: 24px;
   padding-bottom: 32px;
 }
+.watching--embedded {
+  padding-top: 0;
+  padding-bottom: 0;
+}
 .watching__head {
   display: flex;
   align-items: flex-end;

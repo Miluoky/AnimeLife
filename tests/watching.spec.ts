@@ -32,8 +32,9 @@ test.beforeEach(async ({ page }) => {
 
 test('«Смотрю»: вышедшая серия открывается сразу в плеере, галочка отмечает её просмотренной', async ({ page }) => {
   await seed(page)
-  await page.goto('/watching')
-  await expect(page.getByRole('heading', { level: 1, name: 'Смотрю' })).toBeVisible()
+  await page.goto('/library?tab=new')
+  await expect(page.getByRole('heading', { level: 1, name: 'Библиотека' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Новые серии/ })).toHaveAttribute('aria-selected', 'true')
   const ready = page.locator('.ep-list')
   await expect(ready.locator('.ep-card')).toHaveCount(1)
   await expect(ready).toContainText('Серия 7 · ещё 1 после неё')
@@ -50,7 +51,7 @@ test('«Смотрю»: вышедшая серия открывается ср�
   await expect(page).toHaveURL(/\/watch\/60636\/8$/)
 })
 
-test('счётчик новых серий на вкладке «Смотрю» в нижнем меню', async ({ page, isMobile }) => {
+test('счётчик новых серий на вкладке «Библиотека» в нижнем меню', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'нижнее меню только на телефоне')
   await seed(page)
   // Значок установленного приложения: запоминаем, что сайт на него ставит.
@@ -60,20 +61,21 @@ test('счётчик новых серий на вкладке «Смотрю» 
     Object.defineProperty(navigator, 'setAppBadge', { value: (n: number) => (w.badges.push(n), Promise.resolve()) })
   })
   await page.goto('/catalog')
-  const tab = page.getByRole('navigation', { name: 'Разделы сайта' }).getByRole('link', { name: /Смотрю/ })
-  await expect(tab).toHaveAccessibleName('Смотрю: новых серий 1', { timeout: 10_000 })
+  const tab = page.getByRole('navigation', { name: 'Разделы сайта' }).getByRole('link', { name: /Библиотека/ })
+  await expect(tab).toHaveAccessibleName('Библиотека: новых серий 1', { timeout: 10_000 })
   await expect.poll(() => page.evaluate(() => (window as unknown as { badges: number[] }).badges.at(-1))).toBe(1)
   await tab.click()
-  await expect(page).toHaveURL(/\/watching$/)
+  await expect(page).toHaveURL(/\/library\?tab=new/)
   // Открыли вкладку — новости прочитаны, кружок пропал, а подсветка карточки осталась.
-  await expect(tab).toHaveAccessibleName('Смотрю')
+  await expect(tab).toHaveAccessibleName('Библиотека')
   await expect(page.locator('.ep-card--fresh')).toHaveCount(1)
   // Ноль убирает число со значка приложения.
   await expect.poll(() => page.evaluate(() => (window as unknown as { badges: number[] }).badges.at(-1))).toBe(0)
 })
 
-test('пустая вкладка «Смотрю» подсказывает, что делать', async ({ page }) => {
+test('пустая вкладка «Новые серии» подсказывает, что делать', async ({ page }) => {
   await page.goto('/watching')
+  await expect(page).toHaveURL(/\/library\?tab=new/)
   await expect(page.getByRole('heading', { name: 'Пока не за чем следить' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Выбрать онгоинг' })).toBeVisible()
 })
@@ -89,8 +91,8 @@ test('шторка «Ещё»: профиль и остальные раздел
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
   await nav.getByRole('button', { name: 'Ещё' }).click()
-  await sheet.getByRole('link', { name: /График/ }).click()
-  await expect(page).toHaveURL(/\/schedule$/)
+  await sheet.getByRole('link', { name: /Вместе/ }).click()
+  await expect(page).toHaveURL(/\/together$/)
   await expect(sheet).toBeHidden()
   // Раздел из шторки подсвечивает «Ещё».
   await expect(nav.getByRole('button', { name: 'Ещё' })).toHaveClass(/active/)

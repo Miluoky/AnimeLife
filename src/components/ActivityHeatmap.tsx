@@ -106,7 +106,7 @@ export default function ActivityHeatmap() {
       <div className="heatmap__foot muted">
         {total === 0 ? (
           <span>
-            Клетки закрасятся, когда начнёте смотреть. <Link to="/watching">Что посмотреть сейчас</Link>
+            Клетки закрасятся, когда начнёте смотреть. <Link to="/library?tab=new">Что посмотреть сейчас</Link>
           </span>
         ) : (
           <Link to="/recap">Итоги года</Link>

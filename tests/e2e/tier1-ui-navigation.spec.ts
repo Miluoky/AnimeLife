@@ -16,12 +16,20 @@ test.describe('Tier 1: UI Navigation', () => {
     // Check presence of primary navigation links
     await expect(nav.getByRole('link', { name: 'Главная' })).toBeVisible()
     await expect(nav.getByRole('link', { name: 'Каталог' })).toBeVisible()
-    await expect(nav.getByRole('link', { name: /Моя библиотека/ })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Библиотека' })).toBeVisible()
     await expect(nav.getByRole('link', { name: 'Расписание' })).toBeVisible()
-    await expect(nav.getByRole('link', { name: 'Вместе' })).toBeVisible()
     await expect(nav.getByRole('link', { name: 'Манга', exact: true })).toBeVisible()
-    await expect(nav.getByRole('link', { name: 'Хентай', exact: true })).toBeVisible()
-    await expect(nav.getByRole('link', { name: 'Хентай Манга' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Смотрю' })).toHaveCount(0)
+    await expect(nav.getByRole('link', { name: 'Вместе' })).toHaveCount(0)
+    await expect(nav.getByRole('link', { name: 'Хентай', exact: true })).toHaveCount(0)
+    await expect(nav.getByRole('link', { name: 'Хентай Манга' })).toHaveCount(0)
+
+    await nav.getByRole('button', { name: 'Дополнительные разделы сайта' }).click()
+    const more = page.getByRole('menu', { name: 'Меню дополнительных разделов' })
+    await expect(more.getByRole('menuitem', { name: /Вместе/ })).toBeVisible()
+    await expect(more.getByRole('menuitem', { name: /Хентай$/ })).toBeVisible()
+    await expect(more.getByRole('menuitem', { name: /Хентай Манга/ })).toBeVisible()
+    await page.keyboard.press('Escape')
 
     // Navigate to Catalog
     await nav.getByRole('link', { name: 'Каталог' }).click()
@@ -34,9 +42,9 @@ test.describe('Tier 1: UI Navigation', () => {
     await expect(page.getByRole('heading', { name: 'Расписание выхода серий' })).toBeVisible()
 
     // Navigate to Library
-    await nav.getByRole('link', { name: /Моя библиотека/ }).click()
-    await expect(page).toHaveURL(/\/library$/)
-    await expect(page.getByRole('heading', { name: 'Моя библиотека' })).toBeVisible()
+    await nav.getByRole('link', { name: 'Библиотека' }).click()
+    await expect(page).toHaveURL(/\/library/)
+    await expect(page.getByRole('heading', { name: 'Библиотека' })).toBeVisible()
   })
 
   test('mobile bottom dock navigation and more sheet drawer interaction', async ({ page, isMobile }) => {
@@ -50,9 +58,9 @@ test.describe('Tier 1: UI Navigation', () => {
     await dock.getByRole('link', { name: 'Каталог' }).click()
     await expect(page).toHaveURL(/\/catalog$/)
 
-    // Navigate to MyList via mobile dock
-    await dock.getByRole('link', { name: 'Мой список' }).click()
-    await expect(page).toHaveURL(/\/my-list$/)
+    // Navigate to Library via mobile dock
+    await dock.getByRole('link', { name: 'Библиотека' }).click()
+    await expect(page).toHaveURL(/\/library/)
 
     // Open More sheet
     const moreBtn = dock.getByRole('button', { name: 'Ещё' })
@@ -62,7 +70,6 @@ test.describe('Tier 1: UI Navigation', () => {
     // Verify more sheet options
     const sheet = page.getByRole('dialog', { name: 'Ещё разделы' })
     await expect(sheet).toBeVisible()
-    await expect(sheet.getByRole('link', { name: /График/ })).toBeVisible()
     await expect(sheet.getByRole('link', { name: /Сообщество/ })).toBeVisible()
   })
 

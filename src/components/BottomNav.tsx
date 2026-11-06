@@ -1,12 +1,13 @@
 import { Suspense, lazy, useEffect, useState, type CSSProperties } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { CompassIcon, HomeIcon, ListIcon, MoreIcon, ScreenPlayIcon } from './Icons'
+import { CalendarIcon, CompassIcon, HomeIcon, MoreIcon, ScreenPlayIcon } from './Icons'
 import { useInboxCount } from '../data/inbox'
 import { listStore } from '../data/myList'
 
 const MoreSheet = lazy(() => import('./MoreSheet'))
 
-const IN_MORE = /^\/(schedule|together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice|hentai|hentai-manga|library)/
+const IN_MORE = /^\/(together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice|hentai|hentai-manga)/
+const IN_LIBRARY = /^\/(library|watching|my-list)(\/|$)/
 
 function useInboxCheck() {
   useEffect(() => {
@@ -37,14 +38,26 @@ export default function BottomNav() {
     nav.setAppBadge?.(fresh).catch(() => {})
   }, [fresh])
 
+  const libraryTo = fresh ? '/library?tab=new' : '/library'
   const items = [
     { to: '/', title: 'Главная', icon: <HomeIcon />, end: true },
     { to: '/catalog', title: 'Каталог', icon: <CompassIcon /> },
-    { to: '/watching', title: 'Смотрю', label: 'Смотрю', icon: <ScreenPlayIcon />, main: true },
-    { to: '/my-list', title: 'Список', label: 'Мой список', icon: <ListIcon /> },
+    {
+      to: libraryTo,
+      match: IN_LIBRARY,
+      title: 'Библиотека',
+      label: 'Библиотека',
+      icon: <ScreenPlayIcon />,
+      main: true,
+    },
+    { to: '/schedule', title: 'График', label: 'Расписание', icon: <CalendarIcon /> },
   ]
 
-  let active = more ? 4 : items.findIndex((i) => (i.end ? pathname === i.to : pathname.startsWith(i.to)))
+  let active = more
+    ? 4
+    : items.findIndex((i) =>
+        'match' in i && i.match ? i.match.test(pathname) : i.end ? pathname === i.to : pathname.startsWith(i.to),
+      )
   if (active < 0 && IN_MORE.test(pathname)) active = 4
 
   return (
@@ -62,7 +75,7 @@ export default function BottomNav() {
         {active >= 0 && <span className="dock__glider" aria-hidden="true" />}
         {items.map((i) => (
           <NavLink
-            key={i.to}
+            key={i.title}
             to={i.to}
             end={i.end}
             className={`dock__item${i.main ? ' dock__item--main' : ''}`}

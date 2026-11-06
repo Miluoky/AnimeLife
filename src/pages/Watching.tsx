@@ -245,8 +245,8 @@ function WeekDigest({
   )
 }
 
-/** Вкладка «Смотрю»: вышедшие и ещё не просмотренные серии, ближайшие серии онгоингов и уведомления. */
-export default function Watching() {
+/** Новые серии из «Смотрю» и с колокольчиком. `embedded` — вкладка внутри /library. */
+export default function Watching({ embedded = false }: { embedded?: boolean } = {}) {
   usePageMeta('Смотрю: новые серии', 'Новые серии тайтлов из вашего списка «Смотрю»: одно касание, и серия уже идёт.')
   const state = inboxStore.use()
   const list = useMyList()
@@ -284,11 +284,12 @@ export default function Watching() {
     .sort((a, b) => Number(fresh.has(b.id)) - Number(fresh.has(a.id)))
   const soon = items.filter((i) => i.nextAt && i.nextAt > Date.now()).sort((a, b) => a.nextAt! - b.nextAt!)
 
+  const Wrap = embedded ? 'section' : 'main'
   return (
-    <main className="container watching">
+    <Wrap className={embedded ? 'watching watching--embedded' : 'container watching'}>
       <header className="watching__head">
         <div>
-          <h1 className="page-title">Смотрю</h1>
+          {!embedded && <h1 className="page-title">Смотрю</h1>}
           <p className="muted">Новые серии из «Смотрю» и тайтлов с колокольчиком. Нажмите, и серия сразу включится.</p>
         </div>
         <button type="button" className="btn btn--ghost" disabled={loading} onClick={() => refresh(true)}>
@@ -355,6 +356,6 @@ export default function Watching() {
       <Suspense fallback={null}>
         <PushSettings />
       </Suspense>
-    </main>
+    </Wrap>
   )
 }

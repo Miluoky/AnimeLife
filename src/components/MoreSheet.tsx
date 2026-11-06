@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../data/auth'
 import { useCouch } from '../data/couchMode'
-import { CalendarIcon, ClockIcon, PeopleIcon, SparkIcon, TrophyIcon, UserIcon } from './Icons'
+import { ClockIcon, PeopleIcon, SparkIcon, TrophyIcon, UserIcon } from './Icons'
 import './more-sheet.css'
 
 const COUCH_HIDE = /^\/(community|chat|club|duel|quiz|recap|hentai|hentai-manga|together)/
@@ -16,9 +16,7 @@ const Svg = ({ d }: { d: string }) => (
 
 /** Разделы, которым не хватило места в нижнем меню. */
 const LINKS = [
-  { to: '/schedule', title: 'График', hint: 'Когда серии', icon: <CalendarIcon /> },
   { to: '/together', title: 'Вместе', hint: 'Смотреть с друзьями', icon: <PeopleIcon /> },
-  { to: '/library', title: 'Библиотека', hint: 'Смотрю и списки', icon: <Svg d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" /> },
   { to: '/hentai', title: 'Хентай', hint: 'Аниме 18+', icon: <Svg d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /> },
   { to: '/hentai-manga', title: 'Хентай Манга', hint: 'Додзинси 18+', icon: <Svg d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 1-2-2zM13 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /> },
   { to: '/season', title: 'Сезон', hint: 'Чарт сезона', icon: <Svg d="M12 3v2M12 19v2M5 12H3M21 12h-2M7 7 5.6 5.6M18.4 18.4 17 17M7 17l-1.4 1.4M18.4 5.6 17 7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8" /> },

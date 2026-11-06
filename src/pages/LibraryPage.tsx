@@ -11,9 +11,11 @@ import { toast } from '../data/toast'
 import './library.css'
 
 const MyListView = lazy(() => import('./MyList'))
+const WatchingView = lazy(() => import('./Watching'))
 
 const TABS = [
-  { id: 'history', title: 'Продолжить просмотр' },
+  { id: 'new', title: 'Новые серии' },
+  { id: 'history', title: 'Продолжить' },
   { id: 'watching', title: 'Смотрю', status: 'watching' as ListStatus },
   { id: 'planned', title: 'В планах', status: 'planned' as ListStatus },
   { id: 'completed', title: 'Просмотрено', status: 'completed' as ListStatus },
@@ -34,7 +36,7 @@ function ContinueShelf({ history }: { history: HistoryEntry[] }) {
     return (
       <section className="stack">
         <p className="muted">Пока нечего продолжать. Откройте серию — она появится здесь.</p>
-        <Link to="/watching" className="btn btn--ghost">
+        <Link to="/library?tab=new" className="btn btn--ghost">
           Новые серии из «Смотрю»
         </Link>
       </section>
@@ -82,20 +84,22 @@ function ContinueShelf({ history }: { history: HistoryEntry[] }) {
         })}
       </div>
       <p className="muted">
-        Новые вышедшие серии — на вкладке{' '}
-        <Link to="/watching">Смотрю</Link>.
+        Новые вышедшие серии — во вкладке{' '}
+        <Link to="/library?tab=new">Новые серии</Link>.
       </p>
     </section>
   )
 }
 
 export default function LibraryPage() {
-  usePageMeta('Моя библиотека — AnimeLife', 'Все ваши аниме в одном месте: история просмотров, новые серии, списки «Смотрю», «В планах» и «Просмотрено».')
+  usePageMeta('Моя библиотека — AnimeLife', 'Все ваши аниме в одном месте: новые серии, история просмотров, списки «Смотрю», «В планах» и «Просмотрено».')
   const [params, setParams] = useSearchParams()
-  const currentTab = (params.get('tab') as TabId) || 'history'
   const fresh = useInboxCount()
   const myList = useMyList()
   const history = useHistory()
+
+  const rawTab = params.get('tab') as TabId | null
+  const currentTab: TabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : 'history'
 
   const active = useMemo(() => TABS.find((t) => t.id === currentTab) ?? TABS[0], [currentTab])
 
@@ -103,11 +107,12 @@ export default function LibraryPage() {
     const next = new URLSearchParams(params)
     if (id === 'history') next.delete('tab')
     else next.set('tab', id)
-    setParams(next)
+    setParams(next, { replace: true })
   }
 
   const getCount = (tab: (typeof TABS)[number]) => {
-    if (tab.id === 'history') return history.length ? String(history.length) : fresh ? `+${fresh}` : null
+    if (tab.id === 'new') return fresh > 0 ? String(fresh) : null
+    if (tab.id === 'history') return history.length ? String(history.length) : null
     if (tab.status) {
       const cnt = myList.filter((e) => e.status === tab.status).length
       return cnt > 0 ? String(cnt) : null
@@ -119,9 +124,9 @@ export default function LibraryPage() {
     <main className="container home library-page">
       <header className="section-head" style={{ marginBottom: 16 }}>
         <div>
-          <h1 className="page-title">Моя библиотека</h1>
+          <h1 className="page-title">Библиотека</h1>
           <p className="muted" style={{ margin: '4px 0 0' }}>
-            История просмотров и списки в одном месте
+            Новые серии, история и ваши списки
           </p>
         </div>
       </header>
@@ -136,7 +141,7 @@ export default function LibraryPage() {
               type="button"
               role="tab"
               aria-selected={isActive}
-              className={`library-tab ${isActive ? 'is-active' : ''}`}
+              className={`library-tab ${isActive ? 'is-active' : ''}${tab.id === 'new' && fresh ? ' has-fresh' : ''}`}
               onClick={() => setTab(tab.id)}
             >
               {tab.title}
@@ -146,7 +151,11 @@ export default function LibraryPage() {
         })}
       </nav>
 
-      {currentTab === 'history' ? (
+      {currentTab === 'new' ? (
+        <Suspense fallback={<div className="skeleton" style={{ height: 320, borderRadius: 'var(--radius-md)' }} />}>
+          <WatchingView embedded />
+        </Suspense>
+      ) : currentTab === 'history' ? (
         <ContinueShelf history={history} />
       ) : (
         <Suspense fallback={<div className="skeleton" style={{ height: 320, borderRadius: 'var(--radius-md)' }} />}>

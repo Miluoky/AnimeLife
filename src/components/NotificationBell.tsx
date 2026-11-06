@@ -99,7 +99,7 @@ export default function NotificationBell() {
         <div className="bell__panel" role="dialog" aria-label="Уведомления">
           <p className="bell__title">Уведомления</p>
           {fresh > 0 && (
-            <Link to="/watching" className="bell__item bell__item--new" onClick={() => setOpen(false)}>
+            <Link to="/library?tab=new" className="bell__item bell__item--new" onClick={() => setOpen(false)}>
               <span>Вышли новые серии в «Смотрю»: {fresh}</span>
             </Link>
           )}
