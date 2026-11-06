@@ -26,20 +26,20 @@ test('обсуждение: ответ встаёт под комментари�
       json: {
         total: 3,
         rows: [
-          { $id: 'c3', animeId: '1', episode: 1, userId: 'u3', name: 'Вика', text: 'Свежий отдельный', spoiler: false, at: now - 1000 },
-          { $id: 'c2', animeId: '1', episode: 1, userId: 'u3', name: 'Вика', text: 'Согласна!', spoiler: false, at: now - 5000, replyTo: 'c1', replyName: 'Боря' },
-          { $id: 'c1', animeId: '1', episode: 1, userId: 'u2', name: 'Боря', text: 'Лучшая серия', spoiler: false, at: now - 9000 },
+          { $id: 'c3', animeId: '1', episode: 0, userId: 'u3', name: 'Вика', text: 'Свежий отдельный', spoiler: false, at: now - 1000 },
+          { $id: 'c2', animeId: '1', episode: 0, userId: 'u3', name: 'Вика', text: 'Согласна!', spoiler: false, at: now - 5000, replyTo: 'c1', replyName: 'Боря' },
+          { $id: 'c1', animeId: '1', episode: 0, userId: 'u2', name: 'Боря', text: 'Лучшая серия', spoiler: false, at: now - 9000 },
         ],
       },
     }),
   )
   const sent = await signedIn(page, (b) =>
     b.action === 'comment-save'
-      ? { comment: { $id: 'c4', animeId: '1', episode: 1, userId: 'u1', name: 'Аня', text: b.text, spoiler: false, at: Date.now(), replyTo: 'c1', replyName: 'Боря' } }
+      ? { comment: { $id: 'c4', animeId: '1', episode: 0, userId: 'u1', name: 'Аня', text: b.text, spoiler: false, at: Date.now(), replyTo: 'c1', replyName: 'Боря' } }
       : { items: [], unread: 0 },
   )
-  await page.goto('/watch/1/1')
-  const block = page.getByRole('region', { name: 'Обсуждение серии 1' })
+  await page.goto('/anime/1')
+  const block = page.getByRole('region', { name: 'Комментарии' })
   const thread = block.locator('.comment-thread').filter({ hasText: 'Лучшая серия' })
   await expect(thread.locator('.comments__replies')).toContainText('Согласна!')
   await expect(thread.locator('.comments__replies')).toContainText('ответ для Боря')
@@ -52,22 +52,22 @@ test('обсуждение: ответ встаёт под комментари�
   await field.fill('И мне понравилась')
   await block.getByRole('button', { name: 'Отправить' }).click()
   await expect(thread.locator('.comments__replies')).toContainText('И мне понравилась')
-  expect(sent.find((b) => b.action === 'comment-save')).toMatchObject({ replyTo: 'c1', text: 'И мне понравилась' })
-  await expect(block.getByRole('textbox', { name: 'Комментарий к серии' })).toBeVisible()
+  expect(sent.find((b) => b.action === 'comment-save')).toMatchObject({ replyTo: 'c1', text: 'И мне понравилась', episode: 0 })
+  await expect(block.getByRole('textbox', { name: 'Комментарий к тайтлу' })).toBeVisible()
 })
 
-test('обсуждение: комментарий с матом виден автору «на проверке», ссылка #comments из канала ведёт к обсуждению', async ({ page }) => {
+test('комментарии: с матом виден автору «на проверке», #comments на странице тайтла', async ({ page }) => {
   await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/comments\/rows\?.*/, (route) => route.fulfill({ json: { total: 0, rows: [] } }))
   await signedIn(page, (b) =>
     b.action === 'comment-save'
-      ? { comment: { $id: 'c5', animeId: '1', episode: 1, userId: 'u1', name: 'Аня', text: b.text, spoiler: false, hidden: true, at: Date.now() }, held: 'мат' }
+      ? { comment: { $id: 'c5', animeId: '1', episode: 0, userId: 'u1', name: 'Аня', text: b.text, spoiler: false, hidden: true, at: Date.now() }, held: 'мат' }
       : { items: [], unread: 0 },
   )
-  await page.goto('/watch/1/1#comments')
-  const block = page.getByRole('region', { name: 'Обсуждение серии 1' })
+  await page.goto('/anime/1#comments')
+  const block = page.getByRole('region', { name: 'Комментарии' })
   await expect(block.getByText('Пока никто не написал')).toBeVisible()
   await expect(block).toBeInViewport()
-  await block.getByRole('textbox', { name: 'Комментарий к серии' }).fill('ну и финал, блин')
+  await block.getByRole('textbox', { name: 'Комментарий к тайтлу' }).fill('ну и финал, блин')
   await block.getByRole('button', { name: 'Отправить' }).click()
   await expect(block.locator('#c-c5')).toContainText('на проверке')
   await expect(page.getByText('пока его не проверит модератор')).toBeVisible()

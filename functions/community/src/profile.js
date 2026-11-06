@@ -34,7 +34,7 @@ export async function listInit(api, req) {
  *   profile-save {about, summary}  открыть профиль: имя берётся из аккаунта, сводка (счётчики, любимое,
  *                                  достижения) приходит с сайта и проверяется на размер и форму;
  *   profile-hide                   закрыть профиль (строка удаляется);
- *   comment-save {animeId, episode, text, spoiler}  комментарий к серии;
+ *   comment-save {animeId, episode, text, spoiler}  комментарий к серии (episode≥1) или к тайтлу (episode=0);
  *   comment-delete {commentId}     убрать комментарий (автор или модератор);
  *   comment-report {commentId}     пожаловаться (после COMMENT_REPORTS_TO_HIDE жалоб комментарий скрывается);
  *   comment-mod-list, comment-mod-action {commentId, decision: hide|show|delete}  только для админов.
@@ -106,7 +106,8 @@ export async function commentSave(api, req, body) {
   const user = await signedIn(api, req)
   if (!/^\d{1,10}$/.test(String(body.animeId ?? ''))) throw new UserError('Неизвестный тайтл.')
   const episode = Number(body.episode)
-  if (!Number.isInteger(episode) || episode < 1 || episode > 5000) throw new UserError('Неверный номер серии.')
+  // 0 — комментарии к тайтлу на странице аниме; 1…5000 — к конкретной серии.
+  if (!Number.isInteger(episode) || episode < 0 || episode > 5000) throw new UserError('Неверный номер серии.')
   const text = String(body.text ?? '')
     .trim()
     .replace(/\n{3,}/g, '\n\n')
@@ -122,7 +123,7 @@ export async function commentSave(api, req, body) {
   rejectSpam(text, recent.map((r) => r.text))
   // Мат и чужие ссылки сначала смотрит модератор: автор видит свой комментарий с пометкой «на проверке».
   const held = heldReason(text)
-  // Ответ на комментарий той же серии: запоминаем, кому, и сообщаем автору в колокольчик.
+  // Ответ на комментарий той же серии/тайтла: запоминаем, кому, и сообщаем автору в колокольчик.
   let parent
   if (body.replyTo) {
     parent = await getComment(api, body.replyTo)
@@ -143,12 +144,16 @@ export async function commentSave(api, req, body) {
     },
   })
   if (parent && !held) {
+    const link =
+      episode === 0
+        ? `/anime/${parent.animeId}#c-${row.json.$id}`
+        : `/watch/${parent.animeId}/${episode}#c-${row.json.$id}`
     await notify(api, {
       userId: parent.userId,
       kind: 'reply',
       actor: user,
       text,
-      link: `/watch/${parent.animeId}/${episode}#c-${row.json.$id}`,
+      link,
       key: row.json.$id,
     })
   }

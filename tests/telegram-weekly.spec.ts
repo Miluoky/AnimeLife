@@ -35,9 +35,9 @@ test('что вышло: рост серий от снимка, завершив
   expect(long.length).toBeLessThanOrEqual(100)
 })
 
-test('пост о серии: кнопки «Смотреть» и «Обсудить» ведут на серию и к её обсуждению', () => {
+test('пост о серии: «Смотреть» на серию, «Комментарии» на страницу тайтла', () => {
   expect(episodeButtons({ id: 52991, episodesAired: 7 })).toEqual([
-    [['▶️ Смотреть', 'https://animelife.top/watch/52991/7'], ['💬 Обсудить', 'https://animelife.top/watch/52991/7#comments']],
+    [['▶️ Смотреть', 'https://animelife.top/watch/52991/7'], ['💬 Комментарии', 'https://animelife.top/anime/52991#comments']],
     [['О тайтле', 'https://animelife.top/anime/52991']],
   ])
 })

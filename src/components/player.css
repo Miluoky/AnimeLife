@@ -220,6 +220,11 @@
   margin-top: 4px;
 }
 
+.watch-engage__hint {
+  margin: 0;
+  font-size: 14px;
+}
+
 /* ─── Список серий: полоса номеров ─── */
 .episodes {
   min-width: 0;

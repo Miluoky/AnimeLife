@@ -167,7 +167,7 @@ export function episodeCaption(a) {
     '',
     escapeHtml(shortText(a.description)),
     '',
-    `▶️ <a href="${SITE}/watch/${a.id}/${n}">Смотреть на Anime Life</a> · 💬 <a href="${SITE}/watch/${a.id}/${n}#comments">обсудить серию</a>`,
+    `▶️ <a href="${SITE}/watch/${a.id}/${n}">Смотреть на Anime Life</a> · 💬 <a href="${SITE}/anime/${a.id}#comments">комментарии</a>`,
     '',
     ['#новая_серия', ...tags].join(' '),
   ]
@@ -179,9 +179,10 @@ export function episodeCaption(a) {
 /** Кнопки под постом о серии: смотреть и обсудить серию на сайте (комментарии под плеером), ниже — страница тайтла. */
 export function episodeButtons(a) {
   const watch = `${SITE}/watch/${a.id}/${a.episodesAired}`
+  const title = `${SITE}/anime/${a.id}`
   return [
-    [['▶️ Смотреть', watch], ['💬 Обсудить', `${watch}#comments`]],
-    [['О тайтле', `${SITE}/anime/${a.id}`]],
+    [['▶️ Смотреть', watch], ['💬 Комментарии', `${title}#comments`]],
+    [['О тайтле', title]],
   ]
 }
 

@@ -55,14 +55,14 @@ test('обсуждение серии: спойлер скрыт до нажат
       json: {
         total: 2,
         rows: [
-          { $id: 'c1', animeId: '1', episode: 2, userId: 'u', name: 'Аня', text: 'Спайк выживет', spoiler: true, at: Date.now() - 60_000 },
-          { $id: 'c2', animeId: '1', episode: 2, userId: 'u', name: 'Боря', text: 'Классная музыка', spoiler: false, at: Date.now() - 3_600_000 },
+          { $id: 'c1', animeId: '1', episode: 0, userId: 'u', name: 'Аня', text: 'Спайк выживет', spoiler: true, at: Date.now() - 60_000 },
+          { $id: 'c2', animeId: '1', episode: 0, userId: 'u', name: 'Боря', text: 'Классная музыка', spoiler: false, at: Date.now() - 3_600_000 },
         ],
       },
     }),
   )
-  await page.goto('/watch/1/2')
-  const block = page.getByRole('region', { name: 'Обсуждение серии 2' })
+  await page.goto('/anime/1')
+  const block = page.getByRole('region', { name: 'Комментарии' })
   await expect(block.getByText('Классная музыка')).toBeVisible()
   await expect(block.getByText('Спайк выживет')).toHaveCount(0)
   await block.getByRole('button', { name: 'Показать спойлер' }).click()

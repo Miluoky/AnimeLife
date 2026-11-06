@@ -2,7 +2,14 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link } from 'react-router-dom'
 import { useAuth } from '../data/auth'
 import { CommunityError } from '../data/community'
-import { deleteComment, loadComments, reportComment, saveComment, type EpisodeComment } from '../data/comments'
+import {
+  TITLE_COMMENTS_EPISODE,
+  deleteComment,
+  loadComments,
+  reportComment,
+  saveComment,
+  type EpisodeComment,
+} from '../data/comments'
 import { markFlag } from '../data/flags'
 import { toast } from '../data/toast'
 import './comments.css'
@@ -114,8 +121,18 @@ function threads(items: EpisodeComment[]) {
   return roots.map((comment) => ({ comment, replies: (replies.get(comment.$id) ?? []).sort((a, b) => a.at - b.at) }))
 }
 
-/** Обсуждение конкретной серии под плеером. Спойлеры скрыты, пока не нажмёшь. */
-export default function EpisodeComments({ animeId, episode }: { animeId: string; episode: number }) {
+/** Комментарии к серии (под плеером) или к тайтлу (`aboutTitle`, episode=0 на странице аниме). */
+export default function EpisodeComments({
+  animeId,
+  episode = TITLE_COMMENTS_EPISODE,
+  aboutTitle = false,
+}: {
+  animeId: string
+  episode?: number
+  /** Комментарии о тайтле целиком — без таймкодов и «моментов серии». */
+  aboutTitle?: boolean
+}) {
+  const ep = aboutTitle ? TITLE_COMMENTS_EPISODE : episode
   const { user } = useAuth()
   const [items, setItems] = useState<EpisodeComment[] | null>(null)
   const [text, setText] = useState('')
@@ -131,13 +148,13 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
   useEffect(() => {
     let alive = true
     setItems(null)
-    loadComments(animeId, episode)
+    loadComments(animeId, ep)
       .then((list) => alive && setItems(list))
       .catch(() => alive && setItems([]))
     return () => {
       alive = false
     }
-  }, [animeId, episode])
+  }, [animeId, ep])
 
   // Ссылка из уведомления (#c-<id>): прокручиваем к комментарию и подсвечиваем его.
   // Кнопка «Обсудить» из Telegram-канала (#comments): прокручиваем к обсуждению, когда оно загрузилось.
@@ -160,7 +177,7 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
     e.preventDefault()
     setBusy(true)
     try {
-      const c = await saveComment(animeId, episode, text, spoiler, replyTo?.$id)
+      const c = await saveComment(animeId, ep, text, spoiler, replyTo?.$id)
       setItems((list) => [c, ...(list ?? [])])
       setText('')
       setSpoiler(false)
@@ -242,18 +259,22 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
             Показать спойлер
           </button>
         ) : (
-          <p>
-            <WithTimecodes text={c.text} />
-          </p>
+          <p>{aboutTitle ? c.text : <WithTimecodes text={c.text} />}</p>
         )}
       </div>
     )
   }
 
+  const title = aboutTitle ? 'Комментарии' : `Обсуждение серии ${ep}`
+  const placeholder = aboutTitle
+    ? 'Что думаете об этом аниме? Можно поделиться впечатлением без спойлеров финала.'
+    : 'Что думаете о серии? Время вроде 12:34 станет ссылкой на момент'
+  const fieldLabel = replyTo ? `Ответ для ${replyTo.name}` : aboutTitle ? 'Комментарий к тайтлу' : 'Комментарий к серии'
+
   return (
-    <section id="comments" className="stack comments" aria-label={`Обсуждение серии ${episode}`}>
+    <section id="comments" className="stack comments" aria-label={title}>
       <div className="section-head">
-        <h2 style={{ fontSize: 20 }}>Обсуждение серии {episode}</h2>
+        <h2 style={{ fontSize: 20 }}>{title}</h2>
         {items && <span className="muted">{items.length}</span>}
       </div>
       {user ? (
@@ -271,9 +292,9 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
             value={text}
             onChange={(e) => setText(e.target.value)}
             maxLength={1000}
-            rows={2}
-            placeholder="Что думаете о серии? Время вроде 12:34 станет ссылкой на момент"
-            aria-label={replyTo ? `Ответ для ${replyTo.name}` : 'Комментарий к серии'}
+            rows={aboutTitle ? 3 : 2}
+            placeholder={placeholder}
+            aria-label={fieldLabel}
           />
           <div className="actions" style={{ justifyContent: 'space-between' }}>
             <div className="comments__tools">
@@ -281,9 +302,11 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
                 <input type="checkbox" checked={spoiler} onChange={(e) => setSpoiler(e.target.checked)} />
                 <span>Спойлер</span>
               </label>
-              <button type="button" className="link-btn" onClick={insertTime}>
-                Вставить время
-              </button>
+              {!aboutTitle && (
+                <button type="button" className="link-btn" onClick={insertTime}>
+                  Вставить время
+                </button>
+              )}
             </div>
             <button type="submit" className="btn btn--accent btn--small" disabled={busy || text.trim().length < 2}>
               {busy ? 'Отправляем…' : 'Отправить'}
@@ -295,10 +318,10 @@ export default function EpisodeComments({ animeId, episode }: { animeId: string;
           <Link to="/account" className="link-accent">
             Войдите
           </Link>
-          , чтобы обсуждать серии.
+          {aboutTitle ? ', чтобы писать комментарии.' : ', чтобы обсуждать серии.'}
         </p>
       )}
-      {items !== null && <Moments items={items} />}
+      {!aboutTitle && items !== null && <Moments items={items} />}
       {items === null ? (
         <div className="skeleton skeleton--line" style={{ height: 64 }} aria-busy="true" />
       ) : items.length === 0 ? (

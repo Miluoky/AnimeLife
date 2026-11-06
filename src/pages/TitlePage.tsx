@@ -40,6 +40,7 @@ import './title.css'
 
 // Отзывы ниже первого экрана: их код (с формой и модерацией) грузится отдельно и не задерживает страницу.
 const Reviews = lazy(() => import('../components/Reviews'))
+const TitleComments = lazy(() => import('../components/EpisodeComments'))
 const ThemeSongs = lazy(() => import('../components/ThemeSongs'))
 const BestEpisodes = lazy(() => import('../components/BestEpisodes'))
 const TitleFaq = lazy(() => import('../components/TitleFaq'))
@@ -852,6 +853,7 @@ export default function TitlePage() {
             ageRating={ageLabel(anime.rating)}
             mangaTitle={mangaRel?.anime.title}
           />
+          <TitleComments animeId={anime.id} aboutTitle />
           <Reviews animeId={anime.id} />
         </Suspense>
 

@@ -302,60 +302,11 @@ test('плеер: опенинг по разметке AniLibria — кнопк�
   await expect(page.getByRole('button', { name: 'Пропустить опенинг' })).toBeVisible()
 })
 
-test('обсуждение: таймкод в комментарии переводит плеер, «Вставить время» пишет текущий момент', async ({ page }) => {
+test('под плеером нет обсуждения серии — ссылка ведёт к комментариям тайтла', async ({ page }) => {
   await mockAniLibria(page, search)
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
-    route.fulfill({ json: { $id: 'u1', name: 'Аня', email: 'a@example.com', labels: [], prefs: {}, status: true } }),
-  )
-  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/comments\/rows\?.*/, (route) =>
-    route.fulfill({
-      json: {
-        total: 1,
-        rows: [{ $id: 'c1', animeId: '1', episode: 1, userId: 'u2', name: 'Боря', text: 'На 1:05 лучший момент', spoiler: false, at: Date.now() }],
-      },
-    }),
-  )
-  await page.addInitScript(() => {
-    const original = HTMLMediaElement.prototype.canPlayType
-    HTMLMediaElement.prototype.canPlayType = function (type: string) {
-      return type === 'application/vnd.apple.mpegurl' ? 'maybe' : original.call(this, type)
-    }
-  })
-  const clip = readFileSync(new URL('./fixtures/clip.webm', import.meta.url))
-  await page.route(/cache\.libria\.fun\/.*\.m3u8/, (route) => route.fulfill({ contentType: 'video/webm', body: clip }))
   await page.goto('/watch/1/1')
-
-  const video = page.locator('video.player-video')
-  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0)
-  // Ролик-заглушка не перематывается: время серии живёт в переменной, длительность — 24 минуты.
-  await video.evaluate((v: HTMLVideoElement) => {
-    v.pause()
-    v.play = () => Promise.resolve()
-    let t = 0
-    Object.defineProperty(v, 'duration', { configurable: true, get: () => 1440 })
-    Object.defineProperty(v, 'currentTime', { configurable: true, get: () => t, set: (x: number) => (t = x) })
-  })
-
-  const block = page.getByRole('region', { name: 'Обсуждение серии 1' })
-  await block.getByRole('button', { name: 'Перейти к 1:05' }).click()
-  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBe(65)
-
-  await video.evaluate((v: HTMLVideoElement) => (v.currentTime = 754))
-  const field = block.getByRole('textbox', { name: 'Комментарий к серии' })
-  await field.fill('Смотрите')
-  await block.getByRole('button', { name: 'Вставить время' }).click()
-  await expect(field).toHaveValue('Смотрите 12:34 ')
-
-  // Жалоба на чужой комментарий уходит в функцию community, кнопка больше не нажимается.
-  const sent: Record<string, unknown>[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    sent.push(JSON.parse(route.request().postDataJSON().body))
-    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: '{"ok":true,"hidden":false}' } })
-  })
-  page.once('dialog', (d) => d.accept())
-  await block.getByRole('button', { name: 'Пожаловаться' }).click()
-  await expect(block.getByRole('button', { name: 'Жалоба отправлена' })).toBeDisabled()
-  expect(sent).toEqual([{ action: 'comment-report', commentId: 'c1' }])
+  await expect(page.getByRole('region', { name: /Обсуждение серии/ })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'комментариях на странице аниме' })).toHaveAttribute('href', /\/anime\/1#comments/)
 })
 
 test('последняя серия: «Дальше по порядку» ведёт на следующую основную часть франшизы', async ({ page }) => {

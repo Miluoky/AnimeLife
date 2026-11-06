@@ -2,7 +2,9 @@ import { Query } from 'appwrite'
 import { COMMUNITY_DB, tablesDB } from '../api/appwrite'
 import { callCommunity } from './community'
 
-/** Обсуждение серии: комментарии с пометкой «спойлер», как на Crunchyroll и AniList. */
+/** Комментарии: episode ≥ 1 — к серии, episode = 0 — к тайтлу на странице аниме. */
+export const TITLE_COMMENTS_EPISODE = 0
+
 export interface EpisodeComment {
   $id: string
   animeId: string

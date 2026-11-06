@@ -45,7 +45,6 @@ const skipFillersStore = createLocalStore('anime.skipfillers.v1', false)
 const wideStore = createLocalStore('anime.widescreen.v1', false)
 
 // Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
-const EpisodeComments = lazy(() => import('../components/EpisodeComments'))
 const NextPart = lazy(() => import('../components/NextPart'))
 const WatchReturn = lazy(() => import('../components/WatchReturn'))
 const EpisodeRating = lazy(() => import('../components/EpisodeRating'))
@@ -594,7 +593,13 @@ export default function Player() {
         <WatchReturn anime={anime} current={current} total={total} />
         <div className="watch-engage">
           <EpisodeRating animeId={anime.id} episode={current} />
-          <EpisodeComments animeId={anime.id} episode={current} />
+          <p className="muted watch-engage__hint">
+            Обсудить тайтл можно в{' '}
+            <Link to={`/anime/${anime.id}#comments`} className="link-accent">
+              комментариях на странице аниме
+            </Link>
+            .
+          </p>
         </div>
       </Suspense>
 
