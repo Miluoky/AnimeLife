@@ -91,7 +91,6 @@
 }
 
 .episode-card__name {
-  margin-top: -6px;
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -447,9 +446,17 @@
 /* ===== «Кадр»: шапка тайтла ===== */
 /* Постер в шапке — кадр в видоискателе: уголки поверх картинки. */
 .title-head__poster {
+  flex: 0 0 260px;
+  aspect-ratio: 2 / 3;
   border-radius: 3px;
   border: 0;
   box-shadow: 0 40px 90px -30px color-mix(in srgb, var(--glow, #000) 70%, #000);
+  display: flex;
+  align-items: flex-end;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
 }
 .title-head__poster::after {
   content: '';
@@ -467,6 +474,22 @@
   line-height: 0.98;
   letter-spacing: -0.03em;
   text-wrap: balance;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 0.45);
+}
+/* Факты (статус, оценка, возраст) плотнее; ссылки (год, жанры) — тише, как подписи кадра. */
+.title-head__chips .chip--meta {
+  background: color-mix(in srgb, var(--text) 8%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+}
+.title-head__chips a.chip {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-soft);
+  font-weight: 600;
+}
+.title-head__chips a.chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  color: var(--accent-soft);
 }
 /* Оригинальное название — строка над заголовком, как надпись на хлопушке. */
 .title-head__orig {
@@ -696,19 +719,6 @@
   align-items: flex-end;
 }
 
-.title-head__poster {
-  flex: 0 0 260px;
-  aspect-ratio: 2 / 3;
-  border-radius: 8px;
-  border: 4px solid var(--bg);
-  display: flex;
-  align-items: flex-end;
-  padding: 14px;
-  position: relative;
-  overflow: hidden;
-  z-index: 1;
-}
-
 .title-head__info {
   flex: 1 1 480px;
   display: flex;
@@ -716,12 +726,6 @@
   gap: 16px;
   position: relative;
   z-index: 1;
-}
-
-.title-head__title {
-  font-size: clamp(28px, 4vw, 44px);
-  line-height: 1.08;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
 }
 
 .title-body {
@@ -771,7 +775,7 @@
 .episode-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -783,6 +787,7 @@
   display: flex;
   align-items: flex-end;
   padding: 10px;
+  margin-bottom: 6px; /* с gap 4px ≈ 10px до мета-строки */
   transition: transform 0.3s var(--ease), box-shadow 0.3s;
 }
 
@@ -797,6 +802,7 @@
 .episode-card__meta {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
 }

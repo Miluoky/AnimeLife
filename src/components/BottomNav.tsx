@@ -50,7 +50,7 @@ export default function BottomNav() {
       icon: <ScreenPlayIcon />,
       main: true,
     },
-    { to: '/schedule', title: 'График', label: 'Расписание', icon: <CalendarIcon /> },
+    { to: '/schedule', title: 'Расписание', icon: <CalendarIcon /> },
   ]
 
   let active = more

@@ -134,7 +134,33 @@ export default function Layout() {
 
       <div className="page" key={pageScope(location.pathname)}>
         <PageErrorBoundary>
-          <Suspense fallback={<main className="container page-fallback" aria-busy="true" />}>
+          <Suspense
+            fallback={
+              <main className="container page-fallback" aria-busy="true" aria-label="Загрузка страницы">
+                <div className="stack" style={{ paddingTop: 24, gap: 14 }}>
+                  <div
+                    className="skeleton"
+                    style={{ width: 112, height: 22, borderRadius: 6, background: 'color-mix(in srgb, var(--accent) 22%, var(--surface-2))' }}
+                  />
+                  <div className="skeleton skeleton--line" style={{ width: 200, height: 28, borderRadius: 8 }} />
+                  <div className="skeleton skeleton--line" style={{ width: '42%', maxWidth: 280, height: 12, borderRadius: 6 }} />
+                  <div
+                    className="grid grid--posters"
+                    style={{ marginTop: 8 }}
+                    aria-hidden="true"
+                  >
+                    {Array.from({ length: 6 }, (_, i) => (
+                      <div
+                        key={i}
+                        className="skeleton"
+                        style={{ aspectRatio: '2 / 3', borderRadius: 'var(--radius-md)' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </main>
+            }
+          >
             <Outlet />
           </Suspense>
         </PageErrorBoundary>

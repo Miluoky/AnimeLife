@@ -4,6 +4,13 @@
   gap: 28px;
   padding: 16px 0 8px;
 }
+.list-empty--embedded {
+  padding-top: 0;
+  gap: 20px;
+}
+.list-empty--embedded .list-empty__intro {
+  padding: 22px;
+}
 .list-empty__intro {
   display: grid;
   justify-items: start;

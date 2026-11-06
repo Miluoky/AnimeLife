@@ -309,9 +309,16 @@ export default function Watching({ embedded = false }: { embedded?: boolean } = 
           <p className="muted">
             Отметьте тайтл как «Смотрю» или нажмите колокольчик на его странице: сюда будут приходить новые серии.
           </p>
-          <Link to="/ongoing" className="btn btn--accent">
-            Выбрать онгоинг
-          </Link>
+          <div className="actions">
+            <Link to="/ongoing" className="btn btn--accent">
+              Выбрать онгоинг
+            </Link>
+            {embedded && (
+              <Link to="/library?tab=planned" className="btn btn--ghost">
+                Из «В планах»
+              </Link>
+            )}
+          </div>
         </section>
       ) : (
         <>

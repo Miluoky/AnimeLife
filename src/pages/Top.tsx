@@ -1,11 +1,11 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { srcset2x } from '../data/saver'
 import { loadCatalog, useAsync, type CatalogQuery } from '../api'
 import type { Anime } from '../data/catalog'
 import { useMyList, listStatuses } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
 import { prefetchTitle } from '../api/prefetch'
 import { TrophyIcon } from '../components/Icons'
+import { Poster } from '../components/PosterCard'
 import './top.css'
 
 const SEASONS = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'fall', 'fall', 'fall', 'winter']
@@ -126,8 +126,8 @@ export default function Top() {
             {podium.map((a, i) => (
               <li key={a.id} className={`podium__item podium__item--${i + 1}`}>
                 <Link to={`/anime/${a.id}`} className="podium__card" onPointerEnter={() => prefetchTitle(a.id)}>
-                  <span className="podium__poster">
-                    {(a.posterSmall2x ?? a.posterUrl) && <img src={a.posterSmall2x ?? a.posterUrl} alt={`Постер аниме «${a.title}»`} />}
+                  <span className="podium__poster" style={{ background: a.posterFill }}>
+                    <Poster anime={a} priority={i === 0} />
                     <span className="podium__place" aria-hidden="true">
                       {i + 1}
                     </span>
@@ -149,8 +149,8 @@ export default function Top() {
                 <li key={a.id}>
                   <Link to={`/anime/${a.id}`} className="top-row" onPointerEnter={() => prefetchTitle(a.id)}>
                     <span className="top-row__place">{i + 4}</span>
-                    <span className="top-row__poster" style={{ background: a.posterFill }}>
-                      {a.posterSmall && <img src={a.posterSmall} srcSet={srcset2x(a.posterSmall, a.posterSmall2x)} alt={`Постер аниме «${a.title}»`} loading="lazy" />}
+                    <span className="top-row__poster" style={{ background: a.posterFill, position: 'relative' }}>
+                      <Poster anime={a} />
                     </span>
                     <span className="top-row__body">
                       <span className="top-row__title">{a.title}</span>

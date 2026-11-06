@@ -496,9 +496,9 @@ export default function TitlePage() {
           <div className="title-head__info">
             {anime.originalTitle && <div className="title-head__orig">{anime.originalTitle}</div>}
             <h1 className="title-head__title">{anime.title}</h1>
-            <div className="chips">
+            <div className="chips title-head__chips">
               <span className="chip chip--accent">{anime.ongoing ? 'Онгоинг' : anime.upcoming ? 'Анонс' : 'Вышел'}</span>
-              {anime.score ? <span className="chip">★ {anime.score.toFixed(1)}</span> : null}
+              {anime.score ? <span className="chip chip--meta">★ {anime.score.toFixed(1)}</span> : null}
               {ageLabel(anime.rating) && (
                 <span className="chip chip--age" title="Возрастное ограничение">
                   {ageLabel(anime.rating)}
@@ -517,7 +517,7 @@ export default function TitlePage() {
                     {g}
                   </Link>
                 ) : (
-                  <span key={g} className="chip">
+                  <span key={g} className="chip chip--meta">
                     {g}
                   </span>
                 )

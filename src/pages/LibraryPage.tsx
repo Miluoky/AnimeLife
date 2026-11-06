@@ -34,11 +34,17 @@ function formatTime(s: number) {
 function ContinueShelf({ history }: { history: HistoryEntry[] }) {
   if (!history.length) {
     return (
-      <section className="stack">
-        <p className="muted">Пока нечего продолжать. Откройте серию — она появится здесь.</p>
-        <Link to="/library?tab=new" className="btn btn--ghost">
-          Новые серии из «Смотрю»
-        </Link>
+      <section className="library-empty" aria-label="Продолжить просмотр пуст">
+        <h2 className="library-empty__title">Пока нечего продолжать</h2>
+        <p className="muted">Откройте любую серию — она появится здесь с местом, на котором вы остановились.</p>
+        <div className="library-empty__actions">
+          <Link to="/library?tab=new" className="btn btn--ghost">
+            Новые серии из «Смотрю»
+          </Link>
+          <Link to="/catalog" className="btn btn--accent">
+            В каталог
+          </Link>
+        </div>
       </section>
     )
   }
@@ -122,12 +128,10 @@ export default function LibraryPage() {
 
   return (
     <main className="container home library-page">
-      <header className="section-head" style={{ marginBottom: 16 }}>
+      <header className="section-head library-page__head">
         <div>
           <h1 className="page-title">Библиотека</h1>
-          <p className="muted" style={{ margin: '4px 0 0' }}>
-            Новые серии, история и ваши списки
-          </p>
+          <p className="muted library-page__lede">Новые серии, история и ваши списки</p>
         </div>
       </header>
 

@@ -872,27 +872,10 @@ h3 {
   align-self: center;
 }
 
-.skeleton {
-  background: var(--surface);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
 .skeleton--line {
   height: 16px;
   width: 70%;
   border-radius: 6px;
-}
-
-@keyframes pulse {
-  50% {
-    opacity: 0.55;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeleton {
-    animation: none;
-  }
 }
 
 .player-iframe {
@@ -1449,6 +1432,11 @@ h3 {
 @keyframes shimmer-gpu {
   100% {
     transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
   }
 }
 

@@ -2,6 +2,46 @@
   padding-bottom: 60px;
 }
 
+.library-page__head {
+  margin-bottom: 16px;
+}
+
+.library-page__lede {
+  margin: 4px 0 0;
+}
+
+/* Пустая вкладка «Продолжить» и похожие подсказки внутри /library. */
+.library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(80% 120% at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    var(--surface);
+}
+
+.library-empty__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.library-empty p {
+  margin: 0;
+  max-width: 52ch;
+}
+
+.library-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
 .library-nav {
   display: flex;
   gap: 8px;

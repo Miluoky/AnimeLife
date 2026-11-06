@@ -107,14 +107,10 @@ export default function MyList({ embedded, status }: { embedded?: boolean; statu
               </div>
             ))}
           </div>
+        ) : list.length ? (
+          <StatusEmpty status={tab} embedded={embedded} />
         ) : (
-          list.length ? (
-            <div className="empty-state">
-              <p className="muted">В этом разделе пока пусто.</p>
-            </div>
-          ) : (
-            <EmptyList />
-          )
+          <EmptyList embedded={embedded} />
         )}
         <div className="actions">
           <CalendarExport />
@@ -134,13 +130,78 @@ export default function MyList({ embedded, status }: { embedded?: boolean; statu
   )
 }
 
+const STATUS_EMPTY: Record<
+  ListStatus,
+  { title: string; text: string; to: string; cta: string; altTo?: string; altCta?: string }
+> = {
+  watching: {
+    title: 'В «Смотрю» пока пусто',
+    text: 'Отметьте онгоинг как «Смотрю» — новые серии появятся во вкладке «Новые серии».',
+    to: '/ongoing',
+    cta: 'Выбрать онгоинг',
+    altTo: '/library?tab=planned',
+    altCta: 'Из «В планах»',
+  },
+  planned: {
+    title: 'В планах пока пусто',
+    text: 'Добавляйте тайтлы кнопкой «В мой список», чтобы не потерять, что хотите посмотреть позже.',
+    to: '/catalog',
+    cta: 'В каталог',
+    altTo: '/random',
+    altCta: 'Что посмотреть?',
+  },
+  completed: {
+    title: 'Просмотренных пока нет',
+    text: 'Когда досмотрите тайтл, перенесите его в «Просмотрено» — здесь будет ваша история.',
+    to: '/library?tab=watching',
+    cta: 'К «Смотрю»',
+    altTo: '/catalog',
+    altCta: 'В каталог',
+  },
+  on_hold: {
+    title: 'Отложенных пока нет',
+    text: 'Если нужно сделать паузу — перенесите тайтл в «Отложено», чтобы вернуться позже.',
+    to: '/library?tab=watching',
+    cta: 'К «Смотрю»',
+  },
+  dropped: {
+    title: 'Брошенных пока нет',
+    text: 'Сюда попадают тайтлы, которые вы решили не продолжать. Это нормально — вкусы меняются.',
+    to: '/catalog',
+    cta: 'В каталог',
+  },
+}
+
+/** Пустой раздел списка: короткая подсказка и куда кликнуть дальше (в т.ч. во вкладках библиотеки). */
+function StatusEmpty({ status, embedded }: { status: ListStatus; embedded?: boolean }) {
+  const hint = STATUS_EMPTY[status]
+  return (
+    <div className={`list-empty${embedded ? ' list-empty--embedded' : ''}`}>
+      <div className="list-empty__intro">
+        <h2 className="list-empty__title">{hint.title}</h2>
+        <p className="muted">{hint.text}</p>
+        <div className="list-empty__actions">
+          <Link to={hint.to} className="btn btn--accent">
+            {hint.cta}
+          </Link>
+          {hint.altTo && hint.altCta && (
+            <Link to={hint.altTo} className="btn btn--ghost">
+              {hint.altCta}
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** Пустой список: объясняем, как он работает, и сразу даём, что добавить. */
-function EmptyList() {
+function EmptyList({ embedded }: { embedded?: boolean } = {}) {
   const popular = useAsync(() => loadCatalog({ order: 'popularity', status: 'ongoing', limit: 12 }), [])
   const list = useMyList()
   const picks = popular.value?.data ?? []
   return (
-    <div className="list-empty">
+    <div className={`list-empty${embedded ? ' list-empty--embedded' : ''}`}>
       <div className="list-empty__intro">
         <span className="list-empty__icon" aria-hidden="true">
           <PlusIcon size={26} />

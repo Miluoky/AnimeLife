@@ -8,6 +8,7 @@ import { usePageMeta } from '../data/pageMeta'
 import { genrePath } from '../data/seo'
 import ListButton from '../components/ListButton'
 import { PlayIcon, SparkIcon } from '../components/Icons'
+import { Poster } from '../components/PosterCard'
 import './random.css'
 
 /** Настроения: за каждым один или два жанра Shikimori (id как в src/data/seo.ts). */
@@ -202,8 +203,20 @@ export default function Random() {
             <div className="pick__bg" aria-hidden="true">
               {shown.posterUrl && <img src={shown.posterUrl} alt="" />}
             </div>
-            <Link to={`/anime/${shown.id}`} className="pick__poster">
-              <img src={shown.posterUrl ?? shown.posterSmall} alt={shown.title} />
+            <Link
+              to={`/anime/${shown.id}`}
+              className="pick__poster"
+              style={{
+                position: 'relative',
+                display: 'block',
+                aspectRatio: '2 / 3',
+                borderRadius: 6,
+                overflow: 'hidden',
+                boxShadow: '0 20px 50px rgb(0 0 0 / 0.5)',
+                background: shown.posterFill,
+              }}
+            >
+              <Poster anime={shown} priority alt={shown.title} />
             </Link>
             <div className="pick__body">
               <span className="pick__eyebrow">Сегодня смотрим</span>
@@ -255,8 +268,15 @@ export default function Random() {
           <h2 className="random-seen__title">Уже предлагали</h2>
           <div className="random-seen__row">
             {seen.slice(1).map((a) => (
-              <button key={a.id} type="button" className="random-seen__item" onClick={() => setPick(a)} title={a.title}>
-                <img src={a.posterSmall ?? a.posterUrl} alt={a.title} loading="lazy" />
+              <button
+                key={a.id}
+                type="button"
+                className="random-seen__item"
+                onClick={() => setPick(a)}
+                title={a.title}
+                style={{ position: 'relative', height: 102 }}
+              >
+                <Poster anime={a} alt={a.title} />
               </button>
             ))}
           </div>

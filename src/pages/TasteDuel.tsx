@@ -16,6 +16,7 @@ import {
   type DuelBoard,
   type DuelTitle,
 } from '../data/tasteDuel'
+import { Poster } from '../components/PosterCard'
 import './taste-duel.css'
 
 const NEED = 5
@@ -86,9 +87,17 @@ function Head({ kicker, title, text }: { kicker: string; title: string; text?: s
 
 function Cover({ item }: { item: DuelTitle }) {
   const fill = item.posterFill || '#1e2638'
+  const posterUrl = item.posterUrl
   return (
-    <span className="duel-cover" style={{ background: fill }}>
-      {item.posterUrl ? <img src={item.posterUrl} alt="" /> : item.title.slice(0, 1)}
+    <span className="duel-cover" style={{ background: fill, position: 'relative' }}>
+      {posterUrl ? (
+        <Poster
+          anime={{ title: item.title, posterUrl, posterFill: fill }}
+          alt={`Постер аниме «${item.title}»`}
+        />
+      ) : (
+        item.title.slice(0, 1)
+      )}
     </span>
   )
 }

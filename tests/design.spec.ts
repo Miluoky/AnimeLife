@@ -30,9 +30,14 @@ test('нижнее меню на телефоне ведёт по раздела
   await page.goto('/')
   const nav = page.getByRole('navigation', { name: 'Разделы сайта' })
   await expect(nav).toBeVisible()
-  await nav.getByRole('link', { name: 'Мой список' }).click()
-  await expect(page).toHaveURL(/\/my-list$/)
-  await expect(nav.getByRole('link', { name: 'Мой список' })).toHaveClass(/active/)
+  await expect(nav.getByRole('link', { name: 'Главная' })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Каталог' })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Библиотека' })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Расписание' })).toBeVisible()
+  await expect(nav.getByRole('button', { name: 'Ещё' })).toBeVisible()
+  await nav.getByRole('link', { name: 'Библиотека' }).click()
+  await expect(page).toHaveURL(/\/library/)
+  await expect(nav.getByRole('link', { name: 'Библиотека' })).toHaveClass(/active/)
 })
 
 test.describe('iPhone', () => {
@@ -46,8 +51,8 @@ test.describe('iPhone', () => {
     const nav = page.getByRole('navigation', { name: 'Разделы сайта' })
     const [b, n] = await Promise.all([banner.boundingBox(), nav.boundingBox()])
     expect(b!.y + b!.height).toBeLessThanOrEqual(n!.y)
-    await nav.getByRole('link', { name: 'Мой список' }).click()
-    await expect(page).toHaveURL(/\/my-list$/)
+    await nav.getByRole('link', { name: 'Библиотека' }).click()
+    await expect(page).toHaveURL(/\/library/)
   })
 })
 
