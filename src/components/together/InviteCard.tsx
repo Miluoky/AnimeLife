@@ -33,7 +33,7 @@ export default function InviteCard({ code, title }: { code: string; title: strin
     navigator.share?.({ title: `Смотрим вместе: ${title}`, url: link }).catch(() => undefined) ?? copy()
 
   return (
-    <div className="invite">
+    <div className="invite together-invite">
       {qr && <div className="invite__qr" aria-label="QR-код ссылки на комнату" role="img" dangerouslySetInnerHTML={{ __html: qr }} />}
       <div className="stack" style={{ gap: 8 }}>
         <span className="muted">Код комнаты</span>

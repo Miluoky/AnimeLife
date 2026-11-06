@@ -69,7 +69,7 @@ export default function Schedule() {
   const [showOut, setShowOut] = useState(false)
 
   return (
-    <main className="container home">
+    <main className="container home schedule-page">
       <section className="stack">
         <header className="schedule-hero">
           <div className="section-head">
@@ -106,26 +106,28 @@ export default function Schedule() {
         {result.loading && !result.value && <div className="schedule-days skeleton" style={{ height: 42 }} aria-hidden="true" />}
 
         {days.length > 1 && (
-          <nav className="schedule-days" aria-label="Дни недели">
-            {days.map((day) => {
-              const k = dayKey(day.date)
-              const isToday = k === dayKey(new Date())
-              return (
-                <a
-                  key={k}
-                  href={`#day-${k}`}
-                  className={`pill schedule-day-tab${isToday ? ' schedule-day-tab--today' : ''}`}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    document.getElementById(`day-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }}
-                >
-                  {isToday ? 'Сегодня' : chipFormat.format(day.date)}
-                  <span className="pill__count schedule-day-tab__count">{day.items.length}</span>
-                </a>
-              )
-            })}
-          </nav>
+          <div className="schedule-days-wrap">
+            <nav className="schedule-days" aria-label="Дни недели">
+              {days.map((day) => {
+                const k = dayKey(day.date)
+                const isToday = k === dayKey(new Date())
+                return (
+                  <a
+                    key={k}
+                    href={`#day-${k}`}
+                    className={`pill schedule-day-tab${isToday ? ' schedule-day-tab--today' : ''}`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      document.getElementById(`day-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                  >
+                    {isToday ? 'Сегодня' : chipFormat.format(day.date)}
+                    <span className="pill__count schedule-day-tab__count">{day.items.length}</span>
+                  </a>
+                )
+              })}
+            </nav>
+          </div>
         )}
 
         {result.loading && !result.value ? (
@@ -206,9 +208,11 @@ export default function Schedule() {
         ) : (
           <div className="empty-card schedule-empty">
             <Mascot />
-            <h2 className="schedule-empty__title">На этой неделе новых серий нет</h2>
+            <p className="schedule-empty__eyebrow">Эфирная пауза</p>
+            <h2 className="schedule-empty__title">На неделе тихо — новых серий не запланировано</h2>
             <p className="muted schedule-empty__text">
-              Онгоинги на перерыве. Загляните в каталог или посмотрите, что уже вышло целиком.
+              Похоже, онгоинги на перерыве: сетка расписания пустая, как ночной эфир без сигнала. Загляните в каталог или
+              доберите давно откладываемое целиком.
             </p>
             <div className="actions">
               <Link to="/catalog" className="btn btn--accent">

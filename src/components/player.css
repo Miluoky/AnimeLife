@@ -218,11 +218,88 @@
   flex-direction: column;
   gap: 16px;
   margin-top: 4px;
+  min-width: 0;
+  grid-column: 1 / -1;
 }
 
-.watch-engage__hint {
+/* Комментарии тайтла под рейтингом: та же «карточка», что у оценки, без расползания на узком экране. */
+.watch-engage .comments {
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent);
+  min-width: 0;
+}
+
+.watch-engage .comments .section-head {
+  gap: 8px;
+  align-items: baseline;
+}
+
+.watch-engage .comments .section-head h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.watch-engage .comments__form textarea {
+  min-height: 72px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.watch-engage .comments__form .actions {
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+
+.watch-engage .comment,
+.watch-engage .comment-thread {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .watch-engage {
+    gap: 12px;
+  }
+
+  .watch-engage .comments {
+    padding: 14px 14px 16px;
+    border-radius: 12px;
+  }
+
+  .watch-engage .comments__replies {
+    margin-left: 6px;
+    padding-left: 8px;
+  }
+
+  .watch-engage .comments__form .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .watch-engage .comments__form .actions .btn {
+    width: 100%;
+  }
+
+  .watch-engage .comments__tools {
+    width: 100%;
+    gap: 10px 14px;
+  }
+
+  .watch-engage .comment {
+    padding: 10px 12px;
+  }
+
+  .watch-engage .comment__head {
+    gap: 6px 8px;
+    font-size: 13px;
+  }
+
+  .watch-engage .comment__delete {
+    margin-left: 0;
+  }
 }
 
 /* ─── Список серий: полоса номеров ─── */

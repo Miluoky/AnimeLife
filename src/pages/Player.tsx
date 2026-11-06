@@ -44,10 +44,11 @@ const skipFillersStore = createLocalStore('anime.skipfillers.v1', false)
 // Широкий экран на компьютере: видео во всю ширину, озвучки и серии под ним.
 const wideStore = createLocalStore('anime.widescreen.v1', false)
 
-// Комментарии тянут SDK Appwrite: грузим их отдельно, плеер появляется сразу.
+// Комментарии и рейтинг тянут SDK Appwrite: грузим отдельно, плеер появляется сразу.
 const NextPart = lazy(() => import('../components/NextPart'))
 const WatchReturn = lazy(() => import('../components/WatchReturn'))
 const EpisodeRating = lazy(() => import('../components/EpisodeRating'))
+const TitleComments = lazy(() => import('../components/EpisodeComments'))
 
 export default function Player() {
   const { id = '', episode = '1' } = useParams()
@@ -593,13 +594,7 @@ export default function Player() {
         <WatchReturn anime={anime} current={current} total={total} />
         <div className="watch-engage">
           <EpisodeRating animeId={anime.id} episode={current} />
-          <p className="muted watch-engage__hint">
-            Обсудить тайтл можно в{' '}
-            <Link to={`/anime/${anime.id}#comments`} className="link-accent">
-              комментариях на странице аниме
-            </Link>
-            .
-          </p>
+          <TitleComments animeId={anime.id} aboutTitle />
         </div>
       </Suspense>
 

@@ -299,7 +299,8 @@ export default function Catalog() {
             key={JSON.stringify(query) + page}
             query={query}
             start={page}
-            empty={gridEmpty}
+            /* При активном поиске пустой сетки нет — блок NothingFound ниже; пустой muted дублировал бы текст. */
+            empty={search ? '' : gridEmpty}
             onFirst={(n) => setFirst([page, n])}
           />
         </div>

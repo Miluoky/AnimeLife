@@ -5,12 +5,75 @@
 .hentai-manga-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 20px 16px;
+  gap: 24px 18px;
+}
+
+.hentai-manga-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 20px;
+  margin-bottom: 8px;
+}
+
+.hentai-manga-toolbar__block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hentai-manga-toolbar__label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hentai-manga-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hentai-manga-chips button {
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.hentai-manga-chips button:hover {
+  border-color: var(--hentai-accent-line);
+  color: var(--text);
+}
+
+.hentai-manga-chips button.is-on {
+  background: color-mix(in srgb, var(--hentai-accent) 22%, var(--surface));
+  border-color: var(--hentai-accent-line);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--hentai-accent) 12%, transparent);
+}
+
+.hentai-skeleton-grid.hentai-manga-grid .poster-card.skeleton {
+  min-height: 280px;
 }
 
 @media (max-width: 640px) {
   .hentai-manga-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px 10px;
+    gap: 16px 12px;
   }
 }

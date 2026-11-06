@@ -44,9 +44,10 @@ export default function Onboarding() {
 
   return (
     <section className="onboard-card" aria-labelledby="onboard-title">
-      <div>
+      <div className="onboard-card__body">
+        <p className="onboard-card__eyebrow">Настройка за пару шагов</p>
         <h2 id="onboard-title">Впервые у нас?</h2>
-        <p className="muted">Отметьте любимые жанры и пару аниме, которые понравились, и мы подберём, что посмотреть дальше.</p>
+        <p className="muted">Жанры и пара понравившихся тайтлов — мы соберём подборку «Вам понравится».</p>
       </div>
       <div className="onboard-card__actions">
         <button type="button" className="btn btn--accent" onClick={() => setOpen(true)}>
@@ -99,37 +100,66 @@ function OnboardingDialog({ onClose }: { onClose: () => void }) {
     <div className="onboard" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="onboard__box" role="dialog" aria-modal="true" aria-labelledby="onboard-dialog-title" tabIndex={-1} ref={box}>
         <div className="onboard__head">
-          <h2 id="onboard-dialog-title">Что вам нравится?</h2>
-          <button type="button" className="link-btn" onClick={onClose}>
+          <div className="onboard__head-text">
+            <h2 id="onboard-dialog-title">Что вам нравится?</h2>
+            <p className="muted onboard__lead">Два шага: жанры, затем тайтлы, которые зацепили.</p>
+          </div>
+          <button type="button" className="link-btn onboard__close" onClick={onClose}>
             Закрыть
           </button>
         </div>
-        <p className="muted">Жанры</p>
-        <div className="onboard__genres" role="group" aria-label="Любимые жанры">
-          {PICK_GENRES.map((g) => (
-            <button key={g.id} type="button" className={`pill${genres.includes(g.id) ? ' active' : ''}`} aria-pressed={genres.includes(g.id)} onClick={() => toggleGenre(g.id)}>
-              {g.name}
-            </button>
-          ))}
-        </div>
-        <p className="muted">Отметьте аниме, которые уже смотрели и понравились</p>
-        {grid.loading && !grid.value ? (
-          <div className="skeleton skeleton--line" style={{ height: 220 }} aria-busy="true" />
-        ) : (
-          <ul className="onboard__grid" aria-label="Популярные аниме">
-            {(grid.value ?? []).map((a) => {
-              const on = liked.has(a.id)
-              return (
-                <li key={a.id}>
-                  <button type="button" className={`onboard__title${on ? ' onboard__title--on' : ''}`} aria-pressed={on} onClick={() => toggleTitle(a)}>
-                    <img src={a.posterSmall ?? a.posterUrl} alt="" loading="lazy" style={{ background: a.posterFill }} />
-                    <span>{a.title}</span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+        <ol className="onboard__steps" aria-label="Шаги настройки">
+          <li
+            className={`onboard__steps-item${genres.length ? ' onboard__steps-item--done' : ''}${!genres.length ? ' onboard__steps-item--current' : ''}`}
+            aria-current={!genres.length ? 'step' : undefined}
+          >
+            <span className="onboard__steps-badge">1</span>
+            <span className="onboard__steps-label">Жанры</span>
+          </li>
+          <li
+            className={`onboard__steps-item${liked.size ? ' onboard__steps-item--done' : ''}${genres.length ? ' onboard__steps-item--current' : ''}`}
+            aria-current={genres.length ? 'step' : undefined}
+          >
+            <span className="onboard__steps-badge">2</span>
+            <span className="onboard__steps-label">Тайтлы</span>
+          </li>
+        </ol>
+        <section className="onboard__section" aria-labelledby="onboard-step-genres-title">
+          <h3 id="onboard-step-genres-title" className="onboard__section-title">
+            Жанры
+          </h3>
+          <p className="muted onboard__section-hint">Можно пропустить — тогда покажем общее популярное.</p>
+          <div className="onboard__genres" role="group" aria-label="Любимые жанры">
+            {PICK_GENRES.map((g) => (
+              <button key={g.id} type="button" className={`pill${genres.includes(g.id) ? ' active' : ''}`} aria-pressed={genres.includes(g.id)} onClick={() => toggleGenre(g.id)}>
+                {g.name}
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="onboard__section" aria-labelledby="onboard-step-titles-title">
+          <h3 id="onboard-step-titles-title" className="onboard__section-title">
+            Понравившиеся аниме
+          </h3>
+          <p className="muted onboard__section-hint">Постеры, которые уже заходили.</p>
+          {grid.loading && !grid.value ? (
+            <div className="skeleton skeleton--line onboard__grid-skeleton" aria-busy="true" />
+          ) : (
+            <ul className="onboard__grid" aria-label="Популярные аниме">
+              {(grid.value ?? []).map((a) => {
+                const on = liked.has(a.id)
+                return (
+                  <li key={a.id}>
+                    <button type="button" className={`onboard__title${on ? ' onboard__title--on' : ''}`} aria-pressed={on} onClick={() => toggleTitle(a)}>
+                      <img src={a.posterSmall ?? a.posterUrl} alt="" loading="lazy" style={{ background: a.posterFill }} />
+                      <span>{a.title}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
         <div className="onboard__foot">
           <span className="muted">{liked.size ? `Отмечено: ${liked.size}` : 'Можно отметить несколько'}</span>
           <button type="button" className="btn btn--accent" disabled={!liked.size} onClick={finish}>

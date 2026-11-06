@@ -1,107 +1,219 @@
-/* «Угадай аниме по кадру»: кадр, четыре варианта и счёт. */
+/* «Угадай аниме по кадру»: экран старта, прогресс, кадр и варианты. */
 .quiz-page {
+  --quiz-radius: var(--radius-md);
+  --quiz-gap-lg: 28px;
+  --quiz-gap: 20px;
+  --quiz-gap-sm: 14px;
+  --quiz-ok: #3ecf8e;
   display: grid;
-  gap: 24px;
+  gap: var(--quiz-gap-lg);
   max-width: 820px;
-  padding-top: 32px;
-  padding-bottom: 56px;
+  padding-top: 28px;
+  padding-bottom: max(56px, env(safe-area-inset-bottom));
 }
-.quiz-head {
+
+/* ---------- Старт: заголовок и правила ---------- */
+.quiz-hero {
   display: grid;
-  gap: 8px;
+  gap: var(--quiz-gap-sm);
 }
-.quiz-head p {
+.quiz-hero__title {
+  font-size: clamp(1.55rem, 4.2vw, 2rem);
+  line-height: 1.15;
+}
+.quiz-hero__lead {
+  margin: 0;
+  max-width: 42em;
+}
+.quiz-hero__rules {
+  margin: 6px 0 0;
+  padding: 0 0 0 1.15em;
+  color: var(--text-soft);
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 40em;
+}
+.quiz-hero__rules li + li {
+  margin-top: 6px;
+}
+.quiz-hero__more {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+.quiz-hero__link {
+  color: var(--accent-soft);
+  font-weight: 600;
+  text-decoration: none;
+}
+.quiz-hero__link:hover {
+  text-decoration: underline;
+}
+
+/* Панель «Начать» */
+.quiz-start {
+  border-radius: var(--quiz-radius);
+  border: 1px solid color-mix(in srgb, var(--line) 85%, var(--text) 15%);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 92%, var(--accent) 5%), var(--surface-2));
+  box-shadow: var(--glass-shadow);
+  padding: clamp(20px, 4vw, 28px);
+}
+.quiz-start__panel {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+}
+.quiz-start__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+.quiz-start__text {
   margin: 0;
 }
-/* Счёт — полоса показаний камеры: три ячейки с моноширинными цифрами. */
+.quiz-start__cta {
+  justify-self: start;
+  margin-top: 4px;
+  min-width: 180px;
+}
+
+/* ---------- Во время игры: шапка ---------- */
+.quiz-head {
+  display: grid;
+  gap: var(--quiz-gap-sm);
+}
+.quiz-head.quiz-head--active {
+  gap: var(--quiz-gap-sm);
+}
+
+/* Полоса прогресса по серии */
+.quiz-progress {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--quiz-radius);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+.quiz-progress__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.quiz-progress__round {
+  font: 600 13px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.quiz-progress__round strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.quiz-progress__streak {
+  font-size: 14px;
+  color: var(--text-soft);
+}
+.quiz-progress__streak strong {
+  color: var(--accent-soft);
+  font-variant-numeric: tabular-nums;
+}
+.quiz-progress__track {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--surface-2) 80%, var(--line));
+  overflow: hidden;
+}
+.quiz-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 45%, transparent);
+  transition: width 0.35s var(--ease);
+}
+.quiz-progress__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  min-height: 1.45em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .quiz-progress__fill {
+    transition: none;
+  }
+}
+
+/* Счёт — компактная сетка */
 .quiz-score {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: min(100%, 460px);
-  margin: 10px 0 0;
-  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 65%, transparent);
 }
 .quiz-score div {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
-  padding: 9px 14px 10px;
+  padding: 10px 12px 11px;
 }
 .quiz-score div + div {
-  border-left: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
 }
 .quiz-score dt {
   color: var(--muted);
   font: 600 10px var(--font-mono);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .quiz-score dd {
   margin: 0;
-  font: 700 20px/1.2 var(--font-mono);
+  font: 700 18px/1.25 var(--font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-/* серия подряд — главная цифра, акцентом */
 .quiz-score div:first-child dd {
-  color: var(--accent);
+  color: var(--accent-soft);
+}
+.quiz-score--compact {
+  width: 100%;
+  max-width: none;
+}
+.quiz-score--compact dd {
+  font-size: 17px;
 }
 
-/* Строка «● REC · раунд» над заголовком, как на экране камеры. */
-.quiz-rec {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  margin: 0;
-  color: var(--muted);
-  font: 600 11px/1.4 var(--font-mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.quiz-rec i,
-.quiz-hud i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-  animation: quiz-rec 1.6s steps(2, jump-none) infinite;
-}
-.quiz-rec i {
-  margin-right: -6px;
-}
-.quiz-rec b {
-  color: var(--accent);
-}
-.quiz-rec span::before {
-  content: '·';
-  margin-right: 12px;
-  color: color-mix(in srgb, var(--muted) 50%, transparent);
-}
-.quiz-rec span:first-of-type {
-  color: var(--text-soft);
-}
+/* ---------- Карточка раунда ---------- */
 .quiz-card {
   display: grid;
-  gap: 16px;
-  padding: 14px;
-  border-radius: 2px;
+  gap: var(--quiz-gap);
+  padding: clamp(14px, 3vw, 18px);
+  border-radius: var(--quiz-radius);
   border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
   background:
-    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 55%),
-    color-mix(in srgb, var(--surface) 70%, transparent);
+    radial-gradient(120% 120% at 8% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 52%),
+    color-mix(in srgb, var(--surface) 72%, transparent);
 }
-/* Кадр — экран видоискателя: уголки, развёртка, затемнение к краям и метки по углам. */
+
+.quiz-prompt {
+  margin: -4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Кадр — видоискатель */
 .quiz-shot {
   --fc-inset: 12px;
   --fc-color: color-mix(in srgb, var(--text) 75%, transparent);
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: #050506;
   display: grid;
   place-items: center;
@@ -130,23 +242,32 @@
   font-variant-numeric: tabular-nums;
   padding: 3px 7px;
   background: rgb(5 5 6 / 0.6);
+  border-radius: var(--radius-xs);
+}
+.quiz-hud i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: quiz-rec 1.6s steps(2, jump-none) infinite;
 }
 .quiz-hud--tl {
-  top: 24px;
-  left: 28px;
+  top: 22px;
+  left: 26px;
   color: var(--accent-soft);
 }
 .quiz-hud--tr {
-  top: 24px;
-  right: 28px;
+  top: 22px;
+  right: 26px;
 }
 .quiz-hud--bl {
-  bottom: 24px;
-  left: 28px;
+  bottom: 22px;
+  left: 26px;
 }
 .quiz-hud--br {
-  right: 28px;
-  bottom: 24px;
+  right: 26px;
+  bottom: 22px;
   color: var(--accent-soft);
 }
 .quiz-shot img {
@@ -155,9 +276,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Пока кадр грузится или если не загрузился, подпись alt не торчит поверх карточки. */
   color: transparent;
-  animation: quiz-in 0.3s ease;
+  animation: quiz-in 0.3s var(--ease);
 }
 .quiz-shot__wait {
   position: relative;
@@ -168,65 +288,83 @@
   text-transform: uppercase;
   animation: quiz-rec 1.6s steps(2, jump-none) infinite;
 }
+
+/* Варианты */
 .quiz-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
   counter-reset: quiz-key;
 }
-/* Варианты — кнопки пульта: буква A–D моноширинным слева (счётчиком, чтобы не попасть в текст кнопки). */
 .quiz-option {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  min-height: 56px;
-  padding: 10px 14px;
-  border-radius: 2px;
-  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  min-height: 54px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
   color: var(--text);
   font: inherit;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s var(--ease),
+    background 0.15s var(--ease),
+    box-shadow 0.15s var(--ease),
+    transform 0.12s var(--ease);
 }
 .quiz-option::before {
   counter-increment: quiz-key;
   content: counter(quiz-key, upper-latin);
-  flex: 0 0 26px;
+  flex: 0 0 28px;
   display: grid;
   place-items: center;
-  height: 26px;
-  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  height: 28px;
+  margin-top: 1px;
+  border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
   color: var(--muted);
   font: 700 12px var(--font-mono);
   transition: inherit;
 }
+.quiz-option__label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.38;
+}
 .quiz-option:not(:disabled):hover {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--line));
   box-shadow: inset 3px 0 0 var(--accent);
+  transform: translateY(-1px);
 }
 .quiz-option:not(:disabled):hover::before {
   border-color: var(--accent);
   color: var(--accent);
 }
+.quiz-option:not(:disabled):active {
+  transform: translateY(0);
+}
 .quiz-option:disabled {
   cursor: default;
+  transform: none;
 }
 .quiz-option--right {
-  border-color: #3ecf8e;
-  background: color-mix(in srgb, #3ecf8e 16%, transparent);
-  box-shadow: inset 3px 0 0 #3ecf8e;
+  border-color: color-mix(in srgb, var(--quiz-ok) 75%, var(--line));
+  background: color-mix(in srgb, var(--quiz-ok) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--quiz-ok);
 }
 .quiz-option--right::before {
-  border-color: #3ecf8e;
-  background: #3ecf8e;
+  border-color: var(--quiz-ok);
+  background: var(--quiz-ok);
   color: #0a0a0c;
 }
 .quiz-option--wrong {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .quiz-option--wrong::before {
@@ -234,20 +372,68 @@
   background: var(--accent);
   color: #0a0a0c;
 }
+
+/* Итог раунда */
 .quiz-result {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--text) 20%);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+.quiz-result__main {
+  display: grid;
+  gap: 8px;
+}
+.quiz-result__badge {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.quiz-result--right .quiz-result__badge {
+  color: #0a0a0c;
+  background: var(--quiz-ok);
+}
+.quiz-result--wrong .quiz-result__badge {
+  color: #0a0a0c;
+  background: color-mix(in srgb, var(--accent) 88%, #fff);
+}
+.quiz-result__detail {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.quiz-result__title-link {
+  color: var(--accent-soft);
+  font-weight: 700;
+  text-decoration: none;
+}
+.quiz-result__title-link:hover {
+  text-decoration: underline;
+}
+.quiz-result__actions {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
 }
-.quiz-result p {
-  flex: 1 1 260px;
-  margin: 0;
+.quiz-result__share {
+  flex: 1 1 auto;
+  min-width: min(100%, 200px);
 }
-.quiz-result strong {
-  font-family: var(--font-display);
+.quiz-result__next {
+  flex: 0 0 auto;
+  min-width: 140px;
 }
+
 @keyframes quiz-in {
   from {
     opacity: 0;
@@ -260,24 +446,30 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .quiz-shot img,
-  .quiz-rec i,
   .quiz-hud i,
   .quiz-shot__wait {
     animation: none;
   }
+  .quiz-option:not(:disabled):hover {
+    transform: none;
+  }
 }
+
 @media (max-width: 560px) {
+  .quiz-page {
+    --quiz-gap-lg: 22px;
+    --quiz-gap: 16px;
+    padding-top: 20px;
+  }
   .quiz-options {
     grid-template-columns: 1fr;
   }
   .quiz-option {
-    min-height: 48px;
-  }
-  .quiz-result .btn {
-    flex: 1 1 100%;
+    min-height: 50px;
+    padding: 10px 12px;
   }
   .quiz-card {
-    padding: 10px;
+    padding: 12px;
   }
   .quiz-shot {
     --fc-inset: 8px;
@@ -288,37 +480,45 @@
   }
   .quiz-hud--tl,
   .quiz-hud--tr {
-    top: 18px;
+    top: 16px;
   }
   .quiz-hud--bl,
   .quiz-hud--br {
-    bottom: 18px;
+    bottom: 16px;
   }
   .quiz-hud--tl,
   .quiz-hud--bl {
-    left: 20px;
+    left: 18px;
   }
   .quiz-hud--tr,
   .quiz-hud--br {
-    right: 20px;
+    right: 18px;
   }
   .quiz-hud {
-    padding: 2px 5px;
+    padding: 2px 6px;
   }
   .quiz-score div {
     padding: 8px 10px 9px;
   }
   .quiz-score dd {
-    font-size: 17px;
+    font-size: 16px;
+  }
+  .quiz-result__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .quiz-result__share,
+  .quiz-result__next {
+    width: 100%;
+    min-width: 0;
   }
 }
 
-.quiz-aside {
-  margin: 4px 0 0;
-  color: var(--text-soft);
-  font-size: 14px;
-}
-.quiz-aside a {
-  color: var(--accent-soft);
-  font-weight: 600;
+@media (min-width: 720px) {
+  .quiz-result__actions {
+    justify-content: flex-end;
+  }
+  .quiz-result__share {
+    flex: 0 1 auto;
+  }
 }

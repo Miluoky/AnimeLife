@@ -31,6 +31,16 @@ function formatTime(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
+/** Единый скелетон вкладок с ленивой подгрузкой: полоса «шапки» + панель контента. */
+function LibraryTabSkeleton() {
+  return (
+    <div className="library-tab-skeleton" aria-hidden>
+      <div className="library-tab-skeleton__head skeleton" />
+      <div className="library-tab-skeleton__panel skeleton" />
+    </div>
+  )
+}
+
 function ContinueShelf({ history }: { history: HistoryEntry[] }) {
   if (!history.length) {
     return (
@@ -156,13 +166,13 @@ export default function LibraryPage() {
       </nav>
 
       {currentTab === 'new' ? (
-        <Suspense fallback={<div className="skeleton" style={{ height: 320, borderRadius: 'var(--radius-md)' }} />}>
+        <Suspense fallback={<LibraryTabSkeleton />}>
           <WatchingView embedded />
         </Suspense>
       ) : currentTab === 'history' ? (
         <ContinueShelf history={history} />
       ) : (
-        <Suspense fallback={<div className="skeleton" style={{ height: 320, borderRadius: 'var(--radius-md)' }} />}>
+        <Suspense fallback={<LibraryTabSkeleton />}>
           <MyListView embedded status={'status' in active ? active.status : undefined} />
         </Suspense>
       )}

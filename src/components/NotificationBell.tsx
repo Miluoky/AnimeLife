@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { loadNotifications, markNotificationsRead, notificationText, type SiteNotification } from '../data/notifications'
 import { useInboxCount } from '../data/inbox'
@@ -35,6 +35,7 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false)
   const fresh = useInboxCount()
   const box = useRef<HTMLDivElement>(null)
+  const panelId = useId()
 
   const refresh = () =>
     loadNotifications()
@@ -67,6 +68,16 @@ export default function NotificationBell() {
     }
   }, [open])
 
+  useEffect(() => {
+    if (!open) return
+    requestAnimationFrame(() => {
+      const panel = box.current?.querySelector<HTMLElement>('.bell__panel')
+      const first = panel?.querySelector<HTMLElement>('a[href]')
+      if (first) first.focus({ preventScroll: true })
+      else panel?.focus({ preventScroll: true })
+    })
+  }, [open])
+
   const toggle = () => {
     const next = !open
     setOpen(next)
@@ -77,14 +88,18 @@ export default function NotificationBell() {
   }
   const count = unread + (fresh ? 1 : 0)
 
+  const label =
+    count > 0 ? `Уведомления, новых: ${count > 99 ? '99+' : count}` : 'Уведомления'
+
   return (
     <div className="bell" ref={box}>
       <button
         type="button"
         className="icon-btn bell__btn"
         aria-expanded={open}
-        aria-haspopup="true"
-        aria-label={unread ? `Уведомления: новых ${unread}` : 'Уведомления'}
+        aria-haspopup="dialog"
+        aria-controls={open ? panelId : undefined}
+        aria-label={label}
         title="Уведомления"
         onClick={toggle}
       >
@@ -96,7 +111,7 @@ export default function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="bell__panel" role="dialog" aria-label="Уведомления">
+        <div className="bell__panel" id={panelId} role="region" aria-label="Уведомления" tabIndex={-1}>
           <p className="bell__title">Уведомления</p>
           {fresh > 0 && (
             <Link to="/library?tab=new" className="bell__item bell__item--new" onClick={() => setOpen(false)}>

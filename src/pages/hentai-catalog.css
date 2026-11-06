@@ -2,15 +2,26 @@
   padding-bottom: 48px;
 }
 
+/* Токены секции 18+: спокойный акцент, без «кислоты». */
+.hentai-page,
+.hentai-manga-page {
+  --hentai-accent: #d9466b;
+  --hentai-accent-soft: color-mix(in srgb, var(--hentai-accent) 22%, transparent);
+  --hentai-accent-line: color-mix(in srgb, var(--hentai-accent) 38%, var(--line));
+  --hentai-glow-1: color-mix(in srgb, var(--hentai-accent) 16%, transparent);
+  --hentai-glow-2: color-mix(in srgb, #9d4edd 12%, transparent);
+}
+
 .hentai-header {
   position: relative;
   padding: 32px 24px;
-  background: radial-gradient(circle at 10% 20%, color-mix(in srgb, #ff2a6d 18%, transparent), transparent 50%),
-              radial-gradient(circle at 90% 80%, color-mix(in srgb, #9d4edd 14%, transparent), transparent 60%),
+  background: radial-gradient(circle at 10% 20%, var(--hentai-glow-1), transparent 50%),
+              radial-gradient(circle at 90% 80%, var(--hentai-glow-2), transparent 60%),
               var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   margin-bottom: 24px;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--hentai-accent) 8%, transparent);
 }
 
 .hentai-header__badge {
@@ -18,15 +29,23 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: color-mix(in srgb, #ff2a6d 20%, transparent);
-  border: 1px solid color-mix(in srgb, #ff2a6d 40%, transparent);
-  color: #ff5470;
+  background: var(--hentai-accent-soft);
+  border: 1px solid var(--hentai-accent-line);
+  color: var(--hentai-accent);
   border-radius: var(--radius-full);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   margin-bottom: 12px;
+}
+
+.hentai-header__badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hentai-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--hentai-accent) 35%, transparent);
 }
 
 .hentai-header__title {
@@ -71,16 +90,122 @@
 }
 
 .hentai-switch__btn.is-active {
-  background: var(--accent);
+  background: color-mix(in srgb, var(--hentai-accent) 88%, #1a0a12);
   color: #fff;
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--hentai-accent) 38%, transparent);
+}
+
+.hentai-switch__btn.is-active:hover {
+  color: #fff;
+}
+
+/* Контент до подтверждения возраста: оболочка сетки без данных. */
+.hentai-shell {
+  margin-top: 8px;
+  padding: 28px 22px;
+  border-radius: var(--radius-lg);
+  border: 1px dashed color-mix(in srgb, var(--muted) 45%, var(--line));
+  background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.hentai-shell__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.hentai-shell__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 420px;
+  line-height: 1.45;
+}
+
+.hentai-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 20px;
+  margin-bottom: 8px;
+}
+
+.hentai-toolbar__block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hentai-toolbar__label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hentai-sort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.hentai-sort__label {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.hentai-sort__select {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 13px;
+  min-width: 200px;
+  max-width: 100%;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.hentai-sort__select:hover {
+  border-color: var(--hentai-accent-line);
+}
+
+.hentai-sort__select:focus {
+  outline: none;
+  border-color: var(--hentai-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hentai-accent) 22%, transparent);
 }
 
 .hentai-tags {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
+  margin-bottom: 0;
+  max-height: 5.6rem;
+  overflow: hidden;
+  padding-bottom: 2px;
+}
+
+@supports (mask-image: linear-gradient(#000, #000)) {
+  .hentai-tags {
+    mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
+  }
 }
 
 .hentai-tag-btn {
@@ -95,26 +220,103 @@
 }
 
 .hentai-tag-btn:hover {
-  border-color: var(--accent);
+  border-color: var(--hentai-accent-line);
   color: var(--text);
 }
 
 .hentai-tag-btn.is-active {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--hentai-accent) 20%, transparent);
+  border-color: var(--hentai-accent-line);
+  color: var(--hentai-accent);
   font-weight: 600;
 }
 
 .hentai-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 20px 16px;
+  gap: 24px 18px;
+}
+
+.hentai-skeleton-grid .poster-card.skeleton {
+  min-height: 280px;
+}
+
+.hentai-empty,
+.hentai-error {
+  margin-top: 8px;
+  padding: 48px 24px;
+  text-align: center;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+}
+
+.hentai-empty__title,
+.hentai-error__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.hentai-empty__text,
+.hentai-error__text {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hentai-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 8px;
 }
 
 @media (max-width: 640px) {
   .hentai-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px 10px;
+    gap: 16px 12px;
   }
+
+  .hentai-header {
+    padding: 24px 18px;
+  }
+
+  .hentai-sort__select {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Карточка в сетке 18+ */
+.poster-card.hentai-card .poster-card__img {
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hentai-accent, #d9466b) 28%, transparent);
+}
+
+.hentai-card__badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  color: #fff;
+  background: color-mix(in srgb, var(--hentai-accent, #d9466b) 90%, #120608);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px color-mix(in srgb, #000 55%, transparent);
+  pointer-events: none;
 }

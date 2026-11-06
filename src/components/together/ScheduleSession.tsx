@@ -53,7 +53,7 @@ export default function ScheduleSession({
 
   if (!upcoming && !isHost) return null
   return (
-    <div className={`schedule-card${upcoming ? ' schedule-card--on' : ''}`}>
+    <div className={`together-panel schedule-card${upcoming ? ' schedule-card--on' : ''}`}>
       <CalendarIcon size={22} />
       <div className="stack" style={{ gap: 2, flex: 1, minWidth: 200 }}>
         {upcoming ? (

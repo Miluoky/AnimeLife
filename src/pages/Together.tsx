@@ -350,8 +350,9 @@ export default function Together() {
   }
 
   return (
-    <main className="container together">
+    <main className="container together together--room">
       <div className="stack together__stage">
+        <div className="together__chrome">
         <div className="player-frame together__frame">
           {sync ? (
             <SyncVideo
@@ -437,10 +438,11 @@ export default function Together() {
         </div>
 
         <Hall members={members} hostId={room.hostId} myId={user?.$id} />
+        </div>
 
         <div className="together__bar">
-          <div className="stack" style={{ gap: 2 }}>
-            <Link to={`/anime/${room.animeId}`} className="muted">
+          <div className="together__bar-main stack" style={{ gap: 4 }}>
+            <Link to={`/anime/${room.animeId}`} className="muted together__anime-link">
               {room.animeTitle}
             </Link>
             <h1 className="together__title">
@@ -459,7 +461,7 @@ export default function Together() {
                   : ' · свой файл'}
             </span>
           </div>
-          <div className="actions">
+          <div className="actions together__bar-actions">
             {canControl && (
               <>
                 {room.episode > 1 && (
@@ -637,9 +639,11 @@ function Chat({
 
   return (
     <aside className="together__chat" aria-label="Чат комнаты">
-      <div className="section-head">
-        <h2 style={{ fontSize: 18, fontWeight: 500 }}>Чат</h2>
-        <span className="muted">код {room.$id}</span>
+      <div className="section-head together__chat-head">
+        <div className="together__chat-head-text">
+          <h2 className="together__chat-title">Чат</h2>
+          <span className="muted together__chat-code">код {room.$id}</span>
+        </div>
       </div>
       {people}
       <ol className="chat" ref={list}>

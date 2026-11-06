@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useId } from 'react'
 import { toast } from '../data/toast'
 import { playerTime } from '../data/playerTime'
 import { CloseIcon } from './Icons'
@@ -56,6 +56,7 @@ export default function ShareModal({
   currentTime,
 }: ShareModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+  const subtitleId = useId()
   const currentSec = Math.floor(currentTime ?? playerTime() ?? 0)
   const [includeTimestamp, setIncludeTimestamp] = useState(currentSec > 0)
   const [qrSvg, setQrSvg] = useState<string>()
@@ -68,14 +69,59 @@ export default function ShareModal({
     }
   }, [isOpen, currentSec])
 
-  // Закрытие по Escape
+  // Закрытие по Escape, блокировка прокрутки страницы, ловушка фокуса
   useEffect(() => {
     if (!isOpen) return
+    const root = document.documentElement
+    root.classList.add('scroll-lock')
+
+    const FOCUSABLE =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+    const getFocusable = () => {
+      const el = modalRef.current
+      if (!el) return [] as HTMLElement[]
+      return Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((node) => !node.hasAttribute('disabled'))
+    }
+
+    const focusFirst = () => {
+      requestAnimationFrame(() => {
+        const url = modalRef.current?.querySelector<HTMLInputElement>('.share-modal__url-input')
+        if (url) {
+          url.focus({ preventScroll: true })
+          return
+        }
+        const nodes = getFocusable()
+        ;(nodes[0] ?? modalRef.current)?.focus({ preventScroll: true })
+      })
+    }
+    focusFirst()
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab' || !modalRef.current) return
+      const nodes = getFocusable()
+      if (nodes.length === 0) return
+      const first = nodes[0]
+      const last = nodes[nodes.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else if (document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      root.classList.remove('scroll-lock')
+      window.removeEventListener('keydown', onKey)
+    }
   }, [isOpen, onClose])
 
   // Формирование ссылки и текста
@@ -132,20 +178,23 @@ export default function ShareModal({
 
   return (
     <>
-      <div className="sheet-backdrop" onClick={onClose} aria-hidden="true" style={{ zIndex: 110 }} />
+      <div className="sheet-backdrop share-modal__backdrop" onClick={onClose} aria-hidden="true" />
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="share-modal-title"
+        aria-describedby={subtitleId}
+        tabIndex={-1}
         className="share-modal"
       >
+        <span className="share-modal__grip" aria-hidden="true" />
         <div className="share-modal__header">
           <div>
             <h2 id="share-modal-title" className="share-modal__title">
               Поделиться серией
             </h2>
-            <p className="share-modal__subtitle">
+            <p id={subtitleId} className="share-modal__subtitle">
               «{title}», серия {episode}
             </p>
           </div>
@@ -160,14 +209,16 @@ export default function ShareModal({
         </div>
 
         {hasValidTime && (
-          <label className="share-modal__timestamp">
+          <label className="share-modal__timestamp" htmlFor="share-modal-include-time">
             <input
+              id="share-modal-include-time"
               type="checkbox"
               checked={includeTimestamp}
               onChange={(e) => setIncludeTimestamp(e.currentTarget.checked)}
             />
             <span>
-              Ссылка на точный момент: <strong style={{ color: 'var(--accent)' }}>{formatTimestamp(currentSec)}</strong>
+              Ссылка на точный момент:{' '}
+              <strong className="share-modal__timestamp-strong">{formatTimestamp(currentSec)}</strong>
             </span>
           </label>
         )}

@@ -1,5 +1,17 @@
 /* Каталог: фильтры, которые есть только здесь. */
 
+/* Смещение sticky-панели: как у шапки (72px десктоп, 60px уже при ≤900px — см. styles.css). */
+.catalog {
+  --catalog-header-row: 72px;
+  --catalog-sticky-gap: 8px;
+  --catalog-sticky-top: calc(var(--catalog-header-row) + env(safe-area-inset-top, 0px) + var(--catalog-sticky-gap));
+}
+@media (max-width: 900px) {
+  .catalog {
+    --catalog-header-row: 60px;
+  }
+}
+
 /* Выбор нескольких жанров: кнопка как у обычного фильтра и выпадающий список с галочками. */
 .multi-pick {
   position: relative;
@@ -207,7 +219,7 @@
   margin-right: -8px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent);
   animation: catalog-rec 1.6s steps(2, jump-none) infinite;
 }
 .catalog__rec > span:nth-child(3) {
@@ -232,8 +244,11 @@
 .catalog-empty__box {
   padding: 1rem 1rem 1.1rem;
   border-radius: 2px;
-  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in srgb, var(--glass-surface) 88%, var(--bg) 12%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
 }
 .catalog-empty__title {
   margin: 0 0 0.35rem;
@@ -344,37 +359,58 @@
     flex-direction: column;
     gap: 12px;
     margin: 0 -14px;
-    padding: 0.35rem 14px 0.65rem;
+    padding: 10px 14px 12px;
     max-width: calc(100% + 28px);
     position: sticky;
-    top: calc(72px + env(safe-area-inset-top, 0px) + 6px);
+    top: var(--catalog-sticky-top);
     z-index: 12;
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--bg) 92%, transparent) 0%,
-      color-mix(in srgb, var(--bg) 88%, transparent) 72%,
-      transparent 100%
+      color-mix(in srgb, var(--glass-surface) 94%, var(--bg) 6%) 0%,
+      color-mix(in srgb, var(--glass-surface) 88%, var(--bg) 12%) 65%,
+      color-mix(in srgb, var(--bg) 92%, transparent) 100%
     );
-    border-bottom: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
-    backdrop-filter: blur(10px) saturate(150%);
-    -webkit-backdrop-filter: blur(10px) saturate(150%);
+    border-bottom: 1px solid var(--glass-edge);
+    box-shadow: 0 10px 28px rgb(0 0 0 / 0.22);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+  /* Контент сетки не залезает под «стекло» при первом проскролле */
+  .catalog-results {
+    scroll-margin-top: calc(var(--catalog-sticky-top) + 12px);
   }
   .catalog .filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
+  .catalog .filters.filters--open {
+    margin-top: 4px;
+    padding-top: 4px;
+    gap: 14px;
+  }
+  .catalog .filters.filters--open .multi-pick {
+    grid-column: 1 / -1;
+  }
+  .catalog .filters.filters--open .filter__label {
+    font-size: 11px;
+  }
   .catalog__deck .chip-filter {
-    margin: 0;
-    padding: 2px 0;
+    margin: 0 -6px;
+    padding: 4px 6px 8px;
     max-width: none;
     flex-wrap: nowrap;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
     overflow-x: auto;
+    overflow-y: hidden;
     overscroll-behavior-x: contain;
+    scroll-padding-inline: 6px;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pinch-zoom;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--muted) 35%, transparent) transparent;
+    scroll-snap-type: x mandatory;
+    mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
   }
   .catalog__deck .chip-filter::-webkit-scrollbar {
     height: 4px;
@@ -384,22 +420,20 @@
     background: color-mix(in srgb, var(--muted) 40%, transparent);
   }
   .catalog__filter-bar .chip-filter:last-of-type {
-    padding-bottom: 6px;
+    padding-bottom: 4px;
   }
   .chip-filter__label {
     min-width: 0;
-    margin-right: 4px;
-    margin-top: 8px;
+    margin-right: 2px;
+    margin-top: 0;
     flex-shrink: 0;
   }
   .catalog .chip-filter .pill {
     flex: 0 0 auto;
-    min-height: 40px;
-    padding: 0 15px;
+    min-height: 44px;
+    padding: 0 16px;
     scroll-snap-align: start;
-  }
-  .catalog .chip-filter {
-    scroll-snap-type: x proximity;
+    scroll-snap-stop: normal;
   }
   .catalog .filters-toggle {
     align-self: stretch;

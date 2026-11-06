@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { blurPoster } from '../api/shikimori'
 import { useMyList } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
 import { tasteStore } from '../data/taste'
@@ -85,15 +86,26 @@ function Head({ kicker, title, text }: { kicker: string; title: string; text?: s
   )
 }
 
-function Cover({ item }: { item: DuelTitle }) {
+function Cover({ item, size = 'md', priority }: { item: DuelTitle; size?: 'md' | 'sm'; priority?: boolean }) {
   const fill = item.posterFill || '#1e2638'
   const posterUrl = item.posterUrl
+  const posterSmall = posterUrl ? blurPoster(posterUrl) : undefined
   return (
-    <span className="duel-cover" style={{ background: fill, position: 'relative' }}>
+    <span
+      className={`duel-cover duel-cover--${size}`}
+      style={{ background: fill, position: 'relative' }}
+    >
       {posterUrl ? (
         <Poster
-          anime={{ title: item.title, posterUrl, posterFill: fill }}
+          anime={{
+            title: item.title,
+            posterUrl,
+            posterSmall: posterSmall ?? undefined,
+            posterFill: fill,
+          }}
+          priority={priority}
           alt={`Постер аниме «${item.title}»`}
+          className="poster-img--cover"
         />
       ) : (
         item.title.slice(0, 1)
@@ -103,11 +115,14 @@ function Cover({ item }: { item: DuelTitle }) {
 }
 
 function PairCard({ item, onPick }: { item: DuelTitle; onPick: () => void }) {
+  const label = `Выбрать «${item.title}» как более близкий вкусу`
   return (
-    <button type="button" className="duel-side" onClick={onPick}>
+    <button type="button" className="duel-side" onClick={onPick} aria-label={label}>
       <Cover item={item} />
-      <b>{item.title}</b>
-      {item.year ? <span className="muted">{item.year}</span> : null}
+      <span className="duel-side__body">
+        <b className="duel-side__title">{item.title}</b>
+        {item.year ? <span className="muted duel-side__year">{item.year}</span> : null}
+      </span>
       <span className="duel-pick">Ближе</span>
     </button>
   )
@@ -231,21 +246,56 @@ export default function TasteDuel() {
     return (
       <Shell>
         <Head kicker={code && !isShare ? `Код ${code}` : 'Общая дуэль'} title="Дуэль вкуса" />
-        <p className="duel-match" role="status">
-          <span>Совпадение</span>
-          <strong>{pct}%</strong>
-        </p>
-        <p className="soft duel-note">
-          Совпали выборы: {same} из {pairs.length}
-        </p>
-        <ul className="duel-breakdown">
+        <div className="duel-result">
+          <p className="duel-match" role="status">
+            <span>Совпадение</span>
+            <strong>{pct}%</strong>
+          </p>
+          <p className="soft duel-note duel-result__hint">Совпали выборы: {same} из {pairs.length}</p>
+        </div>
+        <ul className="duel-breakdown" aria-label="Сравнение по парам">
           {pairs.map((pair, i) => {
             const agree = board.a?.[i] === board.b?.[i]
-            const left = pair[board.a?.[i] ?? 0].title
-            const right = pair[board.b?.[i] ?? 0].title
+            const pickA = pair[board.a?.[i] ?? 0]
+            const pickB = pair[board.b?.[i] ?? 0]
             return (
-              <li key={`${pair[0].id}-${pair[1].id}-${i}`} className={agree ? 'is-same' : undefined}>
-                {agree ? `Оба выбрали «${left}»` : `Игрок 1: «${left}» · Игрок 2: «${right}»`}
+              <li
+                key={`${pair[0].id}-${pair[1].id}-${i}`}
+                className={agree ? 'duel-breakdown__row is-same' : 'duel-breakdown__row'}
+              >
+                <p className="duel-breakdown__pair-label">Пара {i + 1}</p>
+                {agree ? (
+                  <>
+                    <div className="duel-breakdown__pick duel-breakdown__pick--solo">
+                      <Cover item={pickA} size="sm" priority={i === 0} />
+                      <span className="duel-breakdown__label">
+                        <span className="duel-breakdown__who">Оба</span>
+                        <span className="duel-breakdown__title">{pickA.title}</span>
+                      </span>
+                    </div>
+                    <p className="duel-breakdown__agree">Совпали в этой паре</p>
+                  </>
+                ) : (
+                  <div className="duel-breakdown__split">
+                    <div className="duel-breakdown__pick">
+                      <Cover item={pickA} size="sm" priority={i === 0} />
+                      <span className="duel-breakdown__label">
+                        <span className="duel-breakdown__who">Игрок 1</span>
+                        <span className="duel-breakdown__title">{pickA.title}</span>
+                      </span>
+                    </div>
+                    <span className="duel-breakdown__vs" aria-hidden="true">
+                      ≠
+                    </span>
+                    <div className="duel-breakdown__pick">
+                      <Cover item={pickB} size="sm" />
+                      <span className="duel-breakdown__label">
+                        <span className="duel-breakdown__who">Игрок 2</span>
+                        <span className="duel-breakdown__title">{pickB.title}</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
               </li>
             )
           })}
@@ -272,6 +322,8 @@ export default function TasteDuel() {
   }
 
   if (phase === 'handoff') {
+    const hasA = (board.a?.length ?? 0) > 0
+    const shareUrl = hasA ? publicUrl(`/duel/share?p=${encodeURIComponent(packDuel(board))}`) : code ? publicUrl(`/duel/${code}`) : ''
     return (
       <Shell>
         <Head
@@ -284,7 +336,16 @@ export default function TasteDuel() {
             Код <b>{code}</b>
           </p>
         ) : null}
-        <div className="actions">
+        {shareUrl ? (
+          <div className="duel-share-card" aria-label="Ссылка для второго игрока">
+            <p className="duel-share-card__lead">Ссылка для второго</p>
+            <div className="duel-share-card__url">
+              <output className="duel-share-url">{shareUrl}</output>
+            </div>
+            <p className="muted duel-share-card__hint">Можно отправить в мессенджер — откроется в любом браузере.</p>
+          </div>
+        ) : null}
+        <div className="actions duel-handoff-actions">
           <button type="button" className="btn btn--accent" onClick={() => setAsSecond(true)}>
             Я игрок 2
           </button>
@@ -294,7 +355,6 @@ export default function TasteDuel() {
             </button>
           ) : null}
         </div>
-        <p className="muted duel-note">Ссылка открывает дуэль для второго игрока в любом браузере.</p>
       </Shell>
     )
   }
@@ -318,7 +378,9 @@ export default function TasteDuel() {
       ) : null}
       <div className="duel-pair">
         <PairCard item={pair[0]} onPick={() => choose(0)} />
-        <span className="duel-or">или</span>
+        <div className="duel-pair__versus" aria-hidden="true">
+          <span className="duel-or">или</span>
+        </div>
         <PairCard item={pair[1]} onPick={() => choose(1)} />
       </div>
     </Shell>

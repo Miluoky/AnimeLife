@@ -306,31 +306,60 @@
 
 
 /* Блок «Оформление» на странице аккаунта: сетка подписей, свотчи, группа переключателей */
+.acc-appearance-section {
+  width: min(100%, 720px);
+}
+
 .acc-appearance {
-  padding: 22px 22px 26px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  max-width: 720px;
+  --acc-app-label: 96px;
+  --acc-app-pad: clamp(16px, 3.5vw, 24px);
+  --acc-app-radius: clamp(10px, 2.2vw, 14px);
+  position: relative;
+  max-width: 100%;
+  padding: var(--acc-app-pad);
+  padding-bottom: calc(var(--acc-app-pad) + 4px);
+  border-radius: var(--acc-app-radius);
+  border: 1px solid color-mix(in srgb, var(--line) 90%, var(--text) 10%);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--surface) 94%, var(--bg)) 0%,
+      color-mix(in srgb, var(--surface-2) 22%, var(--surface)) 100%
+    );
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 5%, transparent);
 }
 
 .acc-appearance .appearance {
-  gap: 22px;
+  gap: clamp(18px, 3.2vw, 26px);
+}
+
+.acc-appearance .appearance > h2 {
+  margin: 0 0 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 88%, var(--text-soft) 12%);
+  font-size: clamp(19px, 2.1vw, 22px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .acc-appearance .appearance__row:not(.appearance__toggle) {
   display: grid;
-  grid-template-columns: minmax(0, 92px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, var(--acc-app-label)) minmax(0, 1fr);
   align-items: start;
-  gap: 10px 20px;
+  gap: 12px 18px;
 }
 
 .acc-appearance .appearance__row:not(.appearance__toggle) > .muted {
   min-width: 0;
   margin: 0;
-  padding-top: 7px;
+  padding-top: 8px;
   font-weight: 600;
+  font-size: 12px;
   line-height: 1.35;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .acc-appearance .chips {
@@ -341,41 +370,62 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  row-gap: 14px;
+  gap: 10px 12px;
 }
 
 .acc-appearance .swatch {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   flex-shrink: 0;
-  border: 2px solid color-mix(in srgb, var(--text) 18%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 35%, transparent);
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--text) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 38%, transparent);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.acc-appearance .swatch:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--text) 32%, transparent);
+}
+
+.acc-appearance .swatch:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--text));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--bg) 40%, transparent),
+    0 0 0 2px var(--bg),
+    0 0 0 4px color-mix(in srgb, var(--accent) 55%, var(--line));
 }
 
 .acc-appearance .swatch--on {
-  border-color: var(--text);
-  box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--text);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--text));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--bg) 42%, transparent),
+    0 0 0 2px var(--bg),
+    0 0 0 3px color-mix(in srgb, var(--accent) 70%, var(--text));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .acc-appearance .swatch:hover:not(:disabled):not(.swatch--on) {
+    transform: scale(1.05);
+  }
 }
 
 /* Подпись к «Экономии трафика» */
 .acc-appearance .appearance__hint {
-  margin: -4px 0 0;
+  margin: -2px 0 0;
   grid-column: 1 / -1;
   max-width: none;
   font-size: 13px;
   line-height: 1.55;
-  padding-left: calc(92px + 20px);
-}
-
-@media (max-width: 520px) {
-  .acc-appearance .appearance__hint {
-    padding-left: 0;
-  }
+  color: var(--text-soft);
+  padding-left: calc(var(--acc-app-label) + 18px);
 }
 
 .acc-appearance .appearance__hint + .appearance__toggle {
-  margin-top: 6px;
+  margin-top: 8px;
   padding-top: 18px;
   border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
 }
@@ -384,17 +434,19 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  width: 100%;
   margin: 0;
+  box-sizing: border-box;
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface-2) 75%, var(--surface));
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--surface));
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .acc-appearance .appearance__toggle:hover {
-  border-color: color-mix(in srgb, var(--text-soft) 45%, var(--line));
+  border-color: color-mix(in srgb, var(--text-soft) 42%, var(--line));
 }
 
 .acc-appearance .appearance__toggle input {
@@ -413,15 +465,27 @@
 }
 
 .acc-appearance .appearance__toggle:last-of-type {
-  margin-top: 8px;
-  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+  margin-top: 10px;
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 7%, var(--surface-2)),
+    color-mix(in srgb, var(--surface-2) 90%, var(--surface))
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
-@media (max-width: 520px) {
+.acc-appearance .appearance__toggle:last-of-type:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+}
+
+@media (max-width: 560px) {
   .acc-appearance {
-    padding: 18px 16px 22px;
-    border-radius: 10px;
+    --acc-app-label: min(88px, 26vw);
+  }
+
+  .acc-appearance .appearance__hint {
+    padding-left: 0;
   }
 
   .acc-appearance .appearance__row:not(.appearance__toggle) {
@@ -431,6 +495,13 @@
 
   .acc-appearance .appearance__row:not(.appearance__toggle) > .muted {
     padding-top: 0;
+  }
+}
+
+@media (max-width: 400px) {
+  .acc-appearance .swatches {
+    justify-content: flex-start;
+    gap: 10px;
   }
 }
 

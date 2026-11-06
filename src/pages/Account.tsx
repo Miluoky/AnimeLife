@@ -425,9 +425,11 @@ export default function Account() {
           <AdminStatsCard />
         </Suspense>
       )}
-      <div className="acc-appearance">
-        <AppearanceSettings />
-      </div>
+      <section className="acc-appearance-section" aria-label="Оформление сайта">
+        <div className="acc-appearance">
+          <AppearanceSettings />
+        </div>
+      </section>
       <PushSettings />
       <TelegramNotifySettings />
       {(user || list.length > 0) && <ProfileStats />}

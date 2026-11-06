@@ -6,10 +6,30 @@
   flex-wrap: wrap;
   align-items: flex-start;
 }
+.together--room {
+  gap: 28px;
+}
 .together__stage {
   flex: 1 1 720px;
   min-width: 0;
   gap: 16px;
+}
+/* Экран + кинозал — один визуальный блок */
+.together__chrome {
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--text) 8%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), var(--bg));
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.together__chrome .together__frame {
+  border-radius: var(--radius-sm);
+}
+.together__chrome .hall {
+  margin-top: 0;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 .together__frame .player-iframe,
 .together__frame .sync-yt iframe {
@@ -65,11 +85,37 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: 16px 24px;
   flex-wrap: wrap;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--text) 8%, var(--line));
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+.together__bar-main {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.together__anime-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.together__anime-link:hover {
+  color: var(--accent-soft);
+}
+.together__bar-actions {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+.together__bar-actions .btn--accent {
+  box-shadow: var(--glow-accent);
 }
 .together__title {
-  font-size: 26px;
+  font-size: clamp(22px, 2.6vw, 26px);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -77,9 +123,11 @@
 }
 .together__meta {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   font-size: 14px;
+  line-height: 1.45;
+  flex-wrap: wrap;
 }
 .together__host {
   display: flex;
@@ -155,8 +203,32 @@
   flex-direction: column;
   gap: 12px;
   padding: 18px;
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--text) 6%, var(--line));
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+.together__chat-head.section-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.together__chat-head-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  justify-content: space-between;
+}
+.together__chat-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: var(--font-display);
+}
+.together__chat-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
 }
 .chat {
   list-style: none;
@@ -251,6 +323,12 @@
   transform: scale(0.9);
 }
 
+/* Панели под экраном: приглашение, озвучка, расписание — один ритм */
+.together-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--text) 7%, var(--line));
+}
+
 /* Приглашение */
 .invite {
   display: flex;
@@ -258,9 +336,12 @@
   align-items: center;
   flex-wrap: wrap;
   padding: 18px;
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
   animation: pop 0.25s ease-out;
+}
+.together-invite.invite {
+  gap: 16px 24px;
 }
 .invite__qr {
   width: 132px;
@@ -292,7 +373,31 @@
 /* Вкладка «Вместе» — «Кадр»: экран-видоискатель с уголками, строка LIVE, поле кода как табло таймкода. */
 .together-home {
   padding-top: 32px;
-  gap: 40px;
+  gap: 36px;
+}
+.together-home__block {
+  gap: 14px;
+}
+.together-home__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.together-home__head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.together-home__head h2 {
+  margin: 0;
+  font-size: clamp(20px, 2.2vw, 24px);
+}
+.together-home__sub {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  max-width: 62ch;
 }
 .together-hero {
   --fc-inset: 10px;
@@ -301,15 +406,65 @@
   overflow: hidden;
   isolation: isolate;
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 32px;
-  align-items: center;
-  padding: 40px;
-  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
-  border-radius: 2px;
+  grid-template-columns: 1.35fr minmax(260px, 0.95fr);
+  gap: 36px;
+  align-items: stretch;
+  padding: clamp(28px, 4vw, 40px);
+  border: 1px solid color-mix(in srgb, var(--text) 8%, var(--line));
+  border-radius: var(--radius-md);
   background:
     radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 55%),
     linear-gradient(180deg, color-mix(in srgb, var(--surface) 80%, transparent), color-mix(in srgb, var(--surface) 40%, transparent));
+}
+.together-hero__copy {
+  justify-content: center;
+}
+.together-hero__lead {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 54ch;
+}
+.together-hero__bullets {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  max-width: 54ch;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.together-hero__bullets li {
+  display: grid;
+  gap: 2px;
+  padding-left: 14px;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.together-hero__bullet-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  font-family: var(--font-body);
+}
+.together-hero__panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+.together-hero__catalog-link {
+  color: var(--accent-soft);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  text-underline-offset: 3px;
+}
+.together-hero__catalog-link:hover {
+  color: var(--accent);
 }
 /* развёртка экрана */
 .together-hero::after {
@@ -360,9 +515,19 @@
   flex-direction: column;
   gap: 10px;
   padding: 18px;
-  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 10%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg) 78%, var(--surface-2) 22%);
+}
+.join-form__submit {
+  width: 100%;
+  justify-content: center;
+}
+.join-form__foot {
+  margin: 0;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.45;
 }
 .join-form__label {
   display: flex;
@@ -399,52 +564,163 @@
 }
 .together-count {
   min-width: 34px;
-  padding: 3px 8px;
-  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, var(--line));
+  border-radius: var(--radius-full);
   color: var(--text-soft);
-  font: 700 13px var(--font-mono);
+  font: 700 12px var(--font-mono);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.together-home .together-empty {
+.together-empty--home {
   --fc-inset: 8px;
   position: relative;
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--text) 8%, transparent);
-  border-radius: 2px;
-}
-.rooms-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-.room-card {
   display: flex;
-  gap: 14px;
-  padding: 12px;
-  min-height: 112px;
-  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-  transition: transform 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 28px 22px 32px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
 }
-.room-card:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-  background: var(--surface-2);
+.together-empty__title {
+  margin: 0;
+  font-size: 20px;
+  font-family: var(--font-display);
+}
+.together-empty__text {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.together-empty__actions {
+  margin-top: 8px;
+  justify-content: center;
+}
+/* Список комнат: одна колонка, меньше «карточности» */
+.together-room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--text) 8%, var(--line));
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  overflow: hidden;
+}
+.together-room-row {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 12px 14px;
+  min-height: 88px;
+  color: inherit;
+  text-decoration: none;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 6%, var(--line));
+  background: transparent;
+  transition: background 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.together-room-row:last-child {
+  border-bottom: 0;
+}
+.together-room-row:hover {
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   box-shadow: inset 3px 0 0 var(--accent);
 }
-.room-card__img {
-  flex: 0 0 64px;
-  height: 88px;
-  border-radius: 2px;
+.together-room-row:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.together-room-row__thumb {
+  flex: 0 0 56px;
+  width: 56px;
+  align-self: center;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-xs);
   background: var(--surface-2) center / cover;
 }
-.room-card__meta {
+.together-room-row__body {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+.together-room-row__title {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.together-room-row__line {
   font-size: 13px;
+}
+.together-room-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  font-size: 13px;
+}
+.together-room-row__host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(200px, 40vw);
+}
+.together-room-row__viewers {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.together-room-row--soon .together-room-row__title {
+  color: var(--text-soft);
+}
+.together-room-row--skeleton {
+  pointer-events: none;
+  min-height: 88px;
+}
+.together-room-row--skeleton::before,
+.together-room-row--skeleton::after {
+  content: '';
+  display: block;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    color-mix(in srgb, var(--surface-2) 70%, var(--accent) 6%) 50%,
+    var(--surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: together-skel 1.2s ease-in-out infinite;
+}
+.together-room-row--skeleton::before {
+  flex: 0 0 56px;
+  width: 56px;
+  align-self: center;
+  aspect-ratio: 2 / 3;
+}
+.together-room-row--skeleton::after {
+  flex: 1;
+  height: 52px;
+  align-self: center;
+}
+@keyframes together-skel {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 /* таймкод серии и «через …» — моноширинные метки видоискателя */
 .together-home .live-badge {
@@ -457,21 +733,52 @@
   .together-rec i {
     animation: none;
   }
+  .together-room-row--skeleton::before,
+  .together-room-row--skeleton::after {
+    animation: none;
+  }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
+  .together {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .together__chat {
     max-width: none;
-    height: 60vh;
+    width: 100%;
+    height: min(58vh, 560px);
+    flex: none;
+  }
+}
+@media (max-width: 900px) {
+  .together__bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .together__bar-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .together__bar-actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+  }
+  .together__bar-actions .btn--ghost {
+    flex: 1 1 42%;
   }
   .together-hero {
     /* minmax(0, …): иначе поле кода с крупными буквами растягивает колонку шире экрана телефона */
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
-    padding: 30px 24px 34px;
+    padding: 28px 22px 30px;
   }
   .together-rec span {
     display: none;
+  }
+  .together-hero__bullets {
+    gap: 10px;
   }
   .join-form {
     padding: 14px;
@@ -479,6 +786,20 @@
   .join-form input {
     font-size: 24px;
     letter-spacing: 0.24em;
+  }
+  .together-room-row__host {
+    max-width: 52vw;
+  }
+  .together-room-row__viewers {
+    margin-left: 0;
+  }
+  .together-empty__actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .together-empty__actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 :root[data-calm='1'] .burst {
@@ -592,8 +913,8 @@
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border-radius: 6px;
-  background: var(--surface);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
   color: var(--text-soft);
 }
 .schedule-card--on {
@@ -611,17 +932,6 @@
   font: inherit;
   color-scheme: dark;
 }
-.room-card__viewers {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-}
-.room-card--soon .live-badge {
-  color: var(--accent);
-}
-
-
 /* ─── Кинозал под экраном (редизайн, вариант B) ─── */
 /* Экран комнаты светится в зал, как в настоящем кинотеатре. */
 .together__frame {
@@ -631,7 +941,7 @@
 }
 .hall {
   position: relative;
-  margin-top: -6px;
+  margin-top: 0;
   height: 104px;
   perspective: 520px;
   perspective-origin: 50% -40%;
@@ -723,8 +1033,8 @@
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
 }
 .room-voices__head {
   display: flex;

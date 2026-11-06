@@ -17,12 +17,15 @@ export default function HentaiMangaHome() {
 
   const [items, setItems] = useState<Anime[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
   const [unlocked, setUnlocked] = useState(isAgeVerified)
 
   useEffect(() => {
     if (!unlocked) return
     let alive = true
     setLoading(true)
+    setLoadError(false)
 
     searchHentaiMangas({
       page,
@@ -32,17 +35,19 @@ export default function HentaiMangaHome() {
         if (!alive) return
         setItems(data)
         setLoading(false)
+        setLoadError(false)
       })
       .catch(() => {
         if (!alive) return
         setItems([])
         setLoading(false)
+        setLoadError(true)
       })
 
     return () => {
       alive = false
     }
-  }, [unlocked, currentSort, page])
+  }, [unlocked, currentSort, page, reloadToken])
 
   const setSort = (sort: string) => {
     const next = new URLSearchParams(params)
@@ -65,7 +70,7 @@ export default function HentaiMangaHome() {
 
       <header className="hentai-header frame-corners">
         <span className="hentai-header__badge">
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff5470' }} />
+          <span className="hentai-header__badge-dot" aria-hidden />
           18+ Контент для взрослых
         </span>
         <h1 className="hentai-header__title">Хентай Манга & Додзинси</h1>
@@ -83,57 +88,80 @@ export default function HentaiMangaHome() {
         </div>
       </header>
 
-      {unlocked && <section className="stack">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div className="s-chips">
-            <button
-              type="button"
-              className={currentSort === 'popularity' ? 'is-on' : undefined}
-              onClick={() => setSort('popularity')}
-            >
-              Популярное
-            </button>
-            <button
-              type="button"
-              className={currentSort === 'ranked' ? 'is-on' : undefined}
-              onClick={() => setSort('ranked')}
-            >
-              Высокий рейтинг
-            </button>
+      {!unlocked ? (
+        <section className="hentai-shell" aria-hidden>
+          <p className="hentai-shell__title">Каталог скрыт до подтверждения возраста</p>
+          <p className="hentai-shell__hint">
+            Когда возраст будет подтверждён, здесь появятся обложки и сортировка. Используйте окно проверки выше.
+          </p>
+        </section>
+      ) : (
+        <section className="stack">
+          <div className="hentai-manga-toolbar">
+            <div className="hentai-manga-toolbar__block">
+              <span className="hentai-manga-toolbar__label" id="hentai-manga-sort-label">
+                Сортировка
+              </span>
+              <div className="hentai-manga-chips" role="group" aria-labelledby="hentai-manga-sort-label">
+                <button
+                  type="button"
+                  className={currentSort === 'popularity' ? 'is-on' : undefined}
+                  onClick={() => setSort('popularity')}
+                >
+                  Популярное
+                </button>
+                <button
+                  type="button"
+                  className={currentSort === 'ranked' ? 'is-on' : undefined}
+                  onClick={() => setSort('ranked')}
+                >
+                  По рейтингу
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {loading ? (
-          <div className="hentai-manga-grid" aria-busy="true">
-            {Array.from({ length: 12 }, (_, i) => (
-              <div key={i} className="poster-card skeleton" style={{ height: 280, borderRadius: 'var(--radius-md)' }} />
-            ))}
-          </div>
-        ) : items.length > 0 ? (
-          <div className="hentai-manga-grid">
-            {items.map((item, idx) => (
-              <HentaiCard key={item.id} anime={item} priority={idx < 4} isManga />
-            ))}
-          </div>
-        ) : (
-          <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--muted)' }}>
-            <p>Ничего не найдено.</p>
-          </div>
-        )}
+          {loading ? (
+            <div className="hentai-manga-grid hentai-skeleton-grid" aria-busy="true" aria-live="polite">
+              {Array.from({ length: 12 }, (_, i) => (
+                <div key={i} className="poster-card skeleton" style={{ borderRadius: 'var(--radius-md)' }} />
+              ))}
+            </div>
+          ) : loadError ? (
+            <div className="hentai-error" role="status">
+              <p className="hentai-error__title">Не удалось загрузить мангу</p>
+              <p className="hentai-error__text">Проверьте соединение и попробуйте обновить список.</p>
+              <button type="button" className="btn btn--accent" onClick={() => setReloadToken((n) => n + 1)}>
+                Повторить
+              </button>
+            </div>
+          ) : items.length > 0 ? (
+            <div className="hentai-manga-grid">
+              {items.map((item, idx) => (
+                <HentaiCard key={item.id} anime={item} priority={idx < 4} isManga />
+              ))}
+            </div>
+          ) : (
+            <div className="hentai-empty">
+              <p className="hentai-empty__title">Пока пусто</p>
+              <p className="hentai-empty__text">По текущим параметрам ничего не нашлось — смените сортировку или загляните позже.</p>
+            </div>
+          )}
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 32 }}>
-          {page > 1 && (
-            <button type="button" className="btn btn--ghost" onClick={() => setPage(page - 1)}>
-              ← Предыдущая страница
-            </button>
-          )}
-          {items.length >= 24 && (
-            <button type="button" className="btn btn--accent" onClick={() => setPage(page + 1)}>
-              Следующая страница →
-            </button>
-          )}
-        </div>
-      </section>}
+          <nav className="hentai-pagination" aria-label="Страницы каталога манги">
+            {page > 1 && (
+              <button type="button" className="btn btn--ghost" onClick={() => setPage(page - 1)}>
+                ← Назад
+              </button>
+            )}
+            {!loadError && items.length >= 24 && (
+              <button type="button" className="btn btn--accent" onClick={() => setPage(page + 1)}>
+                Дальше →
+              </button>
+            )}
+          </nav>
+        </section>
+      )}
     </main>
   )
 }

@@ -49,6 +49,15 @@ function readBest() {
   }
 }
 
+function roundsLabel(n: number) {
+  const m = n % 100
+  if (m >= 11 && m <= 14) return 'раундов'
+  const d = n % 10
+  if (d === 1) return 'раунд'
+  if (d >= 2 && d <= 4) return 'раунда'
+  return 'раундов'
+}
+
 async function fetchPool(): Promise<Anime[]> {
   const list = await get<ShikiAnimeShort[]>('/animes', {
     order: 'popularity',
@@ -89,6 +98,8 @@ export default function Quiz() {
   const [best, setBest] = useState(readBest)
   // Серия, которую оборвал последний неверный ответ: ею можно похвастаться.
   const [ended, setEnded] = useState(0)
+  const [boot, setBoot] = useState<'loading' | 'ready'>('loading')
+  const [started, setStarted] = useState(false)
 
   const prepare = useCallback(() => {
     next.current = makeRound(pool.current, seen.current)
@@ -107,17 +118,23 @@ export default function Quiz() {
     void next.current?.then((n) => n && (new Image().src = n.shot))
   }, [prepare])
 
-  const started = useRef(false)
+  const initOnce = useRef(false)
   useEffect(() => {
-    if (started.current) return
-    started.current = true
+    if (initOnce.current) return
+    initOnce.current = true
     fetchPool()
       .then((list) => {
         pool.current = list
-        void advance()
+        setBoot('ready')
       })
       .catch(() => setError(true))
-  }, [advance])
+  }, [])
+
+  const startGame = () => {
+    if (boot !== 'ready' || started) return
+    setStarted(true)
+    void advance()
+  }
 
   const choose = (id: string) => {
     if (!round || picked) return
@@ -139,43 +156,100 @@ export default function Quiz() {
 
   const right = picked && round && picked === round.answer.id
 
+  const streakFillPct = Math.min(100, (score.streak / STREAK_FLAG) * 100)
+  const streakRemaining = Math.max(0, STREAK_FLAG - score.streak)
+  const currentRoundNo = !started
+    ? 0
+    : !round
+      ? Math.max(1, score.total + 1)
+      : picked
+        ? score.total
+        : score.total + 1
+
   return (
     <main className="container quiz-page">
-      <header className="quiz-head">
-        <p className="quiz-rec" aria-hidden="true">
-          <i />
-          <b>REC</b>
-          <span>Раунд {String(score.total + (picked ? 0 : 1)).padStart(2, '0')}</span>
-          <span>4 варианта</span>
-        </p>
-        <h1 className="page-title">Угадай аниме по кадру</h1>
-        <p className="soft">Четыре варианта, один верный. Сколько угадаете подряд?</p>
-        <dl className="quiz-score" aria-label="Счёт">
-          <div>
-            <dt>Подряд</dt>
-            <dd>{score.streak}</dd>
+      {!started ? (
+        <header className="quiz-hero">
+          <h1 className="page-title quiz-hero__title">Угадай аниме по кадру</h1>
+          <p className="soft quiz-hero__lead">Один кадр, четыре названия. Ответьте верно — серия растёт, ошибётесь — начнёте заново.</p>
+          <ul className="quiz-hero__rules" aria-label="Как играть">
+            <li>Смотрите кадр и выберите один из четырёх тайтлов.</li>
+            <li>Считаем подряд угаданные аниме и личный рекорд.</li>
+            <li>После неверного ответа можно поделиться серией в один тап.</li>
+          </ul>
+          <p className="quiz-hero__more">
+            <Link className="quiz-hero__link" to="/duel">
+              Дуэль вкуса
+            </Link>
+            <span className="quiz-hero__more-sep"> — кто ближе по пятёрке тайтлов</span>
+          </p>
+        </header>
+      ) : (
+        <header className="quiz-head quiz-head--active" aria-label="Прогресс игры">
+          <div className="quiz-progress">
+            <div className="quiz-progress__row">
+              <span className="quiz-progress__round">
+                Раунд{' '}
+                <strong>{currentRoundNo > 0 ? String(currentRoundNo).padStart(2, '0') : '—'}</strong>
+              </span>
+              <span className="quiz-progress__streak" title="Текущая серия верных ответов">
+                Серия: <strong>{score.streak}</strong>
+              </span>
+            </div>
+            <div className="quiz-progress__track" role="presentation">
+              <div className="quiz-progress__fill" style={{ width: `${streakFillPct}%` }} />
+            </div>
+            {(score.streak >= STREAK_FLAG || streakRemaining > 0) && (
+              <p className="quiz-progress__hint muted">
+                {score.streak >= STREAK_FLAG
+                  ? 'Серия отличная — значок «Глаз-алмаз» уже ваш.'
+                  : `До достижения «Глаз-алмаз» — ещё ${streakRemaining} ${roundsLabel(streakRemaining)}.`}
+              </p>
+            )}
           </div>
-          <div>
-            <dt>Верно</dt>
-            <dd>
-              {score.right} из {score.total}
-            </dd>
-          </div>
-          <div>
-            <dt>Рекорд</dt>
-            <dd>{best}</dd>
-          </div>
-        </dl>
-        <p className="quiz-aside">
-          <Link to="/duel">Дуэль вкуса</Link>
-          <span> — кто ближе по пятёрке тайтлов</span>
-        </p>
-      </header>
+          <dl className="quiz-score quiz-score--compact" aria-label="Счёт">
+            <div>
+              <dt>Подряд</dt>
+              <dd>{score.streak}</dd>
+            </div>
+            <div>
+              <dt>Верно</dt>
+              <dd>
+                {score.right} / {score.total}
+              </dd>
+            </div>
+            <div>
+              <dt>Рекорд</dt>
+              <dd>{best}</dd>
+            </div>
+          </dl>
+        </header>
+      )}
 
       {error ? (
         <div className="empty-state">
           <p className="muted">Не удалось загрузить кадры. Попробуйте обновить страницу чуть позже.</p>
         </div>
+      ) : !started ? (
+        <section className="quiz-start" aria-labelledby="quiz-start-title">
+          <div className="quiz-start__panel">
+            <h2 id="quiz-start-title" className="quiz-start__heading">
+              Готовы?
+            </h2>
+            <p className="quiz-start__text soft">
+              {boot === 'loading' ? 'Подбираем популярные тайтлы и кадры…' : 'Нажмите «Начать», когда будете готовы к первому кадру.'}
+            </p>
+            <button
+              type="button"
+              className="btn btn--accent quiz-start__cta"
+              onClick={startGame}
+              disabled={boot !== 'ready'}
+              aria-busy={boot === 'loading'}
+            >
+              {boot === 'loading' ? 'Загрузка…' : 'Начать'}
+            </button>
+          </div>
+        </section>
       ) : (
         <section className="quiz-card" aria-busy={!round}>
           <div className="quiz-shot frame-corners">
@@ -194,30 +268,39 @@ export default function Quiz() {
               ★ {picked && round?.answer.score ? round.answer.score.toFixed(2) : '?.??'}
             </span>
           </div>
+          <p className="quiz-prompt soft">Какое это аниме?</p>
           <div className="quiz-options" role="group" aria-label="Варианты ответа">
             {(round?.options ?? Array.from({ length: 4 }, () => undefined)).map((a, i) => {
               const state = !picked || !a ? '' : a.id === round?.answer.id ? ' quiz-option--right' : a.id === picked ? ' quiz-option--wrong' : ''
               return (
                 <button key={a?.id ?? i} type="button" className={`quiz-option${state}`} disabled={!a || Boolean(picked)} onClick={() => a && choose(a.id)}>
-                  {a?.title ?? ' '}
+                  <span className="quiz-option__label">{a?.title ?? ' '}</span>
                 </button>
               )
             })}
           </div>
           {picked && round && (
-            <div className="quiz-result" role="status">
-              <p>
-                <strong>{right ? 'Верно!' : 'Мимо.'}</strong> Это «<Link to={`/anime/${round.answer.id}`}>{round.answer.title}</Link>»
-                {round.answer.year ? `, ${round.answer.year}` : ''}.
-              </p>
-              {ended >= 2 && (
-                <button type="button" className="btn btn--ghost" onClick={() => void shareStreak(ended)}>
-                  Похвастаться: {ended} подряд
+            <div className={`quiz-result${right ? ' quiz-result--right' : ' quiz-result--wrong'}`} role="status">
+              <div className="quiz-result__main">
+                <p className="quiz-result__badge">{right ? 'Верно' : 'Мимо'}</p>
+                <p className="quiz-result__detail">
+                  Это{' '}
+                  <Link className="quiz-result__title-link" to={`/anime/${round.answer.id}`}>
+                    {round.answer.title}
+                  </Link>
+                  {round.answer.year ? ` (${round.answer.year})` : ''}.
+                </p>
+              </div>
+              <div className="quiz-result__actions">
+                {ended >= 2 && (
+                  <button type="button" className="btn btn--ghost quiz-result__share" onClick={() => void shareStreak(ended)}>
+                    Поделиться: {ended} подряд
+                  </button>
+                )}
+                <button type="button" className="btn btn--accent quiz-result__next" onClick={() => void advance()} autoFocus>
+                  Дальше
                 </button>
-              )}
-              <button type="button" className="btn btn--accent" onClick={() => void advance()} autoFocus>
-                Дальше
-              </button>
+              </div>
             </div>
           )}
         </section>
