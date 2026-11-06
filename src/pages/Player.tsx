@@ -35,6 +35,8 @@ import VoiceLogo from '../components/VoiceLogo'
 import FollowButton from '../components/FollowButton'
 import PlayerGlow, { GlowCaptureButton } from '../components/PlayerGlow'
 import NextEpisode from '../components/NextEpisode'
+import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
+import { isAdultContent } from '../data/adult'
 import { blurPoster } from '../api/shikimori'
 
 // «Пропускать филлеры»: кнопка и автопереход ведут сразу к следующей сюжетной серии.
@@ -55,6 +57,7 @@ export default function Player() {
   const [params] = useSearchParams()
   const startAt = Number(params.get('t'))
   const [shareOpen, setShareOpen] = useState(false)
+  const [adultOk, setAdultOk] = useState(isAgeVerified)
   useMemo(() => {
     if (startAt > 0) savePosition(id, Math.max(1, Number(episode) || 1), startAt, 0, true)
   }, [id, episode, startAt])
@@ -326,6 +329,9 @@ export default function Player() {
 
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   if (!anime) return <NotFound title="Тайтл не найден" />
+  if (isAdultContent(anime) && !adultOk) {
+    return <AgeGateModal onVerified={() => setAdultOk(true)} />
+  }
   if (isScheduled) {
     return (
       <main className="container empty-page episode-upcoming">

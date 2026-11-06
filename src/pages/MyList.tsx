@@ -53,20 +53,23 @@ function PickForMe({ entries }: { entries: ReturnType<typeof useMyList> }) {
   )
 }
 
-export default function MyList() {
-  usePageMeta('Мой список')
+export default function MyList({ embedded, status }: { embedded?: boolean; status?: ListStatus } = {}) {
+  usePageMeta(embedded ? undefined : 'Мой список')
   const list = useMyList()
   const { user } = useAuth()
   // Открываем первый непустой раздел: если всё в «Буду смотреть», пустая вкладка «Смотрю» только путает.
+  // В библиотеке статус задаёт вкладка сверху — свои чипы тогда не дублируем.
   const [picked, setTab] = useState<ListStatus>()
-  const tab = picked ?? listStatuses.find((s) => list.some((e) => e.status === s.id))?.id ?? 'watching'
+  const tab = status ?? picked ?? listStatuses.find((s) => list.some((e) => e.status === s.id))?.id ?? 'watching'
   const items = list.filter((e) => e.status === tab)
+  const Wrap = embedded ? 'div' : 'main'
 
   return (
-    <main className="container home">
+    <Wrap className={embedded ? 'library-list' : 'container home'}>
       <section className="stack">
         <div className="section-head" style={{ alignItems: 'center' }}>
-          <h1 className="page-title">Мой список</h1>
+          {!embedded && <h1 className="page-title">Мой список</h1>}
+          {!status && (
           <div className="chips" role="tablist" aria-label="Статус">
             {listStatuses.map((s) => {
               const count = list.filter((e) => e.status === s.id).length
@@ -85,6 +88,7 @@ export default function MyList() {
               )
             })}
           </div>
+          )}
         </div>
 
         {tab === 'planned' && items.length > 1 && <PickForMe entries={items} />}
@@ -126,7 +130,7 @@ export default function MyList() {
           )}
         </p>
       </section>
-    </main>
+    </Wrap>
   )
 }
 

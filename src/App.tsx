@@ -78,6 +78,18 @@ function GenreRoute() {
   return moved ? <Navigate replace to={`/genre/${moved}${search}`} /> : <Landing />
 }
 
+function AnimesRedirect() {
+  const location = useLocation()
+  const target = location.pathname.replace(/^\/animes/, '/anime') + location.search + location.hash
+  return <Navigate replace to={target} />
+}
+
+function MangasRedirect() {
+  const location = useLocation()
+  const target = location.pathname.replace(/^\/mangas/, '/manga') + location.search + location.hash
+  return <Navigate replace to={target} />
+}
+
 const PageFallback = () => <main className="container page-fallback" aria-busy="true" />
 
 export default function App() {
@@ -88,6 +100,8 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="animes/*" element={<AnimesRedirect />} />
+          <Route path="mangas/*" element={<MangasRedirect />} />
           <Route path="anime/:id" element={<TitlePageRoute />} />
           <Route path="watch/:id/:episode" element={<Player />} />
           <Route path="ongoing" element={<Landing />} />

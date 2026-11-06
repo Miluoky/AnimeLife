@@ -13,6 +13,7 @@ import { useScrollRestore } from './scrollRestore'
 import { useCanonical } from '../data/pageMeta'
 import { trackPage } from '../data/analytics'
 import { useAmbientSrc } from './ambient'
+import { applyCouch } from '../data/couchMode'
 
 export { Logo }
 
@@ -20,6 +21,7 @@ const InstallBanner = lazy(() => import('./InstallBanner'))
 const FooterLinks = lazy(() => import('./FooterLinks'))
 const BackToTop = lazy(() => import('./BackToTop'))
 const HoverCards = lazy(() => import('./HoverCards'))
+const BurnoutNotice = lazy(() => import('./BurnoutNotice'))
 
 function Ambient() {
   const src = useAmbientSrc()
@@ -47,6 +49,9 @@ export default function Layout() {
 
   useScrollRestore()
   useEffect(() => setMenuOpen(false), [location.pathname])
+  useEffect(() => {
+    applyCouch()
+  }, [])
 
   useEffect(() => {
     document.documentElement.classList.toggle('scroll-lock', menuOpen)
@@ -136,6 +141,7 @@ export default function Layout() {
       </div>
 
       <Suspense fallback={null}>
+        <BurnoutNotice />
         <InstallBanner />
         {hoverCards && <HoverCards />}
       </Suspense>

@@ -1,6 +1,7 @@
 import { accents, setAppearance, themes, useAppearance } from '../data/theme'
 import { CheckIcon } from './Icons'
 import { slowNetwork } from '../data/saver'
+import { setCouch, useCouch } from '../data/couchMode'
 
 const SAVER = [
   { id: 'auto', title: 'Авто' },
@@ -11,6 +12,7 @@ const SAVER = [
 /** Тема, цвет акцента и режим без анимаций. Сохраняется в браузере, вход не нужен. */
 export default function AppearanceSettings() {
   const a = useAppearance()
+  const couch = useCouch()
   return (
     <section className="stack appearance">
       <h2>Оформление</h2>
@@ -77,6 +79,10 @@ export default function AppearanceSettings() {
       <label className="appearance__row appearance__toggle">
         <input type="checkbox" checked={a.glow !== false} onChange={(e) => setAppearance({ glow: e.target.checked })} />
         <span>Подсветка вокруг плеера в цветах кадра</span>
+      </label>
+      <label className="appearance__row appearance__toggle">
+        <input type="checkbox" checked={couch} onChange={(e) => setCouch(e.target.checked)} />
+        <span>Режим дивана — крупнее главное, без сообщества, клубов и чата</span>
       </label>
     </section>
   )

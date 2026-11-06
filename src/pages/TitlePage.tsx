@@ -29,6 +29,8 @@ import NextEpisode from '../components/NextEpisode'
 import FollowButton from '../components/FollowButton'
 import WatchOrder from '../components/WatchOrder'
 import FranchiseBridge from '../components/FranchiseBridge'
+import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
+import { isAdultContent } from '../data/adult'
 import { fetchStaff } from '../api/staff'
 import { findAnixart } from '../api/anixart'
 import { choosePlayerVoice, voiceKey } from '../api/voiceKey'
@@ -263,6 +265,7 @@ export default function TitlePage() {
   const [shotOpen, setShotOpen] = useState<number>()
   const [videoOpen, setVideoOpen] = useState<number>()
   const [videoKind, setVideoKind] = useState('')
+  const [adultOk, setAdultOk] = useState(isAgeVerified)
   const loaded = result.value?.data
   const info = loaded && animeInfo(loaded)
   // Кадры и названия серий из AniLibria, как в карточках серий AniLife. Плеер потом возьмёт тот же релиз из кэша.
@@ -380,6 +383,9 @@ export default function TitlePage() {
   if (result.loading && !result.value) return <main className="container empty-page" aria-busy="true" />
   const anime = result.value?.data
   if (!anime) return <NotFound title="Тайтл не найден" />
+  if (isAdultContent(anime) && !adultOk) {
+    return <AgeGateModal onVerified={() => setAdultOk(true)} />
+  }
 
   const progress = history.find((h) => h.animeId === anime.id)
   const alEpisodes = release.value && String(release.value.shikimori?.id) === anime.id ? release.value.episodes : []

@@ -1560,6 +1560,12 @@ export default {
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
       })
     if (MIRRORS.has(url.hostname)) return Response.redirect(ORIGIN + url.pathname + url.search, 301)
+    if (/^\/animes(?:\/|$)/.test(url.pathname)) {
+      return Response.redirect(ORIGIN + url.pathname.replace(/^\/animes/, '/anime') + url.search, 301)
+    }
+    if (/^\/mangas(?:\/|$)/.test(url.pathname)) {
+      return Response.redirect(ORIGIN + url.pathname.replace(/^\/mangas/, '/manga') + url.search, 301)
+    }
     const moved = url.pathname.match(/^\/genre\/([a-z-]+)\/?$/)?.[1]
     if (moved && MOVED_GENRES[moved]) return Response.redirect(`${ORIGIN}/genre/${MOVED_GENRES[moved]}${url.search}`, 301)
     // Привычный адрес поиска /search?q=… (так его набирают руками и подставляют браузеры) ведёт в каталог с запросом.

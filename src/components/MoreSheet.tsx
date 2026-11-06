@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../data/auth'
+import { useCouch } from '../data/couchMode'
 import { CalendarIcon, ClockIcon, PeopleIcon, SparkIcon, TrophyIcon, UserIcon } from './Icons'
 import './more-sheet.css'
+
+const COUCH_HIDE = /^\/(community|chat|club|duel|quiz|recap|hentai|hentai-manga|together)/
 
 const line = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
 const Svg = ({ d }: { d: string }) => (
@@ -41,7 +44,9 @@ const LINKS = [
 export default function MoreSheet({ onClose }: { onClose: () => void }) {
   const { user } = useAuth()
   const { pathname } = useLocation()
+  const couch = useCouch()
   const sheet = useRef<HTMLDivElement>(null)
+  const links = couch ? LINKS.filter((l) => !COUCH_HIDE.test(l.to)) : LINKS
   const touchStartY = useRef(0)
   const touchCurrentY = useRef(0)
   const touchStartTime = useRef(0)
@@ -131,7 +136,7 @@ export default function MoreSheet({ onClose }: { onClose: () => void }) {
           </span>
         </Link>
         <nav className="sheet__grid" aria-label="Ещё разделы">
-          {LINKS.map((l) => (
+          {links.map((l) => (
             <Link key={l.to} to={l.to} className={`sheet__tile${pathname.startsWith(l.to) ? ' is-here' : ''}`}>
               {l.icon}
               <b>{l.title}</b>

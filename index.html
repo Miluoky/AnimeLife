@@ -7,6 +7,10 @@
       // вызовов), поэтому перенаправляем здесь. Поисковикам Worker отвечает настоящим 301 (worker/index.js).
       if (/^(www\.animelife\.top|anime\.artemdrr61f9\.workers\.dev)$/.test(location.hostname))
         location.replace('https://animelife.top' + location.pathname + location.search + location.hash)
+      if (location.pathname.startsWith('/animes/'))
+        location.replace('https://animelife.top' + location.pathname.replace('/animes/', '/anime/') + location.search + location.hash)
+      if (location.pathname.startsWith('/mangas/'))
+        location.replace('https://animelife.top' + location.pathname.replace('/mangas/', '/manga/') + location.search + location.hash)
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
