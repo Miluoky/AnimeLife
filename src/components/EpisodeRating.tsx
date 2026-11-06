@@ -50,37 +50,39 @@ export default function EpisodeRating({ animeId, episode }: { animeId: string; e
   const shown = hover || score
   return (
     <section className="episode-rating" aria-label="Оценка серии">
-      <span className="episode-rating__label">Как вам серия?</span>
-      <span className="episode-rating__stars" onMouseLeave={() => setHover(0)}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            className={n <= shown ? 'is-on' : undefined}
-            disabled={!user || busy}
-            aria-pressed={n === score}
-            aria-label={`${n} из 5: ${LABELS[n]}`}
-            title={LABELS[n]}
-            onMouseEnter={() => setHover(n)}
-            onClick={() => rate(n)}
-          >
-            ★
-          </button>
-        ))}
-      </span>
-      {shown > 0 && <span className="episode-rating__word">{LABELS[shown]}</span>}
-      {agg && agg.votes > 0 ? (
-        <span className="muted episode-rating__avg">
-          Зрители: <b>{agg.avg.toFixed(1)}</b> из 5 · {agg.votes} {plural(agg.votes)}
+      <div className="episode-rating__top">
+        <span className="episode-rating__label">Как вам серия?</span>
+        <span className="episode-rating__stars" onMouseLeave={() => setHover(0)}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              className={n <= shown ? 'is-on' : undefined}
+              disabled={!user || busy}
+              aria-pressed={n === score}
+              aria-label={`${n} из 5: ${LABELS[n]}`}
+              title={LABELS[n]}
+              onMouseEnter={() => setHover(n)}
+              onClick={() => rate(n)}
+            >
+              ★
+            </button>
+          ))}
         </span>
-      ) : (
-        <span className="muted episode-rating__avg">Оценок пока нет</span>
-      )}
-      {!user && (
-        <Link to="/account" className="episode-rating__login">
-          Войдите, чтобы оценить
-        </Link>
-      )}
+        {shown > 0 && <span className="episode-rating__word">{LABELS[shown]}</span>}
+        {agg && agg.votes > 0 ? (
+          <span className="muted episode-rating__avg">
+            Зрители: <b>{agg.avg.toFixed(1)}</b> из 5 · {agg.votes} {plural(agg.votes)}
+          </span>
+        ) : (
+          <span className="muted episode-rating__avg">Оценок пока нет</span>
+        )}
+        {!user && (
+          <Link to="/account" className="episode-rating__login">
+            Войдите, чтобы оценить
+          </Link>
+        )}
+      </div>
       <div className="episode-rating__react" role="group" aria-label="Личная реакция">
         <span className="episode-rating__react-label">Реакция</span>
         {REACTIONS.map((r) => (

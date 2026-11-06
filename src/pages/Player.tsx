@@ -26,7 +26,7 @@ import { createLocalStore } from '../data/localStore'
 import { usePageMeta, useJsonLd } from '../data/pageMeta'
 import { buildJsonLdEpisode } from '../data/seoEngine'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
-import { BackIcon, BulbIcon, ClockIcon, CloseIcon, SearchIcon, ShareIcon, SkipIcon, WideIcon } from '../components/Icons'
+import { BackIcon, BulbIcon, CloseIcon, SearchIcon, ShareIcon, SkipIcon, WideIcon } from '../components/Icons'
 import ShareModal from '../components/ShareModal'
 import WatchStreak from '../components/WatchStreak'
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
@@ -466,89 +466,88 @@ export default function Player() {
       )}
       </div>
 
-      {/* Заголовок и кнопки идут сразу за видео: на телефоне они не уезжают под длинный список озвучек. */}
+      {/* Заголовок и кнопки сразу за видео: сначала смысл (что смотрим), потом переход серии, потом инструменты. */}
       <div className="watch-head">
-        {/* Выбор плеера — отдельной строкой над заголовком, в той же ячейке сетки. */}
         {/* Запасные плееры YummyAnime приходят через пару секунд: место под строку занято сразу,
             иначе она появлялась над заголовком и сдвигала его и кнопки (CLS 0.1 на телефоне). */}
         {(hosts.length > 1 || yummyPending) && (
           <HostPicker hosts={hosts} current={host?.id} onChoose={chooseHost} searching={yummyPending} />
         )}
+
         <div className="watch-head__info">
           {/* Название тайтла входит в заголовок: «Ван-Пис, серия 5» ищут именно так. */}
-          <h1>
-            <Link to={`/anime/${anime.id}`} className="muted watch-head__title">
+          <h1 className="watch-head__h1">
+            <Link to={`/anime/${anime.id}`} className="watch-head__title">
               {anime.title}
-            </Link>{' '}
-            Серия {current}
+            </Link>
+            <span className="watch-head__ep">Серия {current}</span>
           </h1>
-          {ageLabel(anime.rating) && (
-            <span className="chip chip--age watch-head__age" title="Возрастное ограничение">
-              {ageLabel(anime.rating)}
-            </span>
-          )}
-          <WatchStreak compact />
           {name && <p className="watch-head__name">{name}</p>}
+          <div className="watch-head__meta">
+            {ageLabel(anime.rating) && (
+              <span className="chip chip--age watch-head__age" title="Возрастное ограничение">
+                {ageLabel(anime.rating)}
+              </span>
+            )}
+            <WatchStreak compact className="watch-head__streak" />
+          </div>
         </div>
+
         <div className="watch-actions">
-          <button
-            type="button"
-            className="btn btn--ghost watch-wide"
-            aria-pressed={wide}
-            title={wide ? 'Обычный размер' : 'Широкий экран'}
-            onClick={() => wideStore.set(!wide)}
-          >
-            <WideIcon />
-            <span className="sr-only">Широкий экран</span>
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost watch-lights"
-            aria-pressed={lightsOff}
-            title={lightsOff ? 'Включить свет' : 'Выключить свет вокруг видео'}
-            onClick={() => setLightsOff(!lightsOff)}
-          >
-            <BulbIcon />
-            <span className="sr-only">Шторка света</span>
-          </button>
-          {(host?.player || !isOwnProvider(voice?.provider)) && <GlowCaptureButton slot={miniPlayer.slot} />}
-          <button
-            type="button"
-            className="btn btn--ghost watch-moment"
-            title="Поделиться моментом: ссылка откроет серию с этого места"
-            onClick={() => setShareOpen(true)}
-          >
-            <ClockIcon size={18} />
-            <span className="sr-only">Поделиться моментом</span>
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost watch-share"
-            title="Поделиться серией в соцсетях или QR-кодом"
-            onClick={() => setShareOpen(true)}
-          >
-            <ShareIcon size={18} />
-            <span className="sr-only">Поделиться</span>
-          </button>
-          <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
-          {(anime.ongoing || (anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes)) && (
-            <FollowButton animeId={anime.id} title={anime.title} />
-          )}
-          <button
-            type="button"
-            className="btn btn--ghost"
-            disabled={current <= 1}
-            aria-label="Предыдущая серия"
-            onClick={() => goTo(current - 1)}
-          >
-            <BackIcon size={18} />
-            <span className="watch-prev__text">Предыдущая</span>
-          </button>
-          <button type="button" className="btn btn--accent" disabled={current >= total} onClick={goNext}>
-            Следующая серия
-            <SkipIcon />
-          </button>
+          <div className="watch-nav" role="group" aria-label="Предыдущая и следующая">
+            <button
+              type="button"
+              className="btn btn--ghost watch-prev"
+              disabled={current <= 1}
+              aria-label="Предыдущая серия"
+              onClick={() => goTo(current - 1)}
+            >
+              <BackIcon size={18} />
+              <span className="watch-prev__text">Предыдущая</span>
+            </button>
+            <button type="button" className="btn btn--accent watch-next" disabled={current >= total} onClick={goNext}>
+              Следующая серия
+              <SkipIcon />
+            </button>
+          </div>
+          <div className="watch-tools" role="group" aria-label="Инструменты плеера">
+            <button
+              type="button"
+              className="btn btn--ghost watch-tool watch-wide"
+              aria-pressed={wide}
+              title={wide ? 'Обычный размер' : 'Широкий экран'}
+              onClick={() => wideStore.set(!wide)}
+            >
+              <WideIcon />
+              <span className="sr-only">Широкий экран</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost watch-tool watch-lights"
+              aria-pressed={lightsOff}
+              title={lightsOff ? 'Включить свет' : 'Выключить свет вокруг видео'}
+              onClick={() => setLightsOff(!lightsOff)}
+            >
+              <BulbIcon />
+              <span className="sr-only">Шторка света</span>
+            </button>
+            {(host?.player || !isOwnProvider(voice?.provider)) && <GlowCaptureButton slot={miniPlayer.slot} />}
+            <button
+              type="button"
+              className="btn btn--ghost watch-tool watch-share"
+              title="Поделиться серией или моментом"
+              onClick={() => setShareOpen(true)}
+            >
+              <ShareIcon size={18} />
+              <span className="sr-only">Поделиться</span>
+            </button>
+            <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
+            {(anime.ongoing || (anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes)) && (
+              <FollowButton animeId={anime.id} title={anime.title} />
+            )}
+          </div>
         </div>
+
         {/* Последняя вышедшая серия онгоинга: когда следующая и как о ней узнать — повод вернуться. */}
         {anime.ongoing && anime.nextEpisodeAt && current >= total && (
           <div className="watch-follow">
@@ -593,8 +592,10 @@ export default function Player() {
       <Suspense fallback={null}>
         {current >= total && !anime.ongoing && !anime.upcoming && <NextPart animeId={anime.id} />}
         <WatchReturn anime={anime} current={current} total={total} />
-        <EpisodeRating animeId={anime.id} episode={current} />
-        <EpisodeComments animeId={anime.id} episode={current} />
+        <div className="watch-engage">
+          <EpisodeRating animeId={anime.id} episode={current} />
+          <EpisodeComments animeId={anime.id} episode={current} />
+        </div>
       </Suspense>
 
       <ShareModal
@@ -657,7 +658,6 @@ function EpisodePicker({
   const [range, setRange] = useState(Math.floor((current - 1) / RANGE))
   const skip = skipFillersStore.use()
   const [query, setQuery] = useState('')
-  const [quickJump, setQuickJump] = useState('')
   const strip = useRef<HTMLDivElement>(null)
   const ranges = Math.ceil(total / RANGE)
   const from = range * RANGE + 1
@@ -670,15 +670,6 @@ function EpisodePicker({
   const shown = q
     ? Array.from({ length: total }, (_, i) => i + 1).filter((n) => String(n).startsWith(q) || names[n]?.toLowerCase().includes(q))
     : Array.from({ length: to - from + 1 }, (_, i) => from + i)
-
-  const onQuickJump = (e: React.FormEvent) => {
-    e.preventDefault()
-    const ep = parseInt(quickJump.trim(), 10)
-    if (!isNaN(ep) && ep >= 1 && ep <= total) {
-      navigate(`/watch/${animeId}/${ep}`)
-      setQuickJump('')
-    }
-  }
 
   // Серию сменили кнопкой или из плеера: открываем её сотню.
   useEffect(() => setRange(Math.floor((current - 1) / RANGE)), [current])
@@ -697,30 +688,38 @@ function EpisodePicker({
   return (
     <aside className="episodes">
       <div className="episodes__head">
-        <h2>Серии</h2>
-        <span className="muted">{label}</span>
+        <div>
+          <p className="episodes__eyebrow">Эфир</p>
+          <h2>Серии</h2>
+        </div>
+        <span className="episodes__meta muted">{label}</span>
       </div>
       {voiced > 0 && voiced < total && (
         <p className="ep-voiced muted">
           В озвучке {provider}: {voiced} из {total}. Приглушённых серий у источника нет.
         </p>
       )}
-      {total > 1 && (
-        <div className="ep-quick-bar" style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '6px 0' }}>
-          <form onSubmit={onQuickJump} style={{ display: 'flex', flex: 1, minWidth: 0 }}>
-            <label className="side-search" style={{ flex: 1, width: '100%' }}>
-              <span className="sr-only">Перейти к серии</span>
-              <input
-                type="number"
-                min={1}
-                max={total}
-                placeholder="К серии №… (Enter)"
-                aria-label="Номер серии"
-                value={quickJump}
-                onChange={(e) => setQuickJump(e.target.value)}
-              />
-            </label>
-          </form>
+      {total > 12 && (
+        <div className="ep-find">
+          <label className="side-search ep-find__search">
+            <SearchIcon size={16} />
+            <span className="sr-only">Найти серию</span>
+            <input
+              type="search"
+              inputMode={voiced ? 'text' : 'numeric'}
+              placeholder={voiced ? 'Номер или название' : 'Номер серии'}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const n = parseInt(query.trim(), 10)
+                  if (!isNaN(n) && n >= 1 && n <= total) {
+                    navigate(`/watch/${animeId}/${n}`)
+                  }
+                }
+              }}
+            />
+          </label>
           {total >= 100 && (
             <button
               type="button"
@@ -736,34 +735,13 @@ function EpisodePicker({
           )}
         </div>
       )}
-      {total > 12 && (
-        <label className="side-search">
-          <SearchIcon size={16} />
-          <span className="sr-only">Найти серию</span>
-          <input
-            type="search"
-            inputMode={voiced ? 'text' : 'numeric'}
-            placeholder={voiced ? 'Номер или название' : 'Номер серии'}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const n = parseInt(query.trim(), 10)
-                if (!isNaN(n) && n >= 1 && n <= total) {
-                  navigate(`/watch/${animeId}/${n}`)
-                }
-              }
-            }}
-          />
-        </label>
-      )}
       {ranges > 1 && !q && (
         <div className="ep-ranges" role="group" aria-label="Диапазон серий">
           {Array.from({ length: ranges }, (_, i) => (
             <button
               key={i}
               type="button"
-              className={`pill${i === range ? ' active' : ''}`}
+              className={`ep-range${i === range ? ' is-active' : ''}`}
               aria-pressed={i === range}
               onClick={() => setRange(i)}
             >
