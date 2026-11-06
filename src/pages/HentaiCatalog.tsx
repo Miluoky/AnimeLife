@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { fetchHentaiCatalog } from '../api/hentai'
 import { HENTAI_TAGS, HENTAI_SORTS } from '../data/hentaiGenres'
 import type { Anime } from '../data/catalog'
-import AgeGateModal from '../components/AgeGateModal'
+import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
 import HentaiCard from '../components/HentaiCard'
 import { usePageMeta } from '../data/pageMeta'
 import './hentai-catalog.css'
@@ -18,8 +18,10 @@ export default function HentaiCatalog() {
 
   const [items, setItems] = useState<Anime[]>([])
   const [loading, setLoading] = useState(true)
+  const [unlocked, setUnlocked] = useState(isAgeVerified)
 
   useEffect(() => {
+    if (!unlocked) return
     let alive = true
     setLoading(true)
 
@@ -46,7 +48,7 @@ export default function HentaiCatalog() {
     return () => {
       alive = false
     }
-  }, [currentTag, currentSort, page])
+  }, [unlocked, currentTag, currentSort, page])
 
   const setTag = (slug: string) => {
     const next = new URLSearchParams(params)
@@ -73,7 +75,7 @@ export default function HentaiCatalog() {
 
   return (
     <main className="container home hentai-page">
-      <AgeGateModal />
+      {!unlocked && <AgeGateModal onVerified={() => setUnlocked(true)} />}
 
       <header className="hentai-header frame-corners">
         <span className="hentai-header__badge">
@@ -95,7 +97,7 @@ export default function HentaiCatalog() {
         </div>
       </header>
 
-      <section className="stack">
+      {unlocked && <section className="stack">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div className="hentai-tags" role="group" aria-label="Теги хентая">
             <button
@@ -177,7 +179,7 @@ export default function HentaiCatalog() {
             </button>
           )}
         </div>
-      </section>
+      </section>}
     </main>
   )
 }

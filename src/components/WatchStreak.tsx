@@ -112,21 +112,32 @@ export default function WatchStreak({
 
     const plannedTitles = seasonPlans[code] ?? []
     const plannedIds = new Set(plannedTitles.map((p) => p.id))
+    const byId = new Map(myList.map((item) => [item.anime.id, item]))
 
-    // Сериалы текущего сезона в списке пользователя (из сетки сезона или со статусом watching/completed)
-    const seasonEntries = myList.filter(
+    // Тайтлы того же года в «Смотрю» / «Просмотрено», которых нет в сетке, тоже входят в прогресс.
+    const extras = myList.filter(
       (item) =>
-        plannedIds.has(item.anime.id) ||
-        (item.anime.year === season.year && (item.status === 'watching' || item.status === 'completed'))
+        !plannedIds.has(item.anime.id) &&
+        item.anime.year === season.year &&
+        (item.status === 'watching' || item.status === 'completed'),
     )
 
     let totalEpisodes = 0
     let watchedEpisodes = 0
 
-    for (const item of seasonEntries) {
+    for (const plan of plannedTitles) {
+      const entry = byId.get(plan.id)
+      const epTotal = plan.episodes || entry?.anime.episodes || 12
+      totalEpisodes += epTotal
+      const seen = entry?.status === 'completed' ? epTotal : entry?.watched || 0
+      watchedEpisodes += Math.min(seen, epTotal)
+    }
+
+    for (const item of extras) {
       const epTotal = item.anime.episodes || 12
       totalEpisodes += epTotal
-      watchedEpisodes += Math.min(item.watched || 0, epTotal)
+      const seen = item.status === 'completed' ? epTotal : item.watched || 0
+      watchedEpisodes += Math.min(seen, epTotal)
     }
 
     const pct = totalEpisodes > 0 ? Math.round((watchedEpisodes / totalEpisodes) * 100) : 0
@@ -134,7 +145,7 @@ export default function WatchStreak({
     return {
       label,
       code,
-      titleCount: seasonEntries.length,
+      titleCount: plannedTitles.length > 0 ? plannedTitles.length : extras.length,
       watchedEpisodes,
       totalEpisodes,
       percentage: Math.min(100, pct),

@@ -85,19 +85,42 @@ function useMinuteClock() {
  */
 function SeasonPlanBar({ seasonId }: { seasonId: string; catalog?: SeasonAnime[] }) {
   const plan = useSeasonPlan()[seasonId] ?? []
+  const list = useMyList()
   if (!plan.length) return null
+  const byId = new Map(list.map((e) => [e.anime.id, e]))
   return (
-    <section className="season-plan-bar" aria-label="Сетка сезона">
-      <div className="season-plan-bar__head">
-        <strong>Моя сетка сезона: {plan.length} тайтл{plan.length === 1 ? '' : plan.length < 5 ? 'а' : 'ов'}</strong>
+    <section className="season-plan" aria-label="Сетка сезона">
+      <div className="season-plan__head">
+        <h2>Моя сетка сезона</h2>
+        <p className="season-plan__hint">
+          {plan.length} тайтл{plan.length === 1 ? '' : plan.length < 5 ? 'а' : 'ов'}
+        </p>
       </div>
-      <div className="season-plan-bar__items">
-        {plan.map((p) => (
-          <span key={p.id} className="pill season-plan-pill">
-            {p.title}
-          </span>
-        ))}
-      </div>
+      <ul className="season-plan__grid">
+        {plan.map((p) => {
+          const entry = byId.get(p.id)
+          const total = p.episodes || entry?.anime.episodes || 12
+          const watched =
+            entry?.status === 'completed' ? total : Math.min(entry?.watched ?? 0, total)
+          const done = watched >= total
+          return (
+            <li key={p.id} className={`chip season-plan__chip${done ? ' chip--accent' : ''}`}>
+              <Link to={`/anime/${p.id}`}>{p.title}</Link>
+              <span className="season-plan__prog">
+                {watched}/{total}
+              </span>
+              <button
+                type="button"
+                className="season-plan__x"
+                aria-label={`Убрать «${p.title}» из сетки`}
+                onClick={() => toggleSeasonPlan(seasonId, { id: p.id, title: p.title, episodes: p.episodes })}
+              >
+                ×
+              </button>
+            </li>
+          )
+        })}
+      </ul>
     </section>
   )
 }

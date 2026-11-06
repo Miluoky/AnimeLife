@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { searchHentaiMangas } from '../api/hentaiManga'
 import type { Anime } from '../data/catalog'
-import AgeGateModal from '../components/AgeGateModal'
+import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
 import HentaiCard from '../components/HentaiCard'
 import { usePageMeta } from '../data/pageMeta'
 import './hentai-catalog.css'
@@ -17,8 +17,10 @@ export default function HentaiMangaHome() {
 
   const [items, setItems] = useState<Anime[]>([])
   const [loading, setLoading] = useState(true)
+  const [unlocked, setUnlocked] = useState(isAgeVerified)
 
   useEffect(() => {
+    if (!unlocked) return
     let alive = true
     setLoading(true)
 
@@ -40,7 +42,7 @@ export default function HentaiMangaHome() {
     return () => {
       alive = false
     }
-  }, [currentSort, page])
+  }, [unlocked, currentSort, page])
 
   const setSort = (sort: string) => {
     const next = new URLSearchParams(params)
@@ -59,7 +61,7 @@ export default function HentaiMangaHome() {
 
   return (
     <main className="container home hentai-manga-page">
-      <AgeGateModal />
+      {!unlocked && <AgeGateModal onVerified={() => setUnlocked(true)} />}
 
       <header className="hentai-header frame-corners">
         <span className="hentai-header__badge">
@@ -81,7 +83,7 @@ export default function HentaiMangaHome() {
         </div>
       </header>
 
-      <section className="stack">
+      {unlocked && <section className="stack">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div className="s-chips">
             <button
@@ -131,7 +133,7 @@ export default function HentaiMangaHome() {
             </button>
           )}
         </div>
-      </section>
+      </section>}
     </main>
   )
 }

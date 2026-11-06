@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMyList } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
 import { tasteStore } from '../data/taste'
@@ -9,8 +9,10 @@ import {
   loadDuel,
   makeDuelCode,
   matchPercent,
+  packDuel,
   pickDuelTitles,
   saveDuel,
+  unpackDuel,
   type DuelBoard,
   type DuelTitle,
 } from '../data/tasteDuel'
@@ -54,6 +56,20 @@ function phaseOf(board: DuelBoard, asSecond: boolean): 'a' | 'handoff' | 'b' | '
   return 'handoff'
 }
 
+function boardFromRoute(isShare: boolean, pack: string, code?: string): DuelBoard | undefined {
+  if (isShare) return pack ? unpackDuel(pack) : undefined
+  return code ? loadDuel(code) : undefined
+}
+
+/** На общей ссылке второй игрок начинает сразу, если первый уже ответил. */
+function prefersSecond(board: DuelBoard | undefined): boolean {
+  if (!board) return false
+  const n = board.titles.length
+  const aDone = (board.a?.length ?? 0) >= n
+  const bDone = (board.b?.length ?? 0) >= n
+  return aDone && !bDone
+}
+
 function Shell({ children }: { children: ReactNode }) {
   return <main className="container duel-page">{children}</main>
 }
@@ -88,13 +104,20 @@ function PairCard({ item, onPick }: { item: DuelTitle; onPick: () => void }) {
   )
 }
 
-async function copyCode(code: string) {
-  const url = `${location.origin}${import.meta.env.BASE_URL}duel/${code}`
+function publicUrl(path: string) {
+  const root = `${location.origin}${import.meta.env.BASE_URL}`.replace(/\/?$/, '/')
+  return `${root}${path.replace(/^\//, '')}`
+}
+
+async function copyCode(code: string, board: DuelBoard) {
+  const hasA = (board.a?.length ?? 0) > 0
+  if (!hasA) saveDuel(code, board)
+  const url = hasA ? publicUrl(`/duel/share?p=${encodeURIComponent(packDuel(board))}`) : publicUrl(`/duel/${code}`)
   try {
     await navigator.clipboard.writeText(url)
-    toast('Ссылка скопирована. Она открывается в этом браузере.')
+    toast(hasA ? 'Ссылка скопирована. Второй игрок откроет её в любом браузере.' : 'Ссылка скопирована.')
   } catch {
-    toast(`Код ${code}`)
+    toast(hasA ? 'Не удалось скопировать ссылку' : `Код ${code}`)
   }
 }
 
@@ -103,16 +126,24 @@ export default function TasteDuel() {
   usePageMeta('Дуэль вкуса', 'Сравните вкус вдвоём: пять тайтлов, каждый выбирает что ближе, в конце — процент совпадения.')
   const { code: raw } = useParams()
   const code = raw ? raw.toUpperCase() : undefined
+  const { pathname } = useLocation()
+  const isShare = pathname.replace(/\/+$/, '') === '/duel/share'
+  const [params] = useSearchParams()
+  const pack = isShare ? (params.get('p') ?? '') : ''
+  const routeKey = isShare ? `s:${pack}` : `c:${code ?? ''}`
   const nav = useNavigate()
   const pool = useDuelPool()
   const [picked, setPicked] = useState<DuelTitle[]>([])
-  const [board, setBoard] = useState<DuelBoard | undefined>(() => (code ? loadDuel(code) : undefined))
-  const [asSecond, setAsSecond] = useState(false)
+  const [routeKeySeen, setRouteKeySeen] = useState(routeKey)
+  const [board, setBoard] = useState<DuelBoard | undefined>(() => boardFromRoute(isShare, pack, code))
+  const [asSecond, setAsSecond] = useState(() => isShare && prefersSecond(boardFromRoute(isShare, pack, code)))
 
-  useEffect(() => {
-    setBoard(code ? loadDuel(code) : undefined)
-    setAsSecond(false)
-  }, [code])
+  if (routeKeySeen !== routeKey) {
+    const next = boardFromRoute(isShare, pack, code)
+    setRouteKeySeen(routeKey)
+    setBoard(next)
+    setAsSecond(isShare && prefersSecond(next))
+  }
 
   const start = () => {
     if (picked.length !== NEED) return
@@ -121,7 +152,18 @@ export default function TasteDuel() {
     nav(`/duel/${next}`)
   }
 
-  if (!code) {
+  if (isShare && !board) {
+    return (
+      <Shell>
+        <Head kicker="Дуэль вкуса" title="Ссылка не открылась" text="В адресе нет дуэли или данные повреждены." />
+        <Link to="/duel" className="btn btn--ghost">
+          Собрать свою пятёрку
+        </Link>
+      </Shell>
+    )
+  }
+
+  if (!isShare && !code) {
     return (
       <Setup
         pool={pool}
@@ -150,7 +192,11 @@ export default function TasteDuel() {
   if (!board) {
     return (
       <Shell>
-        <Head kicker="Дуэль вкуса" title="Код не найден" text="Дуэль хранится в этом сеансе браузера. В другой вкладке или на другом устройстве кода нет." />
+        <Head
+          kicker="Дуэль вкуса"
+          title="Код не найден"
+          text="Короткого кода здесь нет. Попросите ссылку для второго игрока — она открывается в любом браузере."
+        />
         <Link to="/duel" className="btn btn--ghost">
           Собрать свою пятёрку
         </Link>
@@ -166,7 +212,7 @@ export default function TasteDuel() {
     const prev = board[who] ?? []
     if (prev.length >= pairs.length) return
     const next: DuelBoard = { ...board, [who]: [...prev, side] }
-    saveDuel(code, next)
+    if (code && !isShare) saveDuel(code, next)
     setBoard(next)
   }
 
@@ -175,7 +221,7 @@ export default function TasteDuel() {
     const same = board.a.filter((v, i) => v === board.b?.[i]).length
     return (
       <Shell>
-        <Head kicker={`Код ${code}`} title="Дуэль вкуса" />
+        <Head kicker={code && !isShare ? `Код ${code}` : 'Общая дуэль'} title="Дуэль вкуса" />
         <p className="duel-match" role="status">
           <span>Совпадение</span>
           <strong>{pct}%</strong>
@@ -201,7 +247,7 @@ export default function TasteDuel() {
             className="btn btn--accent"
             onClick={() => {
               const next = { titles: board.titles }
-              saveDuel(code, next)
+              if (code && !isShare) saveDuel(code, next)
               setBoard(next)
               setAsSecond(false)
             }}
@@ -222,26 +268,30 @@ export default function TasteDuel() {
         <Head
           kicker="Игрок 1 ответил"
           title="Передайте телефон"
-          text="Ответы первого скрыты. Второй выбирает, что ближе, в тех же парах."
+          text="Ответы первого скрыты. Второй выбирает, что ближе, в тех же парах — на этом экране или по ссылке в любом браузере."
         />
-        <p className="duel-code">
-          Код <b>{code}</b>
-        </p>
+        {code ? (
+          <p className="duel-code">
+            Код <b>{code}</b>
+          </p>
+        ) : null}
         <div className="actions">
           <button type="button" className="btn btn--accent" onClick={() => setAsSecond(true)}>
             Я игрок 2
           </button>
-          <button type="button" className="btn btn--ghost" onClick={() => void copyCode(code)}>
-            Скопировать ссылку
-          </button>
+          {code ? (
+            <button type="button" className="btn btn--ghost" onClick={() => void copyCode(code, board)}>
+              Скопировать ссылку
+            </button>
+          ) : null}
         </div>
-        <p className="muted duel-note">Ссылка открывает эту дуэль в текущем сеансе браузера.</p>
+        <p className="muted duel-note">Ссылка открывает дуэль для второго игрока в любом браузере.</p>
       </Shell>
     )
   }
 
   const who = phase === 'b' ? 'b' : 'a'
-  const step = (board[who]?.length ?? 0)
+  const step = board[who]?.length ?? 0
   const pair = pairs[step]
   if (!pair) return null
 
@@ -252,9 +302,11 @@ export default function TasteDuel() {
         title="Что ближе?"
         text="Выберите тайтл, который вам нравится больше."
       />
-      <p className="duel-code">
-        Код <b>{code}</b>
-      </p>
+      {code && !isShare ? (
+        <p className="duel-code">
+          Код <b>{code}</b>
+        </p>
+      ) : null}
       <div className="duel-pair">
         <PairCard item={pair[0]} onPick={() => choose(0)} />
         <span className="duel-or">или</span>
@@ -332,7 +384,9 @@ function Setup({
               Начать дуэль
             </button>
           </div>
-          <p className="muted duel-note">Играете по очереди на этом экране. После первого игрока можно передать телефон или скопировать код — он живёт в этом сеансе браузера.</p>
+          <p className="muted duel-note">
+            Играете по очереди на этом экране. После первого игрока скопируйте ссылку — второй откроет её в любом браузере.
+          </p>
         </>
       )}
     </Shell>

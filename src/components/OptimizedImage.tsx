@@ -12,6 +12,8 @@ export interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageEle
   imgClassName?: string
   placeholderFill?: string
   fallbackTitle?: string
+  /** заполнить уже свёрстанный слот (position: absolute; inset: 0), без своего aspect-ratio */
+  fill?: boolean
   onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void
   onError?: (e: SyntheticEvent<HTMLImageElement>) => void
 }
@@ -110,6 +112,7 @@ export function OptimizedImage({
   imgClassName = '',
   placeholderFill,
   fallbackTitle,
+  fill = false,
   sizes,
   onLoad,
   onError,
@@ -134,14 +137,26 @@ export function OptimizedImage({
   return (
     <div
       className={`optimized-image ${className}`}
-      style={{
-        position: 'relative',
-        width: '100%',
-        aspectRatio,
-        overflow: 'hidden',
-        backgroundColor: placeholderFill || 'var(--surface-2)',
-        borderRadius: 'inherit',
-      }}
+      style={
+        fill
+          ? {
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+              backgroundColor: placeholderFill || 'var(--surface-2)',
+              borderRadius: 'inherit',
+            }
+          : {
+              position: 'relative',
+              width: '100%',
+              aspectRatio,
+              overflow: 'hidden',
+              backgroundColor: placeholderFill || 'var(--surface-2)',
+              borderRadius: 'inherit',
+            }
+      }
     >
       {showFallback ? (
         <FallbackPoster title={fallbackTitle} alt={alt} />
@@ -174,7 +189,8 @@ export function OptimizedImage({
               objectFit: 'cover',
               opacity: loaded ? 1 : 0,
               filter: loaded ? 'none' : 'blur(10px)',
-              transform: loaded ? 'scale(1)' : 'scale(1.04)',
+              // После загрузки transform не фиксируем: наведение (кадры на главной) само увеличивает картинку.
+              transform: loaded ? undefined : 'scale(1.04)',
               transition: 'opacity 0.35s var(--ease), filter 0.35s var(--ease), transform 0.35s var(--ease)',
               willChange: loaded ? 'auto' : 'opacity, filter, transform',
             }}

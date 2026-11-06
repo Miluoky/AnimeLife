@@ -6,6 +6,7 @@ import { prefetchTitle } from '../api/prefetch'
 import { listStatuses, setListStatus, totalEpisodes, useMyListEntry } from '../data/myList'
 import { toast } from '../data/toast'
 import { PlusIcon } from './Icons'
+import { OptimizedImage } from './OptimizedImage'
 import { useHistoryEntry } from '../data/history'
 import { animeHref } from '../data/animeUrl'
 
@@ -33,19 +34,22 @@ export function Poster({
 }) {
   const src = anime.posterSmall ?? anime.posterUrl
   if (!src) return <span className="placeholder-label">[Постер]</span>
+  const fadeClass = `poster-img poster-img--fade${className ? ` ${className}` : ''}`
   return (
-    <img
-      className={`poster-img poster-img--fade ${className ?? ''}`}
-      onLoad={fadeIn}
+    <OptimizedImage
       src={src}
       srcSet={srcset2x(anime.posterSmall, anime.posterSmall2x)}
+      placeholderFill={anime.posterFill}
+      priority={priority}
       alt={alt ?? `Постер аниме «${anime.title}»`}
+      fallbackTitle={anime.title}
+      // Слот постера уже задаёт размер (2/3, 16/9, миниатюра). Картинка заполняет его, как раньше .poster-img.
+      fill
+      className={className}
+      imgClassName={fadeClass}
       width={225}
       height={338}
-      loading={priority ? 'eager' : 'lazy'}
-      decoding="async"
-      // @ts-expect-error fetchpriority ещё нет в типах React 18
-      fetchpriority={priority ? 'high' : undefined}
+      onLoad={fadeIn}
     />
   )
 }

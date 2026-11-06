@@ -1,4 +1,4 @@
-/** Дуэль вкуса живёт в sessionStorage: код открывается в этом сеансе браузера, без сервера. */
+/** Дуэль вкуса: короткий код в localStorage этого браузера, ссылка для второго игрока несёт доску в адресе. */
 const KEY = 'anime.duel.v1'
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -19,12 +19,25 @@ export interface DuelBoard {
 
 function readAll(): Record<string, DuelBoard> {
   try {
-    const raw = sessionStorage.getItem(KEY)
+    const raw = localStorage.getItem(KEY) ?? takeSession()
     if (!raw) return {}
     const parsed = JSON.parse(raw) as unknown
     return parsed && typeof parsed === 'object' ? (parsed as Record<string, DuelBoard>) : {}
   } catch {
     return {}
+  }
+}
+
+/** Старые дуэли из sessionStorage переезжают один раз, чтобы пережить новую вкладку. */
+function takeSession(): string | null {
+  try {
+    const old = sessionStorage.getItem(KEY)
+    if (!old) return null
+    localStorage.setItem(KEY, old)
+    sessionStorage.removeItem(KEY)
+    return old
+  } catch {
+    return null
   }
 }
 
@@ -53,9 +66,77 @@ export function saveDuel(code: string, board: DuelBoard) {
   const all = readAll()
   all[code] = board
   try {
-    sessionStorage.setItem(KEY, JSON.stringify(all))
+    localStorage.setItem(KEY, JSON.stringify(all))
   } catch {
     // Приватный режим: дуэль остаётся в состоянии страницы до ухода.
+  }
+}
+
+function toBase64Url(bytes: Uint8Array): string {
+  let bin = ''
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function fromBase64Url(pack: string): Uint8Array {
+  const b64 = pack.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+  const bin = atob(b64 + pad)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+
+type Packed = { t?: unknown; a?: unknown; b?: unknown }
+
+function cellString(v: unknown): string | undefined {
+  return typeof v === 'string' && v.length > 0 ? v : undefined
+}
+
+/** Компактная доска в адресе: `{t:[[id,title,year,poster,fill],...],a?,b?}`. */
+export function packDuel(board: DuelBoard): string {
+  const body: { t: (string | number | null)[][]; a?: number[]; b?: number[] } = {
+    t: board.titles.map((item) => [
+      item.id,
+      item.title,
+      item.year ?? null,
+      item.posterUrl ?? null,
+      item.posterFill ?? null,
+    ]),
+  }
+  if (board.a?.length) body.a = board.a
+  if (board.b?.length) body.b = board.b
+  return toBase64Url(new TextEncoder().encode(JSON.stringify(body)))
+}
+
+export function unpackDuel(pack: string): DuelBoard | undefined {
+  try {
+    const parsed = JSON.parse(new TextDecoder().decode(fromBase64Url(pack.trim()))) as unknown
+    if (!parsed || typeof parsed !== 'object') return undefined
+    const o = parsed as Packed
+    if (!Array.isArray(o.t)) return undefined
+    const titles: DuelTitle[] = []
+    for (const row of o.t) {
+      if (!Array.isArray(row) || row.length < 2) continue
+      const id = typeof row[0] === 'number' ? String(row[0]) : cellString(row[0])
+      const title = cellString(row[1])
+      if (!id || !title) continue
+      const item: DuelTitle = { id, title }
+      if (typeof row[2] === 'number' && Number.isFinite(row[2])) item.year = row[2]
+      const poster = cellString(row[3])
+      const fill = cellString(row[4])
+      if (poster) item.posterUrl = poster
+      if (fill) item.posterFill = fill
+      titles.push(item)
+    }
+    const sliced = titles.slice(0, 5)
+    if (sliced.length < 2) return undefined
+    const board: DuelBoard = { titles: sliced }
+    if (isPicks(o.a, sliced.length)) board.a = o.a
+    if (isPicks(o.b, sliced.length)) board.b = o.b
+    return board
+  } catch {
+    return undefined
   }
 }
 

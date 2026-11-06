@@ -147,6 +147,7 @@ export default function App() {
           <Route path="collections" element={<Collections />} />
           <Route path="quiz" element={<Quiz />} />
           <Route path="duel" element={<TasteDuel />} />
+          <Route path="duel/share" element={<TasteDuel />} />
           <Route path="duel/:code" element={<TasteDuel />} />
           <Route path="community" element={<Community />} />
           <Route path="club/:id" element={<ClubPage />} />

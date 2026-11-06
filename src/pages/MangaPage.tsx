@@ -6,6 +6,8 @@ import { chapterLabel, findMangadex, langName, mergeChapters, preferredLang, rea
 import { fetchOwnChapters } from '../api/mangaOwn'
 import { useAuth } from '../data/auth'
 import PosterCard from '../components/PosterCard'
+import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
+import { isAdultContent } from '../data/adult'
 import FranchiseBridge from '../components/FranchiseBridge'
 import { animeHref } from '../data/animeUrl'
 import { usePageMeta } from '../data/pageMeta'
@@ -153,6 +155,7 @@ function ReadBlock({ m }: { m: Manga }) {
 export default function MangaPage() {
   const { id = '' } = useParams()
   const [attempt, setAttempt] = useState(0)
+  const [adultOk, setAdultOk] = useState(isAgeVerified)
   // null — такой манги нет (404), 'error' — Shikimori не ответил: тогда предлагаем повторить, а не «не найдено».
   const state = useAsync(
     () => fetchManga(id).catch((e: Error) => (/ 404:/.test(e.message) ? null : ('error' as const))),
@@ -176,6 +179,9 @@ export default function MangaPage() {
       </main>
     )
   if (!m) return <main className="container empty-page" aria-busy="true" />
+  if (isAdultContent(m) && !adultOk) {
+    return <AgeGateModal onVerified={() => setAdultOk(true)} />
+  }
 
   const facts = [
     m.kind,
