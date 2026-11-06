@@ -172,10 +172,11 @@ test('тайтл и серия: заголовки по шаблону, жанр
 test('один h1 на главной и ссылки на жанры и годы в подвале', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-  const footer = page.getByRole('navigation', { name: 'Подборки' })
-  await expect(footer.getByRole('link', { name: 'Романтика' })).toHaveAttribute('href', '/genre/romance')
-  await expect(footer.getByRole('link', { name: 'Аниме-фильмы' })).toHaveAttribute('href', '/type/movie')
-  await expect(footer.getByRole('link', { name: /^Аниме \d{4} года$/ }).first()).toBeVisible()
+  const genres = page.getByRole('navigation', { name: 'Жанры' })
+  await expect(genres.getByRole('link', { name: 'Романтика' })).toHaveAttribute('href', '/genre/romance')
+  const kinds = page.getByRole('navigation', { name: 'Типы и годы' })
+  await expect(kinds.getByRole('link', { name: 'Аниме-фильмы' })).toHaveAttribute('href', '/type/movie')
+  await expect(kinds.getByRole('link', { name: /^Аниме \d{4} года$/ }).first()).toBeVisible()
 })
 
 test('описание без разметки Shikimori: вики-ссылки оставляют имя, теги и японские скобки уходят', () => {
