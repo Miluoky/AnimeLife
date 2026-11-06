@@ -222,9 +222,46 @@
   }
 }
 
+.catalog-empty {
+  margin: 1.25rem 0 0;
+}
+.catalog-empty--search {
+  display: grid;
+  gap: 1.25rem;
+}
+.catalog-empty__box {
+  padding: 1rem 1rem 1.1rem;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+.catalog-empty__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+.catalog-empty__hint {
+  margin: 0 0 0.85rem;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.catalog-empty__chips {
+  gap: 10px;
+}
+
+/* Пустая строка сетки при поиске не нужна — NothingFound даёт основной блок. */
+.catalog-results .muted:empty {
+  display: none;
+}
+
 /* Чипы: тонкая рамка, выбранный — с красной меткой, как активный режим на камере. */
 .catalog .filters {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.catalog__filter-bar {
+  display: contents;
 }
 .catalog .chip-filter {
   align-items: center;
@@ -300,18 +337,75 @@
 @media (max-width: 640px) {
   .catalog__deck {
     padding: 14px 14px 16px;
+    gap: 16px;
+  }
+  .catalog__filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 -14px;
+    padding: 0.35rem 14px 0.65rem;
+    max-width: calc(100% + 28px);
+    position: sticky;
+    top: calc(72px + env(safe-area-inset-top, 0px) + 6px);
+    z-index: 12;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg) 92%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 88%, transparent) 72%,
+      transparent 100%
+    );
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+    backdrop-filter: blur(10px) saturate(150%);
+    -webkit-backdrop-filter: blur(10px) saturate(150%);
   }
   .catalog .filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
   .catalog__deck .chip-filter {
-    margin: 0 -14px;
-    padding: 2px 14px;
-    max-width: calc(100% + 28px);
+    margin: 0;
+    padding: 2px 0;
+    max-width: none;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted) 35%, transparent) transparent;
+  }
+  .catalog__deck .chip-filter::-webkit-scrollbar {
+    height: 4px;
+  }
+  .catalog__deck .chip-filter::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--muted) 40%, transparent);
+  }
+  .catalog__filter-bar .chip-filter:last-of-type {
+    padding-bottom: 6px;
   }
   .chip-filter__label {
     min-width: 0;
     margin-right: 4px;
+    margin-top: 8px;
+    flex-shrink: 0;
+  }
+  .catalog .chip-filter .pill {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 15px;
+    scroll-snap-align: start;
+  }
+  .catalog .chip-filter {
+    scroll-snap-type: x proximity;
+  }
+  .catalog .filters-toggle {
+    align-self: stretch;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
   }
   /* на узком экране в строке REC только режим и фильтры */
   .catalog__rec > span:nth-child(4),

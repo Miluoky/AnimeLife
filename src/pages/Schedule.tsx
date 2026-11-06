@@ -114,14 +114,14 @@ export default function Schedule() {
                 <a
                   key={k}
                   href={`#day-${k}`}
-                  className="pill"
+                  className={`pill schedule-day-tab${isToday ? ' schedule-day-tab--today' : ''}`}
                   onClick={(e) => {
                     e.preventDefault()
                     document.getElementById(`day-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }}
                 >
                   {isToday ? 'Сегодня' : chipFormat.format(day.date)}
-                  <span className="pill__count">{day.items.length}</span>
+                  <span className="pill__count schedule-day-tab__count">{day.items.length}</span>
                 </a>
               )
             })}
@@ -183,7 +183,7 @@ export default function Schedule() {
                             </span>
                             <span className="schedule-row__info">
                               <span className="schedule-row__title">{item.anime.title}</span>
-                              <span className="muted">
+                              <span className="schedule-row__meta muted">
                                 Серия {item.episode}
                                 {item.anime.episodes ? ` из ${item.anime.episodes}` : ''}
                                 {isPast ? ' · вышла' : ''}
@@ -204,10 +204,12 @@ export default function Schedule() {
             })}
           </div>
         ) : (
-          <div className="empty-card">
+          <div className="empty-card schedule-empty">
             <Mascot />
-            <h2>На этой неделе новых серий нет</h2>
-            <p className="muted">Онгоинги на перерыве. Загляните в каталог или посмотрите, что уже вышло целиком.</p>
+            <h2 className="schedule-empty__title">На этой неделе новых серий нет</h2>
+            <p className="muted schedule-empty__text">
+              Онгоинги на перерыве. Загляните в каталог или посмотрите, что уже вышло целиком.
+            </p>
             <div className="actions">
               <Link to="/catalog" className="btn btn--accent">
                 Открыть каталог

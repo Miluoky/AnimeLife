@@ -132,6 +132,14 @@ export default function SearchHints({ query, listId, keys, onGo, onState }: Prop
       : shown?.failed
         ? 'Поиск сейчас не отвечает. Попробуйте ещё раз чуть позже.'
         : 'Ничего не нашлось. Попробуйте название на английском или японском.'
+  const messageTone: 'loading' | 'empty' | 'error' | undefined =
+    !typing || items.length
+      ? undefined
+      : loading || !fresh
+        ? 'loading'
+        : shown?.failed
+          ? 'error'
+          : 'empty'
   const expanded = items.length > 0 || !!message
 
   useEffect(() => {
@@ -217,7 +225,13 @@ export default function SearchHints({ query, listId, keys, onGo, onState }: Prop
         </li>
       ))}
       {message && (
-        <li role="presentation" className="search-hints__message muted" aria-live="polite">
+        <li
+          role="status"
+          className={`search-hints__message muted${messageTone ? ` search-hints__message--${messageTone}` : ''}`}
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {messageTone === 'loading' && <span className="search-hints__spinner" aria-hidden="true" />}
           {message}
         </li>
       )}

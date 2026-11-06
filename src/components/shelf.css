@@ -1,13 +1,16 @@
 /* Полки с прокруткой вбок: иконка в плашке, заголовок с подписью и стрелки по краям. */
+.stack.shelf {
+  gap: 14px;
+}
 .shelf__head {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 .shelf__icon {
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 2px;
   display: grid;
   place-items: center;
@@ -21,14 +24,15 @@
 }
 .shelf__titles h2 {
   font-weight: 700;
-  font-size: 26px;
+  font-size: 22px;
+  line-height: 1.2;
   letter-spacing: -0.02em;
 }
 /* Подпись полки — служебная строка моноширинным, как пометка на плёнке. */
 .shelf__titles p {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -49,13 +53,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 34px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: 4px;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   background: color-mix(in srgb, var(--surface-2) 60%, transparent);
@@ -125,11 +129,11 @@
 @media (max-width: 640px) {
   /* На телефоне заголовок полки умещается в одну строку рядом со ссылкой «Все». */
   .shelf__titles h2 {
-    font-size: 18px;
+    font-size: 17px;
     line-height: 1.25;
   }
   .shelf__titles p {
-    font-size: 13px;
+    font-size: 11px;
   }
   .shelf__icon {
     width: 32px;

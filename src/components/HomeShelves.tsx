@@ -249,7 +249,7 @@ export function HomeBento() {
                 <div className="bento-pause__msg">
                   <h3 className="bento-pause__title">Сегодня нет новых серий</h3>
                   <p className="bento-pause__desc">
-                    Свежие серии появятся по расписанию (ближайшие — {nextDayText}). Ознакомьтесь с графиком недели или доверьтесь случайному выбору.
+                    Ближайшие релизы — {nextDayText}. Откройте расписание или случайный тайтл ниже.
                   </p>
                 </div>
               </div>
@@ -296,9 +296,7 @@ export function HomeBento() {
               ЭФИРНАЯ ПАУЗА
             </div>
             <h3 className="bento-pause__title">Сегодня нет новых серий</h3>
-            <p className="bento-pause__desc">
-              Свежие серии появятся по расписанию. Вы можете ознакомиться с расписанием на неделю или довериться случайному выбору.
-            </p>
+            <p className="bento-pause__desc">Расписание на неделю или случайный тайтл — кнопки ниже.</p>
             <div className="bento-pause__actions">
               <Link to="/schedule" className="btn btn--accent btn--small bento-pause__btn">
                 <CalendarIcon size={15} />
@@ -378,7 +376,7 @@ export function SeasonShelf() {
       <UpcomingShelf />
       <CatalogShelf
         title="Топ-10 онгоингов"
-        subtitle="То, что смотрят прямо сейчас в этом сезоне"
+        subtitle="Сейчас в тренде сезона"
         icon={<TrophyIcon />}
         query={{ status: 'ongoing', order: 'popularity' }}
         more="/catalog?status=ongoing"
@@ -387,7 +385,7 @@ export function SeasonShelf() {
       />
       <CatalogShelf
         title={season.label}
-        subtitle="Новинки и продолжения этого сезона"
+        subtitle="Новинки сезона"
         icon={<CalendarIcon size={18} />}
         query={{ season: season.code }}
         more="/season"
@@ -401,22 +399,15 @@ export function MoreShelves() {
   return (
     <>
       <CatalogShelf
-        title="Горячие онгоинги недели"
-        subtitle="Свежие серии, которые смотрят прямо сейчас"
-        icon={<SparkIcon />}
-        query={{ status: 'ongoing', order: 'popularity' }}
-        more="/catalog?status=ongoing"
-      />
-      <CatalogShelf
         title="В планах"
-        subtitle="Анонсы, которые выйдут совсем скоро"
+        subtitle="Скоро на экранах"
         icon={<ClockIcon />}
         query={{ status: 'anons' }}
         more="/catalog?status=anons"
       />
       <CatalogShelf
         title="Шедевры аниме"
-        subtitle="Легендарные истории с наивысшим рейтингом"
+        subtitle="Высокий рейтинг и сильные истории"
         icon={<TrophyIcon />}
         query={{ order: 'ranked', score: 8 }}
         more="/top"
@@ -452,7 +443,7 @@ function GenreTiles() {
         </span>
         <div className="shelf__titles">
           <h2>Жанры</h2>
-          <p className="muted">Популярные категории аниме</p>
+          <p className="muted">Быстрый вход по настроению</p>
         </div>
         <Link to="/catalog" className="shelf__more">
           Все жанры

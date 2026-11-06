@@ -106,7 +106,9 @@ export default function NotificationBell() {
           {items === null ? (
             <div className="skeleton skeleton--line" style={{ height: 48 }} aria-busy="true" />
           ) : items.length === 0 && !fresh ? (
-            <p className="muted bell__empty">Пока тихо. Здесь появятся ответы на ваши комментарии, лайки и новые подписчики.</p>
+            <div className="bell__empty-wrap">
+              <p className="bell__empty">Пока тихо. Здесь появятся ответы на ваши комментарии, лайки и новые подписчики.</p>
+            </div>
           ) : (
             <ul className="bell__list">
               {items.map((n) => (

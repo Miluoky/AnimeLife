@@ -5,6 +5,7 @@ import { CatalogShelf } from '../components/HomeShelves'
 import { SparkIcon } from '../components/Icons'
 import type { CatalogQuery } from '../api'
 import './top.css'
+import './collections.css'
 
 interface Collection {
   title: string
@@ -78,7 +79,7 @@ const UserCollectionsShelf = lazy(() => import('./UserCollections').then((m) => 
 export default function Collections() {
   usePageMeta('Подборки аниме', 'Подборки аниме на вечер: с чего начать, лучшие фильмы, психологические триллеры, комедии, фэнтези, классика 90-х и 2000-х.')
   return (
-    <main className="container top-page">
+    <main className="container top-page collections-page">
       <header className="top-head">
         <span className="top-head__icon" aria-hidden="true">
           <SparkIcon size={24} />
@@ -94,9 +95,22 @@ export default function Collections() {
       <Suspense fallback={null}>
         <UserCollectionsShelf />
       </Suspense>
-      {COLLECTIONS.map((c) => (
-        <CatalogShelf key={c.title} title={c.title} subtitle={c.subtitle} icon={<SparkIcon size={18} />} query={c.query} more={c.catalog} />
-      ))}
+      <section className="collections-page__section" aria-labelledby="collections-curated-heading">
+        <div className="collections-page__section-head">
+          <span className="collections-page__section-icon" aria-hidden="true">
+            <SparkIcon size={20} />
+          </span>
+          <div className="collections-page__section-titles">
+            <h2 id="collections-curated-heading">Готовые подборки</h2>
+            <p className="muted collections-page__section-lead">
+              Подборки по жанрам, эпохам и настроению — листайте вбок, откройте каталог с теми же фильтрами через «Все».
+            </p>
+          </div>
+        </div>
+        {COLLECTIONS.map((c) => (
+          <CatalogShelf key={c.title} title={c.title} subtitle={c.subtitle} icon={<SparkIcon size={18} />} query={c.query} more={c.catalog} />
+        ))}
+      </section>
     </main>
   )
 }

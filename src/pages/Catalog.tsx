@@ -178,6 +178,13 @@ export default function Catalog() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const setCount = ['kind', 'year', 'score', 'studio', 'age', 'hide'].filter((n) => params.has(n)).length + list('genre').length + list('nogenre').length
   const filtersSet = ['order', 'status', 'kind', 'year', 'part', 'score', 'genre', 'nogenre', 'studio', 'age', 'hide'].some((n) => params.has(n))
+  // Текст «пусто» для сетки: при активном поиске блок NothingFound ниже даёт смысл и ссылки — дублирующую строку в сетке убираем.
+  const gridEmpty =
+    search
+      ? ''
+      : filtersSet
+        ? 'Под этими фильтрами ничего не нашлось. Смягчите условия или сбросьте фильтры — список обновится.'
+        : 'Пока пусто. Попробуйте другую сортировку или зайдите позже.'
 
   return (
     <main className="container home catalog">
@@ -211,26 +218,28 @@ export default function Catalog() {
             <span>Фильтров {String(setCount).padStart(2, '0')}</span>
             <span>Стр {String(page).padStart(2, '0')}</span>
           </p>
-          <ChipFilter
-            label="Сортировка"
-            name="order"
-            value={value('order') || 'popularity'}
-            any=""
-            options={orders}
-            onChange={(name, v) => change(name, v === 'popularity' ? '' : v)}
-          />
-          <ChipFilter label="Статус" name="status" value={value('status')} any="Все" options={statuses} onChange={change} />
+          <div className="catalog__filter-bar">
+            <ChipFilter
+              label="Сортировка"
+              name="order"
+              value={value('order') || 'popularity'}
+              any=""
+              options={orders}
+              onChange={(name, v) => change(name, v === 'popularity' ? '' : v)}
+            />
+            <ChipFilter label="Статус" name="status" value={value('status')} any="Все" options={statuses} onChange={change} />
 
-          <button
-            type="button"
-            className={`pill filters-toggle${filtersOpen ? ' active' : ''}`}
-            aria-expanded={filtersOpen}
-            aria-controls="catalog-filters"
-            onClick={() => setFiltersOpen(!filtersOpen)}
-          >
-            <FilterIcon size={16} />
-            Фильтры{setCount > 0 && <span className="pill__count">{setCount}</span>}
-          </button>
+            <button
+              type="button"
+              className={`pill filters-toggle${filtersOpen ? ' active' : ''}`}
+              aria-expanded={filtersOpen}
+              aria-controls="catalog-filters"
+              onClick={() => setFiltersOpen(!filtersOpen)}
+            >
+              <FilterIcon size={16} />
+              Фильтры{setCount > 0 && <span className="pill__count">{setCount}</span>}
+            </button>
+          </div>
           <div id="catalog-filters" className={`filters${filtersOpen ? ' filters--open' : ''}`} role="group" aria-label="Фильтры каталога">
             <MultiPick
               label="Жанры"
@@ -285,7 +294,15 @@ export default function Catalog() {
           </div>
         </div>
 
-        <CatalogGrid key={JSON.stringify(query) + page} query={query} start={page} onFirst={(n) => setFirst([page, n])} />
+        <div className="catalog-results">
+          <CatalogGrid
+            key={JSON.stringify(query) + page}
+            query={query}
+            start={page}
+            empty={gridEmpty}
+            onFirst={(n) => setFirst([page, n])}
+          />
+        </div>
         {other && first?.[0] === page && first[1] === 0 && (
           <p className="muted">
             Возможно, вы искали{' '}
@@ -319,17 +336,23 @@ function NothingFound() {
   const popular = useAsync(() => loadCatalog({ order: 'popularity', status: 'ongoing', limit: 12 }), [])
   const picks = popular.value?.data ?? []
   return (
-    <>
-      <div className="chips">
-        <Link to="/random" className="pill pill--link">
-          🎲 Подобрать по настроению
-        </Link>
-        <Link to="/collections" className="pill pill--link">
-          📚 Подборки
-        </Link>
-        <Link to="/top" className="pill pill--link">
-          🏆 Топ-100
-        </Link>
+    <section className="catalog-empty catalog-empty--search" aria-labelledby="catalog-empty-search-title">
+      <div className="catalog-empty__box">
+        <h2 id="catalog-empty-search-title" className="catalog-empty__title">
+          По запросу ничего не нашлось
+        </h2>
+        <p className="catalog-empty__hint muted">Проверьте написание или сбросьте поиск — ниже есть идеи, куда заглянуть.</p>
+        <div className="chips catalog-empty__chips">
+          <Link to="/random" className="pill pill--link">
+            🎲 Подобрать по настроению
+          </Link>
+          <Link to="/collections" className="pill pill--link">
+            📚 Подборки
+          </Link>
+          <Link to="/top" className="pill pill--link">
+            🏆 Топ-100
+          </Link>
+        </div>
       </div>
       {picks.length > 0 && (
         <Shelf title="Популярно сейчас" subtitle="Пока ищете, вот что смотрят другие" icon={<SparkIcon size={18} />}>
@@ -340,6 +363,6 @@ function NothingFound() {
           ))}
         </Shelf>
       )}
-    </>
+    </section>
   )
 }

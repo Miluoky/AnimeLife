@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { toast } from '../data/toast'
 import { playerTime } from '../data/playerTime'
 import { CloseIcon } from './Icons'
+import './share-modal.css'
 
 export interface ShareModalProps {
   isOpen: boolean
@@ -138,63 +139,32 @@ export default function ShareModal({
         aria-modal="true"
         aria-labelledby="share-modal-title"
         className="share-modal"
-        style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 120,
-          background: 'var(--surface)',
-          border: '1px solid var(--line)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--glass-shadow)',
-          width: 'min(460px, calc(100vw - 32px))',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '18px',
-          color: 'var(--text)',
-        }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="share-modal__header">
           <div>
-            <h2 id="share-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>
+            <h2 id="share-modal-title" className="share-modal__title">
               Поделиться серией
             </h2>
-            <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--text-soft)' }}>
+            <p className="share-modal__subtitle">
               «{title}», серия {episode}
             </p>
           </div>
           <button
             type="button"
-            className="btn btn--ghost"
+            className="btn btn--ghost share-modal__close"
             onClick={onClose}
             aria-label="Закрыть"
-            style={{ padding: '8px', minWidth: '40px', minHeight: '40px', borderRadius: 'var(--radius-full)' }}
           >
             <CloseIcon size={20} />
           </button>
         </div>
 
         {hasValidTime && (
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 14px',
-              background: 'var(--surface-2)',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              userSelect: 'none',
-            }}
-          >
+          <label className="share-modal__timestamp">
             <input
               type="checkbox"
               checked={includeTimestamp}
               onChange={(e) => setIncludeTimestamp(e.currentTarget.checked)}
-              style={{ width: '18px', height: '18px', accentColor: 'var(--accent)' }}
             />
             <span>
               Ссылка на точный момент: <strong style={{ color: 'var(--accent)' }}>{formatTimestamp(currentSec)}</strong>
@@ -202,130 +172,54 @@ export default function ShareModal({
           </label>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={shareTelegram}
-            className="btn"
-            style={{
-              background: '#2AABEE',
-              color: '#fff',
-              border: 'none',
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <TelegramIcon size={20} />
-            Telegram
-          </button>
-          <button
-            type="button"
-            onClick={shareVk}
-            className="btn"
-            style={{
-              background: '#0077FF',
-              color: '#fff',
-              border: 'none',
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <VkIcon size={20} />
-            ВКонтакте
-          </button>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            padding: '14px',
-            background: 'var(--surface-2)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--line)',
-          }}
-        >
-          <div
-            style={{
-              width: '84px',
-              height: '84px',
-              background: '#fff',
-              borderRadius: 'var(--radius-sm)',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {qrLoading ? (
-              <span style={{ fontSize: '10px', color: '#666' }}>Код...</span>
-            ) : qrSvg ? (
-              <div
-                style={{ width: '100%', height: '100%', display: 'flex' }}
-                aria-label="QR-код для продолжения просмотра на мобильном"
-                role="img"
-                dangerouslySetInnerHTML={{ __html: qrSvg }}
-              />
-            ) : null}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Продолжить на смартфоне</span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-soft)', lineHeight: 1.3 }}>
-              Наведите камеру смартфона на QR-код для мгновенного перехода к просмотру.
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <p className="share-modal__section-label">Ссылка</p>
+        <div className="share-modal__copy-row">
           <input
             type="text"
             readOnly
             value={shareUrl}
             onFocus={(e) => e.currentTarget.select()}
             aria-label="Ссылка для шеринга"
-            style={{
-              flex: 1,
-              background: 'var(--bg)',
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--radius-md)',
-              padding: '10px 14px',
-              color: 'var(--text-soft)',
-              fontSize: '0.85rem',
-              fontFamily: 'var(--font-mono)',
-              outline: 'none',
-            }}
+            className="share-modal__url-input"
           />
-          <button
-            type="button"
-            className="btn btn--accent"
-            onClick={copyLink}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '10px 16px',
-              borderRadius: 'var(--radius-md)',
-              whiteSpace: 'nowrap',
-              fontWeight: 600,
-            }}
-          >
+          <button type="button" className="btn btn--accent share-modal__copy-btn" onClick={copyLink}>
             <CopyIcon size={18} />
             Копировать
           </button>
+        </div>
+
+        <div className="share-modal__qr">
+          <div className="share-modal__qr-frame">
+            {qrLoading ? (
+              <span className="share-modal__qr-placeholder">Код...</span>
+            ) : qrSvg ? (
+              <div
+                aria-label="QR-код для продолжения просмотра на мобильном"
+                role="img"
+                dangerouslySetInnerHTML={{ __html: qrSvg }}
+              />
+            ) : null}
+          </div>
+          <div className="share-modal__qr-body">
+            <span className="share-modal__qr-heading">Продолжить на смартфоне</span>
+            <span className="share-modal__qr-hint">
+              Наведите камеру на QR-код — откроется то же место в просмотре.
+            </span>
+          </div>
+        </div>
+
+        <div className="share-modal__social">
+          <p className="share-modal__social-label">Соцсети</p>
+          <div className="share-modal__social-grid">
+            <button type="button" onClick={shareTelegram} className="btn share-modal__social-btn share-modal__social-btn--tg">
+              <TelegramIcon size={20} />
+              Telegram
+            </button>
+            <button type="button" onClick={shareVk} className="btn share-modal__social-btn share-modal__social-btn--vk">
+              <VkIcon size={20} />
+              ВКонтакте
+            </button>
+          </div>
         </div>
       </div>
     </>

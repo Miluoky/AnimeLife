@@ -305,12 +305,133 @@
 }
 
 
-/* Подпись к «Экономии трафика» в «Оформлении». */
-.appearance__hint {
-  margin: -6px 0 0;
-  max-width: 640px;
+/* Блок «Оформление» на странице аккаунта: сетка подписей, свотчи, группа переключателей */
+.acc-appearance {
+  padding: 22px 22px 26px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  max-width: 720px;
+}
+
+.acc-appearance .appearance {
+  gap: 22px;
+}
+
+.acc-appearance .appearance__row:not(.appearance__toggle) {
+  display: grid;
+  grid-template-columns: minmax(0, 92px) minmax(0, 1fr);
+  align-items: start;
+  gap: 10px 20px;
+}
+
+.acc-appearance .appearance__row:not(.appearance__toggle) > .muted {
+  min-width: 0;
+  margin: 0;
+  padding-top: 7px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.acc-appearance .chips {
+  gap: 10px;
+}
+
+.acc-appearance .swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  row-gap: 14px;
+}
+
+.acc-appearance .swatch {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 2px solid color-mix(in srgb, var(--text) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 35%, transparent);
+}
+
+.acc-appearance .swatch--on {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--text);
+}
+
+/* Подпись к «Экономии трафика» */
+.acc-appearance .appearance__hint {
+  margin: -4px 0 0;
+  grid-column: 1 / -1;
+  max-width: none;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
+  padding-left: calc(92px + 20px);
+}
+
+@media (max-width: 520px) {
+  .acc-appearance .appearance__hint {
+    padding-left: 0;
+  }
+}
+
+.acc-appearance .appearance__hint + .appearance__toggle {
+  margin-top: 6px;
+  padding-top: 18px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+}
+
+.acc-appearance .appearance__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 75%, var(--surface));
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.acc-appearance .appearance__toggle:hover {
+  border-color: color-mix(in srgb, var(--text-soft) 45%, var(--line));
+}
+
+.acc-appearance .appearance__toggle input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+}
+
+.acc-appearance .appearance__toggle span {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.acc-appearance .appearance__toggle:last-of-type {
+  margin-top: 8px;
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+}
+
+@media (max-width: 520px) {
+  .acc-appearance {
+    padding: 18px 16px 22px;
+    border-radius: 10px;
+  }
+
+  .acc-appearance .appearance__row:not(.appearance__toggle) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .acc-appearance .appearance__row:not(.appearance__toggle) > .muted {
+    padding-top: 0;
+  }
 }
 
 /* «Мои данные»: удаление аккаунта красным, чтобы его не нажали случайно вместо выгрузки */

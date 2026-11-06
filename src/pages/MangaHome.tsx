@@ -4,8 +4,8 @@ import { useAsync } from '../api'
 import { MANGA_PAGE_SIZE, mangasByIds, searchMangas, type MangaQuery } from '../api/manga'
 import { allProgress, chapterLabel, latestChapter, readableIds } from '../api/mangadex'
 import type { Anime } from '../data/catalog'
-import { mangaProgressStore } from '../data/mangaProgress'
-import PosterCard from '../components/PosterCard'
+import { mangaProgressStore, type ReadProgress } from '../data/mangaProgress'
+import PosterCard, { Poster } from '../components/PosterCard'
 import { usePageMeta } from '../data/pageMeta'
 import './manga.css'
 
@@ -53,6 +53,18 @@ const fresh = (num: string, latest?: string) => {
   return Number.isFinite(d) && d > 0 ? d : 0
 }
 
+/** Миниатюра на полке «Читаю»: один URL — показываем через Poster (OptimizedImage), не сырым img. */
+function readingCoverAnime(p: ReadProgress): Pick<Anime, 'title' | 'posterUrl' | 'posterSmall' | 'posterSmall2x' | 'posterFill'> {
+  const url = p.image
+  return {
+    title: p.title ?? 'Манга',
+    posterUrl: url,
+    posterSmall: url,
+    posterSmall2x: undefined,
+    posterFill: '#1c1b26',
+  }
+}
+
 /** «Читаю»: манга, которую уже открывали в читалке, со ссылкой на место остановки и числом новых глав. */
 function Reading() {
   // Подписка: место из аккаунта приходит после входа, полка обновляется сама.
@@ -72,8 +84,13 @@ function Reading() {
       <ul className="manga-reading">
         {list.map((p) => (
           <li key={p.id}>
-            <Link to={`/manga/${p.id}/chapter/${p.chapterId}?lang=${p.lang}`}>
-              <span className="manga-reading__img">{p.image && <img src={p.image} alt="" width={60} height={90} loading="lazy" decoding="async" />}</span>
+            <Link
+              to={`/manga/${p.id}/chapter/${p.chapterId}?lang=${p.lang}`}
+              aria-label={`${p.title ?? 'Манга'}, ${chapterLabel({ num: p.num })}${p.page ? `, страница ${p.page}` : ''}`}
+            >
+              <span className="manga-reading__cover" aria-hidden="true">
+                <Poster anime={readingCoverAnime(p)} alt={p.title ? `Обложка «${p.title}»` : 'Обложка манги'} />
+              </span>
               <span className="manga-reading__text">
                 <b>{p.title ?? 'Манга'}</b>
                 <span className="muted">
@@ -112,15 +129,19 @@ export default function MangaHome() {
   const [text, setText] = useState(q)
   const [page, setPage] = useState(1)
   const [items, setItems] = useState<Anime[]>([])
+  const [retryKey, setRetryKey] = useState(0)
   useEffect(() => setText(q), [q])
   useEffect(() => setPage(1), [q, tabId, kind])
+  useEffect(() => setItems([]), [q, tabId, kind])
 
   const query: MangaQuery = { ...tab.query, search: q || undefined, kind: kind || undefined, page }
-  const result = useAsync(() => loadPage(tabId, query).catch(() => null), [q, tabId, kind, page])
+  const result = useAsync(() => loadPage(tabId, query).catch(() => null), [q, tabId, kind, page, retryKey])
   useEffect(() => {
     if (result.loading || !result.value) return
-    const fresh = result.value.items
-    setItems((prev) => (page === 1 ? fresh : [...prev, ...fresh.filter((a) => !prev.some((p) => p.id === a.id))]))
+    const freshItems = result.value.items
+    setItems((prev) =>
+      page === 1 ? freshItems : [...prev, ...freshItems.filter((a) => !prev.some((p) => p.id === a.id))],
+    )
   }, [result])
 
   usePageMeta(
@@ -140,6 +161,10 @@ export default function MangaHome() {
   }
 
   const hasMore = !!result.value?.more
+  const catalogLoading = result.loading
+  const firstPageLoading = catalogLoading && page === 1 && items.length === 0
+  const loadingMore = catalogLoading && page > 1 && items.length > 0
+
   return (
     <main className="container stack manga-home">
       <header className="stack">
@@ -195,20 +220,49 @@ export default function MangaHome() {
         </div>
       </div>
 
-      {result.value === null && !result.loading && page === 1 ? (
-        <p className="muted">Список сейчас не загрузился. Попробуйте обновить страницу через минуту.</p>
-      ) : !result.loading && items.length === 0 ? (
-        <p className="muted">Ничего не нашлось. Попробуйте другое название или вид.</p>
-      ) : (
-        <div className="grid grid--posters" aria-busy={result.loading}>
-          {items.map((a, i) => (
-            <PosterCard key={a.id} anime={a} href={`/manga/${a.id.replace('manga-', '')}`} priority={i < 2} />
+      {result.value === null && !catalogLoading && page === 1 ? (
+        <div className="manga-home__panel manga-home__panel--error" role="alert">
+          <p className="manga-home__panel-title">Не удалось загрузить каталог</p>
+          <p className="muted manga-home__panel-text">Сервер или сеть временно недоступны. Попробуйте ещё раз чуть позже.</p>
+          <button type="button" className="btn btn--accent" onClick={() => setRetryKey((k) => k + 1)}>
+            Повторить
+          </button>
+        </div>
+      ) : firstPageLoading ? (
+        <div className="grid grid--posters manga-home__catalog-skeleton" aria-busy="true" aria-label="Загрузка каталога">
+          {Array.from({ length: 12 }, (_, i) => (
+            <div key={i} className="poster-card">
+              <div className="poster-card__img skeleton" />
+              <div className="skeleton skeleton--line manga-home__skeleton-meta" />
+            </div>
           ))}
+        </div>
+      ) : !catalogLoading && items.length === 0 ? (
+        <div className="manga-home__panel manga-home__panel--empty">
+          <p className="manga-home__panel-title">{q ? 'Ничего не нашлось' : 'Пока пусто'}</p>
+          <p className="muted manga-home__panel-text">
+            {q
+              ? 'Попробуйте сократить запрос, другое написание или смените вид (манга / манхва / маньхуа).'
+              : 'Для этой подборки и вида сейчас нет тайтлов. Выберите другую вкладку или снимите фильтр вида.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid--posters" aria-busy={loadingMore}>
+          {items.map((a, i) => (
+            <PosterCard key={a.id} anime={a} href={`/manga/${a.id.replace('manga-', '')}`} priority={i < 6 && page === 1} />
+          ))}
+          {loadingMore &&
+            Array.from({ length: 6 }, (_, i) => (
+              <div key={`sk-${i}`} className="poster-card">
+                <div className="poster-card__img skeleton" />
+                <div className="skeleton skeleton--line manga-home__skeleton-meta" />
+              </div>
+            ))}
         </div>
       )}
       {hasMore && (
-        <button type="button" className="btn btn--ghost load-more" disabled={result.loading} onClick={() => setPage(page + 1)}>
-          {result.loading ? 'Загружаем…' : 'Показать ещё'}
+        <button type="button" className="btn btn--ghost load-more" disabled={catalogLoading} onClick={() => setPage(page + 1)}>
+          {catalogLoading ? 'Загружаем…' : 'Показать ещё'}
         </button>
       )}
       <p className="muted manga__credit">

@@ -60,24 +60,35 @@ export default function Community() {
         </div>
       </section>
 
-      <nav className="s-tabs" aria-label="Вкладки сообщества" style={{ marginBottom: 20 }}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={t.id === tab ? 'is-on' : undefined}
-            aria-pressed={t.id === tab}
-            onClick={() => setParams(t.id === 'feed' ? {} : { tab: t.id }, { replace: true })}
-          >
-            {t.title}
-          </button>
-        ))}
-      </nav>
+      <div className="community-panels">
+        <nav className="s-tabs community-tabs" aria-label="Вкладки сообщества">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              id={`community-tab-${t.id}`}
+              type="button"
+              className={t.id === tab ? 'is-on' : undefined}
+              aria-pressed={t.id === tab}
+              aria-controls={`community-panel-${t.id}`}
+              onClick={() => setParams(t.id === 'feed' ? {} : { tab: t.id }, { replace: true })}
+            >
+              {t.title}
+            </button>
+          ))}
+        </nav>
 
-      {tab === 'feed' && <Feed />}
-      {tab === 'clubs' && <Clubs />}
-      {tab === 'top' && <Leaders />}
-      {tab === 'people' && <People />}
+        <div
+          className="community-panel"
+          role="tabpanel"
+          id={`community-panel-${tab}`}
+          aria-labelledby={`community-tab-${tab}`}
+        >
+          {tab === 'feed' && <Feed />}
+          {tab === 'clubs' && <Clubs />}
+          {tab === 'top' && <Leaders />}
+          {tab === 'people' && <People />}
+        </div>
+      </div>
     </main>
   )
 }
@@ -104,27 +115,56 @@ function Feed() {
   return (
     <section className="stack">
       {user && (
-        <div className="s-chips">
-          <button type="button" className={mode === 'friends' ? 'is-on' : undefined} onClick={() => setMode('friends')}>
-            Мои подписки
-          </button>
-          <button type="button" className={mode === 'all' ? 'is-on' : undefined} onClick={() => setMode('all')}>
-            Все зрители
-          </button>
+        <div className="community-toolbar">
+          <span className="community-toolbar__label" id="feed-scope-label">
+            Лента
+          </span>
+          <div className="s-chips community-toolbar__chips" role="group" aria-labelledby="feed-scope-label">
+            <button type="button" className={mode === 'friends' ? 'is-on' : undefined} onClick={() => setMode('friends')}>
+              Мои подписки
+            </button>
+            <button type="button" className={mode === 'all' ? 'is-on' : undefined} onClick={() => setMode('all')}>
+              Все зрители
+            </button>
+          </div>
         </div>
       )}
 
       {feed.loading && <p className="muted" aria-busy="true">Загрузка ленты активности...</p>}
 
       {!feed.loading && !items.length && (
-        <div className="stack" style={{ gap: 20 }}>
-          <div className="s-empty">
+        <div className="stack community-feed-empty" style={{ gap: 20 }}>
+          <div
+            className={
+              friends
+                ? 's-empty'
+                : !user
+                  ? 's-empty community-empty community-empty--guest'
+                  : 's-empty'
+            }
+          >
             {friends ? (
               <>
                 <p>Вы пока ни на кого не подписаны. Переключитесь на «Все зрители» или найдите друзей среди активных участников.</p>
                 <button type="button" className="btn btn--accent" onClick={() => setMode('all')}>
                   Показать общую ленту
                 </button>
+              </>
+            ) : !user ? (
+              <>
+                <p className="community-empty__lead">Войдите, чтобы видеть личную ленту и подписываться на зрителей</p>
+                <p>
+                  Сейчас показана общая лента. Когда появятся первые события, они отобразятся здесь; с аккаунтом вы сможете фильтровать по
+                  подпискам и делиться своей активностью.
+                </p>
+                <div className="community-empty__actions">
+                  <Link to="/account" className="btn btn--accent">
+                    Войти или создать аккаунт
+                  </Link>
+                  <Link to="/community?tab=people" className="btn btn--ghost btn--small">
+                    Смотреть участников
+                  </Link>
+                </div>
               </>
             ) : (
               <p>Здесь появится лента активности зрителей: просмотры, оценки и новые серии.</p>
@@ -220,31 +260,43 @@ function Leaders() {
 
   const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3
 
+  const metricLabel = metric === 'hours' ? 'Часы' : metric === 'episodes' ? 'Серии' : 'XP'
+
   return (
-    <section className="stack">
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-        <div className="s-chips">
-          <button type="button" className={period === 'week' ? 'is-on' : undefined} onClick={() => setPeriod('week')}>
-            За неделю
-          </button>
-          <button type="button" className={period === 'month' ? 'is-on' : undefined} onClick={() => setPeriod('month')}>
-            За этот месяц
-          </button>
-          <button type="button" className={period === 'all' ? 'is-on' : undefined} onClick={() => setPeriod('all')}>
-            За всё время
-          </button>
+    <section className="stack community-leaders">
+      <div className="community-leaders__toolbars">
+        <div className="community-toolbar">
+          <span className="community-toolbar__label" id="leaders-period-label">
+            Период
+          </span>
+          <div className="s-chips community-toolbar__chips" role="group" aria-labelledby="leaders-period-label">
+            <button type="button" className={period === 'week' ? 'is-on' : undefined} onClick={() => setPeriod('week')}>
+              За неделю
+            </button>
+            <button type="button" className={period === 'month' ? 'is-on' : undefined} onClick={() => setPeriod('month')}>
+              За этот месяц
+            </button>
+            <button type="button" className={period === 'all' ? 'is-on' : undefined} onClick={() => setPeriod('all')}>
+              За всё время
+            </button>
+          </div>
         </div>
 
-        <div className="s-chips">
-          <button type="button" className={metric === 'hours' ? 'is-on' : undefined} onClick={() => setMetric('hours')}>
-            Часы
-          </button>
-          <button type="button" className={metric === 'episodes' ? 'is-on' : undefined} onClick={() => setMetric('episodes')}>
-            Серии
-          </button>
-          <button type="button" className={metric === 'xp' ? 'is-on' : undefined} onClick={() => setMetric('xp')}>
-            Опыт XP
-          </button>
+        <div className="community-toolbar community-toolbar--end">
+          <span className="community-toolbar__label" id="leaders-metric-label">
+            Метрика
+          </span>
+          <div className="s-chips community-toolbar__chips" role="group" aria-labelledby="leaders-metric-label">
+            <button type="button" className={metric === 'hours' ? 'is-on' : undefined} onClick={() => setMetric('hours')}>
+              Часы
+            </button>
+            <button type="button" className={metric === 'episodes' ? 'is-on' : undefined} onClick={() => setMetric('episodes')}>
+              Серии
+            </button>
+            <button type="button" className={metric === 'xp' ? 'is-on' : undefined} onClick={() => setMetric('xp')}>
+              Опыт XP
+            </button>
+          </div>
         </div>
       </div>
 
@@ -257,8 +309,10 @@ function Leaders() {
       )}
 
       {top3.length > 0 && (
-        <div className="s-podium">
-          {podiumOrder.map((p) => {
+        <div className="community-leaders__block">
+          <h2 className="community-leaders__block-title">Топ‑3</h2>
+          <div className="s-podium">
+            {podiumOrder.map((p) => {
             const rank = list.indexOf(p) + 1
             const s = parseSummary(p)
             const coverBg = s.style?.coverUrl
@@ -288,27 +342,40 @@ function Leaders() {
               </Link>
             )
           })}
+          </div>
         </div>
       )}
 
       {rest.length > 0 && (
-        <ol className="s-leaders" start={4}>
-          {rest.map((p, i) => {
-            const rank = i + 4
-            const s = parseSummary(p)
-            return (
-              <li key={p.$id} className="s-leaders__row">
-                <span className="s-leaders__place">{rank}</span>
-                <Avatar name={p.name} avatarUrl={s.style?.avatarUrl} frame={s.style?.frame} size={38} online={true} />
-                <Link to={`/u/${p.$id}`} className={`s-leaders__name ${s.style?.nameColor ? `pf-name--${s.style.nameColor}` : ''}`}>
-                  {p.name}
-                </Link>
-                <LevelBadge xp={p.xp} />
-                <b className="s-leaders__xp">{formatStat(p)}</b>
-              </li>
-            )
-          })}
-        </ol>
+        <div className="community-leaders__block community-leaders__block--table">
+          <h2 className="community-leaders__block-title">Полный рейтинг</h2>
+          <div className="community-leaders__table">
+            <div className="community-leaders__head" aria-hidden="true">
+              <span className="community-leaders__col-place">#</span>
+              <span className="community-leaders__col-avatar" />
+              <span className="community-leaders__col-name">Участник</span>
+              <span className="community-leaders__col-level">Уровень</span>
+              <span className="community-leaders__col-stat">{metricLabel}</span>
+            </div>
+            <ol className="s-leaders community-leaders__list" start={4}>
+              {rest.map((p, i) => {
+                const rank = i + 4
+                const s = parseSummary(p)
+                return (
+                  <li key={p.$id} className="s-leaders__row">
+                    <span className="s-leaders__place">{rank}</span>
+                    <Avatar name={p.name} avatarUrl={s.style?.avatarUrl} frame={s.style?.frame} size={38} online={true} />
+                    <Link to={`/u/${p.$id}`} className={`s-leaders__name ${s.style?.nameColor ? `pf-name--${s.style.nameColor}` : ''}`}>
+                      {p.name}
+                    </Link>
+                    <LevelBadge xp={p.xp} />
+                    <b className="s-leaders__xp">{formatStat(p)}</b>
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
+        </div>
       )}
     </section>
   )
@@ -339,14 +406,19 @@ function Clubs() {
 
   return (
     <section className="stack">
-      <div className="s-row">
-        <div className="s-chips">
-          <button type="button" className={order === 'active' ? 'is-on' : undefined} onClick={() => setOrder('active')}>
-            Активные
-          </button>
-          <button type="button" className={order === 'big' ? 'is-on' : undefined} onClick={() => setOrder('big')}>
-            Крупные
-          </button>
+      <div className="s-row community-clubs-toolbar">
+        <div className="community-toolbar community-toolbar--grow">
+          <span className="community-toolbar__label" id="clubs-sort-label">
+            Сортировка
+          </span>
+          <div className="s-chips community-toolbar__chips" role="group" aria-labelledby="clubs-sort-label">
+            <button type="button" className={order === 'active' ? 'is-on' : undefined} onClick={() => setOrder('active')}>
+              Активные
+            </button>
+            <button type="button" className={order === 'big' ? 'is-on' : undefined} onClick={() => setOrder('big')}>
+              Крупные
+            </button>
+          </div>
         </div>
         {user ? (
           <button type="button" className="btn btn--accent btn--small" onClick={() => setCreating(!creating)}>

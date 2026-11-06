@@ -6,7 +6,8 @@ import Lightbox from '../components/Lightbox'
 import { useAmbient } from '../components/ambient'
 import { loadAnime, loadScreenshots, loadTitleExtras, useAsync } from '../api'
 import { blurPoster, shotPreview } from '../api/shikimori'
-import { slowNetwork } from '../data/saver'
+import { slowNetwork, srcset2x } from '../data/saver'
+import { OptimizedImage } from '../components/OptimizedImage'
 import { episodeFrame, findRelease } from '../api/anilibria'
 import { episodeTotals, episodesLabel } from '../data/catalog'
 import { useHistory } from '../data/history'
@@ -267,6 +268,16 @@ export default function TitlePage() {
   const [videoOpen, setVideoOpen] = useState<number>()
   const [videoKind, setVideoKind] = useState('')
   const [adultOk, setAdultOk] = useState(isAgeVerified)
+  const [bannerNarrow, setBannerNarrow] = useState(() =>
+    typeof matchMedia !== 'undefined' ? matchMedia('(max-width: 640px)').matches : false,
+  )
+  useEffect(() => {
+    const mql = matchMedia('(max-width: 640px)')
+    const onChange = () => setBannerNarrow(mql.matches)
+    onChange()
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
   const loaded = result.value?.data
   const info = loaded && animeInfo(loaded)
   // Кадры и названия серий из AniLibria, как в карточках серий AniLife. Плеер потом возьмёт тот же релиз из кэша.
@@ -469,16 +480,30 @@ export default function TitlePage() {
       />
       <div className="banner" style={{ background: anime.posterFill }}>
         {shots.length ? (
-          <img
-            className="banner__img banner__img--shot"
-            src={innerWidth <= 640 || slowNetwork() ? shotPreview(shots[0]) : shots[0]}
+          <OptimizedImage
+            key={bannerNarrow || slowNetwork() ? 'shot-preview' : 'shot-full'}
+            src={bannerNarrow || slowNetwork() ? shotPreview(shots[0]) : shots[0]}
+            priority
+            fill
+            placeholderFill={anime.posterFill}
             alt=""
-            // Главная картинка экрана (LCP): вперёд кадров серий, что грузятся в ту же секунду.
-            // @ts-expect-error fetchpriority ещё нет в типах React 18
-            fetchpriority="high"
+            className="banner__optimized"
+            imgClassName="banner__img banner__img--shot"
+            fallbackTitle={anime.title}
           />
         ) : anime.posterUrl ? (
-          <img className="banner__img" src={anime.posterUrl} alt="" />
+          <OptimizedImage
+            src={anime.posterSmall ?? anime.posterUrl}
+            srcSet={srcset2x(anime.posterSmall, anime.posterSmall2x)}
+            priority
+            fill
+            placeholderFill={anime.posterFill}
+            alt=""
+            className="banner__optimized"
+            imgClassName="banner__img"
+            sizes="100vw"
+            fallbackTitle={anime.title}
+          />
         ) : (
           <span className="art-label">[Широкий баннер тайтла]</span>
         )}

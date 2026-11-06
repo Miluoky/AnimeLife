@@ -817,6 +817,23 @@
   transform: scale(1.2);
 }
 
+/* OptimizedImage обёртка в баннере: слот на весь кадр, кинематографичный look задаёт img ниже. */
+.banner__optimized {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 0;
+}
+/* После загрузки OptimizedImage сбрасывает filter/transform инлайном — возвращаем стиль баннера (opacity оставляем инлайну для fade-in). */
+.banner__optimized .optimized-image__img {
+  filter: blur(24px) brightness(0.45) !important;
+  transform: scale(1.2) !important;
+}
+.banner__optimized .banner__img--shot {
+  filter: brightness(0.55) !important;
+  transform: none !important;
+}
+
 .banner .art-label {
   position: relative;
 }

@@ -425,7 +425,9 @@ export default function Account() {
           <AdminStatsCard />
         </Suspense>
       )}
-      <AppearanceSettings />
+      <div className="acc-appearance">
+        <AppearanceSettings />
+      </div>
       <PushSettings />
       <TelegramNotifySettings />
       {(user || list.length > 0) && <ProfileStats />}

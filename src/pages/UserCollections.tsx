@@ -1,5 +1,6 @@
 import './top.css'
 import './social.css'
+import './collections.css'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { loadAnime, loadCatalog, useAsync } from '../api'
@@ -20,7 +21,7 @@ import {
   type UserCollection,
 } from '../data/social'
 import PosterCard from '../components/PosterCard'
-import { ShareIcon } from '../components/Icons'
+import { PeopleIcon, ShareIcon } from '../components/Icons'
 import { ago, itemCard, plural } from '../components/socialUi'
 import NotFound from './NotFound'
 
@@ -37,13 +38,15 @@ export function CollectionCard({ c }: { c: UserCollection }) {
   const posters = collectionItems(c)
     .slice(0, 3)
     .map((i) => i.poster)
-    .filter(Boolean)
+    .filter(Boolean) as string[]
   return (
     <Link to={`/c/${c.$id}`} className="s-col-card">
       <span className="s-col-card__covers" aria-hidden="true">
-        {posters.map((p, i) => (
-          <img key={i} src={p} alt="" loading="lazy" />
-        ))}
+        {posters.length > 0 ? (
+          posters.map((p, i) => <img key={i} src={p} alt="" loading="lazy" />)
+        ) : (
+          <span className="s-col-card__covers--empty" />
+        )}
       </span>
       <b className="s-card__title">{c.title}</b>
       <span className="muted s-card__meta">
@@ -58,10 +61,16 @@ export function UserCollectionsShelf() {
   const [order, setOrder] = useState<'popular' | 'new'>('popular')
   const list = useAsync(() => loadCollections(order).catch(() => []), [order])
   return (
-    <section className="stack">
-      <div className="s-row">
-        <h2>Подборки зрителей</h2>
-        <div className="s-chips">
+    <section className="stack collections-page__section collections-page__section--community" aria-labelledby="collections-community-heading">
+      <div className="collections-page__section-head">
+        <span className="collections-page__section-icon" aria-hidden="true">
+          <PeopleIcon size={20} />
+        </span>
+        <div className="collections-page__section-titles">
+          <h2 id="collections-community-heading">Подборки зрителей</h2>
+          <p className="muted collections-page__section-lead">Списки от пользователей: сортируйте по популярности или по дате.</p>
+        </div>
+        <div className="s-chips collections-page__section-chips">
           <button type="button" className={order === 'popular' ? 'is-on' : undefined} onClick={() => setOrder('popular')}>
             Популярные
           </button>
@@ -74,7 +83,16 @@ export function UserCollectionsShelf() {
         </div>
       </div>
       {list.loading && <p className="muted" aria-busy="true">Загружаем…</p>}
-      {!list.loading && !list.value?.length && <div className="s-empty">Пока никто не собрал подборку. Будьте первым!</div>}
+      {!list.loading && !list.value?.length && (
+        <div className="s-empty">
+          <p>
+            <strong>Пока пусто</strong> — подборок ещё нет. Соберите первую: короткое название, несколько тайтлов и пару слов для друзей.
+          </p>
+          <Link to="/collections/new" className="btn btn--accent btn--small">
+            Создать подборку
+          </Link>
+        </div>
+      )}
       <div className="s-cards">
         {(list.value ?? []).map((c) => (
           <CollectionCard key={c.$id} c={c} />
@@ -192,7 +210,7 @@ export function MyCollections() {
   }
 
   return (
-    <main className="container top-page social-page">
+    <main className="container top-page social-page collections-page">
       <header className="s-row">
         <h1 className="page-title">{anime.value ? `«${anime.value.title}» в подборку` : 'Мои подборки'}</h1>
         <Link to={`/collections/new${add ? `?add=${add}` : ''}`} className="btn btn--accent">
@@ -200,7 +218,30 @@ export function MyCollections() {
         </Link>
       </header>
       {mine.loading && <p className="muted" aria-busy="true">Загружаем…</p>}
-      {!mine.loading && !mine.value?.length && <div className="s-empty">У вас пока нет подборок. Соберите первую: «Аниме на вечер», «Плакал навзрыд» или «С чего начать другу».</div>}
+      {!mine.loading && !mine.value?.length && (
+        <div className="my-collections-empty">
+          <div className="my-collections-empty__top">
+            <span className="my-collections-empty__icon" aria-hidden="true">
+              <PeopleIcon size={22} />
+            </span>
+            <div className="my-collections-empty__body">
+              <h2 className="my-collections-empty__title">Соберите первую подборку</h2>
+              <p className="muted my-collections-empty__hint">
+                Добавьте тайтлы из каталога или из своего списка, оставьте короткие заметки — ссылку можно будет отправить друзьям. Идеи для названия:
+                «На один вечер», «Плакал навзрыд», «С чего начать другу».
+              </p>
+            </div>
+          </div>
+          <div className="my-collections-empty__actions">
+            <Link to={add ? `/collections/new?add=${add}` : '/collections/new'} className="btn btn--accent">
+              Новая подборка
+            </Link>
+            <Link to="/catalog" className="btn btn--ghost">
+              Открыть каталог
+            </Link>
+          </div>
+        </div>
+      )}
       <div className="s-cards">
         {(mine.value ?? []).map((c) => (
           <div key={c.$id} className="stack" style={{ gap: 8 }}>
