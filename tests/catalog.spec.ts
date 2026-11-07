@@ -42,22 +42,24 @@ test('каталог: несколько жанров, сезон, возрас�
   await page.getByRole('searchbox', { name: 'Найти: жанры' }).fill('')
   await page.getByRole('checkbox', { name: 'Комедия' }).check()
   await expect(page).toHaveURL(/genre=1%2C4/)
-  await expect.poll(() => last()?.get('genre')).toBe('1,4')
+  // Ждём запрос именно с двумя жанрами (между кликами может уйти промежуточный с одним).
+  await expect.poll(() => last()?.get('genre'), { timeout: 15_000 }).toBe('1,4')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: /Жанры.*Комедия \+1/ })).toBeVisible()
 
-  // Сезон появляется, только когда выбран один год.
-  await expect(page.getByLabel('Сезон')).toHaveCount(0)
-  await page.getByLabel('Год').selectOption('2024')
-  await page.getByLabel('Сезон').selectOption('summer')
+  // Сезон появляется, только когда выбран один год. Combobox — не путать с подвалом «Типы и годы».
+  const filters = page.getByRole('group', { name: 'Фильтры каталога' })
+  await expect(filters.getByRole('combobox', { name: 'Сезон' })).toHaveCount(0)
+  await filters.getByRole('combobox', { name: 'Год' }).selectOption('2024')
+  await filters.getByRole('combobox', { name: 'Сезон' }).selectOption('summer')
   await expect.poll(() => last()?.get('season')).toBe('summer_2024')
 
-  await page.getByLabel('Возраст').selectOption('pg_13')
+  await filters.getByRole('combobox', { name: 'Возраст' }).selectOption('pg_13')
   await expect.poll(() => last()?.get('rating')).toBe('pg_13')
 
   // В списке студий только настоящие студии.
-  await expect(page.getByLabel('Студия').locator('option')).toHaveText(['Любая', 'Bones', 'Kyoto Animation'])
-  await page.getByLabel('Студия').selectOption('4')
+  await expect(filters.getByRole('combobox', { name: 'Студия' }).locator('option')).toHaveText(['Любая', 'Bones', 'Kyoto Animation'])
+  await filters.getByRole('combobox', { name: 'Студия' }).selectOption('4')
   await expect.poll(() => last()?.get('studio')).toBe('4')
 
   await page.getByRole('button', { name: 'По алфавиту' }).click()
@@ -113,7 +115,7 @@ test('пустой поиск: подсказки, куда пойти, и по�
     return url.searchParams.get('search') ? route.fulfill({ json: [] }) : route.fallback()
   })
   await page.goto('/catalog?q=qqzzxx')
-  await expect(page.getByText('Ничего не нашлось. Попробуйте другой запрос или фильтры.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'По запросу ничего не нашлось' })).toBeVisible()
   await expect(page.getByRole('link', { name: '🎲 Подобрать по настроению' })).toHaveAttribute('href', '/random')
   await expect(page.getByRole('heading', { name: 'Популярно сейчас' })).toBeVisible()
   await expect(page.locator('.row-scroll__item').first()).toBeVisible()

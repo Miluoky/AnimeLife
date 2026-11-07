@@ -302,11 +302,11 @@ test('плеер: опенинг по разметке AniLibria — кнопк�
   await expect(page.getByRole('button', { name: 'Пропустить опенинг' })).toBeVisible()
 })
 
-test('под плеером нет обсуждения серии — ссылка ведёт к комментариям тайтла', async ({ page }) => {
+test('под плеером — комментарии к тайтлу, без обсуждения серии', async ({ page }) => {
   await mockAniLibria(page, search)
   await page.goto('/watch/1/1')
   await expect(page.getByRole('region', { name: /Обсуждение серии/ })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'комментариях на странице аниме' })).toHaveAttribute('href', /\/anime\/1#comments/)
+  await expect(page.getByRole('region', { name: 'Комментарии' })).toBeVisible()
 })
 
 test('последняя серия: «Дальше по порядку» ведёт на следующую основную часть франшизы', async ({ page }) => {

@@ -306,6 +306,26 @@
 
 
 /* Блок «Оформление» на странице аккаунта: сетка подписей, свотчи, группа переключателей */
+.acc-notify {
+  width: min(100%, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.acc-notify__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.acc-notify__lead {
+  margin: 0;
+  font-size: 14px;
+}
+
 .acc-appearance-section {
   width: min(100%, 720px);
 }

@@ -19,9 +19,14 @@ const answerOf = async (page: import('@playwright/test').Page) => {
   return animes.find((a) => a.id === id)!.russian
 }
 
-test('угадай по кадру: верный ответ растит серию и рекорд, ошибка сбрасывает серию', async ({ page }) => {
+async function startQuiz(page: import('@playwright/test').Page) {
   await page.goto('/quiz')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Угадай аниме по кадру')
+  await page.getByRole('button', { name: 'Начать' }).click()
+}
+
+test('угадай по кадру: верный ответ растит серию и рекорд, ошибка сбрасывает серию', async ({ page }) => {
+  await startQuiz(page)
   const options = page.getByRole('group', { name: 'Варианты ответа' }).getByRole('button')
   const score = page.getByLabel('Счёт')
   await expect(options.first()).toBeEnabled()
@@ -41,15 +46,17 @@ test('угадай по кадру: верный ответ растит сер�
   await expect(page.locator('.quiz-option--wrong')).toHaveCount(1)
   await expect(page.locator('.quiz-option--right')).toHaveText(right)
   await expect(score).toContainText('Подряд0')
-  await expect(score).toContainText('1 из 2')
+  await expect(score).toContainText('1 / 2')
 
   await page.reload()
-  await expect(score).toContainText('Рекорд1')
+  // После перезагрузки снова стартовый экран — рекорд живёт в localStorage и виден в игре.
+  await page.getByRole('button', { name: 'Начать' }).click()
+  await expect(page.getByLabel('Счёт')).toContainText('Рекорд1')
 })
 
 test('угадай по кадру: пять подряд дают достижение, кадры не кончаются, оборванной серией можно похвастаться', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('anime.achievements.seen.v1', '[]'))
-  await page.goto('/quiz')
+  await startQuiz(page)
   const options = page.getByRole('group', { name: 'Варианты ответа' }).getByRole('button')
   // Девять раундов при восьми тайтлах в заготовке: когда кадры кончаются, круг начинается заново.
   for (let i = 0; i < 9; i++) {

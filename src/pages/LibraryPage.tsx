@@ -12,6 +12,7 @@ import './library.css'
 
 const MyListView = lazy(() => import('./MyList'))
 const WatchingView = lazy(() => import('./Watching'))
+const ListTools = lazy(() => import('../components/ListTools'))
 
 const TABS = [
   { id: 'new', title: 'Новые серии' },
@@ -144,6 +145,12 @@ export default function LibraryPage() {
           <p className="muted library-page__lede">Новые серии, история и ваши списки</p>
         </div>
       </header>
+
+      <Suspense fallback={null}>
+        <div className="library-import">
+          <ListTools />
+        </div>
+      </Suspense>
 
       <nav className="library-nav" role="tablist" aria-label="Разделы библиотеки">
         {TABS.map((tab) => {

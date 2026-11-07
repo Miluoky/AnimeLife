@@ -108,6 +108,7 @@ function Hero() {
       aria-label="Популярное аниме"
     >
       <div className="hero__backdrop" aria-hidden="true">
+        {/* Сразу лёгкий постер (LCP), кадр подменит его после загрузки — без ожидания screenshots. */}
         {shot ? (
           <img
             key={shot}
@@ -117,13 +118,11 @@ function Hero() {
             aria-hidden="true"
             decoding="async"
             loading="eager"
-            // @ts-expect-error fetchpriority
-            fetchpriority="high"
           />
         ) : anime.posterUrl ? (
           <img
-            key={`backdrop-fallback-${anime.id}`}
-            className="hero__art hero__art--fallback"
+            key={`backdrop-poster-${anime.id}`}
+            className="hero__art"
             src={anime.posterSmall ?? anime.posterUrl}
             alt=""
             aria-hidden="true"

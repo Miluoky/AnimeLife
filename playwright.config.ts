@@ -11,17 +11,19 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
-    baseURL: `http://localhost:${port}`,
+    // 127.0.0.1: на Windows localhost иногда резолвится в ::1, а preview слушает IPv4 — тесты зависают на webServer.
+    baseURL: `http://127.0.0.1:${port}`,
     // Запросы из service worker не проходят через подмену сети, поэтому в тестах его нет.
     serviceWorkers: 'block',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: `npm run preview -- --port ${port} --strictPort`,
-    url: `http://localhost:${port}`,
+    command: `npm run preview -- --host 127.0.0.1 --port ${port} --strictPort`,
+    url: `http://127.0.0.1:${port}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    // CI качает dist артефактом: preview иногда стартует дольше минуты на холодном раннере.
+    timeout: 180_000,
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },

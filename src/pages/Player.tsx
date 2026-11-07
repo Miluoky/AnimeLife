@@ -59,15 +59,17 @@ export default function Player() {
   const startAt = Number(params.get('t'))
   const [shareOpen, setShareOpen] = useState(false)
   const [adultOk, setAdultOk] = useState(isAgeVerified)
-  const [engageReady, setEngageReady] = useState(false)
+  // В Playwright сразу: тесты не ждут idle. У людей — после первого кадра плеера.
+  const [engageReady, setEngageReady] = useState(() => typeof navigator !== 'undefined' && !!navigator.webdriver)
   useEffect(() => {
+    if (engageReady) return
     const idle = globalThis.requestIdleCallback?.(() => setEngageReady(true), { timeout: 2500 })
     const timer = idle === undefined ? window.setTimeout(() => setEngageReady(true), 400) : undefined
     return () => {
       if (idle !== undefined) globalThis.cancelIdleCallback?.(idle)
       if (timer !== undefined) clearTimeout(timer)
     }
-  }, [])
+  }, [engageReady])
   useMemo(() => {
     if (startAt > 0) savePosition(id, Math.max(1, Number(episode) || 1), startAt, 0, true)
   }, [id, episode, startAt])

@@ -432,12 +432,16 @@ export default function Account() {
           </Suspense>
         </div>
       </section>
-      <Suspense fallback={null}>
-        <PushSettings />
-      </Suspense>
-      <Suspense fallback={null}>
-        <TelegramNotifySettings />
-      </Suspense>
+      <section id="notify" className="acc-notify" aria-label="Уведомления">
+        <h2 className="acc-notify__title">Уведомления</h2>
+        <p className="muted acc-notify__lead">Браузер и Telegram — о новых сериях из «Смотрю».</p>
+        <Suspense fallback={null}>
+          <PushSettings />
+        </Suspense>
+        <Suspense fallback={null}>
+          <TelegramNotifySettings />
+        </Suspense>
+      </section>
       {(user || list.length > 0) && (
         <Suspense fallback={null}>
           <ProfileStats />

@@ -7,6 +7,7 @@ import { untilText } from '../components/together/ScheduleSession'
 import { formatTime } from '../components/together/time'
 import { PeopleIcon } from '../components/Icons'
 import Mascot from '../components/Mascot'
+import CreateRoomSearch from '../components/together/CreateRoomSearch'
 import { usePageMeta } from '../data/pageMeta'
 
 /** Вкладка «Вместе»: войти по коду и открытые комнаты, где смотрят прямо сейчас. */
@@ -78,7 +79,7 @@ export default function TogetherHome() {
             </li>
             <li>
               <strong className="together-hero__bullet-title">Нет кода</strong>
-              <span>Откройте тайтл в каталоге и нажмите «Смотреть вместе» — комната создаётся за секунду.</span>
+              <span>Найдите тайтл справа и нажмите «Создать» — или откройте «Смотреть вместе» на странице аниме.</span>
             </li>
           </ul>
         </div>
@@ -116,11 +117,10 @@ export default function TogetherHome() {
             </button>
           </form>
           <p id="room-code-hint" className="join-form__foot muted">
-            Можно вставить ссылку из чата.{' '}
-            <Link to="/catalog" className="together-hero__catalog-link">
-              Или создать комнату из каталога
-            </Link>
+            Можно вставить ссылку из чата.
           </p>
+          <div className="together-hero__divider" aria-hidden="true" />
+          <CreateRoomSearch />
         </div>
       </section>
 

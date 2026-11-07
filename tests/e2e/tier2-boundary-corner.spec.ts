@@ -29,7 +29,7 @@ test.describe('Tier 2: Boundary & Corner Cases', () => {
     await expect(page.getByRole('button', { name: 'Сбросить поиск' })).toBeVisible()
 
     // Verify presence of helpful empty state notice and suggestions
-    await expect(page.getByText(/Ничего не нашлось\. Попробуйте другой запрос/)).toBeVisible()
+    await expect(page.getByRole('heading', { name: /ничего не нашлось/i })).toBeVisible()
     await expect(page.getByRole('link', { name: /Подобрать по настроению/ })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Популярно сейчас' })).toBeVisible()
   })
