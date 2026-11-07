@@ -42,8 +42,17 @@
   line-height: 1.3;
 }
 .public-profile {
+  --pf-list-watching: #10b981;
+  --pf-list-planned: #3b82f6;
+  --pf-list-completed: #ef4444;
+  --pf-list-dropped: #6b7280;
   padding-top: 32px;
+  padding-bottom: 48px;
   gap: 36px;
+}
+.public-profile .stack > h2 {
+  margin: 0;
+  font: 600 20px/1.25 var(--font-display);
 }
 .profile-hero {
   display: flex;

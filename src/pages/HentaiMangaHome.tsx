@@ -79,10 +79,10 @@ export default function HentaiMangaHome() {
         </p>
 
         <div className="hentai-switch" role="tablist" aria-label="Тип контента 18+">
-          <Link to="/hentai" className="hentai-switch__btn">
+          <Link to="/hentai" role="tab" aria-selected={false} className="hentai-switch__btn">
             Аниме (Видео)
           </Link>
-          <Link to="/hentai-manga" className="hentai-switch__btn is-active">
+          <Link to="/hentai-manga" role="tab" aria-selected className="hentai-switch__btn is-active">
             Хентай Манга
           </Link>
         </div>
@@ -105,14 +105,16 @@ export default function HentaiMangaHome() {
               <div className="hentai-manga-chips" role="group" aria-labelledby="hentai-manga-sort-label">
                 <button
                   type="button"
-                  className={currentSort === 'popularity' ? 'is-on' : undefined}
+                  className={currentSort === 'popularity' ? 'is-on' : ''}
+                  aria-pressed={currentSort === 'popularity'}
                   onClick={() => setSort('popularity')}
                 >
                   Популярное
                 </button>
                 <button
                   type="button"
-                  className={currentSort === 'ranked' ? 'is-on' : undefined}
+                  className={currentSort === 'ranked' ? 'is-on' : ''}
+                  aria-pressed={currentSort === 'ranked'}
                   onClick={() => setSort('ranked')}
                 >
                   По рейтингу

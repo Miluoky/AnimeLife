@@ -10,7 +10,6 @@ import { playerTime } from '../data/playerTime'
 import { usePlayerHealth } from '../data/quality'
 import { getEntry, setListStatus, setWatched, useMyList } from '../data/myList'
 import NotFound from './NotFound'
-import WatchTogetherButton from '../components/together/WatchTogetherButton'
 import VideoPlayer, { isOwnProvider, type Provider, BALANCER_FALLBACK_LADDER } from '../components/VideoPlayer'
 import { isBalancerAvailable } from '../api/balancers'
 import { fetchKodikTranslations, kodikTranslationUrl } from '../api/kodik'
@@ -27,14 +26,9 @@ import { usePageMeta, useJsonLd } from '../data/pageMeta'
 import { buildJsonLdEpisode } from '../data/seoEngine'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, BulbIcon, CloseIcon, SearchIcon, ShareIcon, SkipIcon, WideIcon } from '../components/Icons'
-import ShareModal from '../components/ShareModal'
-import WatchStreak from '../components/WatchStreak'
 import { useLightsOff, useMiniPlayer } from '../components/watchModes'
 import { calm } from '../components/morph'
 import VoiceLogo from '../components/VoiceLogo'
-import FollowButton from '../components/FollowButton'
-import PlayerGlow, { GlowCaptureButton } from '../components/PlayerGlow'
-import NextEpisode from '../components/NextEpisode'
 import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
 import { isAdultContent } from '../data/adult'
 import { blurPoster } from '../api/shikimori'
@@ -49,6 +43,13 @@ const NextPart = lazy(() => import('../components/NextPart'))
 const WatchReturn = lazy(() => import('../components/WatchReturn'))
 const EpisodeRating = lazy(() => import('../components/EpisodeRating'))
 const TitleComments = lazy(() => import('../components/EpisodeComments'))
+const ShareModal = lazy(() => import('../components/ShareModal'))
+const WatchStreak = lazy(() => import('../components/WatchStreak'))
+const WatchTogetherButton = lazy(() => import('../components/together/WatchTogetherButton'))
+const FollowButton = lazy(() => import('../components/FollowButton'))
+const NextEpisode = lazy(() => import('../components/NextEpisode'))
+const PlayerGlow = lazy(() => import('../components/PlayerGlow'))
+const GlowCaptureButton = lazy(() => import('../components/PlayerGlow').then((m) => ({ default: m.GlowCaptureButton })))
 
 export default function Player() {
   const { id = '', episode = '1' } = useParams()
@@ -58,6 +59,15 @@ export default function Player() {
   const startAt = Number(params.get('t'))
   const [shareOpen, setShareOpen] = useState(false)
   const [adultOk, setAdultOk] = useState(isAgeVerified)
+  const [engageReady, setEngageReady] = useState(false)
+  useEffect(() => {
+    const idle = globalThis.requestIdleCallback?.(() => setEngageReady(true), { timeout: 2500 })
+    const timer = idle === undefined ? window.setTimeout(() => setEngageReady(true), 400) : undefined
+    return () => {
+      if (idle !== undefined) globalThis.cancelIdleCallback?.(idle)
+      if (timer !== undefined) clearTimeout(timer)
+    }
+  }, [])
   useMemo(() => {
     if (startAt > 0) savePosition(id, Math.max(1, Number(episode) || 1), startAt, 0, true)
   }, [id, episode, startAt])
@@ -337,7 +347,9 @@ export default function Player() {
       <main className="container empty-page episode-upcoming">
         <h1>{anime.title}: серия {requested}</h1>
         <p className="muted">Этой серии ещё нет ни в одном подключённом источнике.</p>
-        <NextEpisode at={anime.nextEpisodeAt!} episode={requested} />
+        <Suspense fallback={null}>
+          <NextEpisode at={anime.nextEpisodeAt!} episode={requested} />
+        </Suspense>
         <Link className="btn btn--ghost" to={`/anime/${anime.id}`}>Вернуться к сериалу</Link>
       </main>
     )
@@ -397,7 +409,9 @@ export default function Player() {
         className={`video-slot${miniPlayer.mini ? ' video-slot--mini' : ''}`}
         style={miniPlayer.mini ? { minHeight: miniPlayer.height } : undefined}
       >
-      <PlayerGlow slot={miniPlayer.slot} poster={anime.posterSmall ?? blurPoster(anime.posterUrl)} animeId={anime.id} />
+      <Suspense fallback={null}>
+        <PlayerGlow slot={miniPlayer.slot} poster={anime.posterSmall ?? blurPoster(anime.posterUrl)} animeId={anime.id} />
+      </Suspense>
       {miniPlayer.mini && (
         <div className="video-slot__actions">
           <button
@@ -489,7 +503,9 @@ export default function Player() {
                 {ageLabel(anime.rating)}
               </span>
             )}
-            <WatchStreak compact className="watch-head__streak" />
+            <Suspense fallback={null}>
+              <WatchStreak compact className="watch-head__streak" />
+            </Suspense>
           </div>
         </div>
 
@@ -531,7 +547,11 @@ export default function Player() {
               <BulbIcon />
               <span className="sr-only">Шторка света</span>
             </button>
-            {(host?.player || !isOwnProvider(voice?.provider)) && <GlowCaptureButton slot={miniPlayer.slot} />}
+            {(host?.player || !isOwnProvider(voice?.provider)) && (
+              <Suspense fallback={null}>
+                <GlowCaptureButton slot={miniPlayer.slot} />
+              </Suspense>
+            )}
             <button
               type="button"
               className="btn btn--ghost watch-tool watch-share"
@@ -541,9 +561,13 @@ export default function Player() {
               <ShareIcon size={18} />
               <span className="sr-only">Поделиться</span>
             </button>
-            <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
+            <Suspense fallback={null}>
+              <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
+            </Suspense>
             {(anime.ongoing || (anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes)) && (
-              <FollowButton animeId={anime.id} title={anime.title} />
+              <Suspense fallback={null}>
+                <FollowButton animeId={anime.id} title={anime.title} />
+              </Suspense>
             )}
           </div>
         </div>
@@ -551,7 +575,9 @@ export default function Player() {
         {/* Последняя вышедшая серия онгоинга: когда следующая и как о ней узнать — повод вернуться. */}
         {anime.ongoing && anime.nextEpisodeAt && current >= total && (
           <div className="watch-follow">
-            <NextEpisode at={anime.nextEpisodeAt} episode={total + 1} />
+            <Suspense fallback={null}>
+              <NextEpisode at={anime.nextEpisodeAt} episode={total + 1} />
+            </Suspense>
             {list.find((e) => e.anime.id === anime.id)?.status === 'watching' ? (
               <p className="muted watch-follow__text">Тайтл в «Смотрю»: новая серия появится там с отметкой, а в приложении — числом на значке.</p>
             ) : (
@@ -586,25 +612,33 @@ export default function Player() {
           provider="AniLibria"
           fillers={fillers.value}
         />
-        <WatchStreak currentAnimeId={anime.id} />
+        <Suspense fallback={null}>
+          <WatchStreak currentAnimeId={anime.id} />
+        </Suspense>
       </div>
 
-      <Suspense fallback={null}>
-        {current >= total && !anime.ongoing && !anime.upcoming && <NextPart animeId={anime.id} />}
-        <WatchReturn anime={anime} current={current} total={total} />
-        <div className="watch-engage">
-          <EpisodeRating animeId={anime.id} episode={current} />
-          <TitleComments animeId={anime.id} aboutTitle />
-        </div>
-      </Suspense>
+      {engageReady && (
+        <Suspense fallback={null}>
+          {current >= total && !anime.ongoing && !anime.upcoming && <NextPart animeId={anime.id} />}
+          <WatchReturn anime={anime} current={current} total={total} />
+          <div className="watch-engage">
+            <EpisodeRating animeId={anime.id} episode={current} />
+            <TitleComments animeId={anime.id} aboutTitle />
+          </div>
+        </Suspense>
+      )}
 
-      <ShareModal
-        isOpen={shareOpen}
-        onClose={() => setShareOpen(false)}
-        title={anime.title}
-        animeId={anime.id}
-        episode={current}
-      />
+      {shareOpen && (
+        <Suspense fallback={null}>
+          <ShareModal
+            isOpen
+            onClose={() => setShareOpen(false)}
+            title={anime.title}
+            animeId={anime.id}
+            episode={current}
+          />
+        </Suspense>
+      )}
     </main>
   )
 }

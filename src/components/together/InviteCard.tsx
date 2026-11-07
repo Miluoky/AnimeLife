@@ -21,31 +21,54 @@ export default function InviteCard({ code, title }: { code: string; title: strin
     }
   }, [link])
 
-  const copy = async () => {
+  const copyText = async (value: string, ok: string) => {
     try {
-      await navigator.clipboard.writeText(link)
-      toast('Ссылка скопирована')
+      await navigator.clipboard.writeText(value)
+      toast(ok)
     } catch {
-      toast('Не удалось скопировать, выделите ссылку вручную')
+      toast('Не удалось скопировать — выделите вручную')
     }
   }
+  const copyLink = () => void copyText(link, 'Ссылка скопирована')
+  const copyCode = () => void copyText(code, 'Код скопирован')
   const share = () =>
-    navigator.share?.({ title: `Смотрим вместе: ${title}`, url: link }).catch(() => undefined) ?? copy()
+    navigator.share?.({ title: `Смотрим вместе: ${title}`, url: link, text: `Заходи смотреть «${title}». Код: ${code}` }).catch(() => undefined) ??
+    copyLink()
+  const shareTelegram = () => {
+    const text = `Смотрим вместе «${title}»\nКод: ${code}\n${link}`
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+  }
+  const shareVk = () => {
+    window.open(`https://vk.com/share.php?url=${encodeURIComponent(link)}&title=${encodeURIComponent(`Смотрим вместе: ${title}`)}`, '_blank', 'noopener,noreferrer')
+  }
 
   return (
     <div className="invite together-invite">
       {qr && <div className="invite__qr" aria-label="QR-код ссылки на комнату" role="img" dangerouslySetInnerHTML={{ __html: qr }} />}
-      <div className="stack" style={{ gap: 8 }}>
+      <div className="stack invite__body">
         <span className="muted">Код комнаты</span>
-        <strong className="invite__code">{code}</strong>
+        <div className="invite__code-row">
+          <strong className="invite__code">{code}</strong>
+          <button type="button" className="btn btn--ghost btn--small" onClick={copyCode}>
+            Код
+          </button>
+        </div>
         <input className="invite__link" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Ссылка на комнату" />
-        <div className="actions">
+        <div className="actions invite__actions">
           <button type="button" className="btn btn--accent" onClick={share}>
             <ShareIcon />
             Позвать друга
           </button>
-          <button type="button" className="btn btn--ghost" onClick={copy}>
-            Скопировать
+          <button type="button" className="btn btn--ghost" onClick={copyLink}>
+            Ссылка
+          </button>
+        </div>
+        <div className="invite__social" role="group" aria-label="Поделиться в соцсетях">
+          <button type="button" className="btn btn--ghost btn--small invite__social-btn invite__social-btn--tg" onClick={shareTelegram}>
+            Telegram
+          </button>
+          <button type="button" className="btn btn--ghost btn--small invite__social-btn invite__social-btn--vk" onClick={shareVk}>
+            ВКонтакте
           </button>
         </div>
       </div>

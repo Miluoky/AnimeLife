@@ -100,12 +100,18 @@
 .season-select select {
   height: 36px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--text);
   font: inherit;
   font-size: 14px;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.season-select select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .season-grid {
@@ -132,12 +138,13 @@
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  transition: border-color 0.2s, transform 0.2s var(--ease);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s var(--ease), transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 .season-card:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   transform: translateY(-2px);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--bg) 55%, transparent);
 }
 .season-card__poster {
   position: relative;
@@ -156,10 +163,11 @@
   left: 8px;
   top: 8px;
   padding: 3px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font: 700 12px/1 var(--font-mono);
-  color: #fff;
-  background: rgb(10 10 12 / 0.72);
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 76%, transparent);
+  backdrop-filter: blur(6px);
 }
 .season-card__body {
   display: flex;
@@ -246,11 +254,16 @@
 .season-card__genres button {
   padding: 3px 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--surface-2);
   color: var(--muted);
   font: 500 12px/1.3 var(--font-body);
   cursor: pointer;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.season-card__genres button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .season-card__genres button:hover,
 .season-card__genres button[aria-pressed='true'] {
@@ -260,13 +273,18 @@
 .season-card__add {
   flex: 0 0 auto;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--line);
   background: transparent;
   color: var(--text);
   font: 600 12px/1.2 var(--font-body);
   white-space: nowrap;
   cursor: pointer;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease), color 0.2s var(--ease);
+}
+.season-card__add:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .season-card__add:hover {
   border-color: var(--accent);
@@ -281,9 +299,17 @@
   display: grid;
   justify-items: center;
   gap: 14px;
-  padding: 48px 16px;
+  padding: 48px 20px;
   text-align: center;
   color: var(--text-soft);
+  border-radius: var(--radius-md);
+  border: 1px dashed color-mix(in srgb, var(--text) 12%, var(--line));
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+.season-empty p {
+  margin: 0;
+  max-width: 36ch;
+  line-height: 1.55;
 }
 
 @media (max-width: 640px) {
@@ -350,7 +376,11 @@
 /* Личная сетка сезона: чипы с прогрессом из «Моего списка». */
 .season-plan {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 .season-plan__head {
   display: flex;

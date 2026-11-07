@@ -19,6 +19,12 @@ export default function AgeGateModal({ onVerified }: { onVerified?: () => void }
     if (verified) onVerified?.()
   }, [verified, onVerified])
 
+  useEffect(() => {
+    if (verified) return
+    document.documentElement.classList.add('scroll-lock')
+    return () => document.documentElement.classList.remove('scroll-lock')
+  }, [verified])
+
   if (verified) return null
 
   const handleConfirm = () => {

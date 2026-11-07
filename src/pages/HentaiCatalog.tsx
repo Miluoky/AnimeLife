@@ -93,10 +93,10 @@ export default function HentaiCatalog() {
         </p>
 
         <div className="hentai-switch" role="tablist" aria-label="Тип контента 18+">
-          <Link to="/hentai" className="hentai-switch__btn is-active">
+          <Link to="/hentai" role="tab" aria-selected className="hentai-switch__btn is-active">
             Аниме (Видео)
           </Link>
-          <Link to="/hentai-manga" className="hentai-switch__btn">
+          <Link to="/hentai-manga" role="tab" aria-selected={false} className="hentai-switch__btn">
             Хентай Манга
           </Link>
         </div>

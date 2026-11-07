@@ -61,8 +61,8 @@ function Shelf({ title, params }: { title: string; params: Record<string, string
     }
   }, [params])
   return (
-    <section className="stack">
-      <h2>{title}</h2>
+    <section className="stack en-shelf">
+      <h2 className="en-shelf__title">{title}</h2>
       {items === null ? (
         <div className="skeleton skeleton--line" style={{ height: 240 }} aria-busy="true" />
       ) : (
@@ -83,12 +83,13 @@ function EnHome() {
   usePageMeta(EN_HOME.title, EN_HOME.description)
   return (
     <main className="container home en" lang="en">
-      <section className="stack">
+      <section className="stack en-hero">
         <div className="en-lang">
           <Link to="/" hrefLang="ru" lang="ru" className="pill pill--link">
             Русская версия
           </Link>
         </div>
+        <span className="eyebrow">English catalog</span>
         <h1 className="page-title">{EN_HOME.h1}</h1>
         {EN_HOME.intro.map((p) => (
           <p key={p} className="soft en-intro">

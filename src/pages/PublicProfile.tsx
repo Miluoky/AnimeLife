@@ -110,7 +110,7 @@ export default function PublicProfile() {
 
           <div className="pf-hero-meta">
             <span>#{p.$id.slice(0, 8)}</span>
-            <span style={{ color: '#10b981', fontWeight: 600 }}>• В сети</span>
+            <span className="pf-hero-meta__online">• В сети</span>
             <span className="pf-streak">🔥 {streak} дн. подряд</span>
           </div>
 
@@ -237,15 +237,15 @@ export default function PublicProfile() {
             <div className="pf-panel">
               <h2 className="pf-panel__title">Списки</h2>
               <div className="pf-seg-bar">
-                <span className="pf-seg-bar__slice" style={{ width: `${watchingPct}%`, background: '#10b981' }} />
-                <span className="pf-seg-bar__slice" style={{ width: `${plannedPct}%`, background: '#3b82f6' }} />
-                <span className="pf-seg-bar__slice" style={{ width: `${completedPct}%`, background: '#ef4444' }} />
-                <span className="pf-seg-bar__slice" style={{ width: `${droppedPct}%`, background: '#6b7280' }} />
+                <span className="pf-seg-bar__slice pf-seg-bar__slice--watching" style={{ width: `${watchingPct}%` }} />
+                <span className="pf-seg-bar__slice pf-seg-bar__slice--planned" style={{ width: `${plannedPct}%` }} />
+                <span className="pf-seg-bar__slice pf-seg-bar__slice--completed" style={{ width: `${completedPct}%` }} />
+                <span className="pf-seg-bar__slice pf-seg-bar__slice--dropped" style={{ width: `${droppedPct}%` }} />
               </div>
               <ul className="pf-seg-legend">
                 <li className="pf-seg-item">
                   <div className="pf-seg-item__left">
-                    <span className="pf-seg-dot" style={{ background: '#10b981' }} />
+                    <span className="pf-seg-dot pf-seg-dot--watching" />
                     <span>Смотрю</span>
                   </div>
                   <b>
@@ -254,7 +254,7 @@ export default function PublicProfile() {
                 </li>
                 <li className="pf-seg-item">
                   <div className="pf-seg-item__left">
-                    <span className="pf-seg-dot" style={{ background: '#3b82f6' }} />
+                    <span className="pf-seg-dot pf-seg-dot--planned" />
                     <span>В планах</span>
                   </div>
                   <b>
@@ -263,7 +263,7 @@ export default function PublicProfile() {
                 </li>
                 <li className="pf-seg-item">
                   <div className="pf-seg-item__left">
-                    <span className="pf-seg-dot" style={{ background: '#ef4444' }} />
+                    <span className="pf-seg-dot pf-seg-dot--completed" />
                     <span>Просмотрено</span>
                   </div>
                   <b>
@@ -272,7 +272,7 @@ export default function PublicProfile() {
                 </li>
                 <li className="pf-seg-item">
                   <div className="pf-seg-item__left">
-                    <span className="pf-seg-dot" style={{ background: '#6b7280' }} />
+                    <span className="pf-seg-dot pf-seg-dot--dropped" />
                     <span>Брошено</span>
                   </div>
                   <b>
@@ -326,9 +326,7 @@ export default function PublicProfile() {
                 </div>
                 <div className="pf-act-row">
                   <span className="muted">Дней подряд</span>
-                  <span className="pf-act-val" style={{ color: '#fb923c' }}>
-                    🔥 {streak}
-                  </span>
+                  <span className="pf-act-val pf-act-val--streak">🔥 {streak}</span>
                 </div>
                 <div className="pf-act-row">
                   <span className="muted">Дней с просмотром</span>

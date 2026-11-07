@@ -19,7 +19,7 @@ export default function HentaiCard({
     <article className="poster-card hentai-card">
       <Link to={targetHref} className="poster-card__img" aria-label={anime.title}>
         <Poster anime={anime} priority={priority} alt={posterAlt} />
-        <span className="hentai-card__badge" aria-hidden>
+        <span className="hentai-card__badge" aria-hidden="true">
           18+
         </span>
         {anime.score !== undefined && anime.score > 0 && (

@@ -147,22 +147,17 @@ export default function ProfileWall({ profileId, profileName }: { profileId: str
 
   return (
     <section className="pf-wall-wrap">
-      <div className="pf-panel__title" style={{ fontSize: 20 }}>
-        <span>Комментарии на стене профиля ({comments.length})</span>
-      </div>
+      <h2 className="pf-wall__title">
+        Комментарии на стене профиля <span className="pf-wall__count">{comments.length}</span>
+      </h2>
 
       <form ref={formRef} className="pf-wall-form" onSubmit={submit}>
         <Avatar name={user?.name || 'Я'} size={40} />
-        <div style={{ flex: 1, display: 'grid', gap: 8 }}>
+        <div className="pf-wall-form__main">
           {replyTo && (
-            <div style={{ fontSize: 12, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="pf-wall-reply" role="status">
               <span>Ответ для {replyTo}</span>
-              <button
-                type="button"
-                className="link-btn"
-                style={{ fontSize: 11 }}
-                onClick={() => setReplyTo(null)}
-              >
+              <button type="button" className="link-btn pf-wall-reply__cancel" onClick={() => setReplyTo(null)}>
                 ✕ отмена
               </button>
             </div>
@@ -178,7 +173,7 @@ export default function ProfileWall({ profileId, profileName }: { profileId: str
             rows={2}
             disabled={submitting}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="pf-wall-form__actions">
             <button
               type="submit"
               className="btn btn--accent btn--small"
@@ -217,8 +212,7 @@ export default function ProfileWall({ profileId, profileName }: { profileId: str
                 <div className="pf-wall-comment__actions">
                   <button
                     type="button"
-                    className="pf-wall-comment__act"
-                    style={{ color: isLiked ? '#ef4444' : undefined }}
+                    className={`pf-wall-comment__act${isLiked ? ' pf-wall-comment__act--liked' : ''}`}
                     aria-label={isLiked ? 'Убрать лайк' : 'Поставить лайк'}
                     onClick={() => toggleLike(c)}
                     disabled={c.pending}
@@ -267,9 +261,9 @@ export default function ProfileWall({ profileId, profileName }: { profileId: str
         })}
 
         {!comments.length && (
-          <div className="s-empty">
+          <li className="pf-wall-empty">
             <p>На этой стене пока нет записей. Будьте первым, кто оставит комментарий!</p>
-          </div>
+          </li>
         )}
       </ul>
     </section>

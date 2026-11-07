@@ -1,8 +1,6 @@
-import '../components/profile-stats.css'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { type CSSProperties, type ReactNode, type RefObject, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import type { ScoreStats } from '../api'
-import Lightbox from '../components/Lightbox'
 import { useAmbient } from '../components/ambient'
 import { loadAnime, loadScreenshots, loadTitleExtras, useAsync } from '../api'
 import { blurPoster, shotPreview } from '../api/shikimori'
@@ -45,6 +43,7 @@ const TitleComments = lazy(() => import('../components/EpisodeComments'))
 const ThemeSongs = lazy(() => import('../components/ThemeSongs'))
 const BestEpisodes = lazy(() => import('../components/BestEpisodes'))
 const TitleFaq = lazy(() => import('../components/TitleFaq'))
+const Lightbox = lazy(() => import('../components/Lightbox'))
 
 const MAX_SHOTS = 8
 
@@ -277,6 +276,9 @@ export default function TitlePage() {
     onChange()
     mql.addEventListener('change', onChange)
     return () => mql.removeEventListener('change', onChange)
+  }, [])
+  useEffect(() => {
+    void import('../components/profile-stats.css')
   }, [])
   const loaded = result.value?.data
   const info = loaded && animeInfo(loaded)
@@ -516,7 +518,7 @@ export default function TitlePage() {
       <main className="container title-page">
         <section className="title-head" style={{ '--glow': anime.posterFill } as CSSProperties}>
           <div className="title-head__poster" style={{ background: anime.posterFill, viewTransitionName: 'poster' }}>
-            <Poster anime={anime} alt={`Постер аниме «${anime.title}»`} />
+            <Poster anime={anime} priority alt={`Постер аниме «${anime.title}»`} />
           </div>
           <div className="title-head__info">
             {anime.originalTitle && <div className="title-head__orig">{anime.originalTitle}</div>}
@@ -833,27 +835,31 @@ export default function TitlePage() {
         )}
 
         {shotOpen !== undefined && gallery[shotOpen] && (
-          <Lightbox
-            label={`Кадр ${shotOpen + 1} из ${gallery.length}`}
-            onClose={() => setShotOpen(undefined)}
-            onPrev={() => setShotOpen((shotOpen + gallery.length - 1) % gallery.length)}
-            onNext={() => setShotOpen((shotOpen + 1) % gallery.length)}
-          >
-            <img className="lightbox__img" src={gallery[shotOpen]} alt={`Кадр ${shotOpen + 1}`} />
-          </Lightbox>
+          <Suspense fallback={null}>
+            <Lightbox
+              label={`Кадр ${shotOpen + 1} из ${gallery.length}`}
+              onClose={() => setShotOpen(undefined)}
+              onPrev={() => setShotOpen((shotOpen + gallery.length - 1) % gallery.length)}
+              onNext={() => setShotOpen((shotOpen + 1) % gallery.length)}
+            >
+              <img className="lightbox__img" src={gallery[shotOpen]} alt={`Кадр ${shotOpen + 1}`} />
+            </Lightbox>
+          </Suspense>
         )}
 
         {videoOpen !== undefined && videos[videoOpen] && (
-          <Lightbox label={videos[videoOpen].title} onClose={() => setVideoOpen(undefined)}>
-            <div className="lightbox__video">
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${videos[videoOpen].youtubeId}?autoplay=1&rel=0`}
-                title={videos[videoOpen].title}
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
-            </div>
-          </Lightbox>
+          <Suspense fallback={null}>
+            <Lightbox label={videos[videoOpen].title} onClose={() => setVideoOpen(undefined)}>
+              <div className="lightbox__video">
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${videos[videoOpen].youtubeId}?autoplay=1&rel=0`}
+                  title={videos[videoOpen].title}
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              </div>
+            </Lightbox>
+          </Suspense>
         )}
 
         {!result.value?.demo && <WatchOrder animeId={anime.id} />}

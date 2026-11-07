@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { blurPoster } from '../api/shikimori'
 import { useMyList } from '../data/myList'
@@ -158,16 +158,14 @@ export default function TasteDuel() {
   const nav = useNavigate()
   const pool = useDuelPool()
   const [picked, setPicked] = useState<DuelTitle[]>([])
-  const [routeKeySeen, setRouteKeySeen] = useState(routeKey)
   const [board, setBoard] = useState<DuelBoard | undefined>(() => boardFromRoute(isShare, pack, code))
   const [asSecond, setAsSecond] = useState(() => isShare && prefersSecond(boardFromRoute(isShare, pack, code)))
 
-  if (routeKeySeen !== routeKey) {
+  useEffect(() => {
     const next = boardFromRoute(isShare, pack, code)
-    setRouteKeySeen(routeKey)
     setBoard(next)
     setAsSecond(isShare && prefersSecond(next))
-  }
+  }, [routeKey, isShare, pack, code])
 
   const start = () => {
     if (picked.length !== NEED) return

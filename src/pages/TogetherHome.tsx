@@ -45,10 +45,17 @@ export default function TogetherHome() {
     }
   }, [])
 
+  /** Шесть знаков или вся ссылка вида …/together/ABC123 — из мессенджера. */
+  const parseRoomCode = (raw: string) => {
+    const fromUrl = raw.match(/together\/([A-Za-z0-9]{6})\b/i)?.[1]
+    const c = (fromUrl ?? raw).trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+    return c.length === 6 ? c : ''
+  }
+
   const join = (e: FormEvent) => {
     e.preventDefault()
-    const c = code.trim().toUpperCase()
-    if (/^[A-Z0-9]{6}$/.test(c)) navigate(`/together/${c}`)
+    const c = parseRoomCode(code)
+    if (c) navigate(`/together/${c}`)
   }
 
   return (
@@ -83,19 +90,35 @@ export default function TogetherHome() {
             <input
               id="room-code"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
-              placeholder="ABC123"
+              onChange={(e) => {
+                const v = e.target.value
+                // Ссылка или длинная вставка — вытаскиваем код; иначе обычный набор 6 знаков.
+                if (/together\//i.test(v) || /https?:\/\//i.test(v) || v.length > 8) {
+                  setCode(parseRoomCode(v))
+                  return
+                }
+                setCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
+              }}
+              onPaste={(e) => {
+                const text = e.clipboardData.getData('text')
+                const parsed = parseRoomCode(text)
+                if (!parsed) return
+                e.preventDefault()
+                setCode(parsed)
+              }}
+              placeholder="ABC123 или ссылка"
               autoComplete="off"
               inputMode="text"
+              aria-describedby="room-code-hint"
             />
-            <button type="submit" className="btn btn--accent join-form__submit" disabled={code.length !== 6}>
+            <button type="submit" className="btn btn--accent join-form__submit" disabled={!parseRoomCode(code)}>
               Войти в комнату
             </button>
           </form>
-          <p className="join-form__foot muted">
-            Нет кода?{' '}
+          <p id="room-code-hint" className="join-form__foot muted">
+            Можно вставить ссылку из чата.{' '}
             <Link to="/catalog" className="together-hero__catalog-link">
-              Создать комнату из каталога
+              Или создать комнату из каталога
             </Link>
           </p>
         </div>
@@ -109,7 +132,12 @@ export default function TogetherHome() {
           </header>
           <div className="together-room-list together-room-list--soon" role="list">
             {upcoming.map((r) => (
-              <Link key={r.$id} to={`/together/${r.$id}`} className="together-room-row together-room-row--soon" role="listitem">
+              <Link
+                key={r.$id}
+                to={`/together/${r.$id}`}
+                className="together-room-row together-room-row--soon room-card room-card--soon"
+                role="listitem"
+              >
                 <div className="together-room-row__thumb" style={r.poster ? { backgroundImage: `url(${r.poster})` } : undefined} />
                 <div className="together-room-row__body">
                   <span className="together-room-row__title">{r.title || r.animeTitle}</span>

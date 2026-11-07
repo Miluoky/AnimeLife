@@ -43,7 +43,7 @@ export default function Onboarding() {
   if (taste.done || list.length || history.length) return null
 
   return (
-    <section className="onboard-card" aria-labelledby="onboard-title">
+    <section className="onboard-card" role="region" aria-labelledby="onboard-title">
       <div className="onboard-card__body">
         <p className="onboard-card__eyebrow">Настройка за пару шагов</p>
         <h2 id="onboard-title">Впервые у нас?</h2>
@@ -77,7 +77,7 @@ function OnboardingDialog({ onClose }: { onClose: () => void }) {
       document.removeEventListener('keydown', onKey)
       document.documentElement.classList.remove('onboard-open')
     }
-  }, [])
+  }, [onClose])
 
   const toggleGenre = (id: number) => setGenres((g) => (g.includes(id) ? g.filter((x) => x !== id) : [...g, id]))
   const toggleTitle = (a: Anime) =>

@@ -116,6 +116,9 @@ function Hero() {
             alt=""
             aria-hidden="true"
             decoding="async"
+            loading="eager"
+            // @ts-expect-error fetchpriority
+            fetchpriority="high"
           />
         ) : anime.posterUrl ? (
           <img
@@ -125,6 +128,9 @@ function Hero() {
             alt=""
             aria-hidden="true"
             decoding="async"
+            loading="eager"
+            // @ts-expect-error fetchpriority
+            fetchpriority="high"
           />
         ) : null}
         <div className="hero__scrim" aria-hidden="true" />
@@ -239,13 +245,13 @@ function ContinueWatching({ history }: { history: HistoryEntry[] }) {
         <h2>Продолжить просмотр</h2>
       </div>
       <div className="grid grid--wide">
-        {history.slice(0, 6).map((h) => {
+        {history.slice(0, 6).map((h, i) => {
           const at = getPosition(h.animeId, h.episode)
           return (
             <div key={h.animeId} className="continue-item">
               <Link to={`/watch/${h.animeId}/${h.episode}`} className="continue-card">
                 <div className="continue-card__img" style={{ background: h.posterFill }}>
-                  <Poster anime={h} className="poster-img--cover" />
+                  <Poster anime={h} className="poster-img--cover" priority={i === 0} />
                   <span className="continue-card__play">
                     <PlayIcon size={20} />
                   </span>

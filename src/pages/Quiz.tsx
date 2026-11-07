@@ -175,7 +175,7 @@ export default function Quiz() {
           <ul className="quiz-hero__rules" aria-label="Как играть">
             <li>Смотрите кадр и выберите один из четырёх тайтлов.</li>
             <li>Считаем подряд угаданные аниме и личный рекорд.</li>
-            <li>После неверного ответа можно поделиться серией в один тап.</li>
+            <li>После неверного ответа можно похвастаться серией в один тап.</li>
           </ul>
           <p className="quiz-hero__more">
             <Link className="quiz-hero__link" to="/duel">
@@ -186,6 +186,7 @@ export default function Quiz() {
         </header>
       ) : (
         <header className="quiz-head quiz-head--active" aria-label="Прогресс игры">
+          <h1 className="sr-only">Угадай аниме по кадру</h1>
           <div className="quiz-progress">
             <div className="quiz-progress__row">
               <span className="quiz-progress__round">
@@ -282,7 +283,7 @@ export default function Quiz() {
           {picked && round && (
             <div className={`quiz-result${right ? ' quiz-result--right' : ' quiz-result--wrong'}`} role="status">
               <div className="quiz-result__main">
-                <p className="quiz-result__badge">{right ? 'Верно' : 'Мимо'}</p>
+                <p className="quiz-result__badge">{right ? 'Верно!' : 'Мимо.'}</p>
                 <p className="quiz-result__detail">
                   Это{' '}
                   <Link className="quiz-result__title-link" to={`/anime/${round.answer.id}`}>
@@ -294,7 +295,7 @@ export default function Quiz() {
               <div className="quiz-result__actions">
                 {ended >= 2 && (
                   <button type="button" className="btn btn--ghost quiz-result__share" onClick={() => void shareStreak(ended)}>
-                    Поделиться: {ended} подряд
+                    Похвастаться: {ended} подряд
                   </button>
                 )}
                 <button type="button" className="btn btn--accent quiz-result__next" onClick={() => void advance()} autoFocus>

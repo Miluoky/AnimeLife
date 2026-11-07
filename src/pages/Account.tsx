@@ -4,12 +4,6 @@ import { Link } from 'react-router-dom'
 import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useMyList } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
-import ProfileStats from '../components/ProfileStats'
-import PushSettings from '../components/PushSettings'
-import TelegramNotifySettings from '../components/TelegramNotifySettings'
-import ProfileSettings from '../components/ProfileSettings'
-import AppearanceSettings from '../components/AppearanceSettings'
-import AccountData from '../components/AccountData'
 import { SOCIAL_LOGIN } from '../api/appwrite'
 import {
   signInWithOAuth,
@@ -21,6 +15,12 @@ import {
 
 // Сводка посещений нужна только администратору: отдельная часть, обычные пользователи её не скачивают.
 const AdminStatsCard = lazy(() => import('../components/AdminStatsCard'))
+const PushSettings = lazy(() => import('../components/PushSettings'))
+const TelegramNotifySettings = lazy(() => import('../components/TelegramNotifySettings'))
+const ProfileStats = lazy(() => import('../components/ProfileStats'))
+const ProfileSettings = lazy(() => import('../components/ProfileSettings'))
+const AppearanceSettings = lazy(() => import('../components/AppearanceSettings'))
+const AccountData = lazy(() => import('../components/AccountData'))
 
 const providers = [
   { id: 'vk', title: 'VK ID', mark: 'VK', on: !!SOCIAL_LOGIN.vkAppId },
@@ -427,14 +427,30 @@ export default function Account() {
       )}
       <section className="acc-appearance-section" aria-label="Оформление сайта">
         <div className="acc-appearance">
-          <AppearanceSettings />
+          <Suspense fallback={null}>
+            <AppearanceSettings />
+          </Suspense>
         </div>
       </section>
-      <PushSettings />
-      <TelegramNotifySettings />
-      {(user || list.length > 0) && <ProfileStats />}
-      <ProfileSettings />
-      {user && <AccountData />}
+      <Suspense fallback={null}>
+        <PushSettings />
+      </Suspense>
+      <Suspense fallback={null}>
+        <TelegramNotifySettings />
+      </Suspense>
+      {(user || list.length > 0) && (
+        <Suspense fallback={null}>
+          <ProfileStats />
+        </Suspense>
+      )}
+      <Suspense fallback={null}>
+        <ProfileSettings />
+      </Suspense>
+      {user && (
+        <Suspense fallback={null}>
+          <AccountData />
+        </Suspense>
+      )}
     </main>
   )
 }

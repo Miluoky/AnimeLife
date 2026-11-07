@@ -290,6 +290,44 @@
     padding: 24px 18px;
   }
 
+  .hentai-switch {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .hentai-switch__btn {
+    flex: 1 1 9rem;
+    text-align: center;
+    min-width: 0;
+  }
+
+  .hentai-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hentai-tags {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-height: none;
+    margin: 0 -4px;
+    padding: 0 4px 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: none;
+  }
+
+  .hentai-tags::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hentai-tag-btn {
+    flex-shrink: 0;
+  }
+
   .hentai-sort__select {
     min-width: 0;
     width: 100%;

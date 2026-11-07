@@ -357,9 +357,9 @@ function NothingFound() {
       </div>
       {picks.length > 0 && (
         <Shelf title="Популярно сейчас" subtitle="Пока ищете, вот что смотрят другие" icon={<SparkIcon size={18} />}>
-          {picks.map((a) => (
+          {picks.map((a, i) => (
             <div key={a.id} className="row-scroll__item">
-              <PosterCard anime={a} />
+              <PosterCard anime={a} priority={i < 6} />
             </div>
           ))}
         </Shelf>
