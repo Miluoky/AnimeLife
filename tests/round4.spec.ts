@@ -86,10 +86,15 @@ test('главная: «Топ-10 онгоингов» с цифрами мес�
 })
 
 test('кадры: миниатюры лёгкие, фон баннера лёгкий на телефоне и оригинальный на компьютере', async ({ page }) => {
+  // mockServices отдаёт пустой webp → OptimizedImage без .banner__img--shot; кадры нужны валидные.
+  const pixel = Buffer.from('R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAIBAAA=', 'base64')
   await page.route(/shikimori\.(io|one)\/api\/animes\/\d+\/screenshots/, (route) =>
     route.fulfill({
       json: ['a', 'b', 'c'].map((id) => ({ original: `/system/screenshots/original/${id}.jpg`, preview: `/system/screenshots/x332/${id}.jpg` })),
     }),
+  )
+  await page.route(/shikimori\.(io|one)\/system\/screenshots\//, (route) =>
+    route.fulfill({ status: 200, contentType: 'image/gif', body: pixel }),
   )
   await page.goto('/anime/1')
   const banner = page.locator('.banner__img--shot')

@@ -133,24 +133,21 @@ export default function TogetherHome() {
           </header>
           <div className="together-room-list together-room-list--soon" role="list">
             {upcoming.map((r) => (
-              <Link
-                key={r.$id}
-                to={`/together/${r.$id}`}
-                className="together-room-row together-room-row--soon room-card room-card--soon"
-                role="listitem"
-              >
-                <div className="together-room-row__thumb" style={r.poster ? { backgroundImage: `url(${r.poster})` } : undefined} />
-                <div className="together-room-row__body">
-                  <span className="together-room-row__title">{r.title || r.animeTitle}</span>
-                  <span className="muted together-room-row__line">
-                    {r.title ? `${r.animeTitle} · ` : ''}серия {r.episode}
-                  </span>
-                  <span className="together-room-row__meta muted">
-                    <span className="live-badge">{untilText(r.startsAt! - serverNow())}</span>
-                    <span className="together-room-row__host">{r.hostName}</span>
-                  </span>
-                </div>
-              </Link>
+              <div key={r.$id} role="listitem">
+                <Link to={`/together/${r.$id}`} className="together-room-row together-room-row--soon room-card room-card--soon">
+                  <div className="together-room-row__thumb" style={r.poster ? { backgroundImage: `url(${r.poster})` } : undefined} />
+                  <div className="together-room-row__body">
+                    <span className="together-room-row__title">{r.title || r.animeTitle}</span>
+                    <span className="muted together-room-row__line">
+                      {r.title ? `${r.animeTitle} · ` : ''}серия {r.episode}
+                    </span>
+                    <span className="together-room-row__meta muted">
+                      <span className="live-badge">{untilText(r.startsAt! - serverNow())}</span>
+                      <span className="together-room-row__host">{r.hostName}</span>
+                    </span>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         </section>
@@ -189,26 +186,28 @@ export default function TogetherHome() {
         ) : (
           <div className="together-room-list" role="list">
             {rooms.map((r) => (
-              <Link key={r.$id} to={`/together/${r.$id}`} className="together-room-row" role="listitem">
-                <div className="together-room-row__thumb" style={r.poster ? { backgroundImage: `url(${r.poster})` } : undefined} />
-                <div className="together-room-row__body">
-                  <span className="together-room-row__title">{r.title || r.animeTitle}</span>
-                  <span className="muted together-room-row__line">
-                    {r.title ? `${r.animeTitle} · ` : ''}серия {r.episode}
-                  </span>
-                  <span className="together-room-row__meta muted">
-                    <span className={`live-badge${r.playing ? ' live-badge--on' : ''}`}>
-                      {r.playing ? formatTime(roomPosition(r)) : 'Пауза'}
+              <div key={r.$id} role="listitem">
+                <Link to={`/together/${r.$id}`} className="together-room-row">
+                  <div className="together-room-row__thumb" style={r.poster ? { backgroundImage: `url(${r.poster})` } : undefined} />
+                  <div className="together-room-row__body">
+                    <span className="together-room-row__title">{r.title || r.animeTitle}</span>
+                    <span className="muted together-room-row__line">
+                      {r.title ? `${r.animeTitle} · ` : ''}серия {r.episode}
                     </span>
-                    <span className="together-room-row__host">{r.hostName}</span>
-                    {viewers.get(r.$id) ? (
-                      <span className="together-room-row__viewers">
-                        <PeopleIcon size={14} /> {viewers.get(r.$id)}
+                    <span className="together-room-row__meta muted">
+                      <span className={`live-badge${r.playing ? ' live-badge--on' : ''}`}>
+                        {r.playing ? formatTime(roomPosition(r)) : 'Пауза'}
                       </span>
-                    ) : null}
-                  </span>
-                </div>
-              </Link>
+                      <span className="together-room-row__host">{r.hostName}</span>
+                      {viewers.get(r.$id) ? (
+                        <span className="together-room-row__viewers">
+                          <PeopleIcon size={14} /> {viewers.get(r.$id)}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         )}

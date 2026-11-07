@@ -722,7 +722,8 @@ test('плеер: у студии есть запасные плееры YummyAn
   // Прежний Kodik ненадолго остаётся под новым плеером (на паузе): смотрим на тот, что сейчас играет.
   const playing = page.locator('iframe.player-iframe:not(.player-iframe--old)')
   await page.getByRole('button', { name: /^Studio Band/ }).click()
-  const hosts = page.getByRole('group', { name: 'Плеер' })
+  // exact: иначе цепляет «Инструменты плеера» (Широкий экран / шторка).
+  const hosts = page.getByRole('group', { name: 'Плеер', exact: true })
   // Kodik у студии уже есть из Anixart: второй не показываем.
   await expect(hosts.getByRole('button')).toHaveText(['Kodik', 'CVH', 'Alloha'])
   await expect(hosts.getByRole('button', { name: 'Kodik' })).toHaveAttribute('aria-pressed', 'true')
@@ -734,7 +735,7 @@ test('плеер: у студии есть запасные плееры YummyAn
   // Студии, которой нет в других источниках, — в конце списка, со своим плеером.
   await page.getByRole('button', { name: /^OnWave/ }).click()
   await expect(playing).toHaveAttribute('src', /^https:\/\/cvh\.example\/.*OnWave\/2$/)
-  await expect(page.getByRole('group', { name: 'Плеер' })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Плеер', exact: true })).toHaveCount(0)
 })
 
 test('плеер: своих источников нет — серия из YummyAnime вместо трейлера', async ({ page }) => {

@@ -149,7 +149,7 @@ test.describe('Tier 4: Real-World Scenarios', () => {
 
     // Step 4: Navigate to Community Clubs
     await page.goto('/community?tab=clubs')
-    await expect(page.getByRole('link', { name: /Войти, чтобы создать клуб/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Войдите, чтобы создать клуб/ })).toBeVisible()
 
     // Step 5: Navigate to general community chat
     await page.goto('/chat')

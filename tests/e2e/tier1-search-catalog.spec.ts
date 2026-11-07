@@ -55,7 +55,8 @@ test.describe('Tier 1: Search & Catalog', () => {
 
     const firstCard = cards.first()
     await expect(firstCard).toBeVisible()
-    await expect(firstCard.locator('img')).toBeVisible()
+    // OptimizedImage: при сбое постера — SVG-заглушка с role=img, без <img>.
+    await expect(firstCard.getByRole('img').first()).toBeVisible()
 
     // Clicking card opens title details page
     await firstCard.click()

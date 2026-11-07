@@ -67,7 +67,11 @@ test('каталог: несколько жанров, сезон, возрас�
   await filters.getByRole('combobox', { name: 'Студия' }).selectOption('4')
   await expect.poll(() => req.last()?.get('studio')).toBe('4')
 
-  await page.getByRole('button', { name: 'По алфавиту' }).click()
+  // На телефоне чип в overflow-x: Playwright actionability не кликает вне viewport — жмём через DOM.
+  await page.getByRole('group', { name: 'Сортировка' }).getByRole('button', { name: 'По алфавиту' }).evaluate((el: HTMLButtonElement) => {
+    el.scrollIntoView({ inline: 'center', block: 'nearest' })
+    el.click()
+  })
   await expect.poll(() => req.last()?.get('order')).toBe('name')
 })
 

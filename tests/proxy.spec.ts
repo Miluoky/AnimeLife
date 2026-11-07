@@ -358,7 +358,8 @@ test.describe('Worker: прокси Shikimori', () => {
       expect(robots).toMatch(/Disallow: \/api\//)
       expect(robots).toContain('User-agent: Amazonbot\n')
       expect(robots).toContain('Sitemap: https://animelife.top/sitemap.xml')
-      expect(robots).not.toMatch(/User-agent: (?:Googlebot|Yandex|Bingbot)\b/)
+      // Отдельные правила для поисковиков — ок; AI-боты выше закрыты Disallow.
+      expect(robots).toMatch(/User-agent: Googlebot\b/)
     } finally {
       env.restore()
     }

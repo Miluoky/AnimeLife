@@ -184,7 +184,7 @@ test.describe('Tier 5: Adversarial Stress & Hardening', () => {
     await page.goto('/watch/1/1')
     await expect(page.locator('video.player-video')).toBeAttached()
 
-    const quickInput = page.locator('input[aria-label="Номер серии"]')
+    const quickInput = page.getByRole('searchbox', { name: 'Найти серию' })
     await expect(quickInput).toBeVisible()
 
     // Invalid input: negative or out of bounds

@@ -33,6 +33,8 @@ const baseRoom = {
 async function mockRoom(page: Page, room: Record<string, unknown> | null, members: Record<string, unknown>[] = []) {
   // lastActive свежий на каждый вызов — иначе список «Открытые» отфильтрует комнату на клиенте/сервере.
   const live = room ? { ...room, lastActive: Date.now(), at: Date.now() } : null
+  // preview без Worker: /api/time иначе отдаёт index.html и сверка часов зависает на JSON.
+  await page.route(/\/api\/time$/, (route) => route.fulfill({ json: { now: Date.now() } }))
   await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/members\/rows\?.*/, (route) =>
     route.fulfill({ json: { total: members.length, rows: members } }),
   )
