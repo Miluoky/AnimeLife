@@ -412,7 +412,11 @@ export default function Player() {
         style={miniPlayer.mini ? { minHeight: miniPlayer.height } : undefined}
       >
       <Suspense fallback={null}>
-        <PlayerGlow slot={miniPlayer.slot} poster={anime.posterSmall ?? blurPoster(anime.posterUrl)} animeId={anime.id} />
+        <PlayerGlow
+          slot={miniPlayer.slot}
+          poster={anime.posterSmall2x ?? anime.posterSmall ?? anime.posterUrl ?? blurPoster(anime.posterUrl)}
+          animeId={anime.id}
+        />
       </Suspense>
       {miniPlayer.mini && (
         <div className="video-slot__actions">

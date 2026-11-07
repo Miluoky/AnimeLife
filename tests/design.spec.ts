@@ -153,7 +153,7 @@ test('меню в шапке на телефоне открывается лис
   await page.goto('/')
   await page.getByRole('button', { name: 'Открыть меню' }).click()
   const menu = page.locator('#mobile-menu')
-  await expect(menu.getByRole('link', { name: 'Смотрю' })).toBeVisible()
+  await expect(menu.getByRole('link', { name: 'Библиотека' })).toBeVisible()
   // Страница под меню не прокручивается.
   await expect(page.locator('html')).toHaveClass(/scroll-lock/)
   await page.locator('.menu-backdrop').click({ position: { x: 20, y: 700 } })

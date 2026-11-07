@@ -87,11 +87,11 @@ test('колокольчик: число новых, список уведомл
       : { ok: true },
   )
   await page.goto('/')
-  const bell = page.getByRole('button', { name: 'Уведомления: новых 2' })
+  const bell = page.getByRole('button', { name: /Уведомления.*новых:\s*2/ })
   await expect(bell).toBeVisible()
   await expect(bell).toContainText('2')
   await bell.click()
-  const panel = page.getByRole('dialog', { name: 'Уведомления' })
+  const panel = page.getByRole('region', { name: 'Уведомления' })
   await expect(panel.locator('.bell__item')).toHaveCount(3)
   await expect(panel.locator('.bell__item').first()).toContainText('Боря ответил(а) на ваш комментарий')
   await expect(panel.locator('.bell__item').first()).toContainText('Согласен, 12:34 огонь')

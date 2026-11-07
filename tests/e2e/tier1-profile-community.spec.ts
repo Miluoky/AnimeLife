@@ -47,7 +47,7 @@ test.describe('Tier 1: Profile & Community', () => {
     // Switch to 'Топ зрителей'
     await tabsNav.getByRole('button', { name: 'Топ зрителей' }).click()
     await expect(page).toHaveURL(/tab=top/)
-    await expect(page.getByText('Опыт: 10 за серию')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Опыт XP' })).toBeVisible()
 
     // Switch to 'Клубы'
     await tabsNav.getByRole('button', { name: 'Клубы' }).click()
@@ -186,6 +186,6 @@ test.describe('Tier 1: Profile & Community', () => {
 
   test('unauthenticated guest sees sign-in encouragement on community feed', async ({ page }) => {
     await page.goto('/community')
-    await expect(page.getByText(/Войдите.*чтобы ваши новости видели подписчики/)).toBeVisible()
+    await expect(page.getByText(/Войдите, чтобы видеть личную ленту/i)).toBeVisible()
   })
 })

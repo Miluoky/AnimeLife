@@ -8,12 +8,12 @@ test.beforeEach(async ({ page }) => {
 test('сообщество: вкладки ленты, топа, клубов и людей без входа', async ({ page }) => {
   await page.goto('/community')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Сообщество')
-  await expect(page.getByText('Здесь появятся новости зрителей')).toBeVisible()
+  await expect(page.getByText(/Войдите, чтобы видеть личную ленту/i)).toBeVisible()
   await page.getByRole('button', { name: 'Топ зрителей' }).click()
   await expect(page).toHaveURL(/tab=top/)
-  await expect(page.getByText('Опыт: 10 за серию')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Опыт XP' })).toBeVisible()
   await page.getByRole('button', { name: 'Клубы' }).click()
-  await expect(page.getByRole('link', { name: 'Войти, чтобы создать клуб' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Войдите?,?\s*чтобы создать клуб/ })).toBeVisible()
 })
 
 test('топ зрителей за месяц: запрос по monthKey и опыт за месяц', async ({ page }) => {
@@ -23,12 +23,17 @@ test('топ зрителей за месяц: запрос по monthKey и о�
     asked.push(url)
     const month = url.includes('"monthKey"')
     return route.fulfill({
-      json: { total: 1, rows: [{ $id: 'u1', name: 'Мика', xp: 5000, weekXp: 70, monthXp: month ? 420 : 0, summary: '{}' }] },
+      json: {
+        total: 1,
+        rows: [{ $id: 'u1', name: 'Мика', xp: 5000, weekXp: 70, monthXp: month ? 420 : 0, summary: '{}' }],
+      },
     })
   })
   await page.goto('/community?tab=top')
-  await page.getByRole('button', { name: 'Этот месяц' }).click()
-  await expect(page.locator('.s-leaders__xp')).toHaveText('420 XP')
+  await page.getByRole('button', { name: 'За этот месяц' }).click()
+  await page.getByRole('button', { name: 'Опыт XP' }).click()
+  // Один лидер — на подиуме, не в таблице `.s-leaders`.
+  await expect(page.locator('.s-podium__pill')).toHaveText('420 XP')
   const d = new Date()
   expect(asked.some((u) => u.includes(`"monthKey","values":[${d.getUTCFullYear() * 100 + d.getUTCMonth() + 1}]`))).toBe(true)
   await expect(page.getByText('в последний день называем в нашем Telegram-канале')).toBeVisible()

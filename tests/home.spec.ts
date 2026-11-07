@@ -85,11 +85,11 @@ test('главная: полка «Ближайшие серии» по расп
   ]
   await page.route(/\/api\/(shiki\/)?calendar/, (route) => route.fulfill({ json: calendar }))
   await page.goto('/')
-  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Ближайшие серии' }) })
+  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Скоро в эфире' }) })
   // Четыре серии в пределах суток, по времени выхода; та, что через 30 часов, не попадает.
   await expect(shelf.locator('.poster-card')).toHaveCount(4)
   await expect(shelf.locator('.poster-card').first()).toContainText('2 эп.')
-  await expect(shelf.getByRole('link', { name: /Расписание/ })).toHaveAttribute('href', '/schedule')
+  await expect(shelf.getByRole('link', { name: /Всё|Расписание/ })).toHaveAttribute('href', '/schedule')
 })
 
 test('главная: «Новые серии в вашем списке» по расписанию и прогрессу', async ({ page }) => {
@@ -132,11 +132,11 @@ test('главная: плитки жанров ведут на страницы
   await expect(page).toHaveURL(/\/genre\/mecha$/)
 })
 
-test('главная: карточки «Ещё на сайте» ведут в мини-игру, подбор и подборки', async ({ page }) => {
+test('главная: карточки «Сервисы сайта» ведут в мини-игру, подбор и подборки', async ({ page }) => {
   await page.goto('/')
-  const cards = page.getByRole('region', { name: 'Ещё на сайте' }).getByRole('link')
+  const cards = page.getByRole('region', { name: 'Сервисы сайта' }).getByRole('link')
   await expect(cards).toHaveCount(3)
-  await cards.filter({ hasText: 'Угадай по кадру' }).click()
+  await cards.filter({ hasText: 'Аниме-квизы' }).click()
   await expect(page).toHaveURL(/\/quiz$/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Угадай аниме по кадру')
 })
@@ -151,9 +151,9 @@ test('главная: тайтл можно убрать из «Продолжи
   const cards = page.locator('.continue-item')
   await expect(cards).toHaveCount(2)
   // Плеер запомнил место внутри серии: оно видно на карточке.
-  await expect(cards.nth(1)).toContainText('Серия 3 из 12 · с 12:34')
-  await expect(cards.nth(0)).not.toContainText(' · с ')
-  await page.getByRole('button', { name: 'Убрать «Первый» из продолжения' }).click()
+  await expect(cards.nth(1)).toContainText(/Серия 3 из 12 .* 12:34/)
+  await expect(cards.nth(0)).not.toContainText(/12:34/)
+  await page.getByRole('button', { name: /Убрать «Первый» из продолж/ }).click()
   await expect(cards).toHaveCount(1)
   await expect(cards).toContainText('Второй')
   await page.getByRole('button', { name: 'Вернуть' }).click()
@@ -176,8 +176,8 @@ test('главная: заголовок полки сезона ведёт в �
 test('«назад» со страницы тайтла возвращает на то же место главной', async ({ page }) => {
   await page.goto('/')
   // Полки грузятся по мере прокрутки: сначала докручиваем до жанров, потом берём постер полки над ними.
-  await page.getByRole('heading', { name: 'Жанры' }).scrollIntoViewIfNeeded()
-  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Лучшее за всё время' }) })
+  await page.getByRole('main').getByRole('heading', { name: 'Жанры' }).scrollIntoViewIfNeeded()
+  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Шедевры аниме' }) })
   await shelf.scrollIntoViewIfNeeded()
   const poster = shelf.locator('a[href^="/anime/"]').first()
   await expect(poster).toBeVisible()

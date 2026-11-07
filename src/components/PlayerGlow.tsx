@@ -233,10 +233,23 @@ export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<
   if (!on) return null
   const top = shot ?? poster
   const below = shot ? (under ?? poster) : undefined
+  // Пока нет кадра серии — постер это LCP на /watch: eager + high, без lazy.
+  const posterIsLcp = !shot
   return (
     <div className="vp-glow" aria-hidden="true">
       {below && <img key={below} className="vp-glow__img" src={below} alt="" decoding="async" />}
-      {top && <img key={top} className="vp-glow__img vp-glow__img--in" src={top} alt="" decoding="async" />}
+      {top && (
+        <img
+          key={top}
+          className={`vp-glow__img${shot ? ' vp-glow__img--in' : ''}`}
+          src={top}
+          alt=""
+          decoding="async"
+          loading={posterIsLcp ? 'eager' : undefined}
+          // @ts-expect-error fetchpriority
+          fetchpriority={posterIsLcp ? 'high' : undefined}
+        />
+      )}
       <canvas ref={canvas} width={W} height={H} className={`vp-glow__live${live ? ' vp-glow__live--on' : ''}`} hidden={!moving && !captured} />
     </div>
   )

@@ -53,7 +53,7 @@ test('сезонный чарт: карточки с отсчётом, форм�
   await expect(cards.first()).not.toContainText('Сёнен')
   expect(queries[0]).toContain('season: "fall_2026"')
 
-  await page.getByLabel('Жанр').selectOption('Комедия')
+  await page.locator('.season-filters').getByLabel('Жанр').selectOption('Комедия')
   await expect(cards).toHaveCount(1)
   await expect(cards.first()).toContainText('Второй')
   await expect(page).toHaveURL(/genre=/)

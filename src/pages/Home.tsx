@@ -55,15 +55,19 @@ function Hero() {
   const current = items[index] ?? items[0]
   const details = useAsync(async () => (current ? { of: current.id, data: (await loadAnime(current.id)).data } : undefined), [current?.id])
   const anime = (details.value?.of === current?.id && details.value?.data) || current
+  // Кадры только на широком экране: на телефоне LCP — постер, а не поздний screenshot с Shikimori.
+  const wideHero = typeof window !== 'undefined' && matchMedia('(min-width: 1101px)').matches
   const shots = useAsync(
-    async () => (current && !saverOn() ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined),
-    [current?.id],
+    async () =>
+      current && !saverOn() && wideHero ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined,
+    [current?.id, wideHero],
   )
   const next = items[(index + 1) % items.length]
   useEffect(() => {
     if (!next || items.length < 2 || saverOn()) return
     const t = setTimeout(() => {
       new Image().src = `${SHIKIMORI_URL}/system/animes/x96/${next.id}.jpg`
+      if (!wideHero) return
       void fetchScreenshots(next.id)
         .then((list) => {
           if (list[0]) new Image().src = shotSrc(list[0])
@@ -71,8 +75,8 @@ function Hero() {
         .catch(() => undefined)
     }, 2000)
     return () => clearTimeout(t)
-  }, [next?.id, items.length])
-  const shot = shots.value && !shots.loading ? shots.value : undefined
+  }, [next?.id, items.length, wideHero])
+  const shot = wideHero && shots.value && !shots.loading ? shots.value : undefined
   useAmbient(current?.posterSmall)
 
   // Listen for media query change to ensure hero-ring.css is loaded on desktop
@@ -152,7 +156,7 @@ function Hero() {
             <button
               type="button"
               className="hero__pause"
-              aria-label={paused ? 'Включить автопрокрутку' : 'Приостановить автопрокрутку'}
+              aria-label={paused ? 'Продолжить смену тайтлов' : 'Поставить смену тайтлов на паузу'}
               aria-pressed={paused}
               onClick={() => setPaused(!paused)}
             >

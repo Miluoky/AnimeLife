@@ -597,7 +597,8 @@ test('плеер: смена озвучки без паузы — новая г�
   await page.waitForTimeout(4500)
   await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/292\//)
   await expect(page.getByText('Подключаем озвучку…')).toBeVisible()
-  expect(await page.frames().find((f) => f.url().includes('seria/292'))?.title()).not.toMatch(/pause|mute/)
+  // unmute содержит mute как подстроку — смотрим целые команды в логе.
+  expect(await page.frames().find((f) => f.url().includes('seria/292'))?.title()).not.toMatch(/(^|,)(pause|mute)(,|$)/)
 })
 
 test('плеер: ближе к концу серии следующая уже загружена и включается тем же плеером, без новой загрузки', async ({ page }) => {

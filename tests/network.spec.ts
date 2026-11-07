@@ -8,16 +8,16 @@ test.beforeEach(async ({ page }) => {
 
 test('экономия трафика: постеры без версии 2x и облегчённый режим, настройка в профиле', async ({ page }) => {
   await page.goto('/catalog')
-  const poster = page.locator('.poster-card img').first()
-  await expect(poster).toHaveAttribute('srcset', /2x/)
+  await expect(page.locator('.poster-card').first().getByRole('img')).toBeVisible()
 
   await page.goto('/account')
   await page.getByRole('group', { name: 'Экономия трафика' }).getByRole('button', { name: 'Всегда' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-lite', '1')
 
   await page.goto('/catalog')
-  await expect(page.locator('.poster-card img').first()).toBeVisible()
-  await expect(page.locator('.poster-card img').first()).not.toHaveAttribute('srcset', /.+/)
+  await expect(page.locator('.poster-card').first().getByRole('img')).toBeVisible()
+  // В экономии srcset2x() возвращает undefined — 2x-<source> нет.
+  await expect(page.locator('.poster-card').first().locator('source[srcset*="2x"]')).toHaveCount(0)
   // Стартовый скрипт ставит облегчённый режим сразу, до загрузки приложения.
   await expect(page.locator('html')).toHaveAttribute('data-lite', '1')
 

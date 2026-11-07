@@ -88,38 +88,55 @@ function SeasonPlanBar({ seasonId }: { seasonId: string; catalog?: SeasonAnime[]
   const list = useMyList()
   if (!plan.length) return null
   const byId = new Map(list.map((e) => [e.anime.id, e]))
+  const rows = plan.map((p) => {
+    const entry = byId.get(p.id)
+    const total = Math.max(1, p.episodes || entry?.anime.episodes || 12)
+    const watched = entry?.status === 'completed' ? total : Math.min(entry?.watched ?? 0, total)
+    return { p, entry, total, watched, done: watched >= total, pct: Math.round((watched / total) * 100) }
+  })
+  const epDone = rows.reduce((s, r) => s + r.watched, 0)
+  const epTotal = rows.reduce((s, r) => s + r.total, 0)
+  const titlesDone = rows.filter((r) => r.done).length
+  const overallPct = epTotal ? Math.round((epDone / epTotal) * 100) : 0
   return (
     <section className="season-plan" aria-label="Сетка сезона">
       <div className="season-plan__head">
-        <h2>Моя сетка сезона</h2>
-        <p className="season-plan__hint">
-          {plan.length} тайтл{plan.length === 1 ? '' : plan.length < 5 ? 'а' : 'ов'}
-        </p>
+        <div className="season-plan__titles">
+          <h2>Моя сетка сезона</h2>
+          <p className="season-plan__hint">
+            {plan.length} тайтл{plan.length === 1 ? '' : plan.length < 5 ? 'а' : 'ов'}
+            {titlesDone > 0 ? ` · досмотрено ${titlesDone}` : ''}
+          </p>
+        </div>
+        <div className="season-plan__summary" aria-label={`Прогресс сезона: ${epDone} из ${epTotal} серий`}>
+          <span className="season-plan__summary-n">
+            {epDone}/{epTotal} сер. · {overallPct}%
+          </span>
+          <div className="season-plan__summary-track" role="presentation">
+            <div className="season-plan__summary-fill" style={{ width: `${overallPct}%` }} />
+          </div>
+        </div>
       </div>
       <ul className="season-plan__grid">
-        {plan.map((p) => {
-          const entry = byId.get(p.id)
-          const total = p.episodes || entry?.anime.episodes || 12
-          const watched =
-            entry?.status === 'completed' ? total : Math.min(entry?.watched ?? 0, total)
-          const done = watched >= total
-          return (
-            <li key={p.id} className={`chip season-plan__chip${done ? ' chip--accent' : ''}`}>
-              <Link to={`/anime/${p.id}`}>{p.title}</Link>
-              <span className="season-plan__prog">
-                {watched}/{total}
-              </span>
-              <button
-                type="button"
-                className="season-plan__x"
-                aria-label={`Убрать «${p.title}» из сетки`}
-                onClick={() => toggleSeasonPlan(seasonId, { id: p.id, title: p.title, episodes: p.episodes })}
-              >
-                ×
-              </button>
-            </li>
-          )
-        })}
+        {rows.map(({ p, total, watched, done, pct }) => (
+          <li key={p.id} className={`chip season-plan__chip${done ? ' chip--accent' : ''}`}>
+            <Link to={`/anime/${p.id}`}>{p.title}</Link>
+            <span className="season-plan__prog">
+              {watched}/{total}
+            </span>
+            <div className="season-plan__bar" role="presentation" title={`${pct}%`}>
+              <i style={{ width: `${pct}%` }} />
+            </div>
+            <button
+              type="button"
+              className="season-plan__x"
+              aria-label={`Убрать «${p.title}» из сетки`}
+              onClick={() => toggleSeasonPlan(seasonId, { id: p.id, title: p.title, episodes: p.episodes })}
+            >
+              ×
+            </button>
+          </li>
+        ))}
       </ul>
     </section>
   )

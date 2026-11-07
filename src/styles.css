@@ -503,6 +503,14 @@ h3 {
 .poster-card__meta {
   font-size: 13px;
   color: var(--muted);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+@media (max-width: 390px) {
+  .poster-card__meta {
+    font-size: 11px;
+  }
 }
 
 .placeholder-label {
@@ -1657,6 +1665,13 @@ h3 {
   .dock__item > span:last-child {
     max-width: 100%;
     white-space: nowrap;
+  }
+  /* «Библиотека» / «Расписание» длиннее старого «Смотрю» — на 320px чуть мельче, без обрезки. */
+  @media (max-width: 390px) {
+    .dock__item {
+      font-size: 9px;
+      letter-spacing: -0.02em;
+    }
   }
   .dock__item:active {
     transform: scale(0.9);

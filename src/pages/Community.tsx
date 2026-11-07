@@ -45,7 +45,7 @@ export default function Community() {
             <b aria-hidden="true">LIVE</b> СООБЩЕСТВО
             <span aria-hidden="true">• КЛУБЫ • ОБЩЕНИЕ • ТОП ЗРИТЕЛЕЙ</span>
           </span>
-          <h1>Сообщество зрителей</h1>
+          <h1>Сообщество</h1>
           <p className="muted" style={{ maxWidth: 560, lineHeight: 1.6 }}>
             Обсуждайте любимые онгоинги, вступайте в клубы по жанрам, находите единомышленников и делитесь впечатлениями в режиме реального времени.
           </p>
@@ -61,7 +61,7 @@ export default function Community() {
       </section>
 
       <div className="community-panels">
-        <nav className="s-tabs community-tabs" aria-label="Вкладки сообщества">
+        <nav className="s-tabs community-tabs" aria-label="Разделы сообщества">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -72,7 +72,7 @@ export default function Community() {
               aria-controls={`community-panel-${t.id}`}
               onClick={() => setParams(t.id === 'feed' ? {} : { tab: t.id }, { replace: true })}
             >
-              {t.title}
+              {t.id === 'feed' ? 'Лента' : t.id === 'clubs' ? 'Клубы' : t.id === 'top' ? 'Топ зрителей' : 'Люди'}
             </button>
           ))}
         </nav>
@@ -299,6 +299,12 @@ function Leaders() {
           </div>
         </div>
       </div>
+
+      {period === 'month' && (
+        <p className="muted community-leaders__note">
+          Топ месяца в последний день называем в нашем Telegram-канале.
+        </p>
+      )}
 
       {rows.loading && <p className="muted" aria-busy="true">Загрузка рейтинга...</p>}
 

@@ -37,7 +37,8 @@ export default function TogetherHome() {
       ).catch(() => new Map<string, number>())
       if (alive) setViewers(counts)
     }
-    void syncClock(1).then(refresh)
+    // Даже если часы сервера не ответили — список комнат всё равно грузим.
+    void syncClock(1).then(refresh, refresh)
     // Список комнат обновляем, только пока вкладка открыта: фоновая вкладка не тратит запросы к Appwrite.
     const timer = setInterval(() => !document.hidden && refresh(), 20_000)
     return () => {

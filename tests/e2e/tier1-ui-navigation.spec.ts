@@ -27,7 +27,8 @@ test.describe('Tier 1: UI Navigation', () => {
     await nav.getByRole('button', { name: 'Дополнительные разделы сайта' }).click()
     const more = page.getByRole('menu', { name: 'Меню дополнительных разделов' })
     await expect(more.getByRole('menuitem', { name: /Вместе/ })).toBeVisible()
-    await expect(more.getByRole('menuitem', { name: /Хентай$/ })).toBeVisible()
+    // В пункте ещё описание «Аниме 18+» — якорь по заголовку, не конец всей строки.
+    await expect(more.getByRole('menuitem', { name: /Хентай(?! Манга)/ })).toBeVisible()
     await expect(more.getByRole('menuitem', { name: /Хентай Манга/ })).toBeVisible()
     await page.keyboard.press('Escape')
 

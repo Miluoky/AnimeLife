@@ -1,14 +1,19 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mockServices } from './mocks'
 
-/** Последний запрос списка тайтлов: по его параметрам видно, что фильтры дошли до Shikimori. */
+/** Запросы списка тайтлов: по параметрам видно, что фильтры дошли до Shikimori. */
 function lastCatalogRequest(page: Page) {
-  let last: URLSearchParams | undefined
+  const seen: URLSearchParams[] = []
   page.on('request', (r) => {
     const url = new URL(r.url())
-    if (/\/api\/(shiki\/api\/)?animes$/.test(url.pathname) && url.searchParams.get('limit') === '24') last = url.searchParams
+    // /api/animes, /api/shiki/animes, /api/shiki/api/animes — limit сетки каталога.
+    if (/\/animes\/?$/.test(url.pathname) && url.searchParams.get('limit') === '24') seen.push(url.searchParams)
   })
-  return () => last
+  return {
+    last: () => seen.at(-1),
+    /** Был ли запрос с точным genre=… (между кликами бывают промежуточные). */
+    hadGenre: (genre: string) => seen.some((p) => p.get('genre') === genre),
+  }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -32,7 +37,7 @@ async function openFilters(page: import('@playwright/test').Page) {
 }
 
 test('каталог: несколько жанров, сезон, возраст, студия и сортировка по алфавиту', async ({ page }) => {
-  const last = lastCatalogRequest(page)
+  const req = lastCatalogRequest(page)
   await page.goto('/catalog')
 
   await openFilters(page)
@@ -42,8 +47,8 @@ test('каталог: несколько жанров, сезон, возрас�
   await page.getByRole('searchbox', { name: 'Найти: жанры' }).fill('')
   await page.getByRole('checkbox', { name: 'Комедия' }).check()
   await expect(page).toHaveURL(/genre=1%2C4/)
-  // Ждём запрос именно с двумя жанрами (между кликами может уйти промежуточный с одним).
-  await expect.poll(() => last()?.get('genre'), { timeout: 15_000 }).toBe('1,4')
+  // Между кликами уходит промежуточный запрос с одним жанром — ждём именно 1,4.
+  await expect.poll(() => req.hadGenre('1,4'), { timeout: 15_000 }).toBe(true)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: /Жанры.*Комедия \+1/ })).toBeVisible()
 
@@ -52,18 +57,18 @@ test('каталог: несколько жанров, сезон, возрас�
   await expect(filters.getByRole('combobox', { name: 'Сезон' })).toHaveCount(0)
   await filters.getByRole('combobox', { name: 'Год' }).selectOption('2024')
   await filters.getByRole('combobox', { name: 'Сезон' }).selectOption('summer')
-  await expect.poll(() => last()?.get('season')).toBe('summer_2024')
+  await expect.poll(() => req.last()?.get('season')).toBe('summer_2024')
 
   await filters.getByRole('combobox', { name: 'Возраст' }).selectOption('pg_13')
-  await expect.poll(() => last()?.get('rating')).toBe('pg_13')
+  await expect.poll(() => req.last()?.get('rating')).toBe('pg_13')
 
   // В списке студий только настоящие студии.
   await expect(filters.getByRole('combobox', { name: 'Студия' }).locator('option')).toHaveText(['Любая', 'Bones', 'Kyoto Animation'])
   await filters.getByRole('combobox', { name: 'Студия' }).selectOption('4')
-  await expect.poll(() => last()?.get('studio')).toBe('4')
+  await expect.poll(() => req.last()?.get('studio')).toBe('4')
 
   await page.getByRole('button', { name: 'По алфавиту' }).click()
-  await expect.poll(() => last()?.get('order')).toBe('name')
+  await expect.poll(() => req.last()?.get('order')).toBe('name')
 })
 
 test('каталог: «Скрыть добавленные» убирает тайтлы из моего списка', async ({ page }) => {
@@ -71,23 +76,23 @@ test('каталог: «Скрыть добавленные» убирает т�
     const anime = { id: '21', title: 'Ван-Пис', kind: 'ТВ-сериал', ongoing: true, posterFill: '#222' }
     localStorage.setItem('anime.mylist.v1', JSON.stringify([{ anime, status: 'watching', addedAt: 1 }]))
   })
-  const last = lastCatalogRequest(page)
+  const req = lastCatalogRequest(page)
   await page.goto('/catalog')
   await openFilters(page)
   await page.getByLabel('Скрыть добавленные').check()
   await expect(page).toHaveURL(/hide=mine/)
-  await expect.poll(() => last()?.get('exclude_ids')).toBe('21')
+  await expect.poll(() => req.last()?.get('exclude_ids')).toBe('21')
 })
 
 test('каталог: «Без жанров» исключает жанр, выбранные жанры в нём не предлагаются', async ({ page }) => {
-  const last = lastCatalogRequest(page)
+  const req = lastCatalogRequest(page)
   await page.goto('/catalog?genre=4')
   await openFilters(page)
   await page.getByRole('button', { name: /Без жанров/ }).click()
   await expect(page.getByRole('group', { name: 'Без жанров' }).getByRole('checkbox', { name: 'Комедия' })).toHaveCount(0)
   await page.getByRole('group', { name: 'Без жанров' }).getByRole('checkbox', { name: 'Экшен' }).check()
   await expect(page).toHaveURL(/nogenre=1/)
-  await expect.poll(() => last()?.get('genre')).toBe('4,!1')
+  await expect.poll(() => req.hadGenre('4,!1') || req.last()?.get('genre') === '4,!1').toBe(true)
 })
 
 test('каталог: на постерах виден статус из моего списка и сколько серий просмотрено', async ({ page }) => {

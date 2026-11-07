@@ -285,7 +285,7 @@ test('адрес тайтла с названием: /anime/1 меняется �
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
   await expect(page).toHaveURL(/\/anime\/1-cowboy-bebop#reviews$/)
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://animelife.top/anime/1-cowboy-bebop')
-  await expect(page.getByAltText('Постер аниме «Ковбой Бибоп»').first()).toBeAttached()
+  await expect(page.getByRole('img', { name: /Постер аниме «Ковбой Бибоп»/ }).first()).toBeAttached()
   // Назад ведёт туда, откуда пришли, а не на старый адрес: замена без новой записи в истории.
   await page.goto('/anime/1-cowboy-bebop')
   await expect(page).toHaveURL(/\/anime\/1-cowboy-bebop$/)

@@ -31,14 +31,16 @@ const baseRoom = {
  * Возвращает функцию, которая «присылает» событие так, будто его отправил сервер.
  */
 async function mockRoom(page: Page, room: Record<string, unknown> | null, members: Record<string, unknown>[] = []) {
+  // lastActive свежий на каждый вызов — иначе список «Открытые» отфильтрует комнату на клиенте/сервере.
+  const live = room ? { ...room, lastActive: Date.now(), at: Date.now() } : null
   await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/members\/rows\?.*/, (route) =>
     route.fulfill({ json: { total: members.length, rows: members } }),
   )
   await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/rooms\/rows\/.*/, (route) =>
-    room ? route.fulfill({ json: room }) : route.fulfill({ status: 404, json: { message: 'Row not found' } }),
+    live ? route.fulfill({ json: live }) : route.fulfill({ status: 404, json: { message: 'Row not found' } }),
   )
   await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/(messages|rooms)\/rows\?.*/, (route) =>
-    route.fulfill({ json: { total: room ? 1 : 0, rows: room ? [room] : [] } }),
+    route.fulfill({ json: { total: live ? 1 : 0, rows: live ? [live] : [] } }),
   )
   await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) =>
     route.fulfill({

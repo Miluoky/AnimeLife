@@ -28,7 +28,8 @@ test('подборки: полки по запросам каталога, «В�
     .toBe(1)
   await expect.poll(() => asked).toContain('4,!22')
   // Полки выше ещё догружаются и сдвигают страницу: клик может прийтись мимо ссылки, тогда повторяем.
-  const all = page.locator('section', { has: comedy }).getByRole('link', { name: /Все/ })
+  const shelf = comedy.locator('xpath=ancestor::section[1]')
+  const all = shelf.getByRole('link', { name: /^Все/ })
   await expect(all).toHaveAttribute('href', '/catalog?genre=4&nogenre=22&score=7')
   await expect(async () => {
     if (!/\/catalog/.test(page.url())) await all.click({ timeout: 2000 })
