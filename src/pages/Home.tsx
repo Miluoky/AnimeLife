@@ -23,7 +23,8 @@ const HomeBento = lazy(() => import('../components/HomeShelves').then((m) => ({ 
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 const CatalogSection = lazy(() => import('../components/CatalogSection'))
 
-import './hero.css'
+// Отдельный CSS-чанк: sync-импорт Home в App иначе раздувает index.css сверх бюджета.
+void import('./hero.css')
 if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
 
 const HERO_COUNT = 5
