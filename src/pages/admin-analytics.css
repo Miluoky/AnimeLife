@@ -7,11 +7,29 @@
   gap: 12px;
 }
 
+.an-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.an-summary__note {
+  margin: 0;
+  font-size: 13px;
+}
+
 .an-tiles {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin: 20px 0 12px;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .an-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .an-tile {

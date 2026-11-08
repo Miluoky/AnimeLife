@@ -76,13 +76,23 @@ test('посещения, серии, поток по часам и устрой
   NOW += 4 * 60_000
   const stats = await analyticsStats(api, req, NOW)
   assert.equal(stats.online, 2)
-  assert.deepEqual(stats.visitors, { today: 2, week: 2, month: 2, all: 2 })
+  assert.deepEqual(stats.visitors, {
+    today: 2,
+    week: 2,
+    month: 2,
+    all: 2,
+    todayMsk: 2,
+    weekMsk: 2,
+    monthMsk: 2,
+  })
   assert.deepEqual(stats.views, { today: 3, week: 3, month: 3 })
   assert.deepEqual(stats.episodes, { today: 1, week: 1, month: 1 })
   assert.equal(stats.hours.length, 1)
   assert.deepEqual(stats.devices.map((d) => d.name).sort(), ['desktop', 'mobile'])
   assert.equal(stats.popular[0].views, 1)
   assert.equal(stats.users.all, 3)
+  assert.equal(stats.sample.sessions, 2)
+  assert.equal(stats.onlinePages.length, 2)
 })
 
 test('в новый час тот же человек снова считается в потоке часа, но не дня', async () => {

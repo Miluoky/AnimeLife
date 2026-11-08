@@ -233,14 +233,59 @@ function Quality() {
   )
 }
 
-/** Короткая сводка для профиля администратора. */
+/** Короткая сводка для профиля и полного отчёта — живые + календарные метрики по Москве. */
 export function AnalyticsSummary({ stats }: { stats: AnalyticsStats }) {
+  const todayMsk = stats.visitors.todayMsk ?? stats.visitors.today
+  const weekMsk = stats.visitors.weekMsk ?? stats.visitors.week
+  const monthMsk = stats.visitors.monthMsk ?? stats.visitors.month
   return (
-    <div className="an-tiles">
-      <div className="an-tile an-tile--live"><strong>{number(stats.online)}</strong><span>Онлайн сейчас</span></div>
-      <div className="an-tile"><strong>{number(stats.visitors.today)}</strong><span>За сутки</span></div>
-      <div className="an-tile"><strong>{number(stats.visitors.week)}</strong><span>За 7 дней</span></div>
-      <div className="an-tile"><strong>{number(stats.visitors.month)}</strong><span>За 30 дней</span></div>
+    <div className="an-summary">
+      <div className="an-tiles">
+        <div className="an-tile an-tile--live">
+          <strong>{number(stats.online)}</strong>
+          <span>Онлайн · 5 мин</span>
+        </div>
+        <div className="an-tile">
+          <strong>{number(todayMsk)}</strong>
+          <span>Уник. сегодня · МСК</span>
+        </div>
+        <div className="an-tile">
+          <strong>{number(stats.views.today)}</strong>
+          <span>Просмотров сегодня</span>
+        </div>
+        <div className="an-tile">
+          <strong>{number(stats.episodes.today)}</strong>
+          <span>Серий сегодня</span>
+        </div>
+      </div>
+      <div className="an-tiles an-tiles--small">
+        <div className="an-tile">
+          <strong>{number(stats.visitors.today)}</strong>
+          <span>Активны за 24 ч</span>
+        </div>
+        <div className="an-tile">
+          <strong>{number(weekMsk)}</strong>
+          <span>Визит-дни · 7 дн МСК</span>
+        </div>
+        <div className="an-tile">
+          <strong>{number(monthMsk)}</strong>
+          <span>Визит-дни · 30 дн МСК</span>
+        </div>
+        <div className="an-tile">
+          <strong>{number(stats.newVisitors.today)}</strong>
+          <span>Новые за 24 ч</span>
+        </div>
+      </div>
+      <p className="muted an-summary__note">
+        «Уник. сегодня» — разные браузеры за календарные сутки Москвы. «Визит-дни» — сумма дневных уников
+        (один человек за 7 дней может дать до 7). «Активны за 24 ч» — кто отмечался за скользящие сутки.
+        Всего сессий в базе: {number(stats.visitors.all)} · аккаунтов: {number(stats.users.all)}.
+      </p>
+      {stats.sample?.capped && (
+        <p className="muted an-summary__note">
+          Выборка устройств/источников упёрлась в потолок ({number(stats.sample.sessions)} сессий) — доли ориентировочные.
+        </p>
+      )}
     </div>
   )
 }
@@ -343,10 +388,30 @@ export default function AdminAnalytics() {
         <>
           <AnalyticsSummary stats={stats} />
           <div className="an-tiles an-tiles--small">
-            <div className="an-tile"><strong>{number(stats.views.today)}</strong><span>Просмотров страниц за сутки · {number(stats.views.month)} за месяц</span></div>
-            <div className="an-tile"><strong>{number(stats.episodes.today)}</strong><span>Открыто серий за сутки · {number(stats.episodes.month)} за месяц</span></div>
-            <div className="an-tile"><strong>{number(stats.newVisitors.today)}</strong><span>Новых посетителей за сутки · {number(stats.newVisitors.month)} за 30 дней</span></div>
-            <div className="an-tile"><strong>{number(stats.users.all)}</strong><span>Аккаунтов · +{number(stats.users.week)} за неделю</span></div>
+            <div className="an-tile">
+              <strong>{number(stats.visitors.week)}</strong>
+              <span>Уник. сессии · 7 дн · {number(stats.visitors.month)} за 30 дн</span>
+            </div>
+            <div className="an-tile">
+              <strong>{number(stats.views.week)}</strong>
+              <span>Просмотров · 7 дн · {number(stats.views.month)} за 30 дн</span>
+            </div>
+            <div className="an-tile">
+              <strong>{number(stats.episodes.week)}</strong>
+              <span>Серий · 7 дн · {number(stats.episodes.month)} за 30 дн</span>
+            </div>
+            <div className="an-tile">
+              <strong>{number(stats.newVisitors.week)}</strong>
+              <span>Новых · 7 дн · {number(stats.newVisitors.month)} за 30 дн</span>
+            </div>
+            <div className="an-tile">
+              <strong>{number(stats.users.all)}</strong>
+              <span>Аккаунтов · +{number(stats.users.week)} за неделю</span>
+            </div>
+            <div className="an-tile">
+              <strong>{number(stats.visitors.all)}</strong>
+              <span>Сессий в базе · всего</span>
+            </div>
           </div>
 
           <Bars title="Поток за последние 24 часа (по Москве)" points={fill(stats.hours, 24, HOUR, Math.floor(now / HOUR) * HOUR)} label={hourLabel} />
@@ -386,8 +451,11 @@ export default function AdminAnalytics() {
             </section>
           </div>
           <p className="muted an-note">
-            Считаются только посещения animelife.top. Онлайн: кто был на сайте последние 5 минут с открытой вкладкой. Посетитель:
-            один браузер, без имён и IP-адресов. Обновлено в {new Date(stats.generatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}.
+            Только animelife.top. Онлайн — вкладка видна, отметка ≤5 мин. «Уник. сегодня · МСК» и «визит-дни» — из дневных
+            счётчиков по Москве; «Уник. сессии · 7/30 дн» — разные браузеры с активностью за скользящее окно. Посетитель =
+            один браузер, без IP.
+            {stats.sample?.capped ? ` Доли устройств/источников по выборке ${number(stats.sample.sessions)}.` : ''} Обновлено в{' '}
+            {new Date(stats.generatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}.
           </p>
         </>
       )}

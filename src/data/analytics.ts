@@ -87,7 +87,16 @@ export interface AnalyticsPoint {
 export interface AnalyticsStats {
   online: number
   onlinePages: { name: string; count: number }[]
-  visitors: { today: number; week: number; month: number; all: number }
+  visitors: {
+    today: number
+    week: number
+    month: number
+    all: number
+    /** уникальные за календарные сутки/период по Москве (сумма дневных счётчиков; week/month — визит-дни) */
+    todayMsk?: number
+    weekMsk?: number
+    monthMsk?: number
+  }
   newVisitors: { today: number; week: number; month: number }
   views: { today: number; week: number; month: number }
   episodes: { today: number; week: number; month: number }
@@ -105,6 +114,8 @@ export interface AnalyticsStats {
     day1: { of: number; back: number }
     day7: { of: number; back: number }
   }
+  /** размер выборки для устройств/источников */
+  sample?: { sessions: number; capped: boolean; cohort: number }
   generatedAt: string
 }
 
