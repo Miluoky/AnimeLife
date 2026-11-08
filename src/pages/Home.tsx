@@ -77,7 +77,17 @@ function Hero() {
     return () => clearTimeout(t)
   }, [next?.id, items.length, wideHero])
   const shot = wideHero && shots.value && !shots.loading ? shots.value : undefined
-  useAmbient(current?.posterSmall)
+  // Ambient после первой отрисовки героя — не тянет второй постер в ту же очередь, что LCP.
+  const [ambientSrc, setAmbientSrc] = useState<string | undefined>()
+  useEffect(() => {
+    if (!current?.posterSmall) {
+      setAmbientSrc(undefined)
+      return
+    }
+    const t = window.setTimeout(() => setAmbientSrc(current.posterSmall), 1200)
+    return () => clearTimeout(t)
+  }, [current?.posterSmall])
+  useAmbient(ambientSrc)
 
   // Listen for media query change to ensure hero-ring.css is loaded on desktop
   useEffect(() => {
@@ -229,10 +239,11 @@ function Hero() {
               {a.posterSmall && (
                 <img
                   src={a.posterSmall}
-                  srcSet={a.posterSmall2x && !saverOn() ? `${a.posterSmall} 225w, ${a.posterSmall2x} 450w` : undefined}
+                  srcSet={a.posterSmall2x && !saverOn() && wideHero ? `${a.posterSmall} 225w, ${a.posterSmall2x} 450w` : undefined}
                   sizes="(min-width: 1101px) 132px, 44px"
                   alt=""
                   decoding="async"
+                  loading="lazy"
                 />
               )}
             </button>
