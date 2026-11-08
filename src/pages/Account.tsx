@@ -468,7 +468,7 @@ export default function Account() {
       )}
 
       {admin && (
-        <section id="admin" className="acc-block" aria-label="Статистика сайта">
+        <section id="admin" className="acc-block">
           <Suspense fallback={null}>
             <AdminStatsCard />
           </Suspense>
@@ -506,7 +506,7 @@ export default function Account() {
       </section>
 
       {user && (
-        <section id="data" className="acc-block" aria-label="Мои данные">
+        <section id="data" className="acc-block">
           <Suspense fallback={null}>
             <AccountData />
           </Suspense>

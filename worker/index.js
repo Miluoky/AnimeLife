@@ -278,9 +278,10 @@ async function home() {
   return {
     ...gaps,
     preload,
-    // Размытый фон баннера — самая крупная картинка первого экрана: браузер начинает качать её сразу с HTML.
-    // Фон размыт, поэтому хватает лёгкого постера 1x (тот же адрес берёт Hero в src/pages/Home.tsx).
-    lcpImage: heroPoster?.mainUrl,
+    // Телефонный LCP в Hero — posterSmall (= GraphQL mainUrl). Не original: иначе preload и <img> расходятся.
+    lcpImage: heroPoster?.mainUrl || absolute(first?.image?.original),
+    lcpSrcset:
+      heroPoster?.mainUrl && heroPoster.main2xUrl ? `${heroPoster.mainUrl} 1x, ${heroPoster.main2xUrl} 2x` : undefined,
     alternates: { ru: '/', en: '/en' },
     title: `Смотреть аниме онлайн бесплатно с русской озвучкой | ${SITE}`,
     description: `Аниме онлайн бесплатно с русской озвучкой: онгоинги ${year}, каталог по жанрам и годам, расписание новых серий и «Мой список» с синхронизацией.`,
@@ -640,6 +641,7 @@ function episodeVideo(a, info, name, description, episode, image) {
 }
 
 async function watchPage(id, episode) {
+  const gaps = {}
   const a = await json(`${SHIKIMORI}/api/animes/${id}`)
   const count = available(a)
   // Серии, которой ещё нет, в поиске быть не должно: приложение всё равно покажет последнюю вышедшую.
@@ -654,11 +656,23 @@ async function watchPage(id, episode) {
   if (episode < count) near.push([`${episode + 1} серия →`, `/watch/${a.id}/${episode + 1}`])
   const genres = info.genres.map((g) => [g, genrePath(g)]).filter(([, p]) => p)
   const image = absolute(a.image?.original)
+  // LCP на /watch — постер в PlayerGlow (posterSmall / main2x), не OG original.
+  const art = await optional(posters([Number(id)]), null, gaps)
+  const glowPoster = art?.data?.data?.animes?.find((x) => String(x.id) === String(id))?.poster
+  const lcpImage = glowPoster?.main2xUrl || glowPoster?.mainUrl || image
+  const lcpSrcset =
+    glowPoster?.mainUrl && glowPoster.main2xUrl ? `${glowPoster.mainUrl} 1x, ${glowPoster.main2xUrl} 2x` : undefined
   const description = watchPageDescription(info, episode, count)
   const url = `${ORIGIN}/watch/${a.id}/${episode}`
   const video = a.status === 'anons' ? undefined : episodeVideo(a, info, movie ? `${info.title} — смотреть онлайн` : name, description, episode, image)
   return {
-    preload: { [preloadKey(`${SHIKIMORI}/api/animes/${id}`)]: a },
+    ...gaps,
+    preload: {
+      [preloadKey(`${SHIKIMORI}/api/animes/${id}`)]: a,
+      ...(art ? { [art.key]: art.data } : {}),
+    },
+    lcpImage,
+    lcpSrcset,
     title: watchPageTitle(info, episode),
     description,
     image,
