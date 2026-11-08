@@ -113,21 +113,65 @@ function titlesInList(n) {
   return `${n} ${word}`
 }
 
+function seriesWord(n) {
+  const abs = Math.abs(n) % 100
+  const last = abs % 10
+  return abs > 10 && abs < 20 ? 'серий' : last === 1 ? 'серия' : last >= 2 && last <= 4 ? 'серии' : 'серий'
+}
+
 /**
- * Короткое воскресное напоминание открыть сводку на сайте. Список серий здесь не собираем:
- * прогресс «посмотрел / вышло» живёт в браузере, а календарь на сервере помнит только свежие часы.
+ * Текст воскресной сводки: новые серии из календаря, недосмотренное по списку аккаунта, намёк на рекомендации.
+ * digest.arrivals — [{ id, title, ep }], digest.behind — [{ id, title, left }], digest.doneTitles — названия досмотренных.
  */
-export async function tgSendWeekly(sub) {
-  const chatId = sub.endpoint.slice(TG_PREFIX.length)
+export function weeklyDigestText(sub, digest = {}) {
+  const site = publicSite(sub.site)
   const count = Array.isArray(sub.animeIds) ? sub.animeIds.length : 0
-  const line = count ? `В подписке ${titlesInList(count)}.` : 'Список «Смотрю» пока пуст.'
+  const arrivals = Array.isArray(digest.arrivals) ? digest.arrivals.slice(0, 8) : []
+  const behind = Array.isArray(digest.behind) ? digest.behind.slice(0, 6) : []
+  const done = Array.isArray(digest.doneTitles) ? digest.doneTitles.filter(Boolean).slice(0, 2) : []
+  const lines = [`📅 <b>Сводка «Смотрю» за неделю</b>`, count ? `В подписке ${titlesInList(count)}.` : 'Список «Смотрю» пока пуст.']
+
+  lines.push('', '<b>Новые серии</b>')
+  if (arrivals.length) {
+    for (const a of arrivals) {
+      const title = escapeHtml(a.title)
+      lines.push(`· <a href="${site}watch/${a.id}/${a.ep}">${title}</a> — ${a.ep}-я`)
+    }
+  } else {
+    lines.push('За семь дней новых серий в подписке не выходило.')
+  }
+
+  lines.push('', '<b>Не досмотрено</b>')
+  if (behind.length) {
+    for (const b of behind) {
+      const title = escapeHtml(b.title)
+      const ep = Math.max(1, Number(b.nextEp) || 1)
+      lines.push(`· <a href="${site}watch/${b.id}/${ep}">${title}</a> — ${b.left} ${seriesWord(b.left)}`)
+    }
+  } else {
+    lines.push(count ? 'Всё вышедшее из подписки уже отмечено.' : 'Добавьте тайтлы в «Смотрю» на сайте.')
+  }
+
+  if (done.length) {
+    lines.push(
+      '',
+      '<b>Если понравилось</b>',
+      `Недавно досмотрели ${done.map((t) => `«${escapeHtml(t)}»`).join(' и ')}. На сайте в «Смотрю» — похожее.`,
+    )
+  }
+
+  return lines.join('\n')
+}
+
+/** Воскресная сводка с конкретными сериями (см. weeklyDigestText). */
+export async function tgSendWeekly(sub, digest) {
+  const chatId = sub.endpoint.slice(TG_PREFIX.length)
   const res = await bot('sendMessage', {
     chat_id: chatId,
     parse_mode: 'HTML',
-    text:
-      `📅 <b>Сводка «Смотрю» за неделю</b>\n${line}\n` +
-      'На сайте — серии, которые вышли, и то, что ещё не досмотрели.',
-    reply_markup: { inline_keyboard: [[{ text: 'Открыть «Смотрю»', url: `${publicSite(sub.site)}watching` }]] },
+    disable_web_page_preview: true,
+    text: weeklyDigestText(sub, digest),
+    reply_markup: { inline_keyboard: [[{ text: 'Открыть «Смотрю»', url: `${publicSite(sub.site)}library?tab=new` }]] },
   })
   if (res.ok) return 'sent'
   if (res.status === 403 || /chat not found/i.test(res.description)) return 'gone'

@@ -537,6 +537,177 @@
   border-color: transparent;
 }
 
+/* Хаб профиля: меню разделов + якорная навигация */
+.acc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-page.acc:not(.acc--guest) {
+  max-width: 720px;
+}
+
+.acc-hub__who {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.acc-hub__name {
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.acc-hub__badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
+  font: 700 10px/1.4 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.acc-hub__menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.acc-hub__link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--bg) 45%, var(--surface-2));
+  color: var(--text);
+  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.acc-hub__link:hover {
+  border-color: color-mix(in srgb, var(--text) 28%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 80%, var(--bg));
+}
+
+.acc-hub__link span {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.acc-hub__link small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.acc-hub__link--accent {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.acc-hub__link--danger {
+  color: #ff8a9a;
+}
+
+.acc-hub__link--danger small {
+  color: color-mix(in srgb, #ff8a9a 70%, var(--muted));
+}
+
+.acc-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  width: min(100%, 720px);
+  padding: 8px 0;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.acc-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.acc-nav__item {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text-soft);
+  font: 600 12px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.acc-nav__item:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text) 30%, transparent);
+}
+
+.acc-block {
+  width: min(100%, 720px);
+  scroll-margin-top: 64px;
+}
+
+.an-profile__now {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.an-profile__now-title {
+  margin: 0;
+  font-size: 14px;
+}
+
+.an-profile__now-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.an-profile__now-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.an-profile__now-list a {
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.an-profile__now-list a:hover {
+  color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .acc-hub__menu {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* Перенесено из styles.css: стили страницы аккаунта */
 .auth-page {
   max-width: 460px;

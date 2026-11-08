@@ -1,11 +1,10 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import Layout from './components/Layout'
+import Home from './pages/Home'
 import { pageChunks, prefetchNavigation } from './api/prefetch'
 import { MOVED_GENRES } from './data/movedGenres'
 import { animeIdFromParam } from './data/animeUrl'
-
-const Home = lazy(() => import('./pages/Home'))
 const TitlePage = lazy(pageChunks.title)
 const Player = lazy(pageChunks.player)
 const Catalog = lazy(pageChunks.catalog)

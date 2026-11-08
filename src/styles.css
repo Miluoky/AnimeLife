@@ -2380,10 +2380,30 @@ img.img--broken {
   }
 }
 
-/* Режим дивана: прячем сообщество, 18+ и совместный просмотр из верхней навигации. */
+/* Режим дивана: крупнее главное, без сообщества / чата / 18+ / «Вместе». */
+body.couch .hero__title,
+body.couch .page-title {
+  font-size: clamp(1.65rem, 4.5vw, 2.6rem);
+}
+
 body.couch .site-nav a[href='/hentai'],
 body.couch .site-nav a[href='/hentai-manga'],
-body.couch .site-nav a[href='/together'] {
+body.couch .site-nav a[href='/together'],
+body.couch .site-nav a[href='/community'],
+body.couch .site-nav a[href='/chat'],
+body.couch .mobile-menu a[href='/hentai'],
+body.couch .mobile-menu a[href='/hentai-manga'],
+body.couch .mobile-menu a[href='/together'],
+body.couch .mobile-menu a[href='/community'],
+body.couch .mobile-menu a[href='/chat'],
+body.couch .site-footer a[href='/community'],
+body.couch .site-footer a[href='/chat'],
+body.couch .site-footer a[href='/together'],
+body.couch .site-footer a[href='/hentai'],
+body.couch .site-footer a[href='/hentai-manga'],
+body.couch .site-footer a[href='/quiz'],
+body.couch .site-footer a[href='/recap'],
+body.couch .site-footer a[href='/duel'] {
   display: none !important;
 }
 

@@ -199,11 +199,11 @@ export async function analyticsStats(api, req, now = Date.now()) {
       { method: 'orderDesc', attribute: 'views' },
       { method: 'limit', values: [12] },
     ].map(query).join('&')}`).then((r) => r.json.rows ?? []),
-    allRows(api, 'analytics', [gte(since(30 * DAY)), { method: 'select', values: ['device', 'source', 'path', 'lastSeen'] }], 5000),
+    allRows(api, 'analytics', [gte(since(30 * DAY)), { method: 'select', values: ['device', 'source', 'path', 'lastSeen'] }], 12_000),
     allRows(api, 'analytics', [
       gte({ attribute: 'firstDay', values: [today0 - 30] }),
       { method: 'select', values: ['firstDay', 'titles', 'episodes', 'ret1', 'ret7'] },
-    ], 5000),
+    ], 12_000),
   ])
 
   const point = (row) => ({
@@ -216,9 +216,12 @@ export async function analyticsStats(api, req, now = Date.now()) {
   const hourFrom = startOf(now - 23 * HOUR, HOUR)
   const hours = counters.filter((row) => row.period === 'hour' && row.at >= hourFrom).map(point)
   const days = counters.filter((row) => row.period === 'day').map(point)
-  const todayRow = days.find((row) => row.at === startOf(now, DAY))
+  const todayKey = startOf(now, DAY)
+  const todayRow = days.find((row) => row.at === todayKey)
   const sum = (rows, key) => rows.reduce((total, row) => total + row[key], 0)
   const last = (n) => days.filter((row) => row.at >= startOf(now - (n - 1) * DAY, DAY))
+  const weekDays = last(7)
+  const monthDays = last(30)
 
   const devices = new Map()
   const sources = new Map()
@@ -233,16 +236,27 @@ export async function analyticsStats(api, req, now = Date.now()) {
     online,
     onlinePages: top(live, 8),
     funnel: funnelOf(cohort, today0),
-    visitors: { today, week, month: month30, all },
+    // today/week/month — уникальные сессии по lastSeen (окно). todayMsk — уникальные за календарные сутки Москвы из счётчика дня.
+    visitors: {
+      today,
+      week,
+      month: month30,
+      all,
+      todayMsk: todayRow?.visitors ?? 0,
+      weekMsk: sum(weekDays, 'visitors'),
+      monthMsk: sum(monthDays, 'visitors'),
+    },
     newVisitors: { today: newToday, week: newWeek, month: newMonth },
-    views: { today: todayRow?.views ?? 0, week: sum(last(7), 'views'), month: sum(days, 'views') },
-    episodes: { today: todayRow?.episodes ?? 0, week: sum(last(7), 'episodes'), month: sum(days, 'episodes') },
+    views: { today: todayRow?.views ?? 0, week: sum(weekDays, 'views'), month: sum(monthDays, 'views') },
+    episodes: { today: todayRow?.episodes ?? 0, week: sum(weekDays, 'episodes'), month: sum(monthDays, 'episodes') },
     users: { all: users, week: usersWeek },
     hours,
     days,
     devices: top(devices, 3),
     sources: top(sources, 10),
     popular: pages.map((row) => ({ path: row.label, views: Number(row.views ?? 0) })),
+    // Устройства/источники считаем по выборке сессий; при потолке — пометка для UI.
+    sample: { sessions: sessions.length, capped: sessions.length >= 12_000, cohort: cohort.length },
     generatedAt: new Date(now).toISOString(),
   }
 }

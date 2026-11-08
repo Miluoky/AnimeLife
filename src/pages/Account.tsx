@@ -356,16 +356,31 @@ function AuthForm() {
   )
 }
 
+type AccNavItem = { id: string; label: string }
+
+const ACC_NAV: AccNavItem[] = [
+  { id: 'overview', label: 'Обзор' },
+  { id: 'appearance', label: 'Оформление' },
+  { id: 'notify', label: 'Уведомления' },
+  { id: 'public', label: 'Профиль' },
+  { id: 'data', label: 'Данные' },
+]
+
 export default function Account() {
   const { checking, user, syncError } = useAuth()
   const list = useMyList()
   const [busy, setBusy] = useState(false)
+  const admin = !!user?.labels?.includes('admin')
   usePageMeta(checking ? undefined : user ? 'Профиль' : 'Вход и регистрация')
 
   if (checking) return <main className="container empty-page" aria-busy="true" />
 
+  const nav: AccNavItem[] = admin
+    ? [ACC_NAV[0], { id: 'admin', label: 'Сайт' }, ...ACC_NAV.slice(1)]
+    : ACC_NAV
+
   return (
-    <main className="container home">
+    <main className="container home acc-page">
       <section className={`stack auth-page acc${user ? '' : ' acc--guest'}`}>
         <p className="acc__rec" aria-hidden="true">
           <i />
@@ -375,33 +390,53 @@ export default function Account() {
         </p>
         <h1 className="page-title">{user ? 'Профиль' : 'Вход'}</h1>
         {user ? (
-          <div className="auth-card stack">
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 20 }}>{user.name || user.email || 'Без имени'}</div>
+          <div id="overview" className="auth-card stack acc-hub">
+            <div className="acc-hub__who">
+              <div className="acc-hub__name">{user.name || user.email || 'Без имени'}</div>
               {user.name && user.email && <div className="muted">{user.email}</div>}
+              {admin && <span className="acc-hub__badge">Админ</span>}
             </div>
             <p className={syncError ? 'notice notice--error' : 'notice'} role="status">
               {syncError
                 ? `Не получилось сохранить изменения в аккаунте: ${syncError}`
                 : `Синхронизация включена. В списке ${titles(list.length)}, он одинаков на всех устройствах, где вы вошли.`}
             </p>
-            <div className="actions">
-              <Link to="/my-list" className="btn btn--accent">
-                Мой список
+            <nav className="acc-hub__menu" aria-label="Разделы аккаунта">
+              <Link to="/library" className="acc-hub__link acc-hub__link--accent">
+                <span>Библиотека</span>
+                <small>Списки и история</small>
               </Link>
-              {user.labels?.includes('admin') && (
+              <Link to="/library?tab=new" className="acc-hub__link">
+                <span>Смотрю</span>
+                <small>Новые серии</small>
+              </Link>
+              <Link to="/my-list" className="acc-hub__link">
+                <span>Мой список</span>
+                <small>{titles(list.length)}</small>
+              </Link>
+              <Link to={`/u/${user.$id}`} className="acc-hub__link">
+                <span>Открытый профиль</span>
+                <small>Как видят другие</small>
+              </Link>
+              <Link to="/community" className="acc-hub__link">
+                <span>Сообщество</span>
+                <small>Топ, клубы, чат</small>
+              </Link>
+              {admin && (
                 <>
-                  <Link to="/moderation" className="btn btn--ghost">
-                    Модерация
+                  <Link to="/moderation" className="acc-hub__link">
+                    <span>Модерация</span>
+                    <small>Отзывы и жалобы</small>
                   </Link>
-                  <Link to="/admin/analytics" className="btn btn--ghost">
-                    Статистика
+                  <Link to="/admin/analytics" className="acc-hub__link">
+                    <span>Статистика сайта</span>
+                    <small>Полный отчёт</small>
                   </Link>
                 </>
               )}
               <button
                 type="button"
-                className="btn btn--ghost"
+                className="acc-hub__link acc-hub__link--danger"
                 disabled={busy}
                 onClick={async () => {
                   setBusy(true)
@@ -409,9 +444,10 @@ export default function Account() {
                   setBusy(false)
                 }}
               >
-                Выйти
+                <span>Выйти</span>
+                <small>Из аккаунта</small>
               </button>
-            </div>
+            </nav>
           </div>
         ) : (
           <div className="acc__grid">
@@ -420,19 +456,34 @@ export default function Account() {
           </div>
         )}
       </section>
-      {user?.labels?.includes('admin') && (
-        <Suspense fallback={null}>
-          <AdminStatsCard />
-        </Suspense>
+
+      {user && (
+        <nav className="acc-nav" aria-label="Настройки профиля">
+          {nav.map((item) => (
+            <a key={item.id} href={`#${item.id}`} className="acc-nav__item">
+              {item.label}
+            </a>
+          ))}
+        </nav>
       )}
-      <section className="acc-appearance-section" aria-label="Оформление сайта">
+
+      {admin && (
+        <section id="admin" className="acc-block">
+          <Suspense fallback={null}>
+            <AdminStatsCard />
+          </Suspense>
+        </section>
+      )}
+
+      <section id="appearance" className="acc-appearance-section acc-block" aria-label="Оформление сайта">
         <div className="acc-appearance">
           <Suspense fallback={null}>
             <AppearanceSettings />
           </Suspense>
         </div>
       </section>
-      <section id="notify" className="acc-notify" aria-label="Уведомления">
+
+      <section id="notify" className="acc-notify acc-block" aria-label="Уведомления">
         <h2 className="acc-notify__title">Уведомления</h2>
         <p className="muted acc-notify__lead">Браузер и Telegram — о новых сериях из «Смотрю».</p>
         <Suspense fallback={null}>
@@ -442,18 +493,24 @@ export default function Account() {
           <TelegramNotifySettings />
         </Suspense>
       </section>
-      {(user || list.length > 0) && (
+
+      <section id="public" className="acc-block" aria-label="Открытый профиль и прогресс">
+        {(user || list.length > 0) && (
+          <Suspense fallback={null}>
+            <ProfileStats />
+          </Suspense>
+        )}
         <Suspense fallback={null}>
-          <ProfileStats />
+          <ProfileSettings />
         </Suspense>
-      )}
-      <Suspense fallback={null}>
-        <ProfileSettings />
-      </Suspense>
+      </section>
+
       {user && (
-        <Suspense fallback={null}>
-          <AccountData />
-        </Suspense>
+        <section id="data" className="acc-block">
+          <Suspense fallback={null}>
+            <AccountData />
+          </Suspense>
+        </section>
       )}
     </main>
   )

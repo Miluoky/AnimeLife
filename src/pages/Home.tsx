@@ -23,7 +23,8 @@ const HomeBento = lazy(() => import('../components/HomeShelves').then((m) => ({ 
 const MoreShelves = lazy(() => import('../components/HomeShelves').then((m) => ({ default: m.MoreShelves })))
 const CatalogSection = lazy(() => import('../components/CatalogSection'))
 
-import './hero.css'
+// Отдельный CSS-чанк: sync-импорт Home в App иначе раздувает index.css сверх бюджета.
+void import('./hero.css')
 if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
 
 const HERO_COUNT = 5
@@ -77,7 +78,17 @@ function Hero() {
     return () => clearTimeout(t)
   }, [next?.id, items.length, wideHero])
   const shot = wideHero && shots.value && !shots.loading ? shots.value : undefined
-  useAmbient(current?.posterSmall)
+  // Ambient после первой отрисовки героя — не тянет второй постер в ту же очередь, что LCP.
+  const [ambientSrc, setAmbientSrc] = useState<string | undefined>()
+  useEffect(() => {
+    if (!current?.posterSmall) {
+      setAmbientSrc(undefined)
+      return
+    }
+    const t = window.setTimeout(() => setAmbientSrc(current.posterSmall), 1200)
+    return () => clearTimeout(t)
+  }, [current?.posterSmall])
+  useAmbient(ambientSrc)
 
   // Listen for media query change to ensure hero-ring.css is loaded on desktop
   useEffect(() => {
@@ -130,10 +141,11 @@ function Hero() {
             src={anime.posterSmall ?? anime.posterUrl}
             alt=""
             aria-hidden="true"
-            decoding="async"
+            // На телефоне это LCP: sync + high, без гонки со вторым постером.
+            decoding={wideHero ? 'async' : 'sync'}
             loading="eager"
             // @ts-expect-error fetchpriority
-            fetchpriority="high"
+            fetchpriority={wideHero ? undefined : 'high'}
           />
         ) : null}
         <div className="hero__scrim" aria-hidden="true" />
@@ -198,10 +210,13 @@ function Hero() {
         <img
           key={`poster-${anime.id}`}
           className="hero__art-poster"
-          src={(saverOn() ? anime.posterSmall : anime.posterSmall2x) ?? anime.posterUrl}
+          // Телефон: тот же лёгкий posterSmall, без fetchpriority — LCP уже у фона. Широкий экран: 2x + high.
+          src={(saverOn() || !wideHero ? anime.posterSmall : anime.posterSmall2x) ?? anime.posterUrl}
           alt={`Постер: ${anime.title}`}
+          decoding={wideHero ? 'sync' : 'async'}
+          loading={wideHero ? 'eager' : 'lazy'}
           // @ts-expect-error fetchpriority
-          fetchpriority="high"
+          fetchpriority={wideHero ? 'high' : undefined}
         />
       )}
       {items.length > 1 && (
@@ -225,10 +240,11 @@ function Hero() {
               {a.posterSmall && (
                 <img
                   src={a.posterSmall}
-                  srcSet={a.posterSmall2x && !saverOn() ? `${a.posterSmall} 225w, ${a.posterSmall2x} 450w` : undefined}
+                  srcSet={a.posterSmall2x && !saverOn() && wideHero ? `${a.posterSmall} 225w, ${a.posterSmall2x} 450w` : undefined}
                   sizes="(min-width: 1101px) 132px, 44px"
                   alt=""
                   decoding="async"
+                  loading="lazy"
                 />
               )}
             </button>

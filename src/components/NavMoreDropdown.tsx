@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useCouch } from '../data/couchMode'
 import './nav-more.css'
+
+const COUCH_HIDE = /^\/(community|chat|club|duel|quiz|recap|hentai|hentai-manga|together)/
 
 interface DropdownItem {
   to: string
@@ -58,6 +61,11 @@ export default function NavMoreDropdown() {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
+  const couch = useCouch()
+  const categories = CATEGORIES.map((cat) => ({
+    ...cat,
+    items: couch ? cat.items.filter((item) => !COUCH_HIDE.test(item.to)) : cat.items,
+  })).filter((cat) => cat.items.length > 0)
 
   // Закрывать при смене роута
   useEffect(() => {
@@ -120,7 +128,7 @@ export default function NavMoreDropdown() {
           className="nav-more-dropdown frame-corners"
         >
           <div className="nav-more-scroll">
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <div key={cat.title} className="nav-more-group">
                 <div className="nav-more-heading">{cat.title}</div>
                 {cat.items.map((item) => (

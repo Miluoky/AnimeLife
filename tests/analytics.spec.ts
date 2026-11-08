@@ -6,7 +6,7 @@ const hour = 3_600_000
 const stats = {
   online: 7,
   onlinePages: [{ name: '/watch/52991/3', count: 4 }, { name: '/', count: 3 }],
-  visitors: { today: 128, week: 640, month: 2210, all: 3400 },
+  visitors: { today: 128, week: 640, month: 2210, all: 3400, todayMsk: 95, weekMsk: 880, monthMsk: 4100 },
   newVisitors: { today: 41, week: 300, month: 1500 },
   views: { today: 950, week: 5100, month: 17800 },
   episodes: { today: 210, week: 1300, month: 4800 },
@@ -22,6 +22,14 @@ const stats = {
   devices: [{ name: 'mobile', count: 1500 }, { name: 'desktop', count: 650 }, { name: 'tablet', count: 60 }],
   sources: [{ name: 'yandex', count: 900 }, { name: 'direct', count: 700 }, { name: 'telegram', count: 400 }, { name: 'google', count: 210 }],
   popular: [{ path: '/anime/52991', views: 1200 }, { path: '/top', views: 800 }],
+  funnel: {
+    visitors: 100,
+    titles: 60,
+    episodes: 40,
+    day1: { of: 80, back: 24 },
+    day7: { of: 50, back: 12 },
+  },
+  sample: { sessions: 2210, capped: false, cohort: 100 },
   generatedAt: new Date(now).toISOString(),
 }
 
@@ -57,7 +65,7 @@ test('обычному пользователю статистика не отк
   await signIn(page, [])
   await page.goto('/account')
   await expect(page.getByRole('heading', { name: 'Профиль', exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Статистика', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Статистика сайта' })).toHaveCount(0)
   await page.goto('/admin/analytics')
   await expect(page.getByRole('heading', { name: 'Доступ закрыт' })).toBeVisible()
   expect(asked).not.toContain('analytics-stats')
@@ -73,12 +81,14 @@ test('администратор видит сводку в профиле и п
 
   await page.goto('/account')
   const card = page.getByRole('region', { name: 'Статистика сайта' })
-  await expect(card.getByText('Онлайн сейчас')).toBeVisible()
-  await expect(card.getByText('2 210')).toBeVisible()
-  await card.getByRole('link', { name: 'Вся статистика' }).click()
+  await expect(card.getByText('Онлайн · 5 мин')).toBeVisible()
+  await expect(card.getByText('Уник. сегодня · МСК')).toBeVisible()
+  await expect(card.getByText('95', { exact: true })).toBeVisible()
+  await card.getByRole('link', { name: 'Полный отчёт' }).click()
 
   await expect(page.getByRole('heading', { name: 'Статистика сайта' })).toBeVisible()
   await expect(page.getByText('Поток за последние 24 часа')).toBeVisible()
+  await expect(page.getByText('Воронка новичков')).toBeVisible()
   await expect(page.getByText('Яндекс')).toBeVisible()
   await expect(page.getByText('Телефоны')).toBeVisible()
   await expect(page.getByRole('link', { name: '/watch/52991/3' })).toBeVisible()

@@ -28,12 +28,31 @@ export default function WatchReturn({ anime, current, total }: { anime: Anime; c
   const last = current >= total
   const waiting = last && anime.ongoing && !!anime.nextEpisodeAt
   const finished = last && !anime.ongoing && !anime.upcoming
+  const midBinge = !last && total > 1 && current >= 1
   return (
     <>
+      {midBinge && <NextEpisode animeId={anime.id} current={current} total={total} />}
       {!checking && !user && <LoginNudge waiting={waiting} />}
       {waiting && user && isTelegramAccount(user.$id) && <TelegramReminder />}
       {finished && <AfterFinish animeId={anime.id} />}
     </>
+  )
+}
+
+/** После не-последней серии — короткий шаг дальше, без дублирования кнопок плеера. */
+function NextEpisode({ animeId, current, total }: { animeId: string; current: number; total: number }) {
+  return (
+    <aside className="watch-return watch-return--next" aria-label="Следующая серия">
+      <div className="watch-return__text">
+        <strong>
+          Серия {current} из {total}
+        </strong>
+        <span className="muted">Дальше — {current + 1}-я</span>
+      </div>
+      <Link to={`/watch/${animeId}/${current + 1}`} className="btn btn--accent">
+        Следующая
+      </Link>
+    </aside>
   )
 }
 

@@ -351,14 +351,72 @@ async function pushUnsubscribe(api, body) {
 
 // --- Рассылка по расписанию ---
 
-async function freshEpisodes() {
+async function shikimoriCalendar() {
   const res = await fetch(`${SHIKIMORI}/api/calendar`, { headers: { 'User-Agent': 'AnimeLife notifier' } })
   if (!res.ok) throw new Error(`Shikimori calendar ${res.status}`)
+  return res.json()
+}
+
+async function freshEpisodes() {
   const now = Date.now()
-  return (await res.json()).filter((e) => {
+  return (await shikimoriCalendar()).filter((e) => {
     const at = Date.parse(e.next_episode_at)
     return at <= now && at > now - FRESH_WINDOW
   })
+}
+
+/** Серии из календаря за последние 7 дней, пересечение с подпиской. */
+function weekArrivalsFrom(calendar, animeIds, now = Date.now()) {
+  const want = new Set((animeIds ?? []).map(String))
+  if (!want.size) return []
+  const WEEK = 7 * 24 * 60 * 60 * 1000
+  return calendar
+    .filter((e) => {
+      const at = Date.parse(e.next_episode_at)
+      return want.has(String(e.anime?.id)) && at <= now && at > now - WEEK
+    })
+    .map((e) => ({
+      id: String(e.anime.id),
+      title: e.anime.russian || e.anime.name,
+      ep: Number(e.next_episode),
+      aired: Number(e.anime.episodes_aired ?? e.next_episode ?? 0),
+    }))
+}
+
+/** Список зрителя из TablesDB (тот же JSON, что пишет сайт). API-ключ функции читает любую строку. */
+async function loadUserList(api, userId) {
+  if (!userId) return []
+  const row = await api('GET', `${DB}/lists/rows/${userId}`)
+  if (row.status === 404) return []
+  try {
+    const data = JSON.parse(String(row.json.data ?? '[]'))
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
+/** Недосмотренные онгоинги/тайтлы из «Смотрю» и недавно досмотренные для блока «если понравилось». */
+function digestFromList(list, arrivals) {
+  const airedById = new Map(arrivals.map((a) => [a.id, a.aired]))
+  const behind = []
+  const doneTitles = []
+  for (const entry of list) {
+    const id = String(entry?.anime?.id ?? '')
+    if (!id) continue
+    const title = entry.anime.title || entry.anime.name || id
+    const watched = Number(entry.watched ?? 0)
+    const aired = Math.max(
+      airedById.get(id) ?? 0,
+      Number(entry.anime.episodesAired ?? entry.anime.episodes_aired ?? 0),
+    )
+    if (entry.status === 'watching' && aired > watched) {
+      behind.push({ id, title, left: aired - watched, nextEp: watched + 1 })
+    }
+    if (entry.status === 'completed' && title) doneTitles.push(title)
+  }
+  behind.sort((a, b) => b.left - a.left)
+  return { behind, doneTitles: doneTitles.slice(0, 2) }
 }
 
 async function allSubscriptions(api) {
@@ -450,13 +508,19 @@ function weekKey(t = Date.now()) {
 }
 
 /**
- * Воскресная сводка в Telegram. Не смотрит календарь и не пишет в те же ключи sent, что уведомления о сериях.
- * Вне окна сразу выходит, не читая подписки.
+ * Воскресная сводка в Telegram: календарь за 7 дней + прогресс из lists.
+ * Вне окна сразу выходит, не читая подписки. Ключи sent отдельные от уведомлений о сериях.
  */
 async function notifyWeeklyDigests(api, log) {
   const now = new Date()
   if (now.getUTCDay() !== 0 || now.getUTCHours() < 7 || now.getUTCHours() >= 9) return { skipped: true }
   if (!telegramReady()) return { skipped: true, reason: 'telegram' }
+  let calendar = []
+  try {
+    calendar = await shikimoriCalendar()
+  } catch (e) {
+    log(`weekly calendar ${e}`)
+  }
   let sent = 0
   let failed = 0
   for (const sub of await allSubscriptions(api)) {
@@ -464,7 +528,10 @@ async function notifyWeeklyDigests(api, log) {
       if (!String(sub.endpoint ?? '').startsWith(TG_PREFIX) || sub.auth !== 'weekly') continue
       const sentId = `w${hash(`${sub.$id}:${weekKey(now.getTime())}`)}`
       if ((await api('GET', `${DB}/sent/rows/${sentId}`)).status !== 404) continue
-      const result = await tgSendWeekly(sub)
+      const arrivals = weekArrivalsFrom(calendar, sub.animeIds, now.getTime())
+      const list = await loadUserList(api, sub.userId)
+      const { behind, doneTitles } = digestFromList(list, arrivals)
+      const result = await tgSendWeekly(sub, { arrivals, behind, doneTitles })
       if (result === 'sent') {
         await api('PUT', `${DB}/sent/rows/${sentId}`, { data: { count: 1 } })
         sent++
