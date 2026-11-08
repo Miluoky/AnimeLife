@@ -31,9 +31,24 @@
   margin: 0;
 }
 
+.push-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 @media (max-width: 640px) {
   .push-card {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .push-card__actions {
+    width: 100%;
+  }
+
+  .push-card__actions .btn {
+    flex: 1;
   }
 }

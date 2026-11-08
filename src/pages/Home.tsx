@@ -130,10 +130,11 @@ function Hero() {
             src={anime.posterSmall ?? anime.posterUrl}
             alt=""
             aria-hidden="true"
-            decoding="async"
+            // На телефоне это LCP: sync + high, без гонки со вторым постером.
+            decoding={wideHero ? 'async' : 'sync'}
             loading="eager"
             // @ts-expect-error fetchpriority
-            fetchpriority="high"
+            fetchpriority={wideHero ? undefined : 'high'}
           />
         ) : null}
         <div className="hero__scrim" aria-hidden="true" />
@@ -198,10 +199,13 @@ function Hero() {
         <img
           key={`poster-${anime.id}`}
           className="hero__art-poster"
-          src={(saverOn() ? anime.posterSmall : anime.posterSmall2x) ?? anime.posterUrl}
+          // Телефон: тот же лёгкий posterSmall, без fetchpriority — LCP уже у фона. Широкий экран: 2x + high.
+          src={(saverOn() || !wideHero ? anime.posterSmall : anime.posterSmall2x) ?? anime.posterUrl}
           alt={`Постер: ${anime.title}`}
+          decoding={wideHero ? 'sync' : 'async'}
+          loading={wideHero ? 'eager' : 'lazy'}
           // @ts-expect-error fetchpriority
-          fetchpriority="high"
+          fetchpriority={wideHero ? 'high' : undefined}
         />
       )}
       {items.length > 1 && (
