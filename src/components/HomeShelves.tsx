@@ -6,6 +6,7 @@ import PosterCard, { Poster } from './PosterCard'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
 import { CalendarIcon, ClockIcon, FilmIcon, ListIcon, PlayIcon, SparkIcon, TrophyIcon } from './Icons'
+import { COUCH_HIDE, useCouch } from '../data/couchMode'
 import { GENRES } from '../data/seo'
 import './genres.css'
 import './bento.css'
@@ -480,9 +481,12 @@ const DISCOVER = [
 ]
 
 function Discover() {
+  const couch = useCouch()
+  const items = couch ? DISCOVER.filter((d) => !COUCH_HIDE.test(d.to)) : DISCOVER
+  if (!items.length) return null
   return (
     <section className="discover" aria-label="Сервисы сайта">
-      {DISCOVER.map((d) => (
+      {items.map((d) => (
         <Link key={d.to} to={d.to} className="discover__card">
           <span className="discover__emoji" aria-hidden="true">
             {d.emoji}

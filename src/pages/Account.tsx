@@ -2,6 +2,7 @@ import './account.css'
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
+import { useCouch } from '../data/couchMode'
 import { useMyList } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
 import { SOCIAL_LOGIN } from '../api/appwrite'
@@ -369,6 +370,7 @@ const ACC_NAV: AccNavItem[] = [
 export default function Account() {
   const { checking, user, syncError } = useAuth()
   const list = useMyList()
+  const couch = useCouch()
   const [busy, setBusy] = useState(false)
   const admin = !!user?.labels?.includes('admin')
   usePageMeta(checking ? undefined : user ? 'Профиль' : 'Вход и регистрация')
@@ -418,10 +420,12 @@ export default function Account() {
                 <span>Открытый профиль</span>
                 <small>Как видят другие</small>
               </Link>
-              <Link to="/community" className="acc-hub__link">
-                <span>Сообщество</span>
-                <small>Топ, клубы, чат</small>
-              </Link>
+              {!couch && (
+                <Link to="/community" className="acc-hub__link">
+                  <span>Сообщество</span>
+                  <small>Топ, клубы, чат</small>
+                </Link>
+              )}
               {admin && (
                 <>
                   <Link to="/moderation" className="acc-hub__link">

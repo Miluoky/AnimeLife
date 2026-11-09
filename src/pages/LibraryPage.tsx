@@ -116,14 +116,15 @@ export default function LibraryPage() {
   const history = useHistory()
 
   const rawTab = params.get('tab') as TabId | null
-  const currentTab: TabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : 'history'
+  // Без ?tab= при новых сериях открываем «Новые», иначе историю. Явный tab=history не перебиваем.
+  const currentTab: TabId =
+    rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : fresh > 0 ? 'new' : 'history'
 
   const active = useMemo(() => TABS.find((t) => t.id === currentTab) ?? TABS[0], [currentTab])
 
   const setTab = (id: TabId) => {
     const next = new URLSearchParams(params)
-    if (id === 'history') next.delete('tab')
-    else next.set('tab', id)
+    next.set('tab', id)
     setParams(next, { replace: true })
   }
 

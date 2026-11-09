@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useCouch } from '../data/couchMode'
+import { COUCH_HIDE, useCouch } from '../data/couchMode'
 import './nav-more.css'
-
-const COUCH_HIDE = /^\/(community|chat|club|duel|quiz|recap|hentai|hentai-manga|together)/
 
 interface DropdownItem {
   to: string

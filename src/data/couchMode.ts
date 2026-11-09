@@ -6,6 +6,9 @@ import { createLocalStore } from './localStore'
  */
 export const couchStore = createLocalStore<boolean>('anime.couch.v1', false)
 
+/** Ссылки, которые прячем в диване (шапка «Ещё», шторка, Discover, хаб профиля). */
+export const COUCH_HIDE = /^\/(community|chat|club|duel|quiz|recap|hentai|hentai-manga|together)/
+
 export const useCouch = couchStore.use
 
 export function setCouch(on: boolean) {

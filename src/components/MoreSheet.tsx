@@ -1,11 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../data/auth'
-import { useCouch } from '../data/couchMode'
+import { COUCH_HIDE, useCouch } from '../data/couchMode'
 import { ClockIcon, PeopleIcon, SparkIcon, TrophyIcon, UserIcon } from './Icons'
 import './more-sheet.css'
-
-const COUCH_HIDE = /^\/(community|chat|club|duel|quiz|recap|hentai|hentai-manga|together)/
 
 const line = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
 const Svg = ({ d }: { d: string }) => (
