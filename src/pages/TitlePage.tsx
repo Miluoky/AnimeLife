@@ -21,6 +21,7 @@ import { usePageMeta } from '../data/pageMeta'
 import { SIMILAR_MIN, ageLabel, animeHref, animeIdFromParam, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { studioPath } from '../data/studios'
 import { useMyList } from '../data/myList'
+import { reactionKey, reactionLabel, useEpisodeReactions } from '../data/episodeReactions'
 import { noSpoilersStore, useNoSpoilers } from '../data/spoilers'
 import Shelf from '../components/Shelf'
 import { PlayIcon } from '../components/Icons'
@@ -256,6 +257,7 @@ export default function TitlePage() {
   useAmbient(result.value?.data?.posterSmall ?? blurPoster(result.value?.data?.posterUrl))
   const staff = useAsync(() => (/^\d+$/.test(id) ? fetchStaff(id).catch(() => []) : Promise.resolve([])), [id])
   const history = useHistory()
+  const reactions = useEpisodeReactions()
   const noSpoilers = useNoSpoilers()
   const actions = useRef<HTMLDivElement>(null)
   // Открываем диапазон с серией, на которой остановились: у длинных сериалов это далеко не первая сотня.
@@ -657,6 +659,7 @@ export default function TitlePage() {
                 const frame = ep && episodeFrame(ep)
                 // «Без спойлеров»: всё дальше серии, на которой остановились, — без кадра и названия.
                 const hidden = noSpoilers && n > (progress?.episode ?? 1)
+                const mark = reactionLabel(reactions[reactionKey(anime.id, n)])
                 return (
                   <Link
                     key={n}
@@ -688,6 +691,7 @@ export default function TitlePage() {
                         )
                       )}
                       <span className="episode-card__num">{n}</span>
+                      {mark && !hidden && <span className="episode-card__react">{mark}</span>}
                       {watched && (
                         <div className="progress-track" style={{ background: 'transparent' }}>
                           <div className="progress-bar" style={{ width: '100%' }} />

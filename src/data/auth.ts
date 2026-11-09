@@ -7,6 +7,8 @@ import { telegramOnStore } from './telegramFlag'
 import { inviteStore, pendingInvite } from './inviteStore'
 import { mangaProgressStore, mergeMangaProgress, type ReadProgress } from './mangaProgress'
 import { getRecentPositionsForSync, reconcilePositions, subscribePositions, type SyncedPlaybackPosition } from './positions'
+import { episodeReactionsStore, mergeEpisodeReactions, type EpisodeReactionsMap } from './episodeReactions'
+import { mergeSeasonPlans, seasonPlanStore, type SeasonPlanMap } from './seasonPlan'
 
 /**
  * Аккаунт и синхронизация. «Мой список» и история просмотра лежат в настройках пользователя
@@ -26,6 +28,10 @@ interface SyncedPrefs {
   publicProfile?: boolean
   /** последние сохранённые позиции воспроизведения (до 20 тайтлов) */
   positions?: Record<string, SyncedPlaybackPosition>
+  /** личная сетка сезона */
+  seasonPlan?: SeasonPlanMap
+  /** пометки серий (шедевр / филлер…), с потолком на клиенте */
+  episodeReactions?: EpisodeReactionsMap
 }
 
 const REMOVED_TTL = 90 * 24 * 3600 * 1000
@@ -148,6 +154,8 @@ async function push() {
       flags: flagsStore.get(),
       manga: mangaProgressStore.get(),
       positions: getRecentPositionsForSync(),
+      seasonPlan: seasonPlanStore.get(),
+      episodeReactions: mergeEpisodeReactions({}, episodeReactionsStore.get()),
     }
     const { account } = await sdk()
     const user = await account.updatePrefs({ ...state.user.prefs, ...prefs })
@@ -171,6 +179,8 @@ historyStore.subscribe(schedulePush)
 flagsStore.subscribe(schedulePush)
 mangaProgressStore.subscribe(() => schedulePush(10_000))
 subscribePositions(() => schedulePush(5_000))
+seasonPlanStore.subscribe(schedulePush)
+episodeReactionsStore.subscribe(schedulePush)
 
 /** После входа: объединить то, что было в браузере, с тем, что уже лежит в аккаунте. */
 async function adopt(user: User) {
@@ -192,6 +202,8 @@ async function adopt(user: User) {
   flagsStore.set(mergeFlags(remote.flags, flagsStore.get()))
   mangaProgressStore.set(mergeMangaProgress(remote.manga, mangaProgressStore.get()))
   if (remote.positions) reconcilePositions(remote.positions)
+  seasonPlanStore.set(mergeSeasonPlans(remote.seasonPlan, seasonPlanStore.get()))
+  episodeReactionsStore.set(mergeEpisodeReactions(remote.episodeReactions, episodeReactionsStore.get()))
   applyingRemote = false
   setState({ checking: false, user })
   await push()
