@@ -188,8 +188,9 @@
   border-radius: 2px;
 }
 
-/* Гость на широком экране: форма и рядом экран «что даёт аккаунт». */
-.acc--guest {
+/* Гость на широком экране: форма и рядом экран «что даёт аккаунт».
+   Специфичность выше, чем у .auth-page { 460px } ниже по файлу. */
+.auth-page.acc--guest {
   max-width: 1000px;
 }
 .acc__grid {
@@ -299,7 +300,7 @@
   .acc__screen {
     display: none;
   }
-  .acc--guest {
+  .auth-page.acc--guest {
     max-width: 460px;
   }
 }
