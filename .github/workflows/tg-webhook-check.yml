@@ -4,10 +4,19 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: getWebhookInfo
+      - name: reset webhook + getWebhookInfo
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
         run: |
           set -euo pipefail
-          curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"; echo
-          curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"; echo
+          WH="${TELEGRAM_WEBHOOK_SECRET:-animelife_core_tg_webhook_v1}"
+          curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook" --data 'drop_pending_updates=false'
+          echo
+          curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+            -H 'Content-Type: application/json' \
+            --data "{\"url\":\"https://animelife.top/api/core/auth/oauth/telegram/webhook\",\"secret_token\":\"${WH}\",\"allowed_updates\":[\"message\",\"callback_query\"]}"
+          echo
+          sleep 5
+          curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"
+          echo
