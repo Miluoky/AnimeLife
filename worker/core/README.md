@@ -24,7 +24,7 @@
 
 **OAuth:** VK, Telegram — `/api/core/auth/oauth`. Google/Яндекс — клиент показывает понятную ошибку, пока нет ключей на воркере.
 
-**Позже:** исходящая почта (сброс пароля), R2 для своей манги, Google/Яндекс OAuth (ключи), Durable Objects для комнат (`docs/rooms-do.md`).
+**Позже:** исходящая почта (сброс пароля), R2 для своей манги, Google/Яндекс OAuth (ключи). RoomDO уже в коде (`worker/core/roomDo.js`) — binding включить на Workers Paid, см. `docs/rooms-do.md`.
 
 **Операции:** суточный экспорт D1 — `.github/workflows/backup.yml`. Workflow'ы Appwrite (деплой, статус, экспорт) — заглушки с `RETIRED`.
 
