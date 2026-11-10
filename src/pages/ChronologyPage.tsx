@@ -18,8 +18,10 @@ import { getCircularLinks } from '../data/semanticClusters'
 import NotFound from './NotFound'
 
 export default function ChronologyPage() {
-  const { id = '' } = useParams()
-  const franchise = useMemo(() => getFranchiseById(id), [id])
+  const { id } = useParams()
+  // /chronology — хаб со списком; /chronology/:id — гид или 404, без soft-200.
+  if (!id) return <ChronologyHub />
+  const franchise = getFranchiseById(id)
   if (!franchise) {
     return (
       <NotFound
@@ -29,6 +31,63 @@ export default function ChronologyPage() {
     )
   }
   return <ChronologyContent franchise={franchise} />
+}
+
+function ChronologyHub() {
+  usePageMeta(
+    'Хронологии аниме — порядок просмотра франшиз',
+    'Гиды по порядку сезонов и фильмов: Fate, Наруто, Евангелион и другие франшизы.',
+  )
+  useCanonical()
+  return (
+    <main className="container home chronology-page" style={{ paddingBottom: '60px' }}>
+      <header className="stack" style={{ marginBottom: 28 }}>
+        <p className="kicker">Гиды</p>
+        <h1 style={{ margin: 0 }}>Хронологии франшиз</h1>
+        <p className="muted" style={{ margin: 0, maxWidth: 560 }}>
+          Порядок просмотра сезонов и фильмов без спойлеров в заголовках — выберите франшизу.
+        </p>
+      </header>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gap: '14px',
+        }}
+      >
+        {ANIME_FRANCHISES.map((item) => (
+          <Link
+            key={item.id}
+            to={`/chronology/${item.id}`}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              padding: '16px',
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              borderRadius: '14px',
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                color: 'var(--accent)',
+              }}
+            >
+              {item.badge}
+            </span>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>{item.title}</span>
+            <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{item.items.length} частей в серии</span>
+          </Link>
+        ))}
+      </div>
+    </main>
+  )
 }
 
 function ChronologyContent({ franchise }: { franchise: Franchise }) {

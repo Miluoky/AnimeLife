@@ -165,7 +165,7 @@ export default function WatchStreak({
     return (
       <div
         className={`watch-streak-compact ${className}`}
-        title={`Стрик просмотров: ${stats.current} ${pluralDays(stats.current)} подряд (Рекорд: ${stats.best})`}
+        title={`Стрик просмотров: ${stats.current} ${pluralDays(stats.current)} подряд (Рекорд: ${stats.best}). Серия дней считается в этом браузере.`}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -226,6 +226,9 @@ export default function WatchStreak({
             <span style={{ fontSize: '0.8rem', color: 'var(--text-soft)' }}>
               {stats.best > stats.current ? `Лучший рекорд: ${stats.best} ${pluralDays(stats.best)}` : 'Ваш персональный рекорд!'}
             </span>
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.75rem' }}>
+              серия дней считается в этом браузере
+            </p>
           </div>
         </div>
 

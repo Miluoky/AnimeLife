@@ -220,18 +220,13 @@ export default function Player() {
   useEffect(() => {
     if (!anime || isScheduled) return
     saveProgress(anime, current, total)
-    logEpisode(anime, current, voiceTitle.current)
+    // Журнал/стрик — только после досмотра (onEnded), не при открытии серии.
     // Открыли серию N: предыдущие считаем просмотренными, если тайтл в списке.
     const entry = getEntry(anime.id)
     if (entry && (entry.watched ?? 0) < current - 1) setWatched(anime.id, current - 1)
     const hour = new Date().getHours()
     if (hour < 5) markFlag('nightOwl')
   }, [anime, current, total, isScheduled])
-
-  // Озвучка стала известна позже серии: дописываем её в журнал той же записью.
-  useEffect(() => {
-    if (anime && voice?.title && !isScheduled) logEpisode(anime, current, voice.title)
-  }, [voice?.title])
 
   const [lightsOff, setLightsOff] = useLightsOff()
   const miniPlayer = useMiniPlayer(!!anime && !isScheduled && !lightsOff)
@@ -443,7 +438,8 @@ export default function Player() {
         totalEpisodes={total}
         onEpisodeChange={(n) => (n === current + 1 ? goNext() : goTo(n))}
         onEnded={() => {
-          // Досмотрели серию: отмечаем её в списке, а последняя переносит тайтл в «Просмотрено».
+          // Досмотрели серию: стрик и журнал — только completed watch, не открытие.
+          if (!isScheduled) logEpisode(anime, current, voice?.title ?? voiceTitle.current)
           const entry = getEntry(anime.id)
           if (!entry || (entry.watched ?? 0) >= current) return
           if (setWatched(anime.id, current) === 'completed') toast(`«${anime.title}» — в «Просмотрено»`)

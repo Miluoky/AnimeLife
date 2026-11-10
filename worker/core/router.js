@@ -15,6 +15,7 @@ import { handleChatGet } from './chat.js'
 import { handleClubsGet } from './clubs.js'
 import { userFromRequest } from './auth.js'
 import { upgradeRoomSocket } from './roomDo.js'
+import { ensureMigrations } from './migrate.js'
 
 const PREFIX = '/api/core'
 
@@ -32,6 +33,8 @@ export async function coreApi(request, env) {
   if (!coreReady(env)) {
     return err('Core API не настроен: нужны D1 (DB) и KV (SESSIONS). См. worker/core/README.md', 503, 503)
   }
+
+  await ensureMigrations(env)
 
   const url = new URL(request.url)
   let path = url.pathname.slice(PREFIX.length) || '/'

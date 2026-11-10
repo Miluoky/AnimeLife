@@ -29,6 +29,10 @@ export default function AdminStatsCard() {
           <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
             Живые метрики · календарь по Москве · без IP
           </p>
+          <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
+            Free Worker — не больше 100 тыс. вызовов в сутки. Цифры — в Cloudflare → Workers → Metrics. Алерты 70k/90k
+            приходят в Telegram из source-health.
+          </p>
         </div>
         <button type="button" className="btn btn--ghost" onClick={reload} disabled={loading}>
           {loading ? 'Обновляю…' : 'Обновить'}

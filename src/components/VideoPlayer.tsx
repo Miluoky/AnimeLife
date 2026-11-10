@@ -206,7 +206,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const [showTrivia, setShowTrivia] = useState(false)
   useEffect(() => {
     if (loading) {
-      const t = window.setTimeout(() => setShowTrivia(true), 2500)
+      const t = window.setTimeout(() => setShowTrivia(true), 5000)
       return () => window.clearTimeout(t)
     } else {
       setShowTrivia(false)
@@ -1410,11 +1410,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         }}
       >
         {loading && !unavailable && !pending && <Spinner over={!!heldKey.current} />}
-        {pending && !pending.ready && !unavailable && (
-          <span className="player-tag player-tag--switch" role="status">
-            Подключаем озвучку…
-          </span>
-        )}
+        {pending && !pending.ready && !unavailable && <VoiceSwitchWait key={pending.key} />}
 
         {!isSibnetDirect && renderFrames()}
         {provider === 'embed' && embed?.player === 'Aksor' && !unavailable && <AksorFullscreen frame={frameRef} />}
@@ -1437,7 +1433,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           />
         )}
 
-        <BufferTrivia visible={showTrivia && !unavailable} />
+        <BufferTrivia visible={showTrivia && !unavailable && !(pending && !pending.ready)} />
         {shikimoriId && !unavailable && (!isOwn || !!stream) && (
           <Suspense fallback={null}>
             <Danmaku animeId={shikimoriId} episode={episode} />
@@ -1569,6 +1565,23 @@ function baseOf(src: string, attempt: number) {
 
 /** Новый плеер перематываем чуть вперёд: пока он докачивает это место, прежний играет дальше. */
 const SEEK_LEAD = 0.3
+
+/** Холодная смена озвучки (warmLimit=0): секунды ожидания, без прогретого iframe. */
+function VoiceSwitchWait() {
+  const [sec, setSec] = useState(0)
+  useEffect(() => {
+    const started = Date.now()
+    const tick = () => setSec(Math.floor((Date.now() - started) / 1000))
+    tick()
+    const id = window.setInterval(tick, 1000)
+    return () => window.clearInterval(id)
+  }, [])
+  return (
+    <span className="player-tag player-tag--switch" role="status">
+      Подключаем озвучку… {sec} с. Обычно 8–15 с…
+    </span>
+  )
+}
 
 /**
  * Сколько прогретых плееров держать кроме показанного. Каждый на паузе всё равно докачивает

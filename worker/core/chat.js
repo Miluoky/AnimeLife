@@ -6,6 +6,7 @@ import { err, json } from './auth.js'
 import { coreCacheHeaders } from './router.js'
 import { heldReason, rejectSpam, UserError } from './automod.js'
 import { randomId, sha256Hex } from './crypto.js'
+import { stampContentModeration } from './moderation.js'
 
 const MAX_TEXT = 500
 const CHAT_LIMIT = 100
@@ -174,6 +175,7 @@ export async function handleChatAction(env, session, body) {
     await env.DB.prepare('UPDATE community_chat SET hidden = ?, moderated = 1 WHERE id = ?')
       .bind(hidden, row.id)
       .run()
+    await stampContentModeration(env, 'community_chat', row.id, session.user.$id)
     const updated = await getMessage(env, row.id)
     return json({ message: rowToMessage(updated) })
   }

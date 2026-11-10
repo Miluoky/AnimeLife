@@ -73,34 +73,15 @@ test('после обновления сайта старая часть код�
   expect(loads).toBe(2)
 })
 
-test('«Забыли пароль?»: письмо со ссылкой на этот сайт и новый пароль по ссылке', async ({ page }) => {
-  const requests: { method: string; body: Record<string, string> }[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/account\/recovery/, (route) => {
-    requests.push({ method: route.request().method(), body: route.request().postDataJSON() })
-    return route.fulfill({ status: 201, json: { $id: 't1', userId: 'u1', secret: '', expire: '' } })
-  })
-
+test('Google, Яндекс и сброс пароля по письму в этом году не обещаем', async ({ page }) => {
+  const copy = 'Google, Яндекс и сброс пароля по письму в этом году не делаем. Вход: почта, VK, Telegram.'
   await page.goto('/account')
-  await page.getByRole('button', { name: 'Забыли пароль?' }).click()
-  await page.getByLabel('Почта').fill('aya@example.com')
-  await page.getByRole('button', { name: 'Отправить ссылку' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Письмо отправлено на aya@example.com' })).toBeVisible()
-  expect(requests[0]).toEqual({
-    method: 'POST',
-    body: { email: 'aya@example.com', url: new URL('/account/recovery', test.info().project.use.baseURL).href },
-  })
+  await expect(page.getByText(copy)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Забыли пароль?' })).toHaveCount(0)
 
-  await page.goto('/account/recovery?userId=u1&secret=s3cret')
-  await page.getByLabel('Новый пароль').fill('новый-пароль')
-  await page.getByLabel('Ещё раз').fill('другой-пароль')
-  await page.getByRole('button', { name: 'Сохранить пароль' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Пароли не совпадают.')
-  expect(requests).toHaveLength(1)
-
-  await page.getByLabel('Ещё раз').fill('новый-пароль')
-  await page.getByRole('button', { name: 'Сохранить пароль' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Пароль изменён' })).toBeVisible()
-  expect(requests[1]).toEqual({ method: 'PUT', body: { userId: 'u1', secret: 's3cret', password: 'новый-пароль' } })
+  await page.goto('/account/recovery')
+  await expect(page.getByRole('status').filter({ hasText: copy })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'На страницу входа' })).toBeVisible()
 })
 
 test('гостю при повторном заходе не грузим вход: ни запроса аккаунта, ни библиотеки Appwrite', async ({ page }) => {

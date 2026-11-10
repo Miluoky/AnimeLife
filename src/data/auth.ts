@@ -269,18 +269,20 @@ export async function finishSession(_userId: string, _secret: string) {
 
 export const corePasswordRecoveryEnabled = () => false
 
+/** Пока нет SMTP и ключей Google/Яндекс: не обещать эти входы в UI. */
+export const AUTH_THIS_YEAR_COPY =
+  'Google, Яндекс и сброс пароля по письму в этом году не делаем. Вход: почта, VK, Telegram.'
+
 export async function requestRecovery(_email: string) {
   void _email
-  throw new Error(
-    'Сброс пароля по почте на Core пока недоступен — на сервере нет отправки писем. Войдите, если помните пароль, или создайте новый аккаунт.',
-  )
+  throw new Error(AUTH_THIS_YEAR_COPY)
 }
 
 export async function finishRecovery(_userId: string, _secret: string, _password: string) {
   void _userId
   void _secret
   void _password
-  throw new Error('Сброс пароля по ссылке из письма на Core пока недоступен.')
+  throw new Error(AUTH_THIS_YEAR_COPY)
 }
 
 export async function signOut() {

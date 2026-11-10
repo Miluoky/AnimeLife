@@ -382,6 +382,10 @@ export default function AdminAnalytics() {
           {loading ? 'Обновляю…' : 'Обновить'}
         </button>
       </div>
+      <p className="muted an-summary__note">
+        Free Worker — не больше 100 тыс. вызовов в сутки. Цифры — в Cloudflare → Workers → Metrics. Алерты 70k/90k
+        приходят в Telegram из source-health.
+      </p>
       {error && <p className="notice notice--error">{error}</p>}
       {!stats && !error && <p className="muted" aria-busy="true">Загружаю…</p>}
       {stats && (

@@ -75,7 +75,11 @@ export default function News() {
                 <img className="news-item__img" src={`https://i.ytimg.com/vi/${n.youtube}/hqdefault.jpg`} alt="" loading="lazy" />
               ) : null}
               <div className="stack" style={{ gap: 8 }}>
-                <span className="muted s-feed__when">{new Date(t.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="muted s-feed__when">
+                  {new Date(t.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                  {' · '}
+                  Источник: Shikimori
+                </span>
                 <h2 className="news-item__title">{t.topic_title}</h2>
                 <p className={`news-item__text${full ? '' : ' news-item__text--short'}`}>{n.text}</p>
                 <div className="s-row">

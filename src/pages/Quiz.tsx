@@ -298,6 +298,11 @@ export default function Quiz() {
                     Похвастаться: {ended} подряд
                   </button>
                 )}
+                {!right && (
+                  <Link to="/duel" className="btn btn--ghost">
+                    Сравнить с другом
+                  </Link>
+                )}
                 <button type="button" className="btn btn--accent quiz-result__next" onClick={() => void advance()} autoFocus>
                   Дальше
                 </button>

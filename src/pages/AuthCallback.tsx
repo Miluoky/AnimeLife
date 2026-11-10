@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { authErrorMessage, finishSession } from '../data/auth'
+import { AUTH_THIS_YEAR_COPY, authErrorMessage, finishSession } from '../data/auth'
 import { SocialLoginError, VK_CALLBACK_PATH, finishVk } from '../data/socialAuth'
 import { toast } from '../data/toast'
 
 const failed: Record<string, string> = {
-  google: 'Вход через Google не удался или был отменён.',
-  yandex: 'Вход через Яндекс не удался или был отменён.',
+  google: AUTH_THIS_YEAR_COPY,
+  yandex: AUTH_THIS_YEAR_COPY,
 }
 
 /** Сюда сервисы возвращают пользователя после входа. Токен одноразовый, поэтому обрабатываем его ровно один раз. */

@@ -5,6 +5,7 @@
 import { err, json } from './auth.js'
 import { coreCacheHeaders } from './router.js'
 import { randomId, sha256Hex } from './crypto.js'
+import { stampContentModeration } from './moderation.js'
 
 const MAX_COLLECTIONS = 20
 const MAX_COLLECTION_ITEMS = 100
@@ -101,6 +102,8 @@ function rowPost(r) {
     text: r.text,
     at: r.created_at,
     hidden: !!r.hidden,
+    reports: r.reports ?? 0,
+    moderated: !!r.moderated,
   }
 }
 
@@ -450,11 +453,50 @@ export async function handleClubsAction(env, session, body) {
         .bind(post.id, 'club-report')
         .first()
       const reports = count?.n || 0
-      const hidden = post.hidden || reports >= REPORTS_TO_HIDE
+      const moderated = !!post.moderated
+      const hidden = post.hidden || (!moderated && reports >= REPORTS_TO_HIDE)
       await env.DB.prepare('UPDATE club_posts SET reports = ?, hidden = ? WHERE id = ?')
         .bind(reports, hidden ? 1 : 0, post.id)
         .run()
       return json({ ok: true, hidden: !!hidden })
+    }
+
+    if (action === 'club-mod-list') {
+      if (!session) return err('Войдите, чтобы модерировать.', 401)
+      if (!isAdmin(session)) return err('Нужны права модератора.', 403)
+      const res = await env.DB.prepare(
+        'SELECT * FROM club_posts WHERE reports > 0 OR hidden = 1 ORDER BY reports DESC LIMIT 100',
+      ).all()
+      return json({ posts: (res.results || []).map(rowPost) })
+    }
+
+    if (action === 'club-mod-action') {
+      if (!session) return err('Войдите, чтобы модерировать.', 401)
+      if (!isAdmin(session)) return err('Нужны права модератора.', 403)
+      const postId = String(body.postId ?? '')
+      const post = await env.DB.prepare('SELECT * FROM club_posts WHERE id = ?').bind(postId).first()
+      if (!post) return err('Запись не найдена.', 404)
+      if (body.decision === 'delete') {
+        await env.DB.prepare('DELETE FROM votes WHERE target_id = ? AND kind = ?')
+          .bind(postId, 'club-report')
+          .run()
+        await env.DB.prepare('DELETE FROM club_posts WHERE id = ?').bind(postId).run()
+        const postCount = await env.DB.prepare('SELECT COUNT(*) AS n FROM club_posts WHERE club_id = ?')
+          .bind(post.club_id)
+          .first()
+        await env.DB.prepare('UPDATE clubs SET posts = ? WHERE id = ?')
+          .bind(postCount?.n || 0, post.club_id)
+          .run()
+        return json({ ok: true })
+      }
+      if (body.decision !== 'hide' && body.decision !== 'show') return err('Неизвестное действие модератора.', 400)
+      const hidden = body.decision === 'hide' ? 1 : 0
+      await env.DB.prepare('UPDATE club_posts SET hidden = ?, moderated = 1 WHERE id = ?')
+        .bind(hidden, postId)
+        .run()
+      await stampContentModeration(env, 'club_posts', postId, session.user.$id)
+      const row = await env.DB.prepare('SELECT * FROM club_posts WHERE id = ?').bind(postId).first()
+      return json({ post: rowPost(row) })
     }
   } catch (e) {
     return userErr(e)

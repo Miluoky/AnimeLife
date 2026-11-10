@@ -106,7 +106,12 @@ export default function RecapPage() {
         </span>
         <div>
           <h1 className="page-title">Мои итоги {year}</h1>
-          <p className="muted top-head__lead">Ваш год в аниме. Считается в этом браузере по сериям, которые вы открывали на сайте.</p>
+          <p className="muted top-head__lead">Ваш год в аниме. Считается в этом браузере по сериям, которые вы досмотрели.</p>
+          <p style={{ margin: '8px 0 0' }}>
+            <Link to="/duel" className="btn btn--ghost btn--small">
+              Сравнить с другом
+            </Link>
+          </p>
         </div>
       </header>
       {years.length > 1 && (

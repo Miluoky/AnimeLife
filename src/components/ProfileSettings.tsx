@@ -20,14 +20,20 @@ export default function ProfileSettings() {
   const [isPublic, setIsPublic] = useState(savedPublic)
   useEffect(() => setIsPublic(savedPublic), [savedPublic])
   const [about, setAbout] = useState('')
+  const [slug, setSlug] = useState('')
   const [busy, setBusy] = useState(false)
-  const link = user ? `${location.origin}${import.meta.env.BASE_URL}u/${user.$id}` : ''
+  const profilePath = slug.trim() || user?.$id || ''
+  const link = user ? `${location.origin}${import.meta.env.BASE_URL}u/${profilePath}` : ''
 
   useEffect(() => {
     if (!user || !isPublic) return
     void import('../data/profile').then(async (m) => {
       const p = await m.loadProfile(user.$id)
       if (p?.about) setAbout(p.about)
+      const raw = await import('../data/community').then((c) =>
+        c.callCommunity<{ profile?: { slug?: string } }>({ action: 'profile-get', userId: user.$id }),
+      )
+      if (raw.profile?.slug) setSlug(raw.profile.slug)
       // Оформление настраивали на другом устройстве: забираем его из открытого профиля.
       if (p?.summary.style && !Object.keys(profileStyleStore.get()).length) profileStyleStore.set(p.summary.style)
     })
@@ -38,7 +44,7 @@ export default function ProfileSettings() {
     setBusy(true)
     try {
       const m = await import('../data/profile')
-      if (on) await m.publishProfile(about)
+      if (on) await m.publishProfile(about, slug.trim() || '')
       else await m.hideProfile()
       await setPublicProfile(on)
       toast(on ? 'Профиль открыт: ссылкой можно делиться' : 'Профиль скрыт')
@@ -53,7 +59,7 @@ export default function ProfileSettings() {
   const saveAbout = async () => {
     setBusy(true)
     try {
-      await (await import('../data/profile')).publishProfile(about)
+      await (await import('../data/profile')).publishProfile(about, slug.trim() || '')
       toast('Профиль обновлён')
     } catch {
       toast('Не удалось сохранить')
@@ -80,6 +86,17 @@ export default function ProfileSettings() {
                 <span>О себе</span>
                 <textarea value={about} maxLength={300} rows={2} onChange={(e) => setAbout(e.target.value)} />
               </label>
+              <label className="field">
+                <span>Короткий адрес профиля (необязательно)</span>
+                <input
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                  maxLength={32}
+                  placeholder="например, senku"
+                  autoComplete="off"
+                />
+              </label>
+              <p className="muted">Латиница, цифры, дефис. Пусто — ссылка по id аккаунта.</p>
               <div className="actions">
                 <button type="button" className="btn btn--ghost btn--small" onClick={saveAbout} disabled={busy}>
                   Сохранить

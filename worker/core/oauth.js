@@ -1,5 +1,5 @@
 /**
- * OAuth Core: VK ID, Telegram (бот + Mini App). Google/Яндекс — заглушки до env-ключей.
+ * OAuth Core: VK ID, Telegram (бот + Mini App). Google/Яндекс — заглушки (в этом году не делаем).
  * Сессия как в auth.js: cookie al_session + KV + D1.
  */
 
@@ -349,26 +349,14 @@ async function telegramUpdate(env, update) {
   }
 }
 
+const AUTH_THIS_YEAR_COPY =
+  'Google, Яндекс и сброс пароля по письму в этом году не делаем. Вход: почта, VK, Telegram.'
+
 function stubProvider(provider, env) {
-  if (provider === 'google') {
-    if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-      return err(
-        'Вход через Google на Core ещё не настроен (нужны GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET на Worker).',
-        501,
-        501,
-      )
-    }
-    return err('Вход через Google на Core в разработке.', 501, 501)
-  }
-  if (provider === 'yandex') {
-    if (!env.YANDEX_CLIENT_ID || !env.YANDEX_CLIENT_SECRET) {
-      return err(
-        'Вход через Яндекс на Core ещё не настроен (нужны YANDEX_CLIENT_ID и YANDEX_CLIENT_SECRET на Worker).',
-        501,
-        501,
-      )
-    }
-    return err('Вход через Яндекс на Core в разработке.', 501, 501)
+  // Флаги клиента выкл. Даже при секретах Google/Яндекс в env — 501, не «в разработке».
+  void env
+  if (provider === 'google' || provider === 'yandex') {
+    return err(AUTH_THIS_YEAR_COPY, 501, 501)
   }
   return null
 }

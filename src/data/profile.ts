@@ -94,8 +94,13 @@ export function buildSummary(list = listStore.get()): ProfileSummary {
   }
 }
 
-export const publishProfile = (about?: string) =>
-  callCommunity({ action: 'profile-save', about, summary: JSON.stringify(buildSummary()) })
+export const publishProfile = (about?: string, slug?: string) =>
+  callCommunity({
+    action: 'profile-save',
+    about,
+    summary: JSON.stringify(buildSummary()),
+    ...(slug !== undefined ? { slug } : {}),
+  })
 
 export const hideProfile = () => callCommunity({ action: 'profile-hide' })
 

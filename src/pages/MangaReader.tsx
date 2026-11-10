@@ -17,12 +17,13 @@ const VIEW_KEY = 'anime.mangaView.v1'
 interface View {
   paged: boolean
   rtl: boolean
+  spread: boolean
 }
 const loadView = (): View => {
   try {
-    return { paged: false, rtl: false, ...(JSON.parse(localStorage.getItem(VIEW_KEY) ?? '{}') as Partial<View>) }
+    return { paged: false, rtl: false, spread: false, ...(JSON.parse(localStorage.getItem(VIEW_KEY) ?? '{}') as Partial<View>) }
   } catch {
-    return { paged: false, rtl: false }
+    return { paged: false, rtl: false, spread: false }
   }
 }
 const loadSaver = () => {
@@ -211,9 +212,11 @@ export default function MangaReader() {
     }
     if (!next.paged) restore.current = at
   }
+  const pageStride = view.paged && view.spread ? 2 : 1
+
   /** Листаем на страницу вперёд (1) или назад (-1); за краем главы — соседняя глава. */
   function turn(step: 1 | -1) {
-    const n = atRef.current + step
+    const n = atRef.current + step * pageStride
     if (n < 0) {
       if (prev) navigate(to(prev))
       return
@@ -339,9 +342,19 @@ export default function MangaReader() {
             По страницам
           </button>
           {view.paged && (
-            <button type="button" className={`pill${view.rtl ? ' active' : ''}`} aria-pressed={view.rtl} onClick={() => changeView({ ...view, rtl: !view.rtl })}>
-              Справа налево
-            </button>
+            <>
+              <button
+                type="button"
+                className={`pill${view.spread ? ' active' : ''}`}
+                aria-pressed={view.spread}
+                onClick={() => changeView({ ...view, spread: !view.spread })}
+              >
+                Разворот
+              </button>
+              <button type="button" className={`pill${view.rtl ? ' active' : ''}`} aria-pressed={view.rtl} onClick={() => changeView({ ...view, rtl: !view.rtl })}>
+                Справа налево
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -364,7 +377,14 @@ export default function MangaReader() {
         ) : view.paged && total ? (
           <div className="reader__paged" onClick={onTap} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             {at < total ? (
-              <Page key={urls[at]} src={urls[at]} n={at + 1} eager />
+              view.spread ? (
+                <div className="reader__spread">
+                  <Page key={urls[at]} src={urls[at]} n={at + 1} eager />
+                  {at + 1 < total && <Page key={urls[at + 1]} src={urls[at + 1]} n={at + 2} eager />}
+                </div>
+              ) : (
+                <Page key={urls[at]} src={urls[at]} n={at + 1} eager />
+              )
             ) : (
               <div className="reader__end">
                 <p>Глава дочитана.</p>
@@ -380,7 +400,9 @@ export default function MangaReader() {
               </div>
             )}
             <span className="reader__count" aria-live="polite">
-              {Math.min(at + 1, total)} / {total}
+              {view.spread && at + 1 < total
+                ? `${at + 1}–${at + 2} / ${total}`
+                : `${Math.min(at + 1, total)} / ${total}`}
             </span>
           </div>
         ) : (

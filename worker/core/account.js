@@ -3,6 +3,7 @@
  */
 
 import { dropSession, err, json } from './auth.js'
+import { sha256Hex } from './crypto.js'
 
 const SECRET_FIELDS = new Set(['access', 'refresh', 'p256dh', 'auth', 'password_hash'])
 
@@ -118,7 +119,7 @@ async function accountExport(env, session) {
   }
 }
 
-async function purgeUserSessions(env, userId) {
+export async function purgeUserSessions(env, userId) {
   const res = await env.DB.prepare('SELECT id FROM sessions WHERE user_id = ?').bind(userId).all()
   for (const s of res.results || []) {
     await dropSession(env, s.id)
@@ -165,8 +166,62 @@ async function accountDelete(env, session, body) {
   return json({ ok: true, removed, accountDeleted })
 }
 
-export async function handleAccountAction(env, session, body) {
+async function sessionRevokeKey(token) {
+  return `r${(await sha256Hex(token)).slice(0, 28)}`
+}
+
+async function sessionByRevokeKey(env, userId, key) {
+  const res = await env.DB.prepare(
+    'SELECT id, user_id, created_at, expires_at, user_agent FROM sessions WHERE user_id = ?',
+  )
+    .bind(userId)
+    .all()
+  for (const row of res.results || []) {
+    if ((await sessionRevokeKey(row.id)) === key) return row
+  }
+  return null
+}
+
+function mapSessionRow(row, currentToken) {
+  return {
+    revokeKey: null,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    userAgent: row.user_agent || 'Неизвестно',
+    current: row.id === currentToken,
+  }
+}
+
+export async function handleAccountAction(env, session, body, request) {
   const action = body.action
+
+  if (action === 'sessions-list') {
+    if (!session) return err('Войдите в аккаунт.', 401)
+    const res = await env.DB.prepare(
+      'SELECT id, created_at, expires_at, user_agent FROM sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 30',
+    )
+      .bind(session.user.$id)
+      .all()
+    const sessions = []
+    for (const row of res.results || []) {
+      const mapped = mapSessionRow(row, session.token)
+      mapped.revokeKey = await sessionRevokeKey(row.id)
+      sessions.push(mapped)
+    }
+    return json({ sessions })
+  }
+
+  if (action === 'session-revoke') {
+    if (!session) return err('Войдите в аккаунт.', 401)
+    const key = String(body.revokeKey ?? '').trim()
+    if (!key) return err('Нужен revokeKey.', 400)
+    const row = await sessionByRevokeKey(env, session.user.$id, key)
+    if (!row) return err('Сессия не найдена.', 404)
+    const endedCurrent = row.id === session.token
+    await dropSession(env, row.id)
+    return json({ ok: true, endedCurrent })
+  }
+
   if (action === 'account-export') {
     if (!session) return err('Войдите в аккаунт.', 401)
     return json(await accountExport(env, session))

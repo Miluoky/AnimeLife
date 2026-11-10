@@ -3,6 +3,7 @@
  */
 
 import { err, json, userFromRequest } from './auth.js'
+import { stampContentModeration } from './moderation.js'
 import { coreCacheHeaders } from './router.js'
 import { randomId } from './crypto.js'
 
@@ -307,13 +308,14 @@ export async function handleCommunityAction(env, session, body) {
       ).first()
       return Number(row?.n) || 0
     }
-    const [reviews, comments, chat, takedowns] = await Promise.all([
+    const [reviews, comments, chat, clubs, takedowns] = await Promise.all([
       countWhere('reviews'),
       countWhere('comments'),
       countWhere('community_chat'),
+      countWhere('club_posts'),
       env.DB.prepare(`SELECT COUNT(*) AS n FROM takedowns WHERE status = ?`).bind('new').first().then((r) => Number(r?.n) || 0),
     ])
-    return json({ reviews, comments, chat, takedowns, total: reviews + comments + chat + takedowns })
+    return json({ reviews, comments, chat, clubs, takedowns, total: reviews + comments + chat + clubs + takedowns })
   }
 
   if (action === 'mod-list') {
@@ -339,6 +341,7 @@ export async function handleCommunityAction(env, session, body) {
     if (body.decision !== 'hide' && body.decision !== 'show') return err('Неизвестное действие модератора.', 400)
     const hidden = body.decision === 'hide' ? 1 : 0
     await env.DB.prepare('UPDATE reviews SET hidden = ?, moderated = 1 WHERE id = ?').bind(hidden, reviewId).run()
+    await stampContentModeration(env, 'reviews', reviewId, session.user.$id)
     const row = await env.DB.prepare('SELECT * FROM reviews WHERE id = ?').bind(reviewId).first()
     return json({ review: rowReview(row) })
   }
@@ -366,6 +369,7 @@ export async function handleCommunityAction(env, session, body) {
     if (body.decision !== 'hide' && body.decision !== 'show') return err('Неизвестное действие модератора.', 400)
     const hidden = body.decision === 'hide' ? 1 : 0
     await env.DB.prepare('UPDATE comments SET hidden = ?, moderated = 1 WHERE id = ?').bind(hidden, commentId).run()
+    await stampContentModeration(env, 'comments', commentId, session.user.$id)
     const row = await env.DB.prepare('SELECT * FROM comments WHERE id = ?').bind(commentId).first()
     return json({ comment: rowEpisodeComment(row) })
   }

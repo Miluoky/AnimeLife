@@ -12,6 +12,7 @@ import { handleChatAction } from './chat.js'
 import { handleClubsAction } from './clubs.js'
 import { handleMiscAction } from './misc.js'
 import { handleAccountAction } from './account.js'
+import { handleModerationAction } from './moderation.js'
 import { handleShikiAction } from './shiki.js'
 
 const IMPLEMENTED = new Set([
@@ -89,6 +90,13 @@ const IMPLEMENTED = new Set([
   'mod-action',
   'comment-mod-list',
   'comment-mod-action',
+  'club-mod-list',
+  'club-mod-action',
+  'user-ban',
+  'user-unban',
+  'user-ban-lookup',
+  'sessions-list',
+  'session-revoke',
   'episode-rate',
   'episode-my-rate',
   'shiki-connect',
@@ -126,8 +134,26 @@ export async function handleAction(request, env) {
     return json({ ok: true })
   }
 
+  const SLUG_RE = /^[a-z0-9][a-z0-9_-]{2,31}$/
+
+  async function resolveProfileKey(key) {
+    const s = String(key || '').trim()
+    if (!s) return ''
+    if (SLUG_RE.test(s)) {
+      try {
+        const bySlug = await env.DB.prepare('SELECT user_id FROM profiles WHERE slug = ? COLLATE NOCASE')
+          .bind(s.toLowerCase())
+          .first()
+        if (bySlug?.user_id) return bySlug.user_id
+      } catch {
+        // slug колонки ещё нет
+      }
+    }
+    return s
+  }
+
   if (action === 'profile-get') {
-    const id = String(body.userId || session?.user?.$id || '')
+    const id = await resolveProfileKey(body.userId || session?.user?.$id || '')
     if (!id) return err('userId', 400)
     const row = await env.DB.prepare('SELECT * FROM profiles WHERE user_id = ? AND hidden = 0').bind(id).first()
     // Скрытый или отсутствующий профиль — 404, без stub с именем (утечка privacy).
@@ -147,6 +173,7 @@ export async function handleAction(request, env) {
         xp: row.xp,
         level: row.level,
         updatedAt: row.updated_at,
+        slug: row.slug || undefined,
       },
     })
   }
@@ -178,10 +205,33 @@ export async function handleAction(request, env) {
         .bind(name, now, session.user.$id)
         .run()
     }
+    if (body.slug !== undefined) {
+      const slugRaw = String(body.slug).trim().toLowerCase()
+      if (!slugRaw) {
+        try {
+          await env.DB.prepare('UPDATE profiles SET slug = NULL WHERE user_id = ?').bind(session.user.$id).run()
+        } catch {
+          // нет колонки
+        }
+      } else if (!SLUG_RE.test(slugRaw)) {
+        return err('Адрес профиля: латиница, цифры, дефис, от 3 до 32 символов.', 400)
+      } else {
+        const taken = await env.DB.prepare('SELECT user_id FROM profiles WHERE slug = ? AND user_id != ?')
+          .bind(slugRaw, session.user.$id)
+          .first()
+        if (taken) return err('Этот адрес уже занят.', 409)
+        try {
+          await env.DB.prepare('UPDATE profiles SET slug = ? WHERE user_id = ?').bind(slugRaw, session.user.$id).run()
+        } catch {
+          return err('Адрес профиля пока недоступен.', 501)
+        }
+      }
+    }
     return json({ ok: true })
   }
 
   for (const handler of [
+    handleModerationAction,
     handleRoomAction,
     handleChatAction,
     handleSocialAction,
@@ -191,7 +241,7 @@ export async function handleAction(request, env) {
     handleCommunityAction,
     handleAccountAction,
   ]) {
-    const handled = await handler(env, session, body)
+    const handled = await (handler === handleAccountAction ? handler(env, session, body, request) : handler(env, session, body))
     if (handled) return handled
   }
 

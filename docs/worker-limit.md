@@ -180,6 +180,26 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in animelife-d1-backup.sql.enc
 
 Глобальный API Key по-прежнему нужен для деплоя, WAF и учёта квоты Worker; passphrase копии базы лучше держать отдельно.
 
+#### Restore DRILL (учение, не инцидент)
+
+Цель — один раз в квартал **проверить**, что артефакт открывается и SQL живой. **Сначала staging, никогда не прод первым.** Прод-restore только после зелёного drill и свежей копии.
+
+1. Скачать `animelife-d1-backup-*.sql.enc` из GitHub Artifacts (не старше 30 дней).
+2. Расшифровать **только** `D1_BACKUP_PASSPHRASE` (см. команду выше). Не подставлять Cloudflare Global API Key «на всякий», если passphrase задан.
+3. Создать **отдельную** D1 (имя вроде `anime_core_restore_drill`) — не `anime_core` продакшена:
+   ```bash
+   npx wrangler d1 create anime_core_restore_drill
+   npx wrangler d1 execute anime_core_restore_drill --remote --file=anime_core.sql -c wrangler.animelife.jsonc
+   ```
+   Если `--file` ругается на конфиг без binding этой базы, передайте `--database-id` из вывода `d1 create`.
+4. Проверка, что это похоже на живую базу:
+   ```bash
+   npx wrangler d1 execute anime_core_restore_drill --remote --command="SELECT COUNT(*) AS users FROM users;"
+   ```
+   Сравните порядок величины с ожидаемым числом аккаунтов (админка / `analytics-stats` «аккаунтов»). 0 или ошибка таблицы — drill провален, прод не трогать.
+5. Удалить drill-базу после записи результата (`npx wrangler d1 delete anime_core_restore_drill`). SQL и passphrase с диска убрать.
+6. **Прод** (`anime_core`, database_id `68a5d9ac-…`): только после зелёного drill, новой ночной копии и явного решения. Сначала ещё один export прода, потом restore, потом снова `SELECT COUNT(*) AS users FROM users`. Не делать «на проде сразу, чтобы проверить».
+
 ## 5. Как откатить
 
 Вместо `"run_worker_first": false` вернуть в обоих `wrangler*.jsonc` прежний список

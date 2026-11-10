@@ -8,6 +8,8 @@ import { loadModeration, moderateReview, type Review } from '../data/community'
 const ModerationTakedowns = lazy(() => import('../components/ModerationTakedowns'))
 const ModerationComments = lazy(() => import('../components/ModerationComments'))
 const ModerationChat = lazy(() => import('../components/ModerationChat'))
+const ModerationBans = lazy(() => import('../components/ModerationBans'))
+const ModerationClubs = lazy(() => import('../components/ModerationClubs'))
 
 const dateFormat = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
 
@@ -20,7 +22,14 @@ export default function Moderation() {
   const { user, checking } = useAuth()
   const [params, setParams] = useSearchParams()
   const asked = params.get('tab')
-  const tab = asked === 'takedowns' || asked === 'comments' || asked === 'chat' ? asked : 'reviews'
+  const tab =
+    asked === 'takedowns' ||
+    asked === 'comments' ||
+    asked === 'chat' ||
+    asked === 'clubs' ||
+    asked === 'bans'
+      ? asked
+      : 'reviews'
   const [reviews, setReviews] = useState<Review[]>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string>()
@@ -58,6 +67,8 @@ export default function Moderation() {
           ['reviews', 'Отзывы'],
           ['comments', 'Комментарии'],
           ['chat', 'Чат'],
+          ['clubs', 'Клубы'],
+          ['bans', 'Баны'],
           ['takedowns', 'Обращения'],
         ] as const
       ).map(([id, name]) => (
@@ -85,7 +96,17 @@ export default function Moderation() {
           <>
             {tabs}
             <Suspense fallback={<div className="skeleton skeleton--line" aria-busy="true" />}>
-              {tab === 'takedowns' ? <ModerationTakedowns /> : tab === 'comments' ? <ModerationComments /> : <ModerationChat />}
+              {tab === 'takedowns' ? (
+                <ModerationTakedowns />
+              ) : tab === 'comments' ? (
+                <ModerationComments />
+              ) : tab === 'chat' ? (
+                <ModerationChat />
+              ) : tab === 'clubs' ? (
+                <ModerationClubs />
+              ) : (
+                <ModerationBans />
+              )}
             </Suspense>
           </>
         ) : (

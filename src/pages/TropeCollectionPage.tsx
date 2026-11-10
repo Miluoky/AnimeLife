@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
+  ANIME_TROPES,
   TROPE_CATEGORIES,
   getTropeBySlug,
   getTropesByCategory,
@@ -21,8 +22,10 @@ import type { CatalogOrder } from '../api'
 import NotFound from './NotFound'
 
 export default function TropeCollectionPage() {
-  const { slug = '' } = useParams()
-  const trope = useMemo(() => getTropeBySlug(slug), [slug])
+  const { slug } = useParams()
+  // /trope — хаб; /trope/:slug — подборка или 404 (без soft-200 на неизвестный slug).
+  if (!slug) return <TropeHub />
+  const trope = getTropeBySlug(slug)
   if (!trope) {
     return (
       <NotFound
@@ -32,6 +35,69 @@ export default function TropeCollectionPage() {
     )
   }
   return <TropeCollectionContent trope={trope} />
+}
+
+function TropeHub() {
+  usePageMeta(
+    'Тропы и тематические подборки аниме',
+    'Коллекции по сюжетным архетипам: исэкай, романтика, меха и другие темы.',
+  )
+  useCanonical()
+  return (
+    <main className="container home" style={{ paddingBottom: '60px' }}>
+      <header className="stack" style={{ marginBottom: 28 }}>
+        <p className="kicker">Подборки</p>
+        <h1 style={{ margin: 0 }}>Тропы и темы</h1>
+        <p className="muted" style={{ margin: 0, maxWidth: 560 }}>
+          Тематические коллекции по архетипам сюжета — выберите троп, чтобы открыть каталог.
+        </p>
+      </header>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {TROPE_CATEGORIES.map((cat) => {
+          const catTropes = getTropesByCategory(cat.id)
+          if (catTropes.length === 0) return null
+          return (
+            <div
+              key={cat.id}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--line)',
+                borderRadius: '14px',
+                padding: '18px 20px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '18px' }}>{cat.icon}</span>
+                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>{cat.name}</h2>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {catTropes.map((t) => (
+                  <Link
+                    key={t.slug}
+                    to={`/trope/${t.slug}`}
+                    className="pill"
+                    style={{
+                      background: 'var(--surface-2)',
+                      color: 'var(--text)',
+                      border: '1px solid var(--line)',
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      textDecoration: 'none',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {t.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      {ANIME_TROPES.length === 0 && <p className="muted">Подборок пока нет.</p>}
+    </main>
+  )
 }
 
 function TropeCollectionContent({ trope }: { trope: TropeItem }) {

@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { callCommunity, CommunityError } from '../data/community'
 import { forgetDeletedAccount } from '../data/auth'
 import { toast } from '../data/toast'
+import { loadSessions, revokeSession, type UserSessionRow } from '../data/sessions'
 
 /** Всё, что сайт хранит в этом браузере: список, история, настройки (ключи anime.*). */
 function localData() {
@@ -35,11 +36,40 @@ function download(name: string, data: unknown) {
 }
 
 /** «Мои данные» в профиле: скачать всё одним файлом и удалить аккаунт без писем в поддержку. */
+const sessionDate = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
 export default function AccountData() {
   const [busy, setBusy] = useState<'' | 'export' | 'delete'>('')
   const [asking, setAsking] = useState(false)
   const [word, setWord] = useState('')
   const [error, setError] = useState('')
+  const [sessions, setSessions] = useState<UserSessionRow[]>()
+  const [revoking, setRevoking] = useState('')
+
+  useEffect(() => {
+    void loadSessions()
+      .then(setSessions)
+      .catch(() => setSessions([]))
+  }, [])
+
+  const onRevoke = async (row: UserSessionRow) => {
+    if (row.current) {
+      const ok = window.confirm('Это текущая сессия: после отзыва вы выйдете из аккаунта. Продолжить?')
+      if (!ok) return
+    }
+    setRevoking(row.revokeKey)
+    setError('')
+    try {
+      const res = await revokeSession(row.revokeKey)
+      setSessions((list = []) => list.filter((s) => s.revokeKey !== row.revokeKey))
+      if (res.endedCurrent) await forgetDeletedAccount(false).catch(() => undefined)
+      else toast('Сессия завершена')
+    } catch (e) {
+      setError(e instanceof CommunityError ? e.message : 'Не удалось завершить сессию.')
+    } finally {
+      setRevoking('')
+    }
+  }
 
   const exportData = async () => {
     setBusy('export')
@@ -75,6 +105,35 @@ export default function AccountData() {
         Скачайте одним файлом всё, что сайт о вас хранит: список, историю, отзывы, комментарии, подборки и настройки. Аккаунт можно удалить
         здесь же, вместе с этими данными.
       </p>
+      {sessions && (
+        <div className="stack">
+          <h3>Активные входы</h3>
+          <p className="muted">Браузеры и устройства, где выполнен вход. Можно завершить лишние сессии.</p>
+          {!sessions.length ? (
+            <p className="muted">Кроме текущей, других сессий нет.</p>
+          ) : (
+            <ul className="stack">
+              {sessions.map((s) => (
+                <li key={s.revokeKey} className="actions">
+                  <span>
+                    {s.userAgent}
+                    {s.current ? ' · текущая' : ''}
+                    <span className="muted"> · {sessionDate.format(new Date(s.createdAt))}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--small"
+                    disabled={!!revoking}
+                    onClick={() => void onRevoke(s)}
+                  >
+                    {revoking === s.revokeKey ? '…' : 'Завершить'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       <div className="actions">
         <button type="button" className="btn btn--ghost" disabled={!!busy} onClick={() => void exportData()}>
           {busy === 'export' ? 'Собираем…' : 'Скачать мои данные'}

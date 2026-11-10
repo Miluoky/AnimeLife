@@ -159,6 +159,18 @@ export default function TogetherHome() {
           <div className="together-home__head-row">
             <h2>Открытые комнаты</h2>
             {rooms && rooms.length > 0 ? <span className="together-count">{rooms.length}</span> : null}
+            {rooms && rooms.length > 0 ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--small"
+                onClick={() => {
+                  const pick = rooms[Math.floor(Math.random() * rooms.length)]
+                  if (pick) navigate(`/together/${pick.$id}`)
+                }}
+              >
+                Случайная открытая
+              </button>
+            ) : null}
           </div>
           <p className="muted together-home__sub">Публичные комнаты, где сейчас смотрят. Выберите ряд — код не нужен.</p>
         </header>

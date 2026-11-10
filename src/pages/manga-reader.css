@@ -161,6 +161,22 @@
   object-fit: contain;
 }
 
+.reader__spread {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+}
+
+.reader__spread img {
+  flex: 1 1 45%;
+  max-width: 50%;
+  max-height: calc(100dvh - 80px);
+  object-fit: contain;
+}
+
 @media (max-width: 600px) {
   .reader__paged {
     scroll-margin-top: 150px;

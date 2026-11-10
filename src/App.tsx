@@ -87,6 +87,11 @@ function MangasRedirect() {
   return <Navigate replace to={target} />
 }
 
+function TropoRedirect() {
+  const { slug = '' } = useParams()
+  return <Navigate replace to={slug ? `/trope/${slug}` : '/trope'} />
+}
+
 const PageFallback = () => <main className="container page-fallback" aria-busy="true" />
 
 export default function App() {
@@ -111,6 +116,8 @@ export default function App() {
           <Route path="chronology/:id" element={<ChronologyPage />} />
           <Route path="trope" element={<TropeCollectionPage />} />
           <Route path="trope/:slug" element={<TropeCollectionPage />} />
+          <Route path="tropo" element={<Navigate replace to="/trope" />} />
+          <Route path="tropo/:slug" element={<TropoRedirect />} />
           <Route path="similar/:id" element={<SimilarPage />} />
           <Route path="type/:kind" element={<Landing />} />
           <Route path="year/:year" element={<Landing />} />

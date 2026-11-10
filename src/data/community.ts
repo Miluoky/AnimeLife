@@ -58,6 +58,7 @@ export interface ModCounts {
   reviews: number
   comments: number
   chat: number
+  clubs: number
   takedowns: number
   total: number
 }

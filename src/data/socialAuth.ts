@@ -1,5 +1,5 @@
 import { SOCIAL_LOGIN } from '../api/config'
-import { refresh } from './auth'
+import { AUTH_THIS_YEAR_COPY, refresh } from './auth'
 import type { CoreUser } from '../api/core'
 
 /** Ошибка входа, которую можно показать как есть. */
@@ -12,13 +12,10 @@ const appUrl = (path: string) => `${window.location.origin}${import.meta.env.BAS
 export const CALLBACK_PATH = 'auth/callback'
 export const VK_CALLBACK_PATH = 'auth/vk'
 
-/** Google и Яндекс: на Core пока нет ключей провайдера (501). */
-export async function signInWithOAuth(provider: 'google' | 'yandex') {
-  throw new SocialLoginError(
-    provider === 'google'
-      ? 'Вход через Google на Core ещё не подключён. Войдите по почте, VK или Telegram.'
-      : 'Вход через Яндекс на Core ещё не подключён. Войдите по почте, VK или Telegram.',
-  )
+/** Google и Яндекс: флаги выкл., клиент не ходит на сервер. */
+export async function signInWithOAuth(_provider: 'google' | 'yandex') {
+  void _provider
+  throw new SocialLoginError(AUTH_THIS_YEAR_COPY)
 }
 
 interface FunctionReply {

@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS users (
   prefs TEXT NOT NULL DEFAULT '{}',
   status INTEGER NOT NULL DEFAULT 1,
   email_verified INTEGER NOT NULL DEFAULT 0,
+  moderated_by TEXT,
+  moderated_at INTEGER,
+  ban_reason TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   UNIQUE (email)
@@ -46,6 +49,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   xp INTEGER NOT NULL DEFAULT 0,
   level INTEGER NOT NULL DEFAULT 1,
   hidden INTEGER NOT NULL DEFAULT 0,
+  slug TEXT,
   updated_at INTEGER NOT NULL
 );
 
@@ -58,6 +62,8 @@ CREATE TABLE IF NOT EXISTS reviews (
   author_name TEXT NOT NULL DEFAULT '',
   hidden INTEGER NOT NULL DEFAULT 0,
   moderated INTEGER NOT NULL DEFAULT 0,
+  moderated_by TEXT,
+  moderated_at INTEGER,
   reports INTEGER NOT NULL DEFAULT 0,
   likes INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
@@ -75,6 +81,8 @@ CREATE TABLE IF NOT EXISTS comments (
   author_name TEXT NOT NULL DEFAULT '',
   hidden INTEGER NOT NULL DEFAULT 0,
   moderated INTEGER NOT NULL DEFAULT 0,
+  moderated_by TEXT,
+  moderated_at INTEGER,
   reports INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
@@ -121,7 +129,9 @@ CREATE TABLE IF NOT EXISTS community_chat (
   at INTEGER NOT NULL,
   hidden INTEGER NOT NULL DEFAULT 0,
   reports INTEGER NOT NULL DEFAULT 0,
-  moderated INTEGER NOT NULL DEFAULT 0
+  moderated INTEGER NOT NULL DEFAULT 0,
+  moderated_by TEXT,
+  moderated_at INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_community_chat_at ON community_chat (at DESC);
@@ -332,10 +342,14 @@ CREATE TABLE IF NOT EXISTS club_posts (
   text TEXT NOT NULL,
   hidden INTEGER NOT NULL DEFAULT 0,
   reports INTEGER NOT NULL DEFAULT 0,
+  moderated INTEGER NOT NULL DEFAULT 0,
+  moderated_by TEXT,
+  moderated_at INTEGER,
   created_at INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_club_posts ON club_posts (club_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_slug ON profiles (slug) WHERE slug IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS user_collections (
   id TEXT PRIMARY KEY,

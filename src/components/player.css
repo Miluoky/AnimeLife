@@ -666,6 +666,21 @@
 }
 .player-tag--switch {
   z-index: 3;
+  height: auto;
+  min-height: 28px;
+  max-width: min(92%, 28rem);
+  padding: 6px 12px;
+  line-height: 1.25;
+  animation: player-tag-pulse 1.4s ease-in-out infinite;
+}
+@keyframes player-tag-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.62;
+  }
 }
 .player-frame .player-iframe--wait,
 .player-frame .player-iframe--prep,
@@ -2190,7 +2205,8 @@
   .vp-menu,
   .vp-autonext,
   .vp-resume,
-  .lights-curtain {
+  .lights-curtain,
+  .player-tag--switch {
     animation: none;
   }
 
