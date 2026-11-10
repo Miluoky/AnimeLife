@@ -120,14 +120,28 @@ const buildManagedRules = (desired, existingRules) => {
   })
 }
 
+/** Free Website: max 5 custom firewall rules. Keep our TAG rules first, then up to leftover slots. */
+const FREE_CUSTOM_MAX = 5
+
 const mergeRuleset = (desired, existingRules) => {
   const managed = buildManagedRules(desired, existingRules)
+  const budget = Math.max(0, FREE_CUSTOM_MAX - managed.length)
   const others = existingRules.filter((r) => !r.description?.startsWith(TAG))
-  return [...managed, ...others]
+  // Сначала то, что связано с Telegram/превью — остальное на Free не влезает.
+  const score = (r) => {
+    const d = `${r.description || ''} ${r.expression || ''}`.toLowerCase()
+    if (d.includes('telegram') || d.includes('webhook')) return 2
+    if (d.includes('vkshare') || d.includes('preview') || d.includes('bot')) return 1
+    return 0
+  }
+  const ranked = [...others].sort((a, b) => score(b) - score(a))
+  const kept = ranked.slice(0, budget)
+  const dropped = ranked.slice(budget)
+  return { next: [...managed, ...kept], dropped }
 }
 
 const diffRuleset = (desired, existingRules) => {
-  const next = mergeRuleset(desired, existingRules)
+  const { next, dropped } = mergeRuleset(desired, existingRules)
   const managedNext = next.filter((r) => r.description?.startsWith(TAG))
   const managedOld = existingRules.filter((r) => r.description?.startsWith(TAG))
   const changes = []
@@ -139,7 +153,14 @@ const diffRuleset = (desired, existingRules) => {
   for (const old of managedOld) {
     if (!managedNext.some((r) => r.description === old.description)) changes.push(`  - ${old.description}`)
   }
-  const orderChanged = managedOld.map((r) => r.description).join() !== managedNext.map((r) => r.description).join()
+  for (const d of dropped) {
+    changes.push(`  ! снято (лимит Free ${FREE_CUSTOM_MAX}): ${d.description || d.id || 'без имени'}`)
+  }
+  const othersOld = existingRules.filter((r) => !r.description?.startsWith(TAG)).map((r) => r.id).join()
+  const othersNew = next.filter((r) => !r.description?.startsWith(TAG)).map((r) => r.id).join()
+  const orderChanged =
+    managedOld.map((r) => r.description).join() !== managedNext.map((r) => r.description).join() ||
+    othersOld !== othersNew
   if (orderChanged && !changes.length) changes.push('  ~ порядок правил [animelife-waf]')
   return { next, changes, orderChanged: orderChanged || changes.length > 0 }
 }
