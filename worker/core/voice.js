@@ -34,6 +34,61 @@ function parseMember(row) {
   }
 }
 
+function parseSignal(row) {
+  return {
+    $id: row.id,
+    roomId: row.room_code,
+    from: row.sender_id,
+    to: row.receiver_id,
+    kind: row.kind,
+    data: row.data,
+    at: Number(row.at),
+  }
+}
+
+/** Активная строка присутствия (heartbeat не старше MEMBER_TTL_MS). */
+async function activeMember(env, roomId, userId, { voiceOnly = false } = {}) {
+  const id = await memberRowId(roomId, userId)
+  const now = Date.now()
+  const row = await env.DB.prepare(
+    'SELECT voice, muted, at FROM room_members WHERE id = ? AND at > ?',
+  )
+    .bind(id, now - MEMBER_TTL_MS)
+    .first()
+  if (!row) return null
+  if (voiceOnly && !row.voice) return null
+  return row
+}
+
+async function pruneStaleVoice(env, roomCode = null) {
+  const now = Date.now()
+  if (roomCode) {
+    await env.DB.prepare('DELETE FROM room_signals WHERE room_code = ? AND at < ?')
+      .bind(roomCode, now - SIGNAL_STORE_TTL)
+      .run()
+  } else {
+    await env.DB.prepare('DELETE FROM room_signals WHERE at < ?').bind(now - SIGNAL_STORE_TTL).run()
+  }
+}
+
+/** Сигналы для адресата; после выдачи строки удаляются (одноразовые SDP). */
+async function pullSignals(env, roomCode, receiverId, since, { consume = true } = {}) {
+  await pruneStaleVoice(env, roomCode)
+  const res = await env.DB.prepare(
+    'SELECT * FROM room_signals WHERE room_code = ? AND receiver_id = ? AND at > ? ORDER BY at ASC LIMIT 50',
+  )
+    .bind(roomCode, receiverId, since)
+    .all()
+  const signals = (res.results || []).map(parseSignal)
+  if (consume && signals.length) {
+    const placeholders = signals.map(() => '?').join(',')
+    await env.DB.prepare(`DELETE FROM room_signals WHERE id IN (${placeholders})`)
+      .bind(...signals.map((s) => s.$id))
+      .run()
+  }
+  return signals
+}
+
 export async function handleVoiceGet(request, env, path) {
   const url = new URL(request.url)
 
@@ -76,22 +131,9 @@ export async function handleVoiceGet(request, env, path) {
   if (sub === 'signals') {
     const session = await userFromRequest(env, request)
     if (!session) return err('Войдите.', 401)
-    const since = Number(url.searchParams.get('since')) || 0
     const me = session.user.$id
-    const res = await env.DB.prepare(
-      'SELECT * FROM room_signals WHERE room_code = ? AND receiver_id = ? AND at > ? ORDER BY at ASC LIMIT 50',
-    )
-      .bind(roomCode, me, since)
-      .all()
-    const signals = (res.results || []).map((row) => ({
-      $id: row.id,
-      roomId: row.room_code,
-      from: row.sender_id,
-      to: row.receiver_id,
-      kind: row.kind,
-      data: row.data,
-      at: Number(row.at),
-    }))
+    const since = Number(url.searchParams.get('since')) || 0
+    const signals = await pullSignals(env, roomCode, me, since)
     return json({ signals, serverNow: Date.now() })
   }
 
@@ -149,14 +191,15 @@ export async function roomSignal(env, session, body) {
 
   const roomId = room.code
   const user = session.user
-  const selfId = await memberRowId(roomId, user.$id)
-  const self = await env.DB.prepare('SELECT voice FROM room_members WHERE id = ?').bind(selfId).first()
-  if (!self?.voice) return err('Сначала войдите в голосовой чат.', 400)
+  if (!(await activeMember(env, roomId, user.$id, { voiceOnly: true }))) {
+    return err('Сначала войдите в голосовой чат.', 400)
+  }
 
-  const to = String(body.to ?? '')
-  const targetId = await memberRowId(roomId, to)
-  const target = await env.DB.prepare('SELECT voice FROM room_members WHERE id = ?').bind(targetId).first()
-  if (!target?.voice) return err('Собеседник уже вышел из голосового чата.', 400)
+  const to = String(body.to ?? '').trim()
+  if (!to || to === user.$id) return err('Некорректный адресат.', 400)
+  if (!(await activeMember(env, roomId, to, { voiceOnly: true }))) {
+    return err('Собеседник уже вышел из голосового чата.', 400)
+  }
 
   const data = String(body.data ?? '')
   if (data.length > MAX_SIGNAL) return err('Слишком длинный сигнал.', 400)
@@ -169,7 +212,13 @@ export async function roomSignal(env, session, body) {
     .bind(id, roomId, user.$id, to, body.kind, data, now)
     .run()
 
-  return json({ ok: true })
+  const since = Number(body.since)
+  const signals =
+    Number.isFinite(since) && since >= 0
+      ? await pullSignals(env, roomId, user.$id, since)
+      : undefined
+
+  return json({ ok: true, serverNow: now, ...(signals ? { signals } : {}) })
 }
 
 export async function deleteRoomVoice(env, roomCode) {

@@ -284,6 +284,7 @@ export async function handleRoomAction(env, session, body) {
     return json({ ok: true })
   }
 
+  // Голос и presence в D1 — реализация в voice.js (room_members / room_signals).
   if (action === 'room-presence') return roomPresence(env, session, body)
   if (action === 'room-signal') return roomSignal(env, session, body)
 
