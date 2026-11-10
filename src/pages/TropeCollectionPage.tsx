@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
-  ANIME_TROPES,
   TROPE_CATEGORIES,
   getTropeBySlug,
   getTropesByCategory,
+  type TropeItem,
 } from '../data/animeTropes'
 import CatalogGrid from '../components/CatalogGrid'
 import Pager from '../components/Pager'
@@ -18,12 +18,24 @@ import {
 import { getCircularLinks } from '../data/semanticClusters'
 import { PAGE_SIZE, pageParam } from '../data/seo'
 import type { CatalogOrder } from '../api'
+import NotFound from './NotFound'
 
 export default function TropeCollectionPage() {
-  const { slug = 'op-from-start' } = useParams()
-  const [params, setParams] = useSearchParams()
+  const { slug = '' } = useParams()
+  const trope = useMemo(() => getTropeBySlug(slug), [slug])
+  if (!trope) {
+    return (
+      <NotFound
+        title="Подборка не найдена"
+        text="Такого тропа в наших подборках нет — откройте каталог или другую тему."
+      />
+    )
+  }
+  return <TropeCollectionContent trope={trope} />
+}
 
-  const trope = useMemo(() => getTropeBySlug(slug) ?? ANIME_TROPES[0], [slug])
+function TropeCollectionContent({ trope }: { trope: TropeItem }) {
+  const [params, setParams] = useSearchParams()
 
   // Filters state
   const status = (params.get('status') as 'ongoing' | 'released' | null) ?? ''

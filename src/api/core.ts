@@ -96,7 +96,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const isCoreBackend = () => BACKEND === 'core'
 
-export const coreHealth = () => req<{ ok: boolean; backend: string }>('/health')
+export const coreHealth = () => req<{ ok: boolean; backend: string; d1?: boolean; kv?: boolean; time?: number }>('/health')
 
 export const coreRegister = (email: string, password: string, name?: string) =>
   req<{ user: CoreUser }>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) })

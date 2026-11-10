@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto'
 import { DB, UserError, hash, listRows } from './util.js'
+import { heldReason, rejectSpam } from './automod.js'
 
 /**
  * Совместный просмотр: комнаты и чат.
@@ -10,6 +11,7 @@ import { DB, UserError, hash, listRows } from './util.js'
  *       плей, пауза, перемотка, смена серии. Управляет ведущий или все, если он разрешил;
  *   room-message {roomId, kind: chat|reaction, text, t}  сообщение или реакция в чат;
  *   room-message-delete {messageId}  убрать сообщение (ведущий комнаты или модератор);
+ *   room-message-report {messageId}  пожаловаться (после нескольких жалоб сообщение скрывается);
  *   room-presence {roomId, voice?, muted?, leave?}  «я в комнате» раз в 45 секунд, флаги голосового чата;
  *   room-signal {roomId, to, kind: offer|answer|bye, data}  сигналы WebRTC для голоса: строку видит только адресат;
  *   room-close {roomId}  закрыть комнату (только ведущий);
@@ -23,6 +25,7 @@ import { DB, UserError, hash, listRows } from './util.js'
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 export const REACTIONS = ['❤️', '😂', '😮', '😭', '🔥', '👏']
 const MAX_MESSAGE = 300
+const REPORTS_TO_HIDE = 3
 /** Не больше стольких сообщений от одного человека за 10 секунд. */
 const MESSAGES_PER_10S = 5
 /** Комната без действий дольше этого закрывается автоматически. */
@@ -166,6 +169,10 @@ export async function roomMessage(api, req, body) {
   const kind = body.kind === 'reaction' ? 'reaction' : 'chat'
   const message = text(body.text, MAX_MESSAGE).replace(/\s+/g, ' ')
   if (kind === 'reaction' ? !REACTIONS.includes(message) : !message) throw new UserError('Пустое сообщение.')
+  if (kind === 'chat') {
+    rejectSpam(message)
+    if (heldReason(message)) throw new UserError('В чате комнаты нельзя мат и ссылки на чужие сайты.')
+  }
   const now = Date.now()
   const recent = await listRows(api, 'messages', [
     { method: 'equal', attribute: 'roomId', values: [room.$id] },
@@ -205,6 +212,29 @@ export async function roomClose(api, req, body) {
   ])
   await Promise.all(members.map((m) => api('DELETE', `${DB}/members/rows/${m.$id}`)))
   return { ok: true }
+}
+
+export async function roomMessageReport(api, req, body) {
+  const user = await signedIn(api, req, 'жаловаться на сообщение')
+  if (!/^[a-zA-Z0-9]{1,36}$/.test(String(body.messageId ?? ''))) throw new UserError('Сообщение не найдено.')
+  const msg = await api('GET', `${DB}/messages/rows/${body.messageId}`)
+  if (msg.status === 404) throw new UserError('Сообщение не найдено.')
+  if (msg.json.userId === user.$id) throw new UserError('На своё сообщение жаловаться нельзя.')
+  const voteId = 'v' + hash(`room-msg:${msg.json.$id}:${user.$id}:report`)
+  if ((await api('GET', `${DB}/votes/rows/${voteId}`)).status !== 404) return { ok: true, already: true, hidden: false }
+  await api('PUT', `${DB}/votes/rows/${voteId}`, {
+    data: { reviewId: msg.json.$id, animeId: msg.json.roomId, userId: user.$id, kind: 'room-report' },
+  })
+  const reports = (
+    await listRows(api, 'votes', [
+      { method: 'equal', attribute: 'reviewId', values: [msg.json.$id] },
+      { method: 'equal', attribute: 'kind', values: ['room-report'] },
+      { method: 'limit', values: [10] },
+    ])
+  ).length
+  const hidden = reports >= REPORTS_TO_HIDE
+  if (hidden) await api('DELETE', `${DB}/messages/rows/${msg.json.$id}`)
+  return { ok: true, already: false, hidden }
 }
 
 export async function roomMessageDelete(api, req, body) {

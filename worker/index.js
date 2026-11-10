@@ -1185,11 +1185,20 @@ async function metaFor(env, path, params) {
   if (landing) return listing(landing, page)
   if (/^\/(?:genre|theme|best|studio|type|year)\//.test(path)) throw notFound()
   let m = path.match(/^\/voice\/([a-z0-9-]{2,40})$/)
-  if (m) return voiceStudioPage(m[1], page)
+  if (m) {
+    if (!VOICE_STUDIO_LIST.includes(m[1])) throw notFound()
+    return voiceStudioPage(m[1], page)
+  }
   m = path.match(/^\/chronology\/([a-z0-9-]{2,50})$/)
-  if (m) return chronologyPage(m[1])
+  if (m) {
+    if (!FRANCHISE_LIST.includes(m[1])) throw notFound()
+    return chronologyPage(m[1])
+  }
   m = path.match(/^\/trope\/([a-z0-9-]{2,50})$/)
-  if (m) return tropePage(m[1], page)
+  if (m) {
+    if (!TROPE_LIST.includes(m[1])) throw notFound()
+    return tropePage(m[1], page)
+  }
   m = path.match(/^\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)
   if (m) return titlePage(m[1], path)
   m = path.match(/^\/en\/anime\/(\d{1,10})(?:-[a-z0-9-]{1,80})?$/)

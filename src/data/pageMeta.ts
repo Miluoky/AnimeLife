@@ -9,6 +9,7 @@ const DEFAULT_DESCRIPTION =
 const DEFAULT_IMAGE = 'https://animelife.top/og-image.png'
 const DEFAULT_TYPE = 'website'
 const DEFAULT_TWITTER_CARD = 'summary_large_image'
+const DEFAULT_ROBOTS = 'max-image-preview:large, max-snippet:-1, max-video-preview:-1'
 
 // Основной адрес сайта: копии (GitHub Pages, старые домены) называют канонической страницу на нём.
 const ORIGIN = 'https://animelife.top'
@@ -91,6 +92,15 @@ export function usePageMeta(title?: string, description?: string, image?: string
       setMetaTag('name', 'twitter:image', DEFAULT_IMAGE)
     }
   }, [title, description, image, type])
+}
+
+/** SPA noindex for paths that should stay out of search (adult catalogs). Restores the default robots meta on leave. */
+export function useNoIndex(enabled?: boolean) {
+  useEffect(() => {
+    if (!enabled) return
+    setMetaTag('name', 'robots', 'noindex, follow')
+    return () => setMetaTag('name', 'robots', DEFAULT_ROBOTS)
+  }, [enabled])
 }
 
 /**

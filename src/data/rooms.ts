@@ -146,6 +146,9 @@ export const sendRoomMessage = (roomId: string, kind: RoomMessage['kind'], text:
 
 export const deleteRoomMessage = (messageId: string) => callCommunity({ action: 'room-message-delete', messageId })
 
+export const reportRoomMessage = (messageId: string) =>
+  callCommunity<{ already?: boolean; hidden?: boolean }>({ action: 'room-message-report', messageId })
+
 export const closeRoom = (roomId: string) => callCommunity({ action: 'room-close', roomId })
 
 export async function loadRoom(code: string): Promise<Room | null> {

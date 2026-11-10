@@ -138,3 +138,34 @@ export function exportJson(list: ListEntry[]) {
   const data = { site: siteUrl('/'), exportedAt: new Date().toISOString(), list }
   download(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'anime-life-list.json')
 }
+
+function parseImportList(raw: unknown): ListEntry[] {
+  const list = Array.isArray(raw) ? raw : (raw as { list?: unknown })?.list
+  if (!Array.isArray(list)) throw new Error('В файле нет списка')
+  const entries = list.filter(
+    (e): e is ListEntry =>
+      !!e &&
+      typeof e === 'object' &&
+      typeof (e as ListEntry).status === 'string' &&
+      !!(e as ListEntry).anime &&
+      typeof (e as ListEntry).anime.id === 'string',
+  )
+  if (!entries.length) throw new Error('Не нашлось ни одной записи списка')
+  return entries
+}
+
+/** Восстановление из резервной копии JSON (экспорт «Копия (JSON)»). */
+export function importJson(text: string): ImportResult {
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new Error('Файл не похож на JSON')
+  }
+  const entries = parseImportList(data)
+  return { total: entries.length, added: mergeImported(entries) }
+}
+
+export async function importJsonFile(file: File): Promise<ImportResult> {
+  return importJson(await file.text())
+}

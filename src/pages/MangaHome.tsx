@@ -169,7 +169,7 @@ export default function MangaHome() {
     <main className="container stack manga-home">
       <header className="stack">
         <h1 className="page-title">Манга</h1>
-        <p className="muted">Манга, манхва и маньхуа. Главы на русском и других языках читаются прямо здесь: переводы команд с MangaDex и загруженные к нам.</p>
+        <p className="muted">Манга, манхва и маньхуа. Главы на русском и других языках читаются прямо здесь — переводы команд с MangaDex.</p>
         <form className="manga-home__search" role="search" onSubmit={submit}>
           <input
             type="search"

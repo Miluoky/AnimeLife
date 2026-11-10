@@ -23,7 +23,7 @@ import { favoriteStudios, playerVoiceKey, rememberVoice, savedVoice, voiceKey as
 import { markFlag } from '../data/flags'
 import { toast } from '../data/toast'
 import { createLocalStore } from '../data/localStore'
-import { usePageMeta, useJsonLd } from '../data/pageMeta'
+import { useJsonLd, useNoIndex, usePageMeta } from '../data/pageMeta'
 import { buildJsonLdEpisode } from '../data/seoEngine'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, BulbIcon, CloseIcon, SearchIcon, ShareIcon, SkipIcon, WideIcon } from '../components/Icons'
@@ -249,6 +249,7 @@ export default function Player() {
     anime && watchPageTitle(animeInfo(anime), current),
     anime && watchPageDescription(animeInfo(anime), current, total),
   )
+  useNoIndex(watchBase.startsWith('/hentai'))
 
   const episodeJsonLd = useMemo(() => {
     if (!anime) return null

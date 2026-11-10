@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { loadCatalog, useAsync } from '../api'
 import type { Anime } from '../data/catalog'
 import { GENRES } from '../data/seo'
-import { tasteStore } from '../data/taste'
+import { TASTE_SNOOZE_MS, tasteOnboardingHidden, tasteStore } from '../data/taste'
 import { useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
 import { toast } from '../data/toast'
@@ -40,7 +40,7 @@ export default function Onboarding() {
   const list = useMyList()
   const history = useHistory()
   const [open, setOpen] = useState(false)
-  if (taste.done || list.length || history.length) return null
+  if (tasteOnboardingHidden(taste) || list.length || history.length) return null
 
   return (
     <section className="onboard-card" role="region" aria-labelledby="onboard-title">
@@ -53,7 +53,11 @@ export default function Onboarding() {
         <button type="button" className="btn btn--accent" onClick={() => setOpen(true)}>
           Подобрать аниме
         </button>
-        <button type="button" className="link-btn" onClick={() => tasteStore.set({ ...taste, done: true })}>
+        <button
+          type="button"
+          className="link-btn"
+          onClick={() => tasteStore.set({ ...taste, snoozeUntil: Date.now() + TASTE_SNOOZE_MS })}
+        >
           Не сейчас
         </button>
       </div>
@@ -89,7 +93,7 @@ function OnboardingDialog({ onClose }: { onClose: () => void }) {
     })
 
   const finish = () => {
-    tasteStore.set({ genres, liked: [...liked].map(([id, title]) => ({ id, title })), done: true })
+    tasteStore.set({ genres, liked: [...liked].map(([id, title]) => ({ id, title })), done: true, snoozeUntil: undefined })
     onClose()
     toast('Готово! Подборка «Вам понравится» уже на главной')
     requestAnimationFrame(() => document.getElementById('recs')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))

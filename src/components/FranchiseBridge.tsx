@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { getFranchiseByAnimeId } from '../data/franchises'
 import { mangaProgressStore, type ReadProgress } from '../data/mangaProgress'
 import { listStatuses, useMyListEntry } from '../data/myList'
 import './franchise-bridge.css'
@@ -9,6 +10,7 @@ type MangaProps = {
   href: string
   mangaId: string
   relation?: string
+  chronologyAnimeId?: string
 }
 
 type AnimeProps = {
@@ -32,7 +34,36 @@ function readLine(p: ReadProgress | undefined) {
   return `${head}${page}`
 }
 
-function MangaBridge({ title, href, mangaId, relation }: MangaProps) {
+function ChronologyCta({ animeId }: { animeId?: string }) {
+  const franchise = animeId ? getFranchiseByAnimeId(animeId) : undefined
+  if (!franchise) return null
+  return (
+    <Link to={`/chronology/${franchise.id}`} className="btn btn--ghost btn--small">
+      Гид по франшизе
+    </Link>
+  )
+}
+
+export function FranchiseChronologyBridge({ animeId }: { animeId: string }) {
+  const franchise = getFranchiseByAnimeId(animeId)
+  if (!franchise) return null
+  return (
+    <article className="franchise-bridge">
+      <div className="franchise-bridge__text">
+        <span className="franchise-bridge__label">Порядок просмотра</span>
+        <Link to={`/chronology/${franchise.id}`} className="franchise-bridge__title link-accent">
+          {franchise.title}
+        </Link>
+        <p className="muted">Сезоны и фильмы в рекомендуемом порядке</p>
+      </div>
+      <Link to={`/chronology/${franchise.id}`} className="btn btn--accent btn--small">
+        Гид по франшизе
+      </Link>
+    </article>
+  )
+}
+
+function MangaBridge({ title, href, mangaId, relation, chronologyAnimeId }: MangaProps) {
   const progress = mangaProgressStore.use()[mangaId]
   const line = readLine(progress)
   const continueTo = progress?.chapterId
@@ -53,9 +84,12 @@ function MangaBridge({ title, href, mangaId, relation }: MangaProps) {
           </p>
         )}
       </div>
-      <Link to={continueTo ?? href} className="btn btn--accent btn--small">
-        {continueTo ? 'Продолжить' : 'Читать мангу'}
-      </Link>
+      <div className="franchise-bridge__actions">
+        <Link to={continueTo ?? href} className="btn btn--accent btn--small">
+          {continueTo ? 'Продолжить' : 'Читать мангу'}
+        </Link>
+        <ChronologyCta animeId={chronologyAnimeId} />
+      </div>
     </article>
   )
 }
@@ -80,9 +114,12 @@ function AnimeBridge({ title, href, animeId, relation }: AnimeProps) {
           </p>
         )}
       </div>
-      <Link to={href} className="btn btn--accent btn--small">
-        Смотреть аниме
-      </Link>
+      <div className="franchise-bridge__actions">
+        <Link to={href} className="btn btn--accent btn--small">
+          Смотреть аниме
+        </Link>
+        <ChronologyCta animeId={animeId} />
+      </div>
     </article>
   )
 }

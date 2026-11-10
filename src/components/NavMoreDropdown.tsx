@@ -28,6 +28,8 @@ const CATEGORIES: DropdownCategory[] = [
   {
     title: 'Медиа и Справочники',
     items: [
+      { to: '/season', title: 'Сезон', desc: 'Чарт текущего сезона', icon: '☀️' },
+      { to: '/ongoing', title: 'Онгоинги', desc: 'Выходят прямо сейчас', icon: '📡' },
       { to: '/top', title: 'Топ-100 аниме', desc: 'Лучшие по рейтингу', icon: '🏆' },
       { to: '/chronology', title: 'Хронологии франшиз', desc: 'Порядок просмотра', icon: '⏳' },
       { to: '/trope', title: 'Коллекции тропов', desc: 'Сюжетные архетипы', icon: '🏷️' },

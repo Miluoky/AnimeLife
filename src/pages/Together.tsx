@@ -13,6 +13,7 @@ import {
   deleteRoomMessage,
   loadMessages,
   loadRoom,
+  reportRoomMessage,
   roomPosition,
   sendRoomMessage,
   serverNow,
@@ -624,8 +625,10 @@ function Chat({
 }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [reported, setReported] = useState<Set<string>>(new Set())
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
   const list = useRef<HTMLOListElement>(null)
-  const chat = messages.filter((m) => m.kind === 'chat')
+  const chat = messages.filter((m) => m.kind === 'chat' && !hidden.has(m.$id))
 
   useEffect(() => {
     const el = list.current
@@ -648,6 +651,18 @@ function Chat({
 
   const react = (emoji: string) =>
     sendRoomMessage(room.$id, 'reaction', emoji, currentTime()).catch((err) => toast(errorText(err)))
+
+  const report = async (id: string) => {
+    if (reported.has(id)) return
+    try {
+      const res = await reportRoomMessage(id)
+      setReported((s) => new Set(s).add(id))
+      if (res.hidden) setHidden((s) => new Set(s).add(id))
+      toast(res.already ? 'Вы уже жаловались на это сообщение' : 'Жалоба отправлена, спасибо')
+    } catch (err) {
+      toast(errorText(err))
+    }
+  }
 
   return (
     <aside className="together__chat" aria-label="Чат комнаты">
@@ -673,6 +688,16 @@ function Chat({
               {formatTime(m.t)}
             </button>
             <p>{m.text}</p>
+            {signedIn && m.userId !== myId && (
+              <button
+                type="button"
+                className="chat__report"
+                disabled={reported.has(m.$id)}
+                onClick={() => void report(m.$id)}
+              >
+                {reported.has(m.$id) ? 'Жалоба отправлена' : 'Пожаловаться'}
+              </button>
+            )}
             {(canModerate || m.userId === myId) && (
               <button
                 type="button"

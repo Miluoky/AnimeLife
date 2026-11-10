@@ -10,7 +10,7 @@ import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
 import { isAdultContent } from '../data/adult'
 import FranchiseBridge from '../components/FranchiseBridge'
 import { animeHref } from '../data/animeUrl'
-import { usePageMeta } from '../data/pageMeta'
+import { useNoIndex, usePageMeta } from '../data/pageMeta'
 import NotFound from './NotFound'
 import './character.css'
 import './manga.css'
@@ -51,7 +51,7 @@ function Description({ parts }: { parts: Manga['description'] }) {
 const chapterUrl = (mangaId: string, chapterId: string, lang: string, base = '/manga') =>
   `${base}/${mangaId}/chapter/${chapterId}?lang=${lang}`
 
-/** «Читать»: главы прямо на сайте — загруженные командами к нам и из MangaDex, язык на выбор (русский первым). */
+/** «Читать»: главы с MangaDex, язык на выбор (русский первым). */
 function ReadBlock({ m, adult }: { m: Manga; adult?: boolean }) {
   const location = useLocation()
   const mangaBase = location.pathname.startsWith('/hentai-manga') ? '/hentai-manga' : '/manga'
@@ -100,9 +100,9 @@ function ReadBlock({ m, adult }: { m: Manga; adult?: boolean }) {
   let body
   if (sources.loading || (title && chapters.loading && !list.length)) body = <p className="muted">Ищем главы…</p>
   else if (chapters.value === 'error') body = <p className="muted">Не удалось загрузить главы. Попробуйте обновить страницу.</p>
-  else if (!title || !lang) body = <p className="muted">Глав для чтения на сайте пока нет.</p>
+  else if (!title || !lang) body = <p className="muted">Глав на MangaDex пока нет.</p>
   // Лицензионные главы MangaDex убирает: язык в списке есть, а читать на нём нечего.
-  else if (!list.length) body = <p className="muted">На этом языке глав на сайте нет, выберите другой.</p>
+  else if (!list.length) body = <p className="muted">На этом языке глав на MangaDex нет, выберите другой.</p>
   else
     body = (
       <>
@@ -138,7 +138,7 @@ function ReadBlock({ m, adult }: { m: Manga; adult?: boolean }) {
               </a>
             </>
           ) : (
-            '. Глав на сайте пока мало — открывайте тайтл, когда появятся переводы.'
+            '. Глав на MangaDex пока мало — откройте тайтл, когда появятся переводы.'
           )}
           .
         </p>
@@ -176,6 +176,7 @@ export default function MangaPage() {
     m ? `${m.title}: ${m.kind.toLowerCase()}` : 'Манга',
     m ? `${m.title}${m.originalTitle ? ` (${m.originalTitle})` : ''}: описание, тома и главы, аниме-экранизации.` : '',
   )
+  useNoIndex(hentaiPath)
 
   if (state.value === null && !state.loading) return <NotFound />
   if (state.value === 'error' && !state.loading)

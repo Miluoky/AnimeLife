@@ -41,6 +41,7 @@ const IMPLEMENTED = new Set([
   'room-control',
   'room-message',
   'room-message-delete',
+  'room-message-report',
   'room-close',
   'room-presence',
   'room-signal',
@@ -84,6 +85,7 @@ const IMPLEMENTED = new Set([
   'account-export',
   'account-delete',
   'mod-list',
+  'mod-counts',
   'mod-action',
   'comment-mod-list',
   'comment-mod-action',
@@ -107,7 +109,7 @@ export async function handleAction(request, env) {
   if (!action) return err('Нужен action', 400)
 
   if (action === 'health') {
-    return json({ ok: true, backend: 'core', implemented: [...IMPLEMENTED] })
+    return json({ ok: true, backend: 'core' })
   }
 
   const session = await userFromRequest(env, request)
@@ -187,12 +189,14 @@ export async function handleAction(request, env) {
     handleClubsAction,
     handlePushAction,
     handleCommunityAction,
-    handleAnalyticsAction,
     handleAccountAction,
   ]) {
     const handled = await handler(env, session, body)
     if (handled) return handled
   }
+
+  const analytics = await handleAnalyticsAction(env, session, body, request)
+  if (analytics) return analytics
 
   const misc = await handleMiscAction(env, session, body, request)
   if (misc) return misc

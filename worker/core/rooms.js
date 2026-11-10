@@ -2,15 +2,17 @@
  * Комнаты «Вместе» на D1. Живые обновления на клиенте — короткий polling (без Appwrite Realtime).
  */
 
-import { err, json, userFromRequest } from './auth.js'
+import { err, json } from './auth.js'
 import { coreCacheHeaders } from './router.js'
 import { randomId } from './crypto.js'
+import { heldReason, rejectSpam, UserError } from './automod.js'
 import { cleanupVoice, deleteRoomVoice, handleVoiceGet, roomPresence, roomSignal } from './voice.js'
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const REACTIONS = new Set(['❤️', '😂', '😮', '😭', '🔥', '👏'])
 const MAX_MESSAGE = 300
 const ROOM_TTL = 6 * 3600 * 1000
+const REPORTS_TO_HIDE = 3
 
 function code() {
   let s = ''
@@ -235,6 +237,14 @@ export async function handleRoomAction(env, session, body) {
     let text = String(body.text || '').trim().slice(0, MAX_MESSAGE)
     if (kind === 'reaction' && !REACTIONS.has(text)) return err('Неизвестная реакция.', 400)
     if (kind === 'chat' && text.length < 1) return err('Пустое сообщение.', 400)
+    if (kind === 'chat') {
+      try {
+        rejectSpam(text)
+      } catch (e) {
+        return err(e instanceof UserError ? e.message : 'Сообщение отклонено.', 400)
+      }
+      if (heldReason(text)) return err('В чате комнаты нельзя мат и ссылки на чужие сайты.', 400)
+    }
     const id = randomId(12)
     const now = Date.now()
     const payload = JSON.stringify({ kind, text, t: Number(body.t) || 0 })
@@ -256,6 +266,29 @@ export async function handleRoomAction(env, session, body) {
         at: now,
       },
     })
+  }
+
+  if (action === 'room-message-report') {
+    if (!session) return err('Войдите, чтобы жаловаться на сообщение.', 401)
+    const messageId = String(body.messageId || '')
+    if (!/^[a-zA-Z0-9]{1,36}$/.test(messageId)) return err('Сообщение не найдено.', 400)
+    const msg = await env.DB.prepare('SELECT * FROM messages WHERE id = ?').bind(messageId).first()
+    if (!msg) return err('Сообщение не найдено.', 404)
+    if (msg.user_id === session.user.$id) return err('На своё сообщение жаловаться нельзя.', 400)
+    const voteId = `${session.user.$id}:rreport:${messageId}`
+    if (await env.DB.prepare('SELECT id FROM votes WHERE id = ?').bind(voteId).first()) {
+      return json({ ok: true, already: true, hidden: false })
+    }
+    await env.DB.prepare('INSERT INTO votes (id, user_id, target_id, kind, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(voteId, session.user.$id, messageId, 'rreport', Date.now())
+      .run()
+    const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM votes WHERE target_id = ? AND kind = ?')
+      .bind(messageId, 'rreport')
+      .first()
+    const reports = Number(count?.n) || 0
+    const hidden = reports >= REPORTS_TO_HIDE
+    if (hidden) await env.DB.prepare('DELETE FROM messages WHERE id = ?').bind(messageId).run()
+    return json({ ok: true, already: false, hidden })
   }
 
   if (action === 'room-message-delete') {

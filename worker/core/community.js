@@ -298,6 +298,24 @@ export async function handleCommunityAction(env, session, body) {
     return json({ ok: true })
   }
 
+  if (action === 'mod-counts') {
+    if (!session) return err('Войдите, чтобы модерировать.', 401)
+    if (!isAdmin(session)) return err('Нужны права модератора.', 403)
+    const countWhere = async (table, extra = '') => {
+      const row = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM ${table} WHERE reports > 0 OR hidden = 1${extra}`,
+      ).first()
+      return Number(row?.n) || 0
+    }
+    const [reviews, comments, chat, takedowns] = await Promise.all([
+      countWhere('reviews'),
+      countWhere('comments'),
+      countWhere('community_chat'),
+      env.DB.prepare(`SELECT COUNT(*) AS n FROM takedowns WHERE status = ?`).bind('new').first().then((r) => Number(r?.n) || 0),
+    ])
+    return json({ reviews, comments, chat, takedowns, total: reviews + comments + chat + takedowns })
+  }
+
   if (action === 'mod-list') {
     if (!session) return err('Войдите, чтобы модерировать.', 401)
     if (!isAdmin(session)) return err('Нужны права модератора.', 403)

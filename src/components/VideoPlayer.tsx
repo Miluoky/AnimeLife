@@ -227,8 +227,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   // Ошибка воспроизведения текущего потока (сбрасывается при смене потока).
   const [streamError, setStreamError] = useState<string | null>(null)
 
-  // 3.5s auto-failover to next available provider on stream error (Kodik -> Alloha -> AniLibria -> AnimeVost -> DreamCast -> Sibnet)
+  // 3.5s auto-failover to next available provider on stream error (Kodik -> Alloha -> AniLibria -> AnimeVost -> DreamCast -> Sibnet).
+  // Если странице отдали onProviderChange или onUnavailable — каскад у неё (Player.fallBack), здесь лестницу не дублируем.
   useEffect(() => {
+    if (props.onProviderChange || props.onUnavailable) return
     if ((error || streamError) && tabs.length > 1) {
       const currentIdx = provider ? BALANCER_FALLBACK_LADDER.indexOf(provider) : -1
       const ladderCandidates = currentIdx >= 0
@@ -259,7 +261,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         return () => window.clearTimeout(timer)
       }
     }
-  }, [error, streamError, tabs, provider])
+  }, [error, streamError, tabs, provider, props.onProviderChange, props.onUnavailable])
   // ─── AnimeVost state ───
   const [avEpisodes, setAvEpisodes] = useState<AnimeVostEpisode[] | null>(null)
   const [avSearching, setAvSearching] = useState(false)
@@ -570,7 +572,32 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   /* ─── Продолжить с места: своё видео и Kodik ─── */
   // Плашка «Продолжили с 12:34» с кнопкой «С начала»; seek перематывает тот плеер, что сейчас играет.
   const [resumed, setResumed] = useState<{ at: number; seek: (t: number) => void } | null>(null)
+  const [resumeBlocked, setResumeBlocked] = useState(false)
+  const resumeWarnKey = useRef('')
   useEffect(() => setResumed(null), [shikimoriId, episode, provider])
+  // Чужой iframe (не Kodik и не свой поток) не умеет перемотать к сохранённой секунде — честно говорим об этом.
+  useEffect(() => {
+    if (!provider || provider === 'kodik' || isOwn) {
+      setResumeBlocked(false)
+      return
+    }
+    const at = getPosition(positionKey, episode)
+    if (at == null || at <= 0) {
+      setResumeBlocked(false)
+      return
+    }
+    setResumeBlocked(true)
+    const key = `${positionKey}:${episode}`
+    if (resumeWarnKey.current !== key) {
+      resumeWarnKey.current = key
+      toast('Продолжение с секунды недоступно в этом плеере')
+    }
+  }, [provider, isOwn, positionKey, episode])
+  useEffect(() => {
+    if (!resumeBlocked) return
+    const t = setTimeout(() => setResumeBlocked(false), 7000)
+    return () => clearTimeout(t)
+  }, [resumeBlocked, provider])
   useEffect(() => {
     if (!resumed) return
     const t = setTimeout(() => setResumed(null), 7000)
@@ -1417,6 +1444,11 @@ export default function VideoPlayer(props: VideoPlayerProps) {
           </Suspense>
         )}
 
+        {resumeBlocked && !resumed && !unavailable && (
+          <div className="vp-resume" role="status">
+            <span>Продолжение с секунды недоступно в этом плеере</span>
+          </div>
+        )}
         {resumed && !unavailable && (
           <div className="vp-resume" role="status">
             <span>Продолжили с {formatTime(resumed.at)}</span>

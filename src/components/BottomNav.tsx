@@ -6,7 +6,7 @@ import { listStore } from '../data/myList'
 
 const MoreSheet = lazy(() => import('./MoreSheet'))
 
-const IN_MORE = /^\/(together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice|hentai|hentai-manga)/
+const IN_MORE = /^\/(together|account|top|random|collections|quiz|duel|chat|season|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice|hentai|hentai-manga)/
 const IN_LIBRARY = /^\/(library|watching|my-list)(\/|$)/
 
 function useInboxCheck(pathname: string) {

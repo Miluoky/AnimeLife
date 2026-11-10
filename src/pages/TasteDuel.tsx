@@ -139,9 +139,13 @@ async function copyCode(code: string, board: DuelBoard) {
   const url = hasA ? publicUrl(`/duel/share?p=${encodeURIComponent(packDuel(board))}`) : publicUrl(`/duel/${code}`)
   try {
     await navigator.clipboard.writeText(url)
-    toast(hasA ? 'Ссылка скопирована. Второй игрок откроет её в любом браузере.' : 'Ссылка скопирована.')
+    toast(
+      hasA
+        ? 'Ссылка скопирована. Второй игрок откроет её в любом браузере.'
+        : 'Ссылка скопирована. Короткий код работает только в этом браузере.',
+    )
   } catch {
-    toast(hasA ? 'Не удалось скопировать ссылку' : `Код ${code}`)
+    toast(hasA ? 'Не удалось скопировать ссылку' : `Код ${code} — только в этом браузере`)
   }
 }
 
@@ -320,38 +324,33 @@ export default function TasteDuel() {
   }
 
   if (phase === 'handoff') {
-    const hasA = (board.a?.length ?? 0) > 0
-    const shareUrl = hasA ? publicUrl(`/duel/share?p=${encodeURIComponent(packDuel(board))}`) : code ? publicUrl(`/duel/${code}`) : ''
+    const shareUrl = publicUrl(`/duel/share?p=${encodeURIComponent(packDuel(board))}`)
     return (
       <Shell>
         <Head
           kicker="Игрок 1 ответил"
           title="Передайте телефон"
-          text="Ответы первого скрыты. Второй выбирает, что ближе, в тех же парах — на этом экране или по ссылке в любом браузере."
+          text="Ответы первого скрыты. Второй выбирает, что ближе, в тех же парах — по общей ссылке в любом браузере или здесь."
         />
+        <div className="duel-share-card" aria-label="Ссылка для второго игрока">
+          <p className="duel-share-card__lead">Ссылка для второго</p>
+          <div className="duel-share-card__url">
+            <output className="duel-share-url">{shareUrl}</output>
+          </div>
+          <p className="muted duel-share-card__hint">Можно отправить в мессенджер — откроется в любом браузере.</p>
+        </div>
         {code ? (
           <p className="duel-code">
-            Код <b>{code}</b>
+            Короткий код <b>{code}</b> — только в этом браузере
           </p>
-        ) : null}
-        {shareUrl ? (
-          <div className="duel-share-card" aria-label="Ссылка для второго игрока">
-            <p className="duel-share-card__lead">Ссылка для второго</p>
-            <div className="duel-share-card__url">
-              <output className="duel-share-url">{shareUrl}</output>
-            </div>
-            <p className="muted duel-share-card__hint">Можно отправить в мессенджер — откроется в любом браузере.</p>
-          </div>
         ) : null}
         <div className="actions duel-handoff-actions">
           <button type="button" className="btn btn--accent" onClick={() => setAsSecond(true)}>
             Я игрок 2
           </button>
-          {code ? (
-            <button type="button" className="btn btn--ghost" onClick={() => void copyCode(code, board)}>
-              Скопировать ссылку
-            </button>
-          ) : null}
+          <button type="button" className="btn btn--ghost" onClick={() => void copyCode(code ?? '', board)}>
+            Скопировать ссылку
+          </button>
         </div>
       </Shell>
     )
@@ -371,7 +370,7 @@ export default function TasteDuel() {
       />
       {code && !isShare ? (
         <p className="duel-code">
-          Код <b>{code}</b>
+          Короткий код <b>{code}</b> — только в этом браузере
         </p>
       ) : null}
       <div className="duel-pair">
@@ -454,7 +453,7 @@ function Setup({
             </button>
           </div>
           <p className="muted duel-note">
-            Играете по очереди на этом экране. После первого игрока скопируйте ссылку — второй откроет её в любом браузере.
+            Играете по очереди на этом экране. После первого игрока скопируйте общую ссылку — второй откроет её в любом браузере. Короткий код работает только в этом браузере.
           </p>
         </>
       )}

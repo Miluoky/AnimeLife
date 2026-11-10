@@ -35,10 +35,12 @@ function ReviewForm({ animeId, mine, onSaved }: { animeId: string; mine?: Review
   const [captchaKey, setCaptchaKey] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [adult, setAdult] = useState(false)
   const length = text.trim().length
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
+    if (!adult) return
     setBusy(true)
     setError('')
     try {
@@ -86,6 +88,10 @@ function ReviewForm({ animeId, mine, onSaved }: { animeId: string; mine?: Review
         </small>
       </label>
       <Turnstile key={captchaKey} onToken={setCaptcha} />
+      <label className="appearance__toggle">
+        <input type="checkbox" required checked={adult} onChange={(e) => setAdult(e.target.checked)} />
+        <span>Мне есть 16 лет</span>
+      </label>
       <div className="review-form__row">
         <label className="btn btn--ghost list-select">
           <span className="sr-only">Оценка в отзыве</span>
@@ -101,7 +107,7 @@ function ReviewForm({ animeId, mine, onSaved }: { animeId: string; mine?: Review
         <button
           type="submit"
           className="btn btn--accent"
-          disabled={busy || length < REVIEW_MIN || (captchaEnabled && !captcha)}
+          disabled={busy || !adult || length < REVIEW_MIN || (captchaEnabled && !captcha)}
         >
           {busy ? 'Секунду…' : mine ? 'Сохранить' : 'Опубликовать'}
         </button>

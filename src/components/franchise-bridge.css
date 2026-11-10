@@ -24,6 +24,12 @@
 .franchise-bridge__title {
   font-weight: 700;
 }
+.franchise-bridge__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .franchise-bridge p {
   margin: 0;
 }

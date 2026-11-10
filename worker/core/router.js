@@ -44,7 +44,24 @@ export async function coreApi(request, env) {
   let res
   try {
     if (path === '/health' || path === '/') {
-      res = json({ ok: true, backend: 'core', time: Date.now() })
+      const time = Date.now()
+      let d1 = false
+      let kv = false
+      try {
+        const row = await env.DB.prepare('SELECT 1 AS ok').first()
+        d1 = row?.ok === 1
+      } catch (e) {
+        console.error('health d1', e)
+      }
+      try {
+        const probe = `health:probe:${time}`
+        await env.SESSIONS.put(probe, '1', { expirationTtl: 60 })
+        kv = (await env.SESSIONS.get(probe)) === '1'
+        await env.SESSIONS.delete(probe)
+      } catch (e) {
+        console.error('health kv', e)
+      }
+      res = json({ ok: d1 && kv, backend: 'core', d1, kv, time })
     } else if (path.startsWith('/auth/oauth')) {
       res = await handleOAuth(request, env, path)
     } else if (path.startsWith('/auth/')) {

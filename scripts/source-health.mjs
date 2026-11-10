@@ -2,8 +2,7 @@
 // Каждый сервис опрашивается так же, как это делает сайт; не ответил дважды подряд — считаем упавшим.
 // Состояние прошлой проверки лежит в .health/state.json (кэш GitHub Actions): в Telegram пишем только
 // когда что-то упало или поднялось, а не каждый час.
-// Кому писать: TELEGRAM_ADMIN_CHAT_ID, иначе администраторам сайта (метка admin в Appwrite),
-// вошедшим через Telegram. Токен бота — TELEGRAM_BOT_TOKEN или переменная функции входа (APPWRITE_API_KEY).
+// Кому писать: TELEGRAM_ADMIN_CHAT_ID (через запятую — несколько чатов). Токен — TELEGRAM_BOT_TOKEN.
 // Ещё считает вызовы Worker за сутки UTC (лимит бесплатного плана 100 000, сброс в 00:00 UTC): на 70 и 90 тысячах
 // пишет администратору один раз за сутки на каждый порог, пока сайт не начал отвечать Error 1027.
 // Нужны ключи публикации CLOUDFLARE_EMAIL и CLOUDFLARE_API_KEY (секреты ANIMELIFE_CF_*); без них проверка пропускается.
@@ -15,8 +14,6 @@ import { promisify } from 'node:util'
 const run = promisify(execFile)
 
 const SITE = process.env.SITE_URL || 'https://animelife.top'
-const APPWRITE = 'https://fra.cloud.appwrite.io/v1'
-const PROJECT = '6abf65850016889f9b1b'
 const STATE_FILE = '.health/state.json'
 const TIMEOUT = 15_000
 
@@ -26,6 +23,19 @@ const TIMEOUT = 15_000
 const CHECKS = [
   { name: 'Сайт animelife.top', url: `${SITE}/`, expect: (t) => t.includes('id="root"'), challengeOk: true },
   { name: 'Каталог (прокси Shikimori)', url: `${SITE}/api/shiki/api/animes/1`, expect: (t) => t.includes('"id":1'), challengeOk: true },
+  {
+    name: 'Core API (аккаунты, списки)',
+    url: `${SITE}/api/core/health`,
+    expect: (t) => {
+      try {
+        const j = JSON.parse(t)
+        return j.ok === true && j.d1 === true && j.kv === true
+      } catch {
+        return false
+      }
+    },
+    challengeOk: true,
+  },
   { name: 'AniLibria', url: 'https://anilibria.top/api/v1/anime/releases/latest?limit=1', mirror: 'https://aniliberty.top/api/v1/anime/releases/latest?limit=1' },
   { name: 'AnimeVost', url: 'https://api.animevost.org/v1/search', init: { method: 'POST', body: new URLSearchParams({ name: 'Наруто' }) }, expect: (t) => t.includes('"data"') },
   {
@@ -35,13 +45,6 @@ const CHECKS = [
     expect: (t) => t.includes('"content"'),
   },
   { name: 'YummyAnime', url: 'https://api.yani.tv/search?q=naruto&limit=1', expect: (t) => t.includes('"response"') },
-  // Обращение с заголовком проекта не даёт бесплатному плану Appwrite Cloud уснуть от неактивности.
-  {
-    name: 'Appwrite (аккаунты, списки, комментарии)',
-    url: `${APPWRITE}/locale`,
-    init: { headers: { 'X-Appwrite-Project': PROJECT } },
-    expect: (t) => t.includes('countryCode'),
-  },
 ]
 if (process.env.KODIK_TOKEN) {
   CHECKS.push({ name: 'Kodik', url: `https://kodik-api.com/search?token=${process.env.KODIK_TOKEN}&shikimori_id=1`, expect: (t) => t.includes('"results"'), secret: true })
@@ -80,34 +83,15 @@ async function check(c) {
 }
 
 async function botToken() {
-  if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN
-  const key = process.env.APPWRITE_API_KEY
-  if (!key) return ''
-  const res = await fetch(`${APPWRITE}/functions/social-login/variables`, { headers: { 'X-Appwrite-Project': PROJECT, 'X-Appwrite-Key': key } }).catch(() => undefined)
-  const json = res?.ok ? await res.json().catch(() => ({})) : {}
-  const token = (json.variables ?? []).find((v) => v.key === 'TELEGRAM_BOT_TOKEN')?.value ?? ''
+  const token = process.env.TELEGRAM_BOT_TOKEN || ''
   if (token && process.env.GITHUB_ACTIONS) console.log(`::add-mask::${token}`)
   return token
 }
 
-/** Администраторы сайта, вошедшие через Telegram: id аккаунта tg_<chat id>. */
+/** Чаты администраторов для алертов (TELEGRAM_ADMIN_CHAT_ID, через запятую). */
 async function adminChats() {
-  if (process.env.TELEGRAM_ADMIN_CHAT_ID) return process.env.TELEGRAM_ADMIN_CHAT_ID.split(',').map((s) => s.trim()).filter(Boolean)
-  const key = process.env.APPWRITE_API_KEY
-  if (!key) return []
-  const chats = []
-  for (let offset = 0; offset < 5000; offset += 100) {
-    const q = [{ method: 'limit', values: [100] }, { method: 'offset', values: [offset] }].map((x) => `queries[]=${encodeURIComponent(JSON.stringify(x))}`).join('&')
-    const res = await fetch(`${APPWRITE}/users?${q}`, { headers: { 'X-Appwrite-Project': PROJECT, 'X-Appwrite-Key': key } }).catch(() => undefined)
-    const json = res?.ok ? await res.json().catch(() => ({})) : {}
-    const users = json.users ?? []
-    for (const u of users) {
-      const m = /^tg_(\d{1,20})$/.exec(u.$id)
-      if (m && (u.labels ?? []).includes('admin')) chats.push(m[1])
-    }
-    if (users.length < 100) break
-  }
-  return chats
+  if (!process.env.TELEGRAM_ADMIN_CHAT_ID) return []
+  return process.env.TELEGRAM_ADMIN_CHAT_ID.split(',').map((s) => s.trim()).filter(Boolean)
 }
 
 async function notify(text) {

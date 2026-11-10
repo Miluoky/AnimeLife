@@ -137,6 +137,7 @@ export default function EpisodeComments({
   const [items, setItems] = useState<EpisodeComment[] | null>(null)
   const [text, setText] = useState('')
   const [spoiler, setSpoiler] = useState(false)
+  const [adult, setAdult] = useState(false)
   const [busy, setBusy] = useState(false)
   const [shown, setShown] = useState<Set<string>>(new Set())
   const [reported, setReported] = useState<Set<string>>(new Set())
@@ -175,12 +176,14 @@ export default function EpisodeComments({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!adult) return
     setBusy(true)
     try {
       const c = await saveComment(animeId, ep, text, spoiler, replyTo?.$id)
       setItems((list) => [c, ...(list ?? [])])
       setText('')
       setSpoiler(false)
+      setAdult(false)
       setReplyTo(null)
       markFlag('commented')
       if (c.hidden) toast('Комментарий виден только вам, пока его не проверит модератор: в нём мат или ссылка на другой сайт')
@@ -302,13 +305,17 @@ export default function EpisodeComments({
                 <input type="checkbox" checked={spoiler} onChange={(e) => setSpoiler(e.target.checked)} />
                 <span>Спойлер</span>
               </label>
+              <label className="appearance__toggle">
+                <input type="checkbox" required checked={adult} onChange={(e) => setAdult(e.target.checked)} />
+                <span>Мне есть 16 лет</span>
+              </label>
               {!aboutTitle && (
                 <button type="button" className="link-btn" onClick={insertTime}>
                   Вставить время
                 </button>
               )}
             </div>
-            <button type="submit" className="btn btn--accent btn--small" disabled={busy || text.trim().length < 2}>
+            <button type="submit" className="btn btn--accent btn--small" disabled={busy || !adult || text.trim().length < 2}>
               {busy ? 'Отправляем…' : 'Отправить'}
             </button>
           </div>

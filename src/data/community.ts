@@ -54,6 +54,16 @@ export const reportReview = (reviewId: string, captcha?: string) =>
 
 export const loadModeration = () => callCommunity<{ reviews: Review[] }>({ action: 'mod-list' }).then((r) => r.reviews)
 
+export interface ModCounts {
+  reviews: number
+  comments: number
+  chat: number
+  takedowns: number
+  total: number
+}
+
+export const loadModCounts = () => callCommunity<ModCounts>({ action: 'mod-counts' })
+
 export const moderateReview = (reviewId: string, decision: 'hide' | 'show' | 'delete') =>
   callCommunity<{ review?: Review }>({ action: 'mod-action', reviewId, decision })
 

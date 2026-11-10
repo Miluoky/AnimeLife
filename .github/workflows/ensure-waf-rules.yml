@@ -1,8 +1,11 @@
 name: Применить WAF animelife.top
 
 # Поднимает правила 1–4 из docs/worker-limit.md (идемпотентно). Те же ключи, что у animelife.yml.
+# Weekly dry-run ловит drift (правила выключены/изменены в CF UI).
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
 
 permissions:
   contents: read

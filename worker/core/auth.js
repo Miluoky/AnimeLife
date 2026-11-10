@@ -4,6 +4,7 @@
  */
 
 import { hashPassword, randomId, randomToken, sha256Hex, verifyPassword } from './crypto.js'
+import { rateLimitIp } from './rateLimit.js'
 
 const COOKIE = 'al_session'
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
@@ -120,6 +121,12 @@ export async function handleAuth(request, env, path) {
   const method = request.method.toUpperCase()
 
   if (path === '/auth/register' && method === 'POST') {
+    const limited = await rateLimitIp(env, request, {
+      key: 'auth-register',
+      limit: 5,
+      message: 'Слишком много попыток регистрации. Подождите минуту.',
+    })
+    if (limited) return limited
     const body = await bodyJson(request)
     if (!body || !validEmail(body.email) || !validPassword(body.password)) {
       return err('Нужны email и пароль (от 8 символов)', 400)
@@ -157,6 +164,12 @@ export async function handleAuth(request, env, path) {
   }
 
   if (path === '/auth/login' && method === 'POST') {
+    const limited = await rateLimitIp(env, request, {
+      key: 'auth-login',
+      limit: 5,
+      message: 'Слишком много попыток входа. Подождите минуту.',
+    })
+    if (limited) return limited
     const body = await bodyJson(request)
     if (!body || !validEmail(body.email) || typeof body.password !== 'string') {
       return err('Нужны email и пароль', 400)

@@ -8,7 +8,7 @@ import { isAdultContent } from '../data/adult'
 import { CheckIcon, DownloadIcon } from '../components/Icons'
 import { isChapterOffline, saveChapterOffline, getOfflinePages } from '../data/mangaOffline'
 import { OWN_PREFIX, fetchOwnChapter, fetchOwnChapters } from '../api/mangaOwn'
-import { usePageMeta } from '../data/pageMeta'
+import { useNoIndex, usePageMeta } from '../data/pageMeta'
 import './manga-reader.css'
 
 const SAVER_KEY = 'anime.mangaSaver.v1'
@@ -149,6 +149,7 @@ export default function MangaReader() {
     m && current ? `${m.title}: ${chapterLabel(current).toLowerCase()} читать онлайн` : 'Читать мангу',
     m ? `«${m.title}»: читать онлайн на Anime Life.` : '',
   )
+  useNoIndex(hentaiPath)
 
   if (m && needGate && !adultOk) {
     return <AgeGateModal onVerified={() => setAdultOk(true)} />

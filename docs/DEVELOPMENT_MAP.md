@@ -68,6 +68,7 @@
 
 ### Уже сделано (якоря)
 - Core-only · perf watch wave · WAF Free ≤5 · `PERF_WATCH.md` · `worker-limit.md` · RoomDO stub + Free poll · own manga OFF честно.
+- **Волна 2026-11-10 (карта P0–P3 дешёвые):** privacy=Core; TitleFaq `@graph` / no fake AggregateRating; profile 404 + honest /u; library merge+autoSync+`effectiveWatched`; watchBase hentai; MD adult+AgeGate; Together public+Invite; Hero resume; Danmaku-on-only; soft-200→404 chronology/trope/voice; Chronology one `@graph`; voice disclaimer; og:image poster; FranchiseBridge→chronology; Landing related≤8; themes в Catalog; single failover (page-owned); resume honesty non-Kodik; Nav season/ongoing; Discover Together; Home ongoing dedupe; onboarding snooze 7d; TasteDuel share-URL; room chat report; 16+ UGC checkbox; hentai noindex + tags w/o shikiId hidden; manga copy honesty; deep `/health` D1+KV; hide `implemented[]`; KV rate-limit login/analytics; source-health→Core; backup `D1_BACKUP_PASSPHRASE`; WAF ensure weekly schedule; legal ban honesty; Admin mod-queue badge; SW `v5`; JSON import + Shiki on Library; `/my-list`→`/library`; FailoverPlayer deleted; spoiler wraps About.
 
 ---
 

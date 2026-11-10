@@ -115,7 +115,7 @@ export default function MyList({ embedded, status }: { embedded?: boolean; statu
         <div className="actions">
           <CalendarExport />
         </div>
-        <ListTools />
+        {!embedded && <ListTools />}
         <p className="muted source-note">
           {user ? (
             'Список сохраняется в вашем аккаунте и одинаков на всех устройствах.'

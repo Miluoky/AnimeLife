@@ -13,6 +13,7 @@ import './library.css'
 const MyListView = lazy(() => import('./MyList'))
 const WatchingView = lazy(() => import('./Watching'))
 const ListTools = lazy(() => import('../components/ListTools'))
+const ShikimoriSync = lazy(() => import('../components/ProfileExtras').then((m) => ({ default: m.ShikimoriSync })))
 
 const TABS = [
   { id: 'new', title: 'Новые серии' },
@@ -148,8 +149,9 @@ export default function LibraryPage() {
       </header>
 
       <Suspense fallback={null}>
-        <div className="library-import">
+        <div className="library-import stack">
           <ListTools />
+          <ShikimoriSync />
         </div>
       </Suspense>
 

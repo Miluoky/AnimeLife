@@ -64,6 +64,24 @@ export default function ListTools() {
             }}
           />
         </label>
+        <label className="stack list-tools__card">
+          <strong>Из копии Anime Life</strong>
+          <span className="muted">Файл «Копия (JSON)», который выгружали раньше с этого сайта.</span>
+          <span className="btn btn--ghost btn--small" aria-busy={busy === 'json'}>
+            {busy === 'json' ? 'Загружаем…' : 'Выбрать JSON'}
+          </span>
+          <input
+            type="file"
+            accept=".json,application/json"
+            hidden
+            disabled={!!busy}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void run('json', async () => (await import('../data/listImport')).importJsonFile(file))
+            }}
+          />
+        </label>
         <div className="stack list-tools__card">
           <strong>Выгрузить</strong>
           <span className="muted">Файл для MyAnimeList, Shikimori и AniList или полная копия списка.</span>

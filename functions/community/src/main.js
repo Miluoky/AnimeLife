@@ -15,6 +15,7 @@ import {
   roomCreate,
   roomMessage,
   roomMessageDelete,
+  roomMessageReport,
   roomPresence,
   roomSignal,
 } from './rooms.js'
@@ -616,6 +617,8 @@ export default async ({ req, res, log, error }) => {
         return res.json(await roomClose(api, req, body))
       case 'room-message-delete':
         return res.json(await roomMessageDelete(api, req, body))
+      case 'room-message-report':
+        return res.json(await roomMessageReport(api, req, body))
       case 'community-chat-send':
         return res.json(await communityChatSend(api, req, body))
       case 'community-chat-delete':

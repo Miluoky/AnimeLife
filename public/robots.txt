@@ -120,6 +120,7 @@ Disallow: /collections/my
 Disallow: /manga/*/upload
 Disallow: /recap
 Disallow: /search*
+Disallow: /hentai
 # Clean-param for Yandex: collapse duplicate query strings and tracking parameters
 Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&utm_referrer&yclid&gclid&fbclid&_openstat&openstat&from&ref&ysclid /
 Clean-param: t&time&start /watch/*
@@ -176,6 +177,7 @@ Disallow: /collections/new
 Disallow: /manga/*/upload
 Disallow: /recap
 Disallow: /search*
+Disallow: /hentai
 
 # ------------------------------------------------------------------------------
 # 5. Default Rules for All Other Legitimate Crawlers (Bing, Mail.ru, DuckDuckGo, etc.)
@@ -214,6 +216,7 @@ Disallow: /collections/my
 Disallow: /manga/*/upload
 Disallow: /recap
 Disallow: /search*
+Disallow: /hentai
 
 # ------------------------------------------------------------------------------
 # 6. Crawl Host & Dynamic Sitemap Index

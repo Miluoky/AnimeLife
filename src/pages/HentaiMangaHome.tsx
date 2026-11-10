@@ -4,12 +4,13 @@ import { searchHentaiMangas } from '../api/hentaiManga'
 import type { Anime } from '../data/catalog'
 import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
 import HentaiCard from '../components/HentaiCard'
-import { usePageMeta } from '../data/pageMeta'
+import { useNoIndex, usePageMeta } from '../data/pageMeta'
 import './hentai-catalog.css'
 import './hentai-manga.css'
 
 export default function HentaiMangaHome() {
   usePageMeta('Хентай Манга — читать онлайн (18+)', 'Каталог хентай-манги, додзинси и вебтунов 18+. Удобное чтение онлайн бесплатно на AnimeLife.')
+  useNoIndex(true)
   const [params, setParams] = useSearchParams()
 
   const currentSort = params.get('order') || 'popularity'

@@ -4,6 +4,7 @@
 
 import { err, json } from './auth.js'
 import { sha256Hex } from './crypto.js'
+import { analyticsOverCap } from './rateLimit.js'
 
 const SESSION_RE = /^[a-f0-9-]{20,64}$/i
 const PATH_RE = /^\/[a-zA-Z0-9а-яА-ЯёЁ/_?=&.:%-]{0,300}$/
@@ -450,7 +451,10 @@ async function errorClear(env, session, body) {
   return json({ ok: true })
 }
 
-async function analyticsBatch(env, body, now = Date.now()) {
+async function analyticsBatch(env, body, now = Date.now(), request) {
+  if (request && (await analyticsOverCap(env, request, 60))) {
+    return json({ ok: true, n: 0, capped: true })
+  }
   const raw = body.items
   if (!Array.isArray(raw) || !raw.length) return err('Пустой пакет метрик.', 400)
   const items = raw.slice(0, 50)
@@ -463,11 +467,11 @@ async function analyticsBatch(env, body, now = Date.now()) {
   return json({ ok: true, n: items.length })
 }
 
-export async function handleAnalyticsAction(env, session, body) {
+export async function handleAnalyticsAction(env, session, body, request) {
   const action = String(body?.action || '')
   const now = Date.now()
 
-  if (action === 'analytics-batch') return analyticsBatch(env, body, now)
+  if (action === 'analytics-batch') return analyticsBatch(env, body, now, request)
   if (action === 'analytics-track') return analyticsTrack(env, body, now)
   if (action === 'analytics-stats') return analyticsStats(env, session, now)
   if (action === 'quality-track') return qualityTrack(env, body, now)

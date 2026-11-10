@@ -5,14 +5,17 @@ import { HENTAI_TAGS, HENTAI_SORTS } from '../data/hentaiGenres'
 import type { Anime } from '../data/catalog'
 import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
 import HentaiCard from '../components/HentaiCard'
-import { usePageMeta } from '../data/pageMeta'
+import { useNoIndex, usePageMeta } from '../data/pageMeta'
 import './hentai-catalog.css'
 
 export default function HentaiCatalog() {
   usePageMeta('Хентай каталог — смотреть онлайн (18+)', 'Отдельный каталог аниме для взрослых 18+. Полный список хентая, удобная фильтрация по категориям и студиям.')
+  useNoIndex(true)
   const [params, setParams] = useSearchParams()
 
   const currentTag = params.get('tag') || ''
+  const visibleTags = HENTAI_TAGS.filter((tag) => tag.shikiGenreId)
+  const activeTag = visibleTags.some((t) => t.slug === currentTag) ? currentTag : ''
   const currentSort = params.get('order') || 'popularity'
   const page = Math.max(1, parseInt(params.get('page') || '1', 10))
 
@@ -28,7 +31,7 @@ export default function HentaiCatalog() {
     setLoading(true)
     setLoadError(false)
 
-    const selectedTagObj = HENTAI_TAGS.find((t) => t.slug === currentTag)
+    const selectedTagObj = HENTAI_TAGS.find((t) => t.slug === activeTag && t.shikiGenreId)
     const genreParam = selectedTagObj?.shikiGenreId ?? 12
 
     fetchHentaiCatalog({
@@ -53,7 +56,7 @@ export default function HentaiCatalog() {
     return () => {
       alive = false
     }
-  }, [unlocked, currentTag, currentSort, page, reloadToken])
+  }, [unlocked, activeTag, currentSort, page, reloadToken])
 
   const setTag = (slug: string) => {
     const next = new URLSearchParams(params)
@@ -117,17 +120,17 @@ export default function HentaiCatalog() {
               <div className="hentai-tags" role="group" aria-label="Теги хентая">
                 <button
                   type="button"
-                  className={`hentai-tag-btn ${!currentTag ? 'is-active' : ''}`}
+                  className={`hentai-tag-btn ${!activeTag ? 'is-active' : ''}`}
                   onClick={() => setTag('')}
                 >
                   Все теги
                 </button>
-                {HENTAI_TAGS.slice(0, 14).map((tag) => (
+                {visibleTags.map((tag) => (
                   <button
                     key={tag.slug}
                     type="button"
-                    className={`hentai-tag-btn ${currentTag === tag.slug ? 'is-active' : ''}`}
-                    onClick={() => setTag(tag.slug === currentTag ? '' : tag.slug)}
+                    className={`hentai-tag-btn ${activeTag === tag.slug ? 'is-active' : ''}`}
+                    onClick={() => setTag(tag.slug === activeTag ? '' : tag.slug)}
                   >
                     {tag.name}
                   </button>

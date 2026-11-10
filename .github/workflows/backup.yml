@@ -1,10 +1,11 @@
 name: Копия базы
 
-# Раз в сутки экспорт D1 anime_core (Core вместо Appwrite). Шифруется AES-256 ключом CLOUDFLARE_API_KEY
-# и лежит артефактом 30 дней. R2/манга сюда не входят.
+# Раз в сутки экспорт D1 anime_core (Core). Шифруется AES-256: предпочтителен секрет D1_BACKUP_PASSPHRASE
+# (отдельно от глобального Cloudflare API Key), иначе — ANIMELIFE_CF_API_KEY. Артефакт 30 дней.
 #
-# Расшифровать:
-#   openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in animelife-d1-backup.sql.enc -pass env:CLOUDFLARE_API_KEY -out anime_core.sql
+# Расшифровать (см. docs/worker-limit.md):
+#   export BACKUP_PASS='…'   # D1_BACKUP_PASSPHRASE
+#   openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in animelife-d1-backup.sql.enc -pass env:BACKUP_PASS -out anime_core.sql
 on:
   schedule:
     - cron: '41 0 * * *'
@@ -45,8 +46,15 @@ jobs:
           npx --yes wrangler@4 d1 export anime_core --remote --output=anime_core.sql -c wrangler.animelife.jsonc
           ls -lh anime_core.sql
       - name: Зашифровать
+        env:
+          D1_BACKUP_PASSPHRASE: ${{ secrets.D1_BACKUP_PASSPHRASE }}
         run: |
-          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:CLOUDFLARE_API_KEY -in anime_core.sql -out animelife-d1-backup.sql.enc
+          export BACKUP_PASS="${D1_BACKUP_PASSPHRASE:-$CLOUDFLARE_API_KEY}"
+          if [ -z "$BACKUP_PASS" ]; then
+            echo "::error::Задайте секрет D1_BACKUP_PASSPHRASE или ANIMELIFE_CF_API_KEY."
+            exit 1
+          fi
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:BACKUP_PASS -in anime_core.sql -out animelife-d1-backup.sql.enc
           rm -f anime_core.sql
           ls -lh animelife-d1-backup.sql.enc
       - uses: actions/upload-artifact@v4

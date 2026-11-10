@@ -59,7 +59,7 @@ export default function Landing() {
       <section className="stack">
         <h2>Смотрите также</h2>
         <div className="chips">
-          {landing.related.map(([name, to]) => (
+          {landing.related.slice(0, 8).map(([name, to]) => (
             <Link key={to} to={to} className="pill pill--link">
               {name}
             </Link>

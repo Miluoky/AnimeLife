@@ -3,9 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ANIME_FRANCHISES,
   getFranchiseById,
+  type Franchise,
 } from '../data/franchises'
 import FranchiseTimeline from '../components/FranchiseTimeline'
-import { useCanonical, useJsonLd, usePageMeta } from '../data/pageMeta'
+import SeoMeta from '../components/SeoMeta'
+import { useCanonical, usePageMeta } from '../data/pageMeta'
 import {
   formatFranchiseDescription,
   formatFranchiseH1,
@@ -13,10 +15,23 @@ import {
   formatFranchiseTitle,
 } from '../utils/seoTemplates'
 import { getCircularLinks } from '../data/semanticClusters'
+import NotFound from './NotFound'
 
 export default function ChronologyPage() {
-  const { id = 'fate' } = useParams()
-  const franchise = useMemo(() => getFranchiseById(id) ?? ANIME_FRANCHISES[0], [id])
+  const { id = '' } = useParams()
+  const franchise = useMemo(() => getFranchiseById(id), [id])
+  if (!franchise) {
+    return (
+      <NotFound
+        title="Хронология не найдена"
+        text="Такой франшизы в наших гидах нет — проверьте адрес или выберите другую хронологию."
+      />
+    )
+  }
+  return <ChronologyContent franchise={franchise} />
+}
+
+function ChronologyContent({ franchise }: { franchise: Franchise }) {
 
   // Watch order mode: default to recommended or first order
   const [activeOrderId, setActiveOrderId] = useState<'chronological' | 'release' | 'recommended'>(
@@ -35,68 +50,50 @@ export default function ChronologyPage() {
   usePageMeta(metaTitle, metaDescription)
   useCanonical()
 
-  // Dynamic Schema.org JSON-LD (WebPage + BreadcrumbList + FAQPage + ItemList)
   const canonicalUrl = `https://animelife.top/chronology/${franchise.id}`
-  useJsonLd({
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: metaTitle,
-    description: metaDescription,
-    url: canonicalUrl,
-    breadcrumb: {
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        {
+  const pageSchema = useMemo(
+    () => ({
+      '@type': 'WebPage',
+      name: metaTitle,
+      description: metaDescription,
+      url: canonicalUrl,
+      breadcrumb: {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Главная',
+            item: 'https://animelife.top',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Хронологии франшиз',
+            item: 'https://animelife.top/catalog',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: franchise.title,
+            item: canonicalUrl,
+          },
+        ],
+      },
+      mainEntity: {
+        '@type': 'ItemList',
+        name: formatFranchiseH1(franchise.title),
+        numberOfItems: franchise.items.length,
+        itemListElement: franchise.items.map((item, idx) => ({
           '@type': 'ListItem',
-          position: 1,
-          name: 'Главная',
-          item: 'https://animelife.top',
-        },
-        {
-          '@type': 'ListItem',
-          position: 2,
-          name: 'Хронологии франшиз',
-          item: 'https://animelife.top/chronology/fate',
-        },
-        {
-          '@type': 'ListItem',
-          position: 3,
-          name: franchise.title,
-          item: canonicalUrl,
-        },
-      ],
-    },
-    mainEntity: {
-      '@type': 'ItemList',
-      name: formatFranchiseH1(franchise.title),
-      numberOfItems: franchise.items.length,
-      itemListElement: franchise.items.map((item, idx) => ({
-        '@type': 'ListItem',
-        position: idx + 1,
-        name: item.title,
-        description: item.synopsis,
-      })),
-    },
-  })
-
-  // FAQ Schema if available
-  const faqSchema = useMemo(() => {
-    if (!franchise.faq || franchise.faq.length === 0) return null
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: franchise.faq.map((q) => ({
-        '@type': 'Question',
-        name: q.question,
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: q.answer,
-        },
-      })),
-    }
-  }, [franchise.faq])
-
-  useJsonLd(faqSchema)
+          position: idx + 1,
+          name: item.title,
+          description: item.synopsis,
+        })),
+      },
+    }),
+    [canonicalUrl, franchise.items, franchise.title, metaDescription, metaTitle],
+  )
 
   // Circular cross-linking
   const circularItems = useMemo(
@@ -117,6 +114,7 @@ export default function ChronologyPage() {
 
   return (
     <main className="container home chronology-page" style={{ paddingBottom: '60px' }}>
+      <SeoMeta faq={franchise.faq?.length ? franchise.faq : undefined} items={[pageSchema]} />
       {/* Breadcrumbs */}
       <section className="stack">
         <nav className="crumbs muted" aria-label="Хлебные крошки" style={{ marginBottom: '12px' }}>

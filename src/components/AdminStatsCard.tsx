@@ -1,9 +1,24 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AnalyticsSummary, useAnalyticsStats } from '../pages/AdminAnalytics'
+import { useAuth } from '../data/auth'
+import { callCommunity } from '../data/community'
 
 /** Сводка посещений в профиле администратора; данные отдаёт сервер только аккаунту с меткой admin. */
 export default function AdminStatsCard() {
+  const { user } = useAuth()
   const { stats, error, loading, reload } = useAnalyticsStats(true)
+  const [modTotal, setModTotal] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!(user?.labels ?? []).includes('admin')) {
+      setModTotal(null)
+      return
+    }
+    callCommunity<{ total?: number }>({ action: 'mod-counts' })
+      .then((r) => setModTotal(Number(r.total) || 0))
+      .catch(() => setModTotal(null))
+  }, [user])
   return (
     <section className="auth-card stack an-profile" aria-labelledby="an-profile-title">
       <div className="an-head">
@@ -40,6 +55,11 @@ export default function AdminStatsCard() {
         </Link>
         <Link to="/moderation" className="btn btn--ghost">
           Модерация
+          {modTotal != null && modTotal > 0 && (
+            <span className="pill__count" aria-label={`В очереди: ${modTotal}`}>
+              {modTotal > 99 ? '99+' : modTotal}
+            </span>
+          )}
         </Link>
       </div>
       {stats && (

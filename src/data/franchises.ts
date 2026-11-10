@@ -969,3 +969,9 @@ export function getAllFranchises(): Franchise[] {
 export function isFranchiseSupported(id: string): boolean {
   return ANIME_FRANCHISES.some((f) => f.id === id.toLowerCase().trim())
 }
+
+/** Curated chronology guide that includes this Shikimori anime id, if any. */
+export function getFranchiseByAnimeId(animeId: string): Franchise | undefined {
+  const id = String(animeId)
+  return ANIME_FRANCHISES.find((f) => f.items.some((item) => item.id === id))
+}

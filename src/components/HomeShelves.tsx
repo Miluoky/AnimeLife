@@ -44,6 +44,7 @@ function LoadedShelf({
   query,
   more,
   ranked,
+  skip = 0,
 }: {
   title: string
   subtitle: string
@@ -51,9 +52,11 @@ function LoadedShelf({
   query: Omit<CatalogQuery, 'page' | 'limit'>
   more?: string
   ranked?: number
+  /** Сколько первых позиций отбросить: баннер главной уже показал топ онгоингов. */
+  skip?: number
 }) {
-  const list = useAsync(() => loadCatalog({ ...query, limit: ranked ?? SHELF_SIZE }), [])
-  const items = list.value?.data ?? []
+  const list = useAsync(() => loadCatalog({ ...query, limit: (ranked ?? SHELF_SIZE) + skip }), [])
+  const items = (list.value?.data ?? []).slice(skip)
   if (!list.loading && !items.length) return null
   return (
     <Shelf title={title} subtitle={subtitle} icon={icon} more={more ? { to: more } : undefined}>
@@ -376,12 +379,13 @@ export function SeasonShelf() {
     <>
       <UpcomingShelf />
       <CatalogShelf
-        title="Топ-10 онгоингов"
-        subtitle="Сейчас в тренде сезона"
+        title="Ещё онгоинги"
+        subtitle="Кроме тех, что в баннере"
         icon={<TrophyIcon />}
         query={{ status: 'ongoing', order: 'popularity' }}
         more="/catalog?status=ongoing"
         ranked={10}
+        skip={5}
         eager
       />
       {/* Сезон ниже топа: грузим по IntersectionObserver, без параллельного eager-запроса. */}
@@ -475,6 +479,7 @@ function GenreTiles() {
 }
 
 const DISCOVER = [
+  { to: '/together', emoji: '📺', title: 'Вместе', text: 'Смотреть с друзьями' },
   { to: '/random', emoji: '🎲', title: 'Что посмотреть?', text: 'Случайный выбор тайтла' },
   { to: '/quiz', emoji: '🎯', title: 'Аниме-квизы', text: 'Проверь свои знания' },
   { to: '/collections', emoji: '📚', title: 'Коллекции', text: 'Подборки от зрителей' },

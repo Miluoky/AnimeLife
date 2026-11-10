@@ -4,6 +4,7 @@ import VoiceLogo from '../components/VoiceLogo'
 import VoiceoverFilter, {
   getVoiceStudioBySlug,
   VOICE_STUDIOS,
+  type VoiceStudio,
 } from '../components/VoiceoverFilter'
 import CatalogGrid from '../components/CatalogGrid'
 import Pager from '../components/Pager'
@@ -17,12 +18,24 @@ import {
 import { getCircularLinks } from '../data/semanticClusters'
 import { GENRES, PAGE_SIZE, pageParam } from '../data/seo'
 import type { CatalogOrder } from '../api'
+import NotFound from './NotFound'
 
 export default function VoiceStudioPage() {
-  const { studio_slug = 'anilibria' } = useParams()
-  const [params, setParams] = useSearchParams()
-
+  const { studio_slug = '' } = useParams()
   const studio = useMemo(() => getVoiceStudioBySlug(studio_slug), [studio_slug])
+  if (!studio) {
+    return (
+      <NotFound
+        title="Студия озвучки не найдена"
+        text="Такой студии в каталоге нет — проверьте адрес или выберите другую озвучку."
+      />
+    )
+  }
+  return <VoiceStudioContent studio={studio} />
+}
+
+function VoiceStudioContent({ studio }: { studio: VoiceStudio }) {
+  const [params, setParams] = useSearchParams()
 
   // Filter states synchronized with URL search params or local state
   const genre = params.get('genre') ?? ''
@@ -331,10 +344,10 @@ export default function VoiceStudioPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 'clamp(18px, 3vw, 24px)' }}>
-              {formatVoiceStudioH2('catalog', studio.name)}
+              Каталог аниме
             </h2>
             <p className="soft" style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--muted)' }}>
-              Фильтруйте по жанрам, статусу онгоинга и сортируйте каталог
+              Это общий каталог Anime Life, а не список тайтлов в озвучке «{studio.name}». Фильтры ниже — по жанру и статусу, без отбора по студии озвучки.
             </p>
           </div>
         </div>

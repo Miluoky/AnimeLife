@@ -7,7 +7,7 @@ import { useMyList } from '../data/myList'
 import Pager from '../components/Pager'
 import { usePageMeta } from '../data/pageMeta'
 import { swapLayout } from '../data/keyboard'
-import { CATALOG } from '../data/landings'
+import { CATALOG, THEMES } from '../data/landings'
 import { PAGE_SIZE, pageParam } from '../data/seo'
 import { FilterIcon, ListIcon, SparkIcon } from '../components/Icons'
 import Shelf from '../components/Shelf'
@@ -154,6 +154,8 @@ export default function Catalog() {
   // Сезон имеет смысл только для одного года, а не для десятилетия.
   const part = /^\d{4}$/.test(year) ? value('part') : ''
   const hideMine = value('hide') === 'mine'
+  const themeSlug = value('theme')
+  const theme = THEMES.find((t) => t.slug === themeSlug)
   const query: CatalogQuery = {
     search: search || undefined,
     order: (value('order') as CatalogOrder) || 'popularity',
@@ -163,6 +165,7 @@ export default function Catalog() {
     score: Number(value('score')) || undefined,
     // Shikimori исключает жанр, если перед id стоит «!»: «комедия без романтики» — genre=4,!22.
     genre: [...list('genre'), ...list('nogenre').map((id) => `!${id}`)].join(',') || undefined,
+    themeId: theme?.id,
     // У Shikimori несколько студий значат «все сразу», поэтому выбирается одна.
     studio: list('studio')[0],
     rating: value('age') || undefined,
@@ -176,8 +179,13 @@ export default function Catalog() {
 
   // На телефоне подборщики занимают весь первый экран: прячем их за кнопкой «Фильтры» со счётчиком.
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const setCount = ['kind', 'year', 'score', 'studio', 'age', 'hide'].filter((n) => params.has(n)).length + list('genre').length + list('nogenre').length
-  const filtersSet = ['order', 'status', 'kind', 'year', 'part', 'score', 'genre', 'nogenre', 'studio', 'age', 'hide'].some((n) => params.has(n))
+  const setCount =
+    ['kind', 'year', 'score', 'studio', 'age', 'hide', 'theme'].filter((n) => params.has(n)).length +
+    list('genre').length +
+    list('nogenre').length
+  const filtersSet = ['order', 'status', 'kind', 'year', 'part', 'score', 'genre', 'nogenre', 'studio', 'age', 'hide', 'theme'].some(
+    (n) => params.has(n),
+  )
   // Текст «пусто» для сетки: при активном поиске блок NothingFound ниже даёт смысл и ссылки — дублирующую строку в сетке убираем.
   const gridEmpty =
     search
@@ -257,6 +265,20 @@ export default function Catalog() {
               onChange={(ids) => change('nogenre', ids.join(','))}
               searchable
             />
+            <Filter
+              label="Тема"
+              name="theme"
+              value={themeSlug}
+              any="Любая"
+              options={THEMES.map((t) => ({ id: t.slug, title: t.name }))}
+              onChange={change}
+            />
+            {theme && (
+              <p className="muted catalog__theme-note">
+                Тема «{theme.name}» — как на странице{' '}
+                <Link to={`/theme/${theme.slug}`}>аниме про {theme.about}</Link>.
+              </p>
+            )}
             <Filter label="Тип" name="kind" value={value('kind')} any="Любой" options={kinds} onChange={change} />
             <Filter label="Год" name="year" value={year} any="Любой" options={years} onChange={change} />
             {/^\d{4}$/.test(year) && (

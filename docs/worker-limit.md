@@ -164,8 +164,21 @@ curl -s -o /dev/null -w '%{http_code}\n' -A 'Amazonbot/0.1' https://animelife.to
 тайтла (значит, Googlebot получил страницу от Worker).
 
 Где смотреть расход: **Workers & Pages → anime → Metrics → Requests** (вызовы за сутки) и **Security → Events**
-(что отсекли правила). Без токена Cloudflare снаружи этого не узнать, поэтому отдельной проверки в
-`scripts/source-health.mjs` нет.
+(что отсекли правила). Пороги 70k/90k за сутки UTC пишет в Telegram workflow `source-health.yml` через
+`scripts/source-health.mjs` (нужны `ANIMELIFE_CF_*` и `TELEGRAM_*`).
+
+### Копия D1 (workflow `backup.yml`)
+
+Ночной экспорт `anime_core` шифруется **не обязательно** тем же паролем, что глобальный Cloudflare API Key.
+В GitHub Actions задайте отдельный секрет **`D1_BACKUP_PASSPHRASE`** — он имеет приоритет над `ANIMELIFE_CF_API_KEY`.
+Расшифровка артефакта:
+
+```bash
+export BACKUP_PASS='ваш D1_BACKUP_PASSPHRASE'
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in animelife-d1-backup.sql.enc -pass env:BACKUP_PASS -out anime_core.sql
+```
+
+Глобальный API Key по-прежнему нужен для деплоя, WAF и учёта квоты Worker; passphrase копии базы лучше держать отдельно.
 
 ## 5. Как откатить
 

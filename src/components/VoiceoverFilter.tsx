@@ -161,32 +161,12 @@ export function getAllVoiceStudios(): VoiceStudio[] {
   return VOICE_STUDIOS
 }
 
-export function getVoiceStudioBySlug(slug: string): VoiceStudio {
+export function getVoiceStudioBySlug(slug: string): VoiceStudio | undefined {
   const normSlug = (slug || '').toLowerCase().trim()
-  const found = VOICE_STUDIOS.find(
+  if (!normSlug) return undefined
+  return VOICE_STUDIOS.find(
     (s) => s.slug === normSlug || s.aliases.some((a) => a === normSlug),
   )
-  if (found) return found
-
-  // Graceful fallback for dynamic / unlisted studio slugs
-  const formatted = normSlug
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
-
-  return {
-    slug: normSlug,
-    name: formatted || 'Студия озвучки',
-    russianName: formatted || 'Студия озвучки',
-    shortName: normSlug.slice(0, 2).toUpperCase() || 'ST',
-    badge: 'Студия озвучки',
-    description: `Коллекция аниме в русской озвучке от студии «${formatted}».`,
-    bio: `Студия озвучки «${formatted}» занимается профессиональным и любительским переводом аниме на русский язык.`,
-    team: [`Команда ${formatted}`],
-    stats: { releases: 100, founded: 2020, rating: '4.8/5', type: 'MVO' },
-    popularTitles: [],
-    aliases: [normSlug],
-  }
 }
 
 export const GENRE_FILTER_OPTIONS: { id: string; title: string }[] = [

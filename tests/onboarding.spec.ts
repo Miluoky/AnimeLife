@@ -47,6 +47,9 @@ test('знакомство: «Не сейчас» прячет карточку,
   const card = page.getByRole('region', { name: 'Впервые у нас?' })
   await card.getByRole('button', { name: 'Не сейчас' }).click()
   await expect(card).toHaveCount(0)
+  const skipped = await page.evaluate(() => JSON.parse(localStorage.getItem('anime.taste.v1') ?? '{}'))
+  expect(skipped.done).not.toBe(true)
+  expect(skipped.snoozeUntil).toBeGreaterThan(Date.now())
   await page.evaluate(() => {
     localStorage.removeItem('anime.taste.v1')
     localStorage.setItem('anime.history.v1', JSON.stringify([{ animeId: '1', title: 'Ковбой Бибоп', episode: 2, total: 26, at: Date.now() }]))

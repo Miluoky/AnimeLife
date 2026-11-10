@@ -17,7 +17,7 @@ import MyEntry from '../components/MyEntry'
 import ShareButton from '../components/ShareButton'
 import SeoMeta from '../components/SeoMeta'
 import { buildJsonLdSeries, buildJsonLdMovie } from '../data/seoEngine'
-import { usePageMeta } from '../data/pageMeta'
+import { useNoIndex, usePageMeta } from '../data/pageMeta'
 import { SIMILAR_MIN, ageLabel, animeHref, animeIdFromParam, animeInfo, genrePath, titlePageDescription, titlePageTitle } from '../data/seo'
 import { studioPath } from '../data/studios'
 import { useMyList } from '../data/myList'
@@ -28,7 +28,7 @@ import { PlayIcon } from '../components/Icons'
 import NextEpisode from '../components/NextEpisode'
 import FollowButton from '../components/FollowButton'
 import WatchOrder from '../components/WatchOrder'
-import FranchiseBridge from '../components/FranchiseBridge'
+import FranchiseBridge, { FranchiseChronologyBridge } from '../components/FranchiseBridge'
 import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
 import { isAdultContent } from '../data/adult'
 import { fetchStaff } from '../api/staff'
@@ -332,7 +332,10 @@ export default function TitlePage() {
         : Promise.resolve([]),
     [id, loaded?.id],
   )
-  usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info))
+  const navigate = useNavigate()
+  const location = useLocation()
+  usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info), loaded?.posterUrl)
+  useNoIndex(location.pathname.startsWith('/hentai'))
 
   const isMovie = loaded?.kind === 'Фильм' || loaded?.kind === 'movie'
   const kindKind = isMovie ? 'movie' : loaded?.kind === 'OVA' ? 'ova' : 'tv'
@@ -427,8 +430,6 @@ export default function TitlePage() {
   }, [loaded])
 
   // Старый адрес /anime/6 (или с прежним названием) меняется на /anime/6-trigun без новой записи в истории.
-  const navigate = useNavigate()
-  const location = useLocation()
   useEffect(() => {
     if (!loaded || loaded.id !== id) return
     const want = animeHref(loaded)
@@ -629,16 +630,19 @@ export default function TitlePage() {
               </dl>
             )}
             <TitleProgress animeId={anime.id} />
-            {mangaRel?.href && (
+            {mangaRel?.href ? (
               <FranchiseBridge
                 kind="manga"
                 title={mangaRel.anime.title}
                 href={mangaRel.href}
                 mangaId={/(\d+)/.exec(mangaRel.href)?.[1] ?? mangaRel.anime.id.replace(/^manga-/, '')}
                 relation={mangaRel.relation}
+                chronologyAnimeId={anime.id}
               />
+            ) : (
+              <FranchiseChronologyBridge animeId={anime.id} />
             )}
-            {anime.description && <About text={anime.description} />}
+            {anime.description && <About text={anime.description} spoilersHidden={noSpoilers} />}
           </div>
         </section>
 
@@ -979,18 +983,31 @@ function TitleProgress({ animeId }: { animeId: string }) {
 const ABOUT_LIMIT = 320
 
 /** «О чём»: описание сразу под названием, длинное свёрнуто до нескольких строк. */
-function About({ text }: { text: string }) {
+function About({ text, spoilersHidden = false }: { text: string; spoilersHidden?: boolean }) {
   const long = text.length > ABOUT_LIMIT
   const [open, setOpen] = useState(false)
-  return (
-    <div className="about-card">
-      <h2 className="about-card__title">О чём</h2>
-      <p className={`soft prewrap about-card__text${long && !open ? ' clamp-4' : ''}`}>{text}</p>
-      {long && (
+  const body = (
+    <>
+      <p className={`soft prewrap about-card__text${long && !open && !spoilersHidden ? ' clamp-4' : ''}`}>{text}</p>
+      {long && !spoilersHidden && (
         <button type="button" className="about-card__toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
           {open ? 'Свернуть' : 'Показать полностью'}
         </button>
       )}
+    </>
+  )
+  if (spoilersHidden) {
+    return (
+      <details className="about-card about-card--spoiler">
+        <summary className="about-card__title">О чём (возможны спойлеры)</summary>
+        {body}
+      </details>
+    )
+  }
+  return (
+    <div className="about-card">
+      <h2 className="about-card__title">О чём</h2>
+      {body}
     </div>
   )
 }
