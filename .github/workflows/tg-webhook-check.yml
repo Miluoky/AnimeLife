@@ -1,0 +1,28 @@
+﻿name: tg-webhook-check
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: getWebhookInfo + getMe
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          echo '== getMe =='
+          curl -fsS "https://api.telegram.org/bot/getMe"
+          echo
+          echo '== getWebhookInfo =='
+          curl -fsS "https://api.telegram.org/bot/getWebhookInfo"
+          echo
+          # derive expected secret like deploy does
+          WH=$(printf '%s' "animelife-tg-hook:" | sha256sum | awk '{print $1}')
+          echo "expected_secret_len=${#WH}"
+          # probe Core webhook with correct secret and a fake /start
+          CODE=$(curl -fsS -X POST 'https://animelife.top/api/core/auth/oauth' -H 'Content-Type: application/json' -d '{"provider":"telegram-start"}')
+          echo "start="
+          curl -sS -D - -o /tmp/wh.out -X POST 'https://animelife.top/api/core/auth/oauth/telegram/webhook' \
+            -H "Content-Type: application/json" \
+            -H "X-Telegram-Bot-Api-Secret-Token: " \
+            -d '{"update_id":999,"message":{"message_id":1,"date":1,"chat":{"id":1,"type":"private"},"from":{"id":1,"first_name":"Test"},"text":"/start"}}'
+          echo
+          echo 'body:'; cat /tmp/wh.out; echo
