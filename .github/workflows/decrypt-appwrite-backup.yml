@@ -1,0 +1,52 @@
+# АРХИВ. Не часть прод-операций Core. Прод-база — D1 (см. backup.yml).
+# Appwrite Cloud недоступен. Этот workflow только расшифровывает уже существующий
+# артефакт «Копия базы» ключом из secrets (без запросов к Appwrite API).
+name: Расшифровать бэкап Appwrite
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'ID успешного запуска «Копия базы» (например 42777192645)'
+        required: true
+        default: '42777192645'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  decrypt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Проверить ключ
+        run: |
+          if [ -z "$APPWRITE_API_KEY" ]; then
+            echo "::error::Нет secrets.APPWRITE_API_KEY"
+            exit 1
+          fi
+      - name: Скачать зашифрованный артефакт
+        run: |
+          gh run download "${{ inputs.run_id }}" -R "${{ github.repository }}" -D enc
+          find enc -type f -name '*.enc' -print
+      - name: Расшифровать
+        run: |
+          ENC=$(find enc -type f -name '*.enc' | head -n1)
+          test -n "$ENC"
+          mkdir -p backup
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$ENC" -pass env:APPWRITE_API_KEY | tar xz -C backup
+          ls -la backup
+          test -f backup/summary.json || test -f backup/backup/summary.json
+          # если tar положил в backup/backup — выровнять
+          if [ -d backup/backup ]; then mv backup/backup/* backup/ && rmdir backup/backup; fi
+          cat backup/summary.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appwrite-backup-plain
+          path: backup/
+          retention-days: 1
+          compression-level: 6

@@ -1,7 +1,7 @@
 # Project: AnimeLife 2.0 Autonomous Engineering
 
 ## Architecture
-AnimeLife 2.0 is an enterprise anime streaming, SEO, and community ecosystem built on Preact, Vite, modular CSS design system, Cloudflare Workers (Edge SSR, modular sitemaps, Yandex Turbo RSS, stream proxies), and Appwrite Cloud.
+AnimeLife 2.0 is an enterprise anime streaming, SEO, and community ecosystem built on Preact, Vite, modular CSS design system, Cloudflare Workers (Edge SSR, AnimeLife Core API on D1/KV, modular sitemaps, Yandex Turbo RSS, stream proxies).
 
 The AnimeLife 2.0 release is structured into 4 operational divisions + QA:
 1. **Division I: SEO Dominance & LF/MF Key Intent Matrix (Agents 01–04)**:
@@ -13,7 +13,7 @@ The AnimeLife 2.0 release is structured into 4 operational divisions + QA:
 4. **Division IV: Resilient Player, Retention & Social Sharing (Agents 13–14)**:
    Fast 3.5s auto-fallback ladder (Kodik -> Alloha -> AniLibria -> AnimeVost -> DreamCast -> Sibnet), exact playback second resume in LocalStorage, auto-skip intro, `ShareModal.tsx` (Telegram & VK cards, QR code), `WatchStreak.tsx`, and season watch progress.
 5. **Division V / QA: Quality Control, Bundle Budget & Production Release (Agent 15)**:
-   Bundle enforcement (<40KB JS chunks, <10KB CSS), zero TypeScript errors (`tsc -b`), 71/71 community tests, `.gitignore` secret protection, and production build readiness.
+   Bundle enforcement (<40KB JS chunks, <10KB CSS), zero TypeScript errors (`tsc -b`), Playwright E2E suite, `.gitignore` secret protection, and production build readiness.
 
 ---
 
@@ -44,8 +44,8 @@ The AnimeLife 2.0 release is structured into 4 operational divisions + QA:
 | 21 | Exact Playback Second Continuity | Ensure exact second persistence in LocalStorage (`anime.positions.v1` / `carry` ref) and instant resume upon provider switch or direct timestamp link | M4 | Survey Div IV |
 | 22 | Telegram & VK Social Share Modal | Create `src/components/ShareModal.tsx` using existing `qrcode-generator` with instant Telegram and VK sharing links and timestamp copy | M4 | Survey Div IV |
 | 23 | Watch Streak & Season Progress | Create `src/components/WatchStreak.tsx` displaying real viewing streaks and add aggregated season episode watching progress | M4 | Survey Div IV |
-| 24 | Quality Control & Bundle Budget | Verify all JS chunks < 40KB gzip, all CSS files < 10KB gzip (`npm run size`), zero TypeScript errors (`tsc -b`), 71/71 tests passing | M5 | QA / Agent 15 |
-| 25 | Git Secret Protection & Build | Ensure `service_account.json`, `.yandex_token`, `.env*` and Appwrite keys are strictly in `.gitignore`, and validate `npm run build` exits 0 | M5 | QA / Agent 15 |
+| 24 | Quality Control & Bundle Budget | Verify all JS chunks < 40KB gzip, all CSS files < 10KB gzip (`npm run size`), zero TypeScript errors (`tsc -b`), Playwright E2E passing | M5 | QA / Agent 15 |
+| 25 | Git Secret Protection & Build | Ensure `service_account.json`, `.yandex_token`, `.env*` are strictly in `.gitignore`, and validate `npm run build` exits 0 | M5 | QA / Agent 15 |
 | 26 | Adversarial Stress Verification | Adversarial stress testing (Tier 5) on stream failover, mobile swipe, and Edge sitemaps | M6 | Challenger |
 | 27 | Forensic Integrity Audit | Static and runtime code integrity audit verifying zero hardcoded test facades, authentic logic, and rule compliance | M6 | Auditor |
 
@@ -59,7 +59,7 @@ The AnimeLife 2.0 release is structured into 4 operational divisions + QA:
 | M2 | Division II: Indexing, Cloudflare Edge & Microdata | Features 7, 8, 9, 10, 11, 12 (`SeoMeta.tsx`, `TitlePage.tsx`, `Player.tsx`, `yandex_indexnow_push.py`, `seo-daily-indexing.yml`, `worker/index.js`) | none | COMPLETED | SeoMeta @graph, 10k IndexNow push, GitHub secrets, Edge SSR for new routes, sitemaps, Turbo RSS |
 | M3 | Division III: Design, Ergonomics, CSS Animations & Media | Features 13, 14, 15, 16, 17, 18, 19 (`styles.css`, `MoreSheet.tsx`, `OptimizedImage.tsx`, `BufferTrivia.tsx`, hover/pulse/shimmer CSS) | none | COMPLETED | Dark Anime tokens, ≥44px touch targets, sheet swipe, 4K 7-col grid, GPU animations, OptimizedImage |
 | M4 | Division IV: Player, Retention & Social Sharing | Features 20, 21, 22, 23 (`VideoPlayer.tsx`, `Player.tsx`, `ShareModal.tsx`, `WatchStreak.tsx`, season progress) | none | COMPLETED | 3.5s auto-fallback ladder, exact second resume, ShareModal (TG/VK/QR), WatchStreak |
-| M5 | Division V: QA Control, Bundle Budget & Production Build | Features 24, 25 (`npm run size`, `tsc -b`, `npm run test:community`, `.gitignore`, `npm run build`) | M1-M4 | COMPLETED | All JS <40KB, CSS <10KB, 0 TS errors, 71/71 tests, clean secrets, validated prod build |
+| M5 | Division V: QA Control, Bundle Budget & Production Build | Features 24, 25 (`npm run size`, `tsc -b`, `npm test`, `.gitignore`, `npm run build`) | M1-M4 | COMPLETED | All JS <40KB, CSS <10KB, 0 TS errors, E2E suite, clean secrets, validated prod build |
 | M6 | Adversarial Hardening & Forensic Integrity Audit | Features 26, 27 (Challenger stress suite, Auditor zero-tolerance integrity check) | M5 | COMPLETED | Challenger APPROVE, Auditor CLEAN |
 
 ---

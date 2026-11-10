@@ -8,12 +8,11 @@
 // (первый запуск или кэш пропал), скрипт только запоминает текущее состояние и ничего не публикует, чтобы не завалить
 // канал старыми новостями. Ночью (01:00–08:00 по Москве) посты выходят без звука.
 // Запуск: TELEGRAM_BOT_TOKEN=... TELEGRAM_CHANNEL=@канал node scripts/telegram-news.mjs [--dry-run]
-// Без TELEGRAM_BOT_TOKEN токен берётся у функции входа social-login в Appwrite (нужен APPWRITE_API_KEY).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { CHANGELOG } from '../src/data/changelog.ts'
 import { closeCards, renderCard } from './telegram-card.mjs'
-import { heldReason } from '../functions/community/src/automod.js'
+import { heldReason } from '../worker/core/automod.js'
 
 const SITE = 'https://animelife.top'
 const SHIKIMORI = 'https://shikimori.io'
@@ -51,16 +50,7 @@ const hashtag = (name) => '#' + String(name).toLowerCase().replace(/[^\p{L}\p{N}
 // ——— Telegram ———
 
 async function botToken() {
-  if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN
-  const key = process.env.APPWRITE_API_KEY
-  if (!key) return ''
-  const res = await fetch('https://fra.cloud.appwrite.io/v1/functions/social-login/variables', {
-    headers: { 'X-Appwrite-Project': '6abf65850016889f9b1b', 'X-Appwrite-Key': key },
-  }).catch(() => undefined)
-  const json = res?.ok ? await res.json().catch(() => ({})) : {}
-  const token = (json.variables ?? []).find((v) => v.key === 'TELEGRAM_BOT_TOKEN')?.value ?? ''
-  if (token && process.env.GITHUB_ACTIONS) console.log(`::add-mask::${token}`)
-  return token
+  return (process.env.TELEGRAM_BOT_TOKEN || '').trim()
 }
 
 let TOKEN = ''
@@ -358,16 +348,35 @@ export function monthTopPost(rows, now = new Date()) {
 async function monthTop(state, now = new Date()) {
   const key = monthKey(now)
   if (state.monthTop === key || !monthTopTime(now)) return 0
-  const queries = [
-    { method: 'equal', attribute: 'monthKey', values: [key] },
-    { method: 'greaterThan', attribute: 'monthXp', values: [0] },
-    { method: 'orderDesc', attribute: 'monthXp' },
-    { method: 'limit', values: [15] },
-  ]
-  const url = `https://fra.cloud.appwrite.io/v1/tablesdb/anime/tables/profiles/rows?${queries.map((q) => `queries[]=${encodeURIComponent(JSON.stringify(q))}`).join('&')}`
-  const res = await fetch(url, { headers: { 'X-Appwrite-Project': '6abf65850016889f9b1b' } })
-  if (!res.ok) throw new Error(`профили: ${res.status}`)
-  const text = monthTopPost((await res.json()).rows ?? [], now)
+  let rows = []
+  try {
+    const res = await fetch(`${SITE}/api/core/social/top`, { signal: AbortSignal.timeout(15000) })
+    if (!res.ok) {
+      console.log(`::notice::топ месяца: Core ${res.status}, пропускаем.`)
+      return 0
+    }
+    const data = await res.json().catch(() => ({}))
+    rows = (data.profiles ?? [])
+      .map((p) => {
+        let summary = p.summary
+        if (typeof summary === 'string') {
+          try {
+            summary = JSON.parse(summary)
+          } catch {
+            summary = {}
+          }
+        }
+        const month = summary?.month
+        const monthXp = month && Number(month.key) === key ? Number(month.xp) || 0 : 0
+        return { $id: p.$id, name: p.name, monthXp }
+      })
+      .filter((r) => r.monthXp > 0)
+      .sort((a, b) => b.monthXp - a.monthXp)
+  } catch (e) {
+    console.log(`::notice::топ месяца: ${e.message}, пропускаем.`)
+    return 0
+  }
+  const text = monthTopPost(rows, now)
   state.monthTop = key
   if (!text) return 0
   await post({ text, buttons: [[['🏆 Весь топ', `${SITE}/community?tab=top`]]] })

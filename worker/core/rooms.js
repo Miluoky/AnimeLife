@@ -14,6 +14,15 @@ const MAX_MESSAGE = 300
 const ROOM_TTL = 6 * 3600 * 1000
 const REPORTS_TO_HIDE = 3
 
+/**
+ * Когда зритель нажал плей, паузу или перемотал — по общим часам (клиент присылает их в at).
+ * Чужие и сбитые часы не принимаем.
+ */
+export function pressedAt(at, now) {
+  const t = Number(at)
+  return Number.isFinite(t) && t <= now + 1000 && t >= now - 10_000 ? Math.round(t) : now
+}
+
 function code() {
   let s = ''
   const a = new Uint8Array(6)
@@ -211,10 +220,9 @@ export async function handleRoomAction(env, session, body) {
       return err('Управляет только ведущий комнаты.', 403)
     }
     const now = Date.now()
-    const at = Number(body.at)
     room.playing = !!body.playing
     room.position = Math.max(0, Number(body.position) || 0)
-    room.at = Number.isFinite(at) && at <= now + 1000 && at >= now - 10_000 ? Math.round(at) : now
+    room.at = pressedAt(body.at, now)
     room.actor = (session.user.name || 'Зритель').slice(0, 64)
     if (body.episode != null) room.episode = Math.max(1, Math.floor(Number(body.episode)))
     if (body.source === 'file' || body.source === 'trailer') room.source = body.source

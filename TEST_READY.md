@@ -158,4 +158,4 @@ During test implementation and verification, two noteworthy architectural observ
    - **Recommendation**: Update `tests/mocks.ts` to include default mocked responses for `api.dreamerscast.com`, `api.dreamcast.fun`, and `dcast.online`. In our `tests/e2e/` test suites, route handlers were added to prevent delays.
 
 2. **PublicProfile Summary Shape Expectation**:
-   - In `src/pages/PublicProfile.tsx`, `s.counts['watching']` is accessed without optional chaining. Public profiles fetched from Appwrite must contain a `counts: Record<string, number>` object to avoid uncaught TypeErrors in `PublicProfile`.
+   - In `src/pages/PublicProfile.tsx`, `s.counts['watching']` is accessed without optional chaining. Profiles from Core (`/api/core/social/*`) must include `counts: Record<string, number>` to avoid uncaught TypeErrors.

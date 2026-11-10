@@ -3,15 +3,6 @@
 /** Аккаунты и коммьюнити — только AnimeLife Core (`/api/core`, worker/core). */
 export const BACKEND = 'core' as const
 
-/**
- * Публичные константы старого хранилища Appwrite (Frankfurt).
- * Только для legacy URL картинок своих глав, загруженных до перехода на Core — не SDK.
- */
-export const LEGACY_APPWRITE_V1 =
-  (import.meta.env.VITE_APPWRITE_ENDPOINT as string | undefined) ?? 'https://fra.cloud.appwrite.io/v1'
-export const LEGACY_APPWRITE_PROJECT =
-  (import.meta.env.VITE_APPWRITE_PROJECT as string | undefined) ?? '6abf65850016889f9b1b'
-
 const env = import.meta.env as Record<string, string | undefined>
 
 /**

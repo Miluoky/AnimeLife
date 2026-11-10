@@ -270,7 +270,7 @@ export default function MangaHome() {
         <a href="https://shikimori.io/mangas" target="_blank" rel="noopener noreferrer">
           Shikimori
         </a>
-        . Главы: команды переводчиков на Anime Life и{' '}
+        . Главы:{' '}
         <a href="https://mangadex.org" target="_blank" rel="noopener noreferrer">
           MangaDex
         </a>

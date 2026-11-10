@@ -84,46 +84,39 @@ test('Google, Яндекс и сброс пароля по письму в эт�
   await expect(page.getByRole('link', { name: 'На страницу входа' })).toBeVisible()
 })
 
-test('гостю при повторном заходе не грузим вход: ни запроса аккаунта, ни библиотеки Appwrite', async ({ page }) => {
-  const account: string[] = []
+test('гость: Appwrite не трогаем, главная и вход работают', async ({ page }) => {
+  const appwrite: string[] = []
   page.on('request', (r) => {
-    if (/appwrite\.io\/v1\/account$/.test(r.url())) account.push(r.url())
+    if (/cloud\.appwrite\.io/.test(r.url())) appwrite.push(r.url())
   })
   await page.goto('/')
-  await expect.poll(() => account.length).toBe(1)
   await expect(page.locator('.hero__title')).toBeVisible()
-
-  const sdk: string[] = []
-  page.on('request', (r) => {
-    if (/\/assets\/appwrite-.*\.js$/.test(r.url())) sdk.push(r.url())
-  })
   await page.reload()
   await expect(page.locator('.hero__title')).toBeVisible()
   await page.waitForTimeout(500)
-  expect(account).toHaveLength(1)
-  expect(sdk).toEqual([])
-  // Страница входа по-прежнему предлагает войти.
+  expect(appwrite).toEqual([])
   await page.goto('/account')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Вход')
   await expect(page).toHaveTitle('Вход и регистрация | Anime Life')
 })
 
-test('новому гостю профиль не запрашиваем совсем: в консоли нет 401', async ({ browser, baseURL }) => {
-  // Отдельный контекст без cookieFallback: в этом браузере никто не входил.
+test('новому гостю без сессии: только Core /auth/me, не Appwrite', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ serviceWorkers: 'block', baseURL })
   const page = await context.newPage()
-  await page.route(/shikimori\.(io|one)\/.*/, (route) => route.fulfill({ json: [] }))
-  const account: string[] = []
+  await mockServices(page)
+  const appwrite: string[] = []
+  const coreMe: string[] = []
   page.on('request', (r) => {
-    if (/appwrite\.io\/v1\/account$/.test(r.url())) account.push(r.url())
+    if (/cloud\.appwrite\.io/.test(r.url())) appwrite.push(r.url())
+    if (/\/api\/core\/auth\/me$/.test(r.url())) coreMe.push(r.url())
   })
-  await page.route(/cloud\.appwrite\.io\/.*/, (route) => route.fulfill({ status: 401, json: { message: 'guests' } }))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Смотреть аниме онлайн' })).toBeVisible()
+  await page.waitForTimeout(1200)
   await page.goto('/account')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Вход')
-  await page.waitForTimeout(800)
-  expect(account).toEqual([])
+  expect(appwrite).toEqual([])
+  expect(coreMe.length).toBeGreaterThanOrEqual(1)
   await context.close()
 })
 

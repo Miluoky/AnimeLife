@@ -22,8 +22,8 @@ const TEXT: Record<Kind, { name: string; message: string; send: string; done: st
 }
 
 /**
- * Форма обращения: жалоба правообладателя или обратная связь. Отправляется в функцию community
- * (действие takedown-create), вход не нужен. SDK Appwrite подгружается только при отправке.
+ * Форма обращения: жалоба правообладателя или обратная связь. Отправляется в Core
+ * (`/api/core/action`, takedown-create), вход не нужен.
  */
 export default function ContactForm({ kind }: { kind: Kind }) {
   const t = TEXT[kind]

@@ -28,7 +28,7 @@ const UPDATED = 'Редакция от 10 ноября 2026 года.'
 export const CONTACT_EMAIL = 'temost04@gmail.com'
 const MAIL = `[${CONTACT_EMAIL}](mailto:${CONTACT_EMAIL})`
 
-/** Ограничения полей формы. Те же проверяет функция community (functions/community/src/takedowns.js). */
+/** Ограничения полей формы. Те же проверяет Core (worker/core/moderation). */
 export const FORM_LIMITS = { name: 200, email: 254, links: 4000, message: 5000, messageMin: { takedown: 20, contact: 10 } }
 
 export const LEGAL: Record<string, LegalPage> = {

@@ -5,7 +5,7 @@
 The AnimeLife end-to-end testing infrastructure is built with **Playwright Test** (`@playwright/test`), executing hermetic, requirement-driven opaque-box browser tests against the Vite production preview build (`npm run preview`).
 
 ### Key Architectural Tenets
-1. **Zero External Flakiness**: All external services (Shikimori REST/GraphQL API, Appwrite Cloud, AniLibria API, HLS CDN streams, and analytics) are deterministically intercepted via Playwright `page.route` handlers and lightweight fixtures (`tests/mocks.ts` and `tests/fixtures/`).
+1. **Zero External Flakiness**: External services (Shikimori, AnimeLife Core `/api/core`, AniLibria, stream CDNs, analytics) are intercepted via Playwright `page.route` and fixtures (`tests/mocks.ts`, `tests/fixtures/`). Legacy Appwrite URLs are guarded to fail fast if touched.
 2. **Dual Viewport Target Matrices**:
    - **Desktop**: Chromium Desktop (`Desktop Chrome`, 1280×720 viewport, mouse/keyboard events).
    - **Mobile**: Mobile Chrome (`Pixel 7`, 393×851 viewport, touch-enabled, mobile bottom dock and sheets).

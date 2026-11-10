@@ -26,7 +26,7 @@
 
 **Позже:** исходящая почта (сброс пароля), R2 для своей манги, Google/Яндекс OAuth (ключи). RoomDO уже в коде (`worker/core/roomDo.js`) — binding включить на Workers Paid, см. `docs/rooms-do.md`.
 
-**Операции:** суточный экспорт D1 — `.github/workflows/backup.yml`. Workflow'ы Appwrite (деплой, статус, экспорт) — заглушки с `RETIRED`.
+**Операции:** суточный экспорт D1 — `.github/workflows/backup.yml`. Appwrite Functions и `functions/community` в репозитории сняты с эксплуатации.
 
 Старых пользователей Appwrite не переносим — регистрируются заново.
 
@@ -34,9 +34,8 @@
 
 | Область | Файл | Примечание |
 |---|---|---|
-| CDN manga (legacy) | `src/api/mangaOwn.ts` | `legacyMangaPageUrl` — публичный view Appwrite storage для старых глав |
 | Сброс пароля | `Account.tsx`, `PasswordRecovery.tsx` | Core: выкл. до почты на воркере |
-| Загрузка манги | `src/pages/MangaUpload.tsx` | **выкл.** (`OWN_MANGA_ENABLED`), пока нет R2 |
+| Загрузка манги | `src/pages/MangaUpload.tsx`, `src/api/mangaOwn.ts` | **выкл.** (`OWN_MANGA_ENABLED`), пока нет R2 |
 
 ## Лимит Worker
 

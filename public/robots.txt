@@ -87,7 +87,6 @@ Allow: /terms
 Allow: /privacy
 # Disallow Internal APIs & Service Endpoints
 Disallow: /api/
-Disallow: /appwrite/
 Disallow: /functions/
 # Disallow Balancer Proxies, Stream Pipes & Raw Embeds
 Disallow: /proxy/

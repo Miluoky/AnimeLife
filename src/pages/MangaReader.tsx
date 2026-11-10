@@ -125,7 +125,7 @@ export default function MangaReader() {
     [m?.id, lang, md.loading],
   )
   // Страницы грузим сразу, не дожидаясь списка глав: id главы уже в адресе.
-  // Наши главы (загруженные командами) хранятся в Appwrite: у них адреса страниц готовые.
+  // Свои главы (OWN_PREFIX) выкл. до R2: fetchOwnChapter сразу вернёт null.
   const pages = useAsync(
     async () => {
       const offline = await getOfflinePages(chapter)

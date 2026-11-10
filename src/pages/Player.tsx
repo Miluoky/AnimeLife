@@ -39,7 +39,7 @@ const skipFillersStore = createLocalStore('anime.skipfillers.v1', false)
 // Широкий экран на компьютере: видео во всю ширину, озвучки и серии под ним.
 const wideStore = createLocalStore('anime.widescreen.v1', false)
 
-// Комментарии и рейтинг тянут SDK Appwrite: грузим отдельно, плеер появляется сразу.
+// Комментарии и рейтинг — Core: грузим отдельно, плеер появляется сразу.
 const NextPart = lazy(() => import('../components/NextPart'))
 const WatchReturn = lazy(() => import('../components/WatchReturn'))
 const EpisodeRating = lazy(() => import('../components/EpisodeRating'))

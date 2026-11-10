@@ -18,25 +18,65 @@ export function shikimoriFixture(path: string, params: URLSearchParams): unknown
   return []
 }
 
+/** Счётчик случайных обращений к Appwrite в прогоне (должен оставаться 0). */
+export function createAppwriteGuard() {
+  let hits = 0
+  return {
+    hits: () => hits,
+    route: async (page: Page) => {
+      await page.route(/cloud\.appwrite\.io\/.*/, (route) => {
+        hits += 1
+        return route.fulfill({
+          status: 503,
+          json: { message: 'Appwrite retired: use /api/core stubs in tests', type: 'test_guard' },
+        })
+      })
+    },
+  }
+}
+
+const defaultCoreGet = (path: string) => {
+  if (path === '/health' || path === '/') return { ok: true, backend: 'core', time: Date.now() }
+  if (path.startsWith('/reviews')) return { reviews: [] }
+  if (path === '/chat') return { messages: [] }
+  if (path.startsWith('/rooms')) return { rooms: [], room: null, messages: [] }
+  if (path.startsWith('/social/')) return { counts: { followers: 0, following: 0 }, following: false, feed: [], items: [] }
+  return { ok: true }
+}
+
 /**
- * Подменяет внешние сервисы заготовками. Любой список тайтлов отдаёт одни и те же 8 онгоингов,
- * любой тайтл — «Ковбоя Бибопа». Appwrite отвечает «не вошли», картинки — пустым ответом.
+ * Подменяет внешние сервисы заготовками. Бэкенд — AnimeLife Core (`/api/core`), не Appwrite.
  */
 export async function mockServices(page: Page) {
-  // Как у того, кто уже входил на этом устройстве: SDK Appwrite хранит сессию в cookieFallback,
-  // и только тогда сайт спрашивает профиль. Новый гость без этой записи — отдельный тест в smoke.spec.ts.
-  await page.addInitScript(() => {
-    if (!localStorage.getItem('cookieFallback')) localStorage.setItem('cookieFallback', '{"a_session_test":"x"}')
+  const appwrite = createAppwriteGuard()
+  await appwrite.route(page)
+  ;(page as Page & { __appwriteGuard?: ReturnType<typeof createAppwriteGuard> }).__appwriteGuard = appwrite
+
+  await page.route(/\/api\/core(\/.*)?$/, async (route) => {
+    const url = new URL(route.request().url())
+    const path = url.pathname.replace(/^\/api\/core/, '') || '/'
+    const method = route.request().method().toUpperCase()
+    if (method === 'GET') {
+      if (path === '/auth/me' || path === '/lists/me') {
+        return route.fulfill({ status: 401, json: { message: 'Не вошли', code: 401 } })
+      }
+      return route.fulfill({ json: defaultCoreGet(path) })
+    }
+    if (method === 'POST' && path === '/action') {
+      return route.fulfill({ status: 401, json: { message: 'Войдите', code: 401 } })
+    }
+    if (method === 'POST' && path.startsWith('/auth/')) {
+      return route.fulfill({ status: 401, json: { message: 'Тест: войдите через route override', code: 401 } })
+    }
+    return route.fulfill({ status: 404, json: { message: `Core mock: нет заготовки для ${method} ${path}` } })
   })
+
   await page.route(/shikimori\.(io|one)\/api\/.*/, async (route) => {
     const url = new URL(route.request().url())
     return route.fulfill({ json: shikimoriFixture(url.pathname.replace('/api', ''), url.searchParams) })
   })
   await page.route(/shikimori\.(io|one)\/(system|uploads)\/.*/, (route) =>
     route.fulfill({ status: 200, contentType: 'image/webp', body: Buffer.alloc(0) }),
-  )
-  await page.route(/cloud\.appwrite\.io\/.*/, (route) =>
-    route.fulfill({ status: 401, json: { message: 'User (role: guests) missing scope (account)', type: 'general_unauthorized_scope' } }),
   )
   await page.route(/challenges\.cloudflare\.com\/.*/, (route) => route.fulfill({ status: 204, body: '' }))
   // AniLibria по умолчанию ничего не находит (плеер показывает трейлер), трейлер YouTube — пустая страница.

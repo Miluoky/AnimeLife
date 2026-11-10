@@ -1,21 +1,11 @@
 // Кнопка «Смотреть» слева от поля ввода у бота @AnimeLifeAuth_bot: открывает сайт как Telegram Mini App.
 // Настраивается через Bot API (setChatMenuButton), BotFather для этого не нужен. Скрипт можно запускать сколько угодно раз.
 // Запуск: TELEGRAM_BOT_TOKEN=... node scripts/telegram-menu.mjs
-// Без TELEGRAM_BOT_TOKEN токен берётся у функции входа social-login в Appwrite (нужен APPWRITE_API_KEY).
 
 const SITE = process.env.SITE_URL || 'https://animelife.top'
 
 async function botToken() {
-  if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN
-  const key = process.env.APPWRITE_API_KEY
-  if (!key) return ''
-  const res = await fetch('https://fra.cloud.appwrite.io/v1/functions/social-login/variables', {
-    headers: { 'X-Appwrite-Project': '6abf65850016889f9b1b', 'X-Appwrite-Key': key },
-  }).catch(() => undefined)
-  const json = res?.ok ? await res.json().catch(() => ({})) : {}
-  const token = (json.variables ?? []).find((v) => v.key === 'TELEGRAM_BOT_TOKEN')?.value ?? ''
-  if (token && process.env.GITHUB_ACTIONS) console.log(`::add-mask::${token}`)
-  return token
+  return (process.env.TELEGRAM_BOT_TOKEN || '').trim()
 }
 
 const token = await botToken()

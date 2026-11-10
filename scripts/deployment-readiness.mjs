@@ -1,4 +1,4 @@
-// Скрипт проверки готовности к деплою (Cloudflare Worker + Appwrite) для https://animelife.top.
+// Скрипт проверки готовности к деплою (Cloudflare Worker + Core D1/KV) для https://animelife.top.
 // Запуск: node scripts/deployment-readiness.mjs
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -104,52 +104,23 @@ if (existsSync(sibnetProxy)) {
   fail('worker/sibnetProxy.js отсутствует')
 }
 
-// 3. Проверка Appwrite функций и миграций
-heading('3. Appwrite Community Functions & Migrations')
-const fnPkg = join(ROOT, 'functions/community/package.json')
-const fnMain = join(ROOT, 'functions/community/src/main.js')
-const wallSetup = join(ROOT, 'functions/community/setup-profile-wall.mjs')
-const socialSetup = join(ROOT, 'functions/community/setup-social.mjs')
-const deployScript = join(ROOT, 'scripts/deploy-function.mjs')
-
-if (existsSync(fnPkg) && existsSync(fnMain)) {
-  pass('functions/community package.json и src/main.js на месте')
-} else {
-  fail('Файлы функции community отсутствуют')
-}
-
-if (existsSync(wallSetup)) {
-  const wallCode = readFileSync(wallSetup, 'utf8')
-  if (wallCode.includes('profile_wall') && wallCode.includes('profile_wall_likes')) {
-    pass('setup-profile-wall.mjs конфигурирует profile_wall и profile_wall_likes')
+// 3. AnimeLife Core (D1 + KV), без Appwrite Functions
+heading('3. AnimeLife Core')
+const coreRouter = join(ROOT, 'worker/core/router.js')
+const coreActions = join(ROOT, 'worker/core/actions.js')
+const coreSchema = join(ROOT, 'worker/core/schema.sql')
+if (existsSync(coreRouter) && existsSync(coreActions)) {
+  const code = readFileSync(coreRouter, 'utf8')
+  if (code.includes('/api/core') && code.includes('export async function coreApi')) {
+    pass('worker/core/router.js обслуживает /api/core')
   } else {
-    fail('setup-profile-wall.mjs не содержит таблицы стены')
+    fail('worker/core/router.js не похож на Core API')
   }
 } else {
-  fail('setup-profile-wall.mjs отсутствует')
+  fail('worker/core/router.js или actions.js отсутствует')
 }
-
-if (existsSync(socialSetup)) {
-  const socialCode = readFileSync(socialSetup, 'utf8')
-  if (socialCode.includes('follows') && socialCode.includes('activity') && socialCode.includes('user_collections')) {
-    pass('setup-social.mjs конфигурирует таблицы социальной активности')
-  } else {
-    fail('setup-social.mjs неполный')
-  }
-} else {
-  fail('setup-social.mjs отсутствует')
-}
-
-if (existsSync(deployScript)) {
-  const deployCode = readFileSync(deployScript, 'utf8')
-  if (deployCode.includes('fra.cloud.appwrite.io') && deployCode.includes('6abf65850016889f9b1b')) {
-    pass('scripts/deploy-function.mjs нацелен на проект 6abf65850016889f9b1b в регионе fra')
-  } else {
-    fail('scripts/deploy-function.mjs содержит неверный эндпоинт/проект')
-  }
-} else {
-  fail('scripts/deploy-function.mjs отсутствует')
-}
+if (existsSync(coreSchema)) pass('worker/core/schema.sql на месте')
+else fail('worker/core/schema.sql отсутствует')
 
 // 4. Проверка тестовых моков
 heading('4. Test Mocks Resilience')
@@ -157,13 +128,14 @@ const mocksPath = join(ROOT, 'tests/mocks.ts')
 if (existsSync(mocksPath)) {
   const mocksCode = readFileSync(mocksPath, 'utf8')
   if (
+    mocksCode.includes('/api/core') &&
     mocksCode.includes('api.dreamerscast.com') &&
     mocksCode.includes('api.dreamcast.fun') &&
     mocksCode.includes('dcast.online')
   ) {
-    pass('tests/mocks.ts мокирует все зеркала Dream Cast (устраняя задержки 9-27с)')
+    pass('tests/mocks.ts: Core /api/core и зеркала Dream Cast')
   } else {
-    fail('tests/mocks.ts не содержит полных моков зеркал Dream Cast')
+    fail('tests/mocks.ts не содержит заготовок Core или Dream Cast')
   }
 } else {
   fail('tests/mocks.ts отсутствует')
@@ -182,23 +154,7 @@ try {
   console.log(`  ! Внимание: прямой запрос к https://animelife.top: ${err.message} (возможно ограничение локальной сети)`)
 }
 
-// 6. Проверка Appwrite Cloud эндпоинта
-heading('6. Appwrite Cloud Connectivity Check')
-try {
-  const res = await fetch('https://fra.cloud.appwrite.io/v1/health/version', {
-    signal: AbortSignal.timeout(6000),
-  })
-  if (res.ok) {
-    const data = await res.json().catch(() => ({}))
-    pass(`Appwrite Cloud доступен (версия ${data.version || 'ok'})`)
-  } else {
-    pass(`Appwrite Cloud эндпоинт отвечает (HTTP ${res.status})`)
-  }
-} catch (err) {
-  console.log(`  ! Внимание: запрос к Appwrite Cloud: ${err.message}`)
-}
-
-// 7. Сводка
+// 6. Сводка
 heading('Deployment Readiness Verdict')
 if (exitCode === 0) {
   console.log('🎉 ВСЕ ПРОВЕРКИ УСПЕШНО ПРОЙДЕНЫ: проект полностью готов к выкладке на боевой сервер https://animelife.top!\n')

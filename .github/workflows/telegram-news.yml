@@ -2,8 +2,7 @@ name: Новости в Telegram-канал
 
 # Автоновости канала Anime Life (scripts/telegram-news.mjs): новые серии онгоингов, анонсы сезона и обновления
 # сайта из «Что нового». Публикует бот @AnimeLifeAuth_bot, он должен быть администратором канала.
-# Канал: https://t.me/AnimeLifeNew (переменная репозитория TELEGRAM_CHANNEL может его заменить). Токен: секрет TELEGRAM_BOT_TOKEN,
-# без него скрипт пробует взять токен у функции входа в Appwrite (секрет APPWRITE_API_KEY).
+# Канал: https://t.me/AnimeLifeNew (переменная репозитория TELEGRAM_CHANNEL может его заменить). Токен: секрет TELEGRAM_BOT_TOKEN.
 # Что уже опубликовано, переносится между запусками кэшем GitHub Actions (.tg-news/state.json).
 on:
   schedule:
@@ -32,7 +31,6 @@ jobs:
     env:
       TELEGRAM_CHANNEL: ${{ vars.TELEGRAM_CHANNEL || '@AnimeLifeNew' }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
     steps:
       - name: Проверить канал
         id: check

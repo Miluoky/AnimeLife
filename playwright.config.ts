@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 // PW_PORT — свой порт preview, чтобы параллельные прогоны (несколько веток, агенты) не делили сервер.
 const port = Number(process.env.PW_PORT) || 4173
 
-// Браузерные тесты ходят на собранный сайт (vite preview), Shikimori и Appwrite подменяются
+// Браузерные тесты ходят на собранный сайт (vite preview); Shikimori и /api/core подменяются
 // заготовками из tests/fixtures: тесты не зависят от сети и лимитов API.
 export default defineConfig({
   testDir: 'tests',

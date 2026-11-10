@@ -259,7 +259,7 @@ async function deleteSub(env, subId) {
   await env.DB.prepare('DELETE FROM push_subs WHERE id = ?').bind(subId).run()
 }
 
-async function tgSendEpisode(env, sub, e) {
+export async function tgSendEpisode(env, sub, e) {
   const chatId = sub.endpoint.slice(TG_PREFIX.length)
   const title = e.anime.russian || e.anime.name
   const res = await bot(env, 'sendMessage', {

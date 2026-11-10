@@ -8,20 +8,20 @@ test.beforeEach(async ({ page }) => {
   await mockServices(page)
 })
 
-test('публичная главная отрисовывается до загрузки Appwrite SDK', async ({ page }) => {
-  const accountRequests: string[] = []
+test('публичная главная отрисовывается без обращений к Appwrite', async ({ page }) => {
+  const appwriteRequests: string[] = []
   page.on('request', (request) => {
-    if (/cloud\.appwrite\.io\/v1\/account$/.test(request.url())) accountRequests.push(request.url())
+    if (/cloud\.appwrite\.io/.test(request.url())) appwriteRequests.push(request.url())
   })
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'Смотреть аниме онлайн' })).toBeVisible()
-  expect(accountRequests).toHaveLength(0)
+  expect(appwriteRequests).toHaveLength(0)
 })
 
-test('прямой вход в профиль не откладывает проверку сессии', async ({ page }) => {
-  const accountRequest = page.waitForRequest((request) => /cloud\.appwrite\.io\/v1\/account$/.test(request.url()))
+test('прямой вход в профиль сразу проверяет сессию Core', async ({ page }) => {
+  const meRequest = page.waitForRequest((request) => /\/api\/core\/auth\/me$/.test(request.url()))
   await page.goto('/account', { waitUntil: 'domcontentloaded' })
-  await accountRequest
+  await meRequest
   await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible()
 })
 

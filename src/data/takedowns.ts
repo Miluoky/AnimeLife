@@ -1,6 +1,6 @@
 import { callCommunity } from './community'
 
-// Обращения с форм «Правообладателям» и «Контакты». Пишет и читает только функция community (takedowns.js):
+// Обращения с форм «Правообладателям» и «Контакты» через Core `/api/core/action` (worker/core/moderation):
 // отправить может кто угодно, список и статусы видят только админы.
 
 export type TakedownKind = 'takedown' | 'contact'

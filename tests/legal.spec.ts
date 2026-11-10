@@ -6,14 +6,14 @@ test.beforeEach(async ({ page }) => {
   await mockServices(page)
 })
 
-/** Подменяет функцию community: отвечает reply(тело запроса) и запоминает, что отправил сайт. */
-async function mockCommunity(page: Page, reply: (body: Record<string, unknown>) => [number, object]) {
+/** Подменяет Core POST /action и запоминает тело запроса. */
+async function mockCoreAction(page: Page, reply: (body: Record<string, unknown>) => [number, object]) {
   const sent: Record<string, unknown>[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route: Route) => {
-    const body = JSON.parse(route.request().postDataJSON().body)
+  await page.route(/\/api\/core\/action$/, (route: Route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>
     sent.push(body)
     const [status, json] = reply(body)
-    return route.fulfill({ status: 201, json: { responseStatusCode: status, responseBody: JSON.stringify(json) } })
+    return route.fulfill({ status, json })
   })
   return sent
 }
@@ -51,7 +51,7 @@ test('служебные страницы: заголовок, описание 
 })
 
 test('жалоба правообладателя: галочка обязательна, после отправки — подтверждение', async ({ page }) => {
-  const sent = await mockCommunity(page, () => [200, { ok: true }])
+  const sent = await mockCoreAction(page, () => [200, { ok: true }])
   await page.goto('/rightholders')
   await page.getByLabel('Имя или название организации').fill('ООО «Студия»')
   await page.getByLabel('Электронная почта для ответа').fill('legal@example.com')
@@ -75,14 +75,14 @@ test('жалоба правообладателя: галочка обязате
 })
 
 test('форма обратной связи показывает ошибку сервера', async ({ page }) => {
-  const sent = await mockCommunity(page, () => [400, { error: 'Слишком много обращений подряд. Попробуйте через час.' }])
+  const sent = await mockCoreAction(page, () => [400, { message: 'Слишком много обращений подряд. Попробуйте через час.' }])
   await page.goto('/contacts')
   await expect(page.getByLabel(/Подтверждаю/)).toHaveCount(0)
   await page.getByLabel('Имя', { exact: true }).fill('Мика')
   await page.getByLabel('Электронная почта для ответа').fill('mika@example.com')
   await page.getByLabel('Сообщение').fill('Не открывается страница расписания.')
   await page.getByRole('button', { name: 'Отправить', exact: true }).click()
-  await expect(page.getByRole('alert')).toHaveText('Слишком много обращений подряд. Попробуйте через час.')
+  await expect(page.getByRole('alert')).toContainText('Слишком много обращений подряд')
   expect(sent[0]).toMatchObject({ action: 'takedown-create', kind: 'contact', confirm: false })
 })
 
@@ -95,9 +95,11 @@ test('возрастная маркировка на странице тайтл
 })
 
 test('модерация: вкладка обращений для админа', async ({ page }) => {
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
+  await page.route(/\/api\/core\/auth\/me$/, (route) =>
     route.fulfill({
-      json: { $id: 'admin1', name: 'Модератор', email: 'mod@example.com', labels: ['admin'], prefs: {}, status: true },
+      json: {
+        user: { $id: 'admin1', name: 'Модератор', email: 'mod@example.com', labels: ['admin'], prefs: {}, status: true },
+      },
     }),
   )
   const takedown = {
@@ -110,7 +112,7 @@ test('модерация: вкладка обращений для админа'
     status: 'new',
     createdAt: Date.now(),
   }
-  const sent = await mockCommunity(page, (body) => {
+  const sent = await mockCoreAction(page, (body) => {
     if (body.action === 'takedown-list') return [200, { takedowns: [takedown] }]
     if (body.action === 'takedown-status') return [200, { takedown: { ...takedown, status: body.status } }]
     if (body.action === 'mod-list') return [200, { reviews: [] }]

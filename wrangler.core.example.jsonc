@@ -2,7 +2,7 @@
 // в wrangler.jsonc и wrangler.animelife.jsonc после:
 //   npx wrangler d1 create anime_core
 //   npx wrangler kv namespace create anime_sessions
-// Подставьте реальные id. Без них /api/core отвечает 503, сайт на Appwrite не ломается.
+// Подставьте реальные id. Без них /api/core отвечает 503 — настройте D1 и KV перед продом.
 {
   "d1_databases": [
     {

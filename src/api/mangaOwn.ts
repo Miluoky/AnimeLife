@@ -1,12 +1,10 @@
-import { LEGACY_APPWRITE_PROJECT, LEGACY_APPWRITE_V1 } from './config'
 import type { Chapter } from './mangadex'
 
-// Главы, которые команды переводчиков загрузили прямо на Anime Life.
-// Core: D1 manga_chapters + R2 (/api/core/manga*).
-// R2 пока отложено (биллинг Cloudflare из РФ) — свои главы на Core выключены.
+// Свои главы команд на Anime Life: Core D1 `manga_chapters` + картинки в R2 (`/api/core/manga*`).
+// R2 не включён (биллинг Cloudflare из РФ) — загрузка и раздача своих глав выключены.
+// Пока OWN_MANGA_ENABLED=false, fetchOwn* сразу возвращают пусто, без запросов к Core.
 
 export const OWN_TABLE = 'manga_chapters'
-export const OWN_BUCKET = 'manga-pages'
 /** id наших глав в адресе читалки начинаются с этой приставки, у глав MangaDex там UUID */
 export const OWN_PREFIX = 'al-'
 /** false, пока нет R2 / внешнего object storage. Включить вместе с binding MANGA. */
@@ -23,10 +21,7 @@ interface CoreChapterRow {
   pageUrls: string[]
 }
 
-/** Legacy: страницы, ещё лежащие в bucket Appwrite manga-pages (публичный view, без SDK). */
-export const legacyMangaPageUrl = (fileId: string) =>
-  `${LEGACY_APPWRITE_V1}/storage/buckets/${OWN_BUCKET}/files/${encodeURIComponent(fileId)}/view?project=${LEGACY_APPWRITE_PROJECT}`
-
+/** Адрес картинки своей главы на Core. Не вызывается, пока свои главы выключены. */
 export const pageUrl = (fileId: string) =>
   `${typeof location !== 'undefined' ? location.origin : ''}/api/core/manga-img/${encodeURIComponent(fileId)}`
 
@@ -62,7 +57,7 @@ async function coreChapter(rowId: string): Promise<Chapter | null> {
 
 const cache = new Map<string, Promise<Chapter[]>>()
 
-/** Все наши главы тайтла на всех языках. */
+/** Все наши главы тайтла на всех языках. Пока выкл. — сразу []. */
 export function fetchOwnChapters(mangaId: string): Promise<Chapter[]> {
   if (!OWN_MANGA_ENABLED) return Promise.resolve([])
   if (!cache.has(mangaId)) {
@@ -73,7 +68,7 @@ export function fetchOwnChapters(mangaId: string): Promise<Chapter[]> {
   return cache.get(mangaId)!
 }
 
-/** Одна наша глава по id из адреса читалки (без приставки). */
+/** Одна наша глава по id из адреса читалки (без приставки). Пока выкл. — сразу null. */
 export async function fetchOwnChapter(rowId: string): Promise<Chapter | null> {
   if (!OWN_MANGA_ENABLED) return null
   return coreChapter(rowId)

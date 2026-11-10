@@ -45,7 +45,7 @@ import {
 } from '../api/balancers'
 import { kodikTranslationUrl } from '../api/kodik'
 
-// Комментарии поверх видео тянут SDK Appwrite: отдельной частью, когда серия уже играет.
+// Комментарии поверх видео — Core: отдельной частью, когда серия уже играет.
 const Danmaku = lazy(() => import('./Danmaku'))
 
 /* ──────────────── Типы ──────────────── */

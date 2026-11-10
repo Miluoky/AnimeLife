@@ -24,7 +24,6 @@ jobs:
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
-      APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
       KODIK_TOKEN: ${{ secrets.VITE_KODIK_TOKEN }}
       # Вызовы Worker за сутки: на 70 и 90 тысячах из 100 000 бот предупреждает администратора.
       CLOUDFLARE_EMAIL: ${{ secrets.ANIMELIFE_CF_EMAIL }}
