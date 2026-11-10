@@ -342,20 +342,20 @@ export async function handleOAuth(request, env, path) {
   const method = request.method.toUpperCase()
 
   if (path === '/auth/oauth/telegram/webhook' && method === 'POST') {
-    const hookSecret = request.headers.get('x-telegram-bot-api-secret-token')
-    if (hookSecret !== undefined) {
-      if (!env.TELEGRAM_WEBHOOK_SECRET || !sameText(hookSecret, env.TELEGRAM_WEBHOOK_SECRET)) {
-        return err('forbidden', 403)
-      }
-      const body = await bodyJson(request)
-      try {
-        await telegramUpdate(env, body || {})
-      } catch (e) {
-        console.error('telegram webhook', e)
-      }
-      return json({ ok: true })
+    const expected = String(env.TELEGRAM_WEBHOOK_SECRET || '').trim()
+    const got = String(request.headers.get('x-telegram-bot-api-secret-token') || '').trim()
+    // Если секрет задан — Telegram обязан прислать тот же X-Telegram-Bot-Api-Secret-Token.
+    // Без секрета на Worker принимаем апдейты (удобно при переносе вебхука), иначе 403 и бот молчит.
+    if (expected && !sameText(got, expected)) {
+      return err('forbidden', 403)
     }
-    return err('forbidden', 403)
+    const body = await bodyJson(request)
+    try {
+      await telegramUpdate(env, body || {})
+    } catch (e) {
+      console.error('telegram webhook', e)
+    }
+    return json({ ok: true })
   }
 
   if (path !== '/auth/oauth' || method !== 'POST') {
