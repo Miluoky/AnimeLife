@@ -28,6 +28,7 @@ const IMPLEMENTED = new Set([
   'comment-save',
   'comment-delete',
   'comment-report',
+  'analytics-batch',
   'analytics-track',
   'analytics-stats',
   'quality-track',

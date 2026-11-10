@@ -19,12 +19,16 @@ const BROWSER_TTL = 6 * 3600
 const TIMEOUT = 10000
 const UA = 'AnimeLife/1.0 (+https://animelife.top)'
 
+const EDGE_TTL = FRESH + STALE
+
 const json = (body, status, cache, maxAge = BROWSER_TTL) =>
   new Response(body, {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': maxAge ? `public, max-age=${maxAge}` : 'no-store',
+      'Cache-Control': maxAge
+        ? `public, max-age=${maxAge}, s-maxage=${EDGE_TTL}, stale-while-revalidate=${STALE}`
+        : 'no-store',
       'X-Cache': cache,
     },
   })
@@ -57,7 +61,7 @@ export async function yummyProxy(request, ctx) {
     const stored = new Response(text, {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': `public, max-age=${FRESH + STALE}`,
+        'Cache-Control': `public, max-age=${EDGE_TTL}, s-maxage=${EDGE_TTL}`,
         'X-Fresh-Until': String(Date.now() + FRESH * 1000),
       },
     })

@@ -5,6 +5,12 @@ const SESSION_KEY = 'animelife.analytics.session'
  */
 const HEARTBEAT = 0
 
+/** События, которые можно слить в один вызов Worker. */
+const BATCH_ACTIONS = new Set(['analytics-track', 'quality-track', 'error-report'])
+/** Интервал сброса очереди (с). */
+const FLUSH_MS = 20_000
+const MAX_BATCH = 40
+
 function sessionId() {
   try {
     const saved = localStorage.getItem(SESSION_KEY)
@@ -20,8 +26,19 @@ function sessionId() {
 /** Считаем только настоящий сайт: локальная сборка и тесты статистику не портят. */
 export const live = () => typeof location !== 'undefined' && /(^|\.)animelife\.top$/.test(location.hostname)
 
-/** Отметка просмотра — POST на `/api/core/action`. */
-export function beacon(body: object) {
+type BeaconBody = Record<string, unknown> & { action?: string }
+
+let queue: BeaconBody[] = []
+let flushTimer = 0
+let flushListeners = false
+
+/** Тесты (quality/errors) ждут отправку сразу, без ожидания интервала. */
+const instantBeacon = () =>
+  typeof window !== 'undefined' &&
+  (!!(window as Window & { __reportQuality?: boolean }).__reportQuality ||
+    !!(window as Window & { __reportErrors?: boolean }).__reportErrors)
+
+function post(body: object) {
   void fetch('/api/core/action', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -29,6 +46,55 @@ export function beacon(body: object) {
     keepalive: true,
     credentials: 'include',
   }).catch(() => undefined)
+}
+
+function ensureFlushListeners() {
+  if (flushListeners || typeof document === 'undefined') return
+  flushListeners = true
+  const onHide = () => flushBeacons()
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') onHide()
+  })
+  window.addEventListener('pagehide', onHide)
+}
+
+export function flushBeacons() {
+  if (flushTimer) {
+    window.clearTimeout(flushTimer)
+    flushTimer = 0
+  }
+  if (!queue.length) return
+  const items = queue.splice(0, MAX_BATCH)
+  if (items.length === 1) {
+    post(items[0])
+    return
+  }
+  post({ action: 'analytics-batch', items })
+  if (queue.length) scheduleFlush()
+}
+
+function scheduleFlush() {
+  ensureFlushListeners()
+  if (flushTimer || !queue.length) return
+  flushTimer = window.setTimeout(() => {
+    flushTimer = 0
+    flushBeacons()
+  }, FLUSH_MS)
+}
+
+/** Отметка просмотра и прочие метрики — POST на `/api/core/action` (пакетом, если можно). */
+export function beacon(body: BeaconBody) {
+  const action = String(body.action ?? '')
+  if (!BATCH_ACTIONS.has(action)) {
+    post(body)
+    return
+  }
+  queue.push(body)
+  if (instantBeacon()) {
+    flushBeacons()
+    return
+  }
+  scheduleFlush()
 }
 
 /** Устройство по ширине экрана и типу указателя: этого хватает для «телефон / планшет / компьютер». */

@@ -450,10 +450,24 @@ async function errorClear(env, session, body) {
   return json({ ok: true })
 }
 
+async function analyticsBatch(env, body, now = Date.now()) {
+  const raw = body.items
+  if (!Array.isArray(raw) || !raw.length) return err('Пустой пакет метрик.', 400)
+  const items = raw.slice(0, 50)
+  for (const item of items) {
+    const action = String(item?.action || '')
+    if (action === 'analytics-track') await analyticsTrack(env, item, now)
+    else if (action === 'quality-track') await qualityTrack(env, item, now)
+    else if (action === 'error-report') await errorReport(env, item, now)
+  }
+  return json({ ok: true, n: items.length })
+}
+
 export async function handleAnalyticsAction(env, session, body) {
   const action = String(body?.action || '')
   const now = Date.now()
 
+  if (action === 'analytics-batch') return analyticsBatch(env, body, now)
   if (action === 'analytics-track') return analyticsTrack(env, body, now)
   if (action === 'analytics-stats') return analyticsStats(env, session, now)
   if (action === 'quality-track') return qualityTrack(env, body, now)

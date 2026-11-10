@@ -3,6 +3,7 @@
  */
 
 import { err, json } from './auth.js'
+import { coreCacheHeaders } from './router.js'
 import { randomId, sha256Hex } from './crypto.js'
 
 const MAX_COLLECTIONS = 20
@@ -135,11 +136,11 @@ export async function handleClubsGet(request, env, path) {
       if (!ID.test(id)) return err('Клуб не найден.', 404)
       const row = await env.DB.prepare('SELECT * FROM clubs WHERE id = ?').bind(id).first()
       if (!row) return err('Клуб не найден.', 404)
-      return json({ club: rowClub(row) })
+      return json({ club: rowClub(row) }, 200, coreCacheHeaders(20))
     }
     const order = url.searchParams.get('order') === 'big' ? 'members' : 'last_at'
     const res = await env.DB.prepare(`SELECT * FROM clubs ORDER BY ${order} DESC LIMIT 60`).all()
-    return json({ clubs: (res.results || []).map(rowClub) })
+    return json({ clubs: (res.results || []).map(rowClub) }, 200, coreCacheHeaders(30))
   }
 
   if (path === '/clubs/posts' && request.method === 'GET') {
@@ -150,7 +151,7 @@ export async function handleClubsGet(request, env, path) {
     )
       .bind(clubId)
       .all()
-    return json({ posts: (res.results || []).map(rowPost) })
+    return json({ posts: (res.results || []).map(rowPost) }, 200, coreCacheHeaders(15))
   }
 
   if (path === '/clubs/member' && request.method === 'GET') {
@@ -168,7 +169,7 @@ export async function handleClubsGet(request, env, path) {
       if (!ID.test(id)) return err('Подборка не найдена.', 404)
       const row = await env.DB.prepare('SELECT * FROM user_collections WHERE id = ?').bind(id).first()
       if (!row) return err('Подборка не найдена.', 404)
-      return json({ collection: rowCollection(row) })
+      return json({ collection: rowCollection(row) }, 200, coreCacheHeaders(20))
     }
     const order = url.searchParams.get('order') === 'new' ? 'updated_at' : 'likes'
     const ownerId = url.searchParams.get('ownerId')
@@ -184,7 +185,7 @@ export async function handleClubsGet(request, env, path) {
         `SELECT * FROM user_collections WHERE hidden = 0 ORDER BY ${order} DESC LIMIT 48`,
       ).all()
     }
-    return json({ collections: (res.results || []).map(rowCollection) })
+    return json({ collections: (res.results || []).map(rowCollection) }, 200, coreCacheHeaders(30))
   }
 
   return null

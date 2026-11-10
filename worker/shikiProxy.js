@@ -23,8 +23,8 @@ const STALE = 7 * DAY
 // Свежесть ответа 404 (тайтла нет): недолго, чтобы не дёргать Shikimori на каждый битый адрес.
 const NOT_FOUND_TTL = 10 * MIN
 const TIMEOUT = 8000
-// Браузер держит ответ 5 минут: повторные заходы на те же страницы не тратят запросы Worker.
-const BROWSER_TTL = 300
+// Верхняя граница max-age в браузере (ниже — свежесть конкретного пути).
+const BROWSER_CAP = 6 * HOUR
 const UA = 'AnimeLife/1.0 (+https://animelife.top)'
 
 const ID = '\\d{1,10}'
@@ -94,12 +94,22 @@ async function route(request, url) {
   return { target: UPSTREAM + path + search, key: CACHE_ROOT + path + search, ttl: ttl(params) }
 }
 
-function reply(body, status, cache, maxAge = BROWSER_TTL) {
+function cacheControl(browserSec, edgeSec, swr = STALE) {
+  return `public, max-age=${browserSec}, s-maxage=${edgeSec}${swr ? `, stale-while-revalidate=${swr}` : ''}`
+}
+
+function browserTtl(ttl) {
+  return Math.min(Math.max(Math.floor(ttl), 60), BROWSER_CAP)
+}
+
+function reply(body, status, cache, ttl, freshForEdge = ttl) {
+  const browser = browserTtl(ttl)
+  const edge = Math.floor(freshForEdge) + STALE
   return new Response(body, {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': maxAge ? `public, max-age=${maxAge}` : 'no-store',
+      'Cache-Control': ttl ? cacheControl(browser, edge) : 'no-store',
       'X-Cache': cache,
     },
   })
@@ -139,7 +149,10 @@ export async function shikiProxy(request, ctx) {
   const key = new Request(r.key)
   const cached = await caches.default.match(key)
   const freshUntil = Number(cached?.headers.get('X-Fresh-Until')) || 0
-  if (cached && Date.now() < freshUntil) return reply(cached.body, cached.status, 'HIT')
+  if (cached && Date.now() < freshUntil) {
+    const left = (freshUntil - Date.now()) / 1000
+    return reply(cached.body, cached.status, 'HIT', left)
+  }
 
   let got = await upstream(r)
   // Shikimori просит подождать, а копии нет: один раз повторяем сами (до 1.5 с), чтобы зритель не видел ошибку.
@@ -156,12 +169,12 @@ export async function shikiProxy(request, ctx) {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         // Запись живёт дольше свежести: просроченная копия выручает, когда Shikimori недоступен.
-        'Cache-Control': `public, max-age=${ttl + STALE}`,
+        'Cache-Control': cacheControl(ttl + STALE, ttl + STALE, 0),
         'X-Fresh-Until': String(Date.now() + ttl * 1000),
       },
     })
     ctx.waitUntil(caches.default.put(key, stored).catch(() => undefined))
-    return reply(got.text, got.status, 'MISS')
+    return reply(got.text, got.status, 'MISS', ttl, ttl)
   }
   // Shikimori не ответил: отдаём последнюю копию, браузер спросит снова через минуту.
   if (cached) return reply(cached.body, cached.status, 'STALE', 60)

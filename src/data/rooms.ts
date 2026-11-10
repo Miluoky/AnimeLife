@@ -43,6 +43,10 @@ export const REACTIONS = ['❤️', '😂', '😮', '😭', '🔥', '👏']
 // --- Общие часы ---
 let offset = 0
 let bestRtt = Infinity
+let syncedAt = 0
+
+const SYNC_TTL_MS = 30 * 60_000
+const BAD_RTT_MS = 80
 
 function noteServerTime(serverNow: number | undefined, sentAt: number, receivedAt = Date.now()) {
   if (!serverNow) return
@@ -50,10 +54,21 @@ function noteServerTime(serverNow: number | undefined, sentAt: number, receivedA
   if (rtt <= bestRtt) {
     bestRtt = rtt
     offset = serverNow - (sentAt + rtt / 2)
+    syncedAt = Date.now()
   }
 }
 
 export const serverNow = () => Date.now() + offset
+
+function syncFresh() {
+  return syncedAt > 0 && Date.now() - syncedAt < SYNC_TTL_MS && bestRtt <= BAD_RTT_MS
+}
+
+async function communityTime() {
+  const sentAt = Date.now()
+  const reply = await callCommunity<{ serverNow: number }>({ action: 'room-time' })
+  noteServerTime(reply?.serverNow, sentAt)
+}
 
 async function edgeTime() {
   const sentAt = Date.now()
@@ -66,16 +81,21 @@ async function edgeTime() {
 
 let clockSynced: Promise<void> | undefined
 
-/** Сверяем часы. Один запрос к Worker; второй только при RTT > 80 мс. */
+/**
+ * Сверяем часы без лишних /api/time: сначала room-time; edge — только при сбое.
+ * Повтор в сессии не идёт, пока смещение свежее и RTT ≤ 80 мс. В комнате достаточно loadRoom / room-control.
+ */
 export function syncClock(samples = 1) {
+  if (syncFresh()) return Promise.resolve()
+  if (clockSynced && !syncFresh()) clockSynced = undefined
+
   clockSynced ??= (async () => {
     try {
-      await edgeTime()
-      if (samples > 1 && bestRtt > 80) await edgeTime()
+      await communityTime()
+      if (samples > 1 && bestRtt > BAD_RTT_MS) await communityTime()
     } catch {
-      const sentAt = Date.now()
-      const reply = await callCommunity<{ serverNow: number }>({ action: 'room-time' }).catch(() => undefined)
-      noteServerTime(reply?.serverNow, sentAt)
+      await edgeTime()
+      if (samples > 1 && bestRtt > BAD_RTT_MS) await edgeTime()
     }
   })()
   return clockSynced
@@ -99,7 +119,7 @@ export interface NewRoom {
 export const createRoom = (room: NewRoom) =>
   callCommunity<{ room: Room }>({ action: 'room-create', ...room }).then((r) => r.room)
 
-export const controlRoom = (
+export async function controlRoom(
   roomId: string,
   state: {
     playing: boolean
@@ -113,7 +133,12 @@ export const controlRoom = (
     startsAt?: number | null
     at?: number
   },
-) => callCommunity<{ serverNow: number }>({ action: 'room-control', roomId, ...state })
+) {
+  const sentAt = Date.now()
+  const reply = await callCommunity<{ serverNow: number }>({ action: 'room-control', roomId, ...state })
+  noteServerTime(reply?.serverNow, sentAt)
+  return reply
+}
 
 export const sendRoomMessage = (roomId: string, kind: RoomMessage['kind'], text: string, t: number) =>
   callCommunity<{ message: RoomMessage }>({ action: 'room-message', roomId, kind, text, t }).then((r) => r.message)
@@ -123,10 +148,12 @@ export const deleteRoomMessage = (messageId: string) => callCommunity({ action: 
 export const closeRoom = (roomId: string) => callCommunity({ action: 'room-close', roomId })
 
 export async function loadRoom(code: string): Promise<Room | null> {
+  const sentAt = Date.now()
   const res = await fetch(`/api/core/rooms/${encodeURIComponent(code)}`, { credentials: 'include' })
+  const receivedAt = Date.now()
   if (!res.ok) return null
   const data = (await res.json()) as { room: Room; serverNow?: number }
-  if (typeof data.serverNow === 'number') noteServerTime(data.serverNow, Date.now(), Date.now())
+  if (typeof data.serverNow === 'number') noteServerTime(data.serverNow, sentAt, receivedAt)
   return data.room
 }
 
@@ -149,8 +176,13 @@ export async function loadUpcomingRooms(): Promise<Room[]> {
   return ((await res.json()) as { rooms: Room[] }).rooms ?? []
 }
 
+const ROOM_POLL_VISIBLE_MS = 4500
+const ROOM_POLL_HIDDEN_MS = 15000
+
+const roomPollMs = () => (document.hidden ? ROOM_POLL_HIDDEN_MS : ROOM_POLL_VISIBLE_MS)
+
 /**
- * Живые обновления: polling раз в 2.5 с.
+ * Живые обновления: ~4.5 с в активной вкладке, ~15 с в фоне.
  * onRoom(null) — комнату закрыли.
  */
 export function subscribeRoom(
@@ -194,11 +226,28 @@ export function subscribeRoom(
       // сеть — следующий тик
     }
   }
-  void tick()
-  const timer = window.setInterval(tick, 2500)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const schedule = () => {
+    timer = window.setTimeout(async () => {
+      if (stopped) return
+      await tick()
+      if (!stopped) schedule()
+    }, roomPollMs())
+  }
+  const onVis = () => {
+    if (stopped) return
+    if (timer) window.clearTimeout(timer)
+    if (!document.hidden) void tick()
+    schedule()
+  }
+  void tick().then(() => {
+    if (!stopped) schedule()
+  })
+  document.addEventListener('visibilitychange', onVis)
   return () => {
     stopped = true
-    window.clearInterval(timer)
+    if (timer) window.clearTimeout(timer)
+    document.removeEventListener('visibilitychange', onVis)
   }
 }
 

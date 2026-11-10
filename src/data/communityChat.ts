@@ -35,7 +35,12 @@ export const loadCommunityChatModeration = () =>
 export const moderateCommunityChatMessage = (messageId: string, decision: 'hide' | 'show' | 'delete') =>
   callCommunity<{ message?: CommunityChatMessage }>({ action: 'community-chat-mod-action', messageId, decision })
 
-/** Живые обновления: polling раз в 2.5 с. */
+const CHAT_POLL_VISIBLE_MS = 4500
+const CHAT_POLL_HIDDEN_MS = 15000
+
+const chatPollMs = () => (document.hidden ? CHAT_POLL_HIDDEN_MS : CHAT_POLL_VISIBLE_MS)
+
+/** Живые обновления: ~4.5 с в активной вкладке, ~15 с в фоне. */
 export function subscribeCommunityChat(handlers: {
   onMessage: (message: CommunityChatMessage) => void
   onDelete: (messageId: string) => void
@@ -69,10 +74,27 @@ export function subscribeCommunityChat(handlers: {
       // сеть — следующий тик
     }
   }
-  void tick()
-  const timer = window.setInterval(tick, 2500)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const schedule = () => {
+    timer = window.setTimeout(async () => {
+      if (stopped) return
+      await tick()
+      if (!stopped) schedule()
+    }, chatPollMs())
+  }
+  const onVis = () => {
+    if (stopped) return
+    if (timer) window.clearTimeout(timer)
+    if (!document.hidden) void tick()
+    schedule()
+  }
+  void tick().then(() => {
+    if (!stopped) schedule()
+  })
+  document.addEventListener('visibilitychange', onVis)
   return () => {
     stopped = true
-    window.clearInterval(timer)
+    if (timer) window.clearTimeout(timer)
+    document.removeEventListener('visibilitychange', onVis)
   }
 }

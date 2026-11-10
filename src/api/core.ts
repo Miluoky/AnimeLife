@@ -18,7 +18,24 @@ const base = () => {
   return '/api/core'
 }
 
-async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Short-lived memo for idempotent GETs (health, me, lists). */
+const GET_MEMO_TTL_MS = 10_000
+const getMemo = new Map<string, { expiresAt: number; promise: Promise<unknown> }>()
+
+/** Coalesce identical in-flight mutating requests (same method, path, body). */
+const inFlight = new Map<string, Promise<unknown>>()
+
+function requestKey(path: string, init: RequestInit): { method: string; dedupeKey: string; getKey: string } {
+  const method = (init.method || 'GET').toUpperCase()
+  const body = typeof init.body === 'string' ? init.body : ''
+  return {
+    method,
+    dedupeKey: `${method}:${path}:${body}`,
+    getKey: `GET:${path}`,
+  }
+}
+
+async function executeReq<T>(path: string, init: RequestInit): Promise<T> {
   const res = await fetch(`${base()}${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
@@ -31,6 +48,48 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw err
   }
   return data
+}
+
+function bustGetMemo(...paths: string[]) {
+  for (const p of paths) getMemo.delete(`GET:${p}`)
+}
+
+async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const { method, dedupeKey, getKey } = requestKey(path, init)
+
+  if (method === 'GET') {
+    // /auth/me и /lists/me не кэшируем надолго без bust — иначе устареют после login/prefs.
+    const memoable = path === '/health'
+    if (memoable) {
+      const hit = getMemo.get(getKey)
+      if (hit && hit.expiresAt > Date.now()) {
+        return hit.promise as Promise<T>
+      }
+      const promise = executeReq<T>(path, init)
+      getMemo.set(getKey, { expiresAt: Date.now() + GET_MEMO_TTL_MS, promise })
+      promise.catch(() => getMemo.delete(getKey))
+      return promise
+    }
+    return executeReq<T>(path, init)
+  }
+
+  const existing = inFlight.get(dedupeKey)
+  if (existing) {
+    return existing as Promise<T>
+  }
+
+  const promise = executeReq<T>(path, init)
+    .then((data) => {
+      if (path.startsWith('/auth/') || path.startsWith('/lists/')) {
+        bustGetMemo('/auth/me', '/lists/me', '/health')
+      }
+      return data
+    })
+    .finally(() => {
+      inFlight.delete(dedupeKey)
+    })
+  inFlight.set(dedupeKey, promise)
+  return promise
 }
 
 export const isCoreBackend = () => BACKEND === 'core'

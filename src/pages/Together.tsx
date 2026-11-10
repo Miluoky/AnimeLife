@@ -16,7 +16,6 @@ import {
   sendRoomMessage,
   serverNow,
   subscribeRoom,
-  syncClock,
   type Room,
   type RoomMessage,
   youtubeId,
@@ -180,7 +179,6 @@ export default function Together() {
   // Загрузка комнаты, чата, часов сервера и живая подписка.
   useEffect(() => {
     let alive = true
-    void syncClock()
     void loadRoom(roomId).then((r) => alive && setRoom(r))
     void loadMessages(roomId)
       .then((list) => alive && setMessages(list))

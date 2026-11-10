@@ -3,6 +3,7 @@
  */
 
 import { err, json, userFromRequest } from './auth.js'
+import { coreCacheHeaders } from './router.js'
 import { randomId } from './crypto.js'
 import { cleanupVoice, deleteRoomVoice, handleVoiceGet, roomPresence, roomSignal } from './voice.js'
 
@@ -85,7 +86,7 @@ export async function handleRoomsGet(request, env, path) {
       .bind(since)
       .all()
     const rooms = (res.results || []).map(parseState).filter((r) => r.public)
-    return json({ rooms: rooms.slice(0, 30) })
+    return json({ rooms: rooms.slice(0, 30) }, 200, coreCacheHeaders(20))
   }
 
   if (path === '/rooms/upcoming' && request.method === 'GET') {
@@ -98,7 +99,7 @@ export async function handleRoomsGet(request, env, path) {
       .filter((r) => r.public && r.startsAt && r.startsAt > now)
       .sort((a, b) => a.startsAt - b.startsAt)
       .slice(0, 12)
-    return json({ rooms })
+    return json({ rooms }, 200, coreCacheHeaders(20))
   }
 
   if (path.startsWith('/rooms/') && request.method === 'GET') {
@@ -143,12 +144,12 @@ export async function handleRoomsGet(request, env, path) {
           }
         })
         .reverse()
-      return json({ messages })
+      return json({ messages }, 200, coreCacheHeaders(1))
     }
 
     const row = await getRow(env, roomId)
     if (!row) return err('Комната не найдена', 404)
-    return json({ room: parseState(row), serverNow: Date.now() })
+    return json({ room: parseState(row), serverNow: Date.now() }, 200, coreCacheHeaders(1))
   }
 
   return null

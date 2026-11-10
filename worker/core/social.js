@@ -1,6 +1,7 @@
 /** Подписки и лента активности на D1. */
 
 import { err, json } from './auth.js'
+import { coreCacheHeaders } from './router.js'
 import { randomId } from './crypto.js'
 
 export async function handleSocialGet(request, env, path) {
@@ -15,7 +16,7 @@ export async function handleSocialGet(request, env, path) {
     const following = await env.DB.prepare('SELECT COUNT(*) AS n FROM follows WHERE follower_id = ?')
       .bind(userId)
       .first()
-    return json({ followers: followers?.n || 0, following: following?.n || 0 })
+    return json({ followers: followers?.n || 0, following: following?.n || 0 }, 200, coreCacheHeaders(15))
   }
 
   if (path === '/social/following' && request.method === 'GET') {
@@ -50,10 +51,10 @@ export async function handleSocialGet(request, env, path) {
       res = await env.DB.prepare('SELECT * FROM activity ORDER BY created_at DESC LIMIT 200').all()
       const set = new Set(ids)
       const rows = (res.results || []).filter((r) => set.has(r.user_id)).slice(0, 60)
-      return json({ activity: rows.map(mapActivity) })
+      return json({ activity: rows.map(mapActivity) }, 200, coreCacheHeaders(15))
     }
     res = await env.DB.prepare('SELECT * FROM activity ORDER BY created_at DESC LIMIT 60').all()
-    return json({ activity: (res.results || []).map(mapActivity) })
+    return json({ activity: (res.results || []).map(mapActivity) }, 200, coreCacheHeaders(15))
   }
 
   if (path === '/social/episode-score' && request.method === 'GET') {
@@ -65,10 +66,14 @@ export async function handleSocialGet(request, env, path) {
     )
       .bind(animeId, episode)
       .first()
-    if (!row || !row.votes) return json({ score: null })
-    return json({
-      score: { animeId, episode, avg: row.avg, votes: row.votes },
-    })
+    if (!row || !row.votes) return json({ score: null }, 200, coreCacheHeaders(20))
+    return json(
+      {
+        score: { animeId, episode, avg: row.avg, votes: row.votes },
+      },
+      200,
+      coreCacheHeaders(20),
+    )
   }
 
   if (path === '/social/best-episodes' && request.method === 'GET') {
@@ -79,29 +84,37 @@ export async function handleSocialGet(request, env, path) {
     )
       .bind(animeId)
       .all()
-    return json({
-      scores: (res.results || []).map((r) => ({
-        animeId: r.anime_id,
-        episode: r.episode,
-        avg: r.avg,
-        votes: r.votes,
-      })),
-    })
+    return json(
+      {
+        scores: (res.results || []).map((r) => ({
+          animeId: r.anime_id,
+          episode: r.episode,
+          avg: r.avg,
+          votes: r.votes,
+        })),
+      },
+      200,
+      coreCacheHeaders(20),
+    )
   }
 
   if (path === '/social/top' && request.method === 'GET') {
     const res = await env.DB.prepare(
       'SELECT user_id, name, about, xp, summary FROM profiles WHERE hidden = 0 ORDER BY xp DESC LIMIT 50',
     ).all()
-    return json({
-      profiles: (res.results || []).map((p) => ({
-        $id: p.user_id,
-        name: p.name,
-        about: p.about,
-        xp: p.xp,
-        summary: p.summary,
-      })),
-    })
+    return json(
+      {
+        profiles: (res.results || []).map((p) => ({
+          $id: p.user_id,
+          name: p.name,
+          about: p.about,
+          xp: p.xp,
+          summary: p.summary,
+        })),
+      },
+      200,
+      coreCacheHeaders(30),
+    )
   }
 
   return null

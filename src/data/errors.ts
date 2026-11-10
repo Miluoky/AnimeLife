@@ -7,7 +7,12 @@ import { beacon, live } from './analytics'
  */
 
 const MAX_PER_PAGE = 5
+/** Не чаще одного сброса ошибок на Worker в минуту (разные сообщения тоже). */
+const ERROR_WINDOW_MS = 60_000
+const MAX_ERRORS_PER_WINDOW = 3
 const sent = new Set<string>()
+let errorWindowStart = 0
+let errorsInWindow = 0
 
 const NOISE = /ResizeObserver loop|^Script error\.?$|Failed to fetch|Load failed|NetworkError|network error|AbortError|The operation was aborted|dynamically imported module|Importing a module script failed|Unable to preload CSS/i
 
@@ -35,7 +40,14 @@ export function reportError(error: unknown, source = '') {
   if (/Blocked a frame with origin/.test(message) && !/\/assets\//.test(stack + source)) return
   const key = message + source
   if (sent.has(key)) return
+  const now = Date.now()
+  if (now - errorWindowStart > ERROR_WINDOW_MS) {
+    errorWindowStart = now
+    errorsInWindow = 0
+  }
+  if (errorsInWindow >= MAX_ERRORS_PER_WINDOW) return
   sent.add(key)
+  errorsInWindow++
   beacon({ action: 'error-report', message, source: source.slice(0, 300), stack: stack.slice(0, 2000), path: location.pathname, browser: browser(), release: release() })
 }
 

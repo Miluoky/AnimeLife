@@ -18,8 +18,8 @@ const MIN = 60
 const HOUR = 60 * MIN
 const STALE = 24 * HOUR
 const DAY_S = 24 * HOUR
-// 30 мин в браузере: повторное открытие той же манги не бьёт Worker (картинки и так immutable на месяц).
-const BROWSER_TTL = 1800
+// Браузер держит JSON столько же, сколько свежесть пути (кроме at-home — см. PATHS).
+const BROWSER_CAP = 12 * HOUR
 const TIMEOUT = 10000
 const UA = 'AnimeLife/1.0 (+https://animelife.top)'
 
@@ -31,12 +31,17 @@ const PATHS = [
   [new RegExp(`^at-home/server/${UUID}$`), 5 * MIN],
 ]
 
-const json = (body, status, cache, maxAge = BROWSER_TTL) =>
+const cacheJson = (browserSec, edgeSec, swr = STALE) =>
+  `public, max-age=${browserSec}, s-maxage=${edgeSec}${swr ? `, stale-while-revalidate=${swr}` : ''}`
+
+const browserTtl = (fresh) => Math.min(Math.max(Math.floor(fresh), 60), BROWSER_CAP)
+
+const json = (body, status, cache, maxAge) =>
   new Response(body, {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': maxAge ? `public, max-age=${Math.min(maxAge, BROWSER_TTL)}` : 'no-store',
+      'Cache-Control': maxAge ? cacheJson(browserTtl(maxAge), maxAge + STALE) : 'no-store',
       'X-Cache': cache,
     },
   })
@@ -71,7 +76,7 @@ async function mangadexImage(request, ctx, path, node) {
   const out = new Response(res.body, {
     headers: {
       'Content-Type': res.headers.get('Content-Type'),
-      'Cache-Control': `public, max-age=${IMG_TTL}, immutable`,
+      'Cache-Control': `public, max-age=${IMG_TTL}, s-maxage=${IMG_TTL}, immutable`,
       'X-Cache': 'MISS',
     },
   })
@@ -91,7 +96,10 @@ export async function mangadexProxy(request, ctx) {
   const key = new Request(CACHE_ROOT + path + url.search)
   const cached = await caches.default.match(key)
   const freshUntil = Number(cached?.headers.get('X-Fresh-Until')) || 0
-  if (cached && Date.now() < freshUntil) return json(cached.body, 200, 'HIT', fresh)
+  if (cached && Date.now() < freshUntil) {
+    const left = (freshUntil - Date.now()) / 1000
+    return json(cached.body, 200, 'HIT', left)
+  }
 
   let text
   let status = 502
@@ -111,7 +119,7 @@ export async function mangadexProxy(request, ctx) {
     const stored = new Response(text, {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': `public, max-age=${fresh + STALE}`,
+        'Cache-Control': cacheJson(fresh + STALE, fresh + STALE, 0),
         'X-Fresh-Until': String(Date.now() + fresh * 1000),
       },
     })

@@ -18,6 +18,14 @@ import { upgradeRoomSocket } from './roomDo.js'
 
 const PREFIX = '/api/core'
 
+/** Short browser/CDN cache for safe Core GET JSON (Worker Free — repeat-hit relief). */
+export function coreCacheHeaders(maxAgeSeconds, { visibility = 'private', varyCookie = false } = {}) {
+  const max = Math.max(0, Math.floor(Number(maxAgeSeconds) || 0))
+  const headers = { 'Cache-Control': `${visibility}, max-age=${max}` }
+  if (varyCookie) headers.Vary = 'Cookie'
+  return headers
+}
+
 export const isCoreApi = (pathname) => pathname === PREFIX || pathname.startsWith(PREFIX + '/')
 
 export async function coreApi(request, env) {
@@ -74,7 +82,18 @@ export async function coreApi(request, env) {
   }
 
   const headers = new Headers(res.headers)
-  for (const [k, v] of Object.entries(corsHeaders(request))) headers.set(k, v)
+  const cors = corsHeaders(request)
+  for (const [k, v] of Object.entries(cors)) {
+    if (k === 'Vary' && headers.has('Vary')) {
+      const merged = new Set(
+        `${headers.get('Vary')},${v}`
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+      )
+      headers.set('Vary', [...merged].join(', '))
+    } else headers.set(k, v)
+  }
   return new Response(res.body, { status: res.status, headers })
 }
 

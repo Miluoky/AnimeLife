@@ -29,7 +29,35 @@ interface Signal {
 
 export const MEMBER_TTL = 2 * 60 * 1000
 export const PRESENCE_EVERY = 45 * 1000
-const CORE_POLL_MS = 2000
+const CORE_POLL_VISIBLE_MS = 3750
+const CORE_POLL_HIDDEN_MS = 15000
+
+const corePollMs = () => (document.hidden ? CORE_POLL_HIDDEN_MS : CORE_POLL_VISIBLE_MS)
+
+function startCorePoll(tick: () => void | Promise<void>, stopped: () => boolean) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const schedule = () => {
+    timer = window.setTimeout(async () => {
+      if (stopped()) return
+      await tick()
+      if (!stopped()) schedule()
+    }, corePollMs())
+  }
+  const onVis = () => {
+    if (stopped()) return
+    if (timer) window.clearTimeout(timer)
+    if (!document.hidden) void tick()
+    schedule()
+  }
+  void Promise.resolve(tick()).then(() => {
+    if (!stopped()) schedule()
+  })
+  document.addEventListener('visibilitychange', onVis)
+  return () => {
+    if (timer) window.clearTimeout(timer)
+    document.removeEventListener('visibilitychange', onVis)
+  }
+}
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
@@ -86,9 +114,9 @@ export function subscribeMembers(roomId: string, onChange: (m: Member, gone: boo
   }
 
   let wsClose: (() => void) | undefined
-  let timer: number | undefined
+  let stopPoll: (() => void) | undefined
   const startPoll = () => {
-    if (stopped || timer) return
+    if (stopped || stopPoll) return
     const tick = async () => {
       if (stopped) return
       try {
@@ -97,8 +125,7 @@ export function subscribeMembers(roomId: string, onChange: (m: Member, gone: boo
         // сеть — следующий тик
       }
     }
-    void tick()
-    timer = window.setInterval(tick, CORE_POLL_MS)
+    stopPoll = startCorePoll(tick, () => stopped)
   }
 
   void import('./roomWs').then(({ connectRoomWs, roomsWsWanted }) => {
@@ -131,7 +158,7 @@ export function subscribeMembers(roomId: string, onChange: (m: Member, gone: boo
     }
     wsClose = conn.close
     window.setTimeout(() => {
-      if (stopped || prev.size || timer) return
+      if (stopped || prev.size || stopPoll) return
       wsClose?.()
       wsClose = undefined
       startPoll()
@@ -141,7 +168,8 @@ export function subscribeMembers(roomId: string, onChange: (m: Member, gone: boo
   return () => {
     stopped = true
     wsClose?.()
-    if (timer) window.clearInterval(timer)
+    stopPoll?.()
+    stopPoll = undefined
   }
 }
 
@@ -194,7 +222,8 @@ export class VoiceChat {
   private ctx: AudioContext | null = null
   private localAnalyser: AnalyserNode | null = null
   private localSource: MediaStreamAudioSourceNode | null = null
-  private signalPoll: ReturnType<typeof setInterval> | undefined
+  private stopSignalPoll: (() => void) | undefined
+  private signalPollLive = false
   private meter: ReturnType<typeof setInterval> | undefined
   muted = false
 
@@ -229,8 +258,8 @@ export class VoiceChat {
         // сеть — следующий тик
       }
     }
-    void poll()
-    this.signalPoll = setInterval(poll, CORE_POLL_MS)
+    this.signalPollLive = true
+    this.stopSignalPoll = startCorePoll(poll, () => !this.signalPollLive)
     try {
       await presence(this.roomId, { voice: true, muted: false })
     } catch (e) {
@@ -249,8 +278,9 @@ export class VoiceChat {
     this.mic?.getTracks().forEach((t) => t.stop())
     this.mic = null
     this.stream = null
-    clearInterval(this.signalPoll)
-    this.signalPoll = undefined
+    this.signalPollLive = false
+    this.stopSignalPoll?.()
+    this.stopSignalPoll = undefined
     clearInterval(this.meter)
     void this.ctx?.close()
     this.ctx = null

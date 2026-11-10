@@ -3,6 +3,7 @@
  */
 
 import { err, json, userFromRequest } from './auth.js'
+import { coreCacheHeaders } from './router.js'
 import { randomId } from './crypto.js'
 
 const REVIEW_MIN = 20
@@ -89,7 +90,7 @@ export async function handleCommunityGet(request, env, path) {
       if (mine) own = [mine]
     }
     const rows = [...own, ...(visible.results || []).filter((r) => !own.some((o) => o.id === r.id))]
-    return json({ reviews: rows.map(rowReview) })
+    return json({ reviews: rows.map(rowReview) }, 200, coreCacheHeaders(15, { varyCookie: true }))
   }
 
   if (path === '/comments' && request.method === 'GET') {
@@ -100,7 +101,7 @@ export async function handleCommunityGet(request, env, path) {
     )
       .bind(targetId)
       .all()
-    return json({ comments: (visible.results || []).map(rowComment) })
+    return json({ comments: (visible.results || []).map(rowComment) }, 200, coreCacheHeaders(15))
   }
 
   return null

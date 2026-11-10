@@ -1,0 +1,36 @@
+name: Применить WAF animelife.top
+
+# Поднимает правила 1–4 из docs/worker-limit.md (идемпотентно). Те же ключи, что у animelife.yml.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  waf:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_EMAIL: ${{ secrets.ANIMELIFE_CF_EMAIL }}
+      CLOUDFLARE_API_KEY: ${{ secrets.ANIMELIFE_CF_API_KEY }}
+    steps:
+      - name: Проверить ключ Cloudflare
+        id: keys
+        run: |
+          if [ -n "$CLOUDFLARE_EMAIL" ] && [ -n "$CLOUDFLARE_API_KEY" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Нет ANIMELIFE_CF_EMAIL / ANIMELIFE_CF_API_KEY — правила не применить."
+          fi
+      - if: steps.keys.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - if: steps.keys.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - if: steps.keys.outputs.ok == 'true'
+        name: Применить WAF 1–4 + статус ботов
+        run: |
+          node scripts/ensure-waf-rules.mjs
+          node scripts/ensure-waf-rules.mjs --check-bots
+          node scripts/cloudflare-status.mjs

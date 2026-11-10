@@ -3,6 +3,7 @@
  */
 
 import { err, json } from './auth.js'
+import { coreCacheHeaders } from './router.js'
 import { heldReason, rejectSpam, UserError } from './automod.js'
 import { randomId, sha256Hex } from './crypto.js'
 
@@ -53,7 +54,8 @@ export async function handleChatGet(request, env, path) {
     .bind(CHAT_LIMIT)
     .all()
   const messages = (res.results || []).map(rowToMessage).reverse()
-  return json({ messages })
+  // Poll ~4.5s — длинный max-age даст устаревший чат из кэша браузера.
+  return json({ messages }, 200, coreCacheHeaders(1))
 }
 
 export async function handleChatAction(env, session, body) {

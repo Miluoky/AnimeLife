@@ -33,6 +33,13 @@ import { isCoreApi, coreApi } from './core/router.js'
 import { notifyEpisodes, notifyWeeklyDigests } from './core/push.js'
 import { d1First, roomMetaFromRow } from './core/seo.js'
 import { guard } from './guard.js'
+import {
+  isSeoCacheable,
+  normalizedPathSearch,
+  seoCacheRequest,
+  seoFreshSeconds,
+  seoKeepSeconds,
+} from './seoCache.js'
 import { EN_HOME, enDescription, enFacts, enName, enPath, enTitle } from '../src/data/en.ts'
 import {
   ABOUT_LINKS,
@@ -1391,25 +1398,16 @@ async function render(env, url, status = 200, asset) {
   // ETag принадлежит index.html, а страница у каждого адреса своя.
   out.headers.delete('ETag')
   if (noindex) out.headers.set('X-Robots-Tag', 'noindex')
-  return { res: out, complete }
+  return { res: out, complete, store: complete && !noindex }
 }
 
-// Готовая страница хранится в кэше Cloudflare: первые 5 минут отдаётся как есть, потом ещё сутки тоже сразу,
-// а свежая собирается в фоне. Так зритель не ждёт ответов Shikimori, пока Worker собирает страницу.
-// Дольше держим SEO-страницу в Cache API: повторный бот не бьёт Shikimori (вызов Worker всё равно есть).
-const PAGE_FRESH = 900
-const PAGE_KEEP = DAY
-// Комнаты и профили меняются сразу (закрыли комнату, скрыли профиль): их не храним.
-const UNCACHED = /^\/(?:together\/|u\/|club\/|c\/)/
-
-const pageKey = (url, version) => new Request(`${url.origin}/__page/${version}${url.pathname}${url.search}`)
-
-/** Собирает страницу и, если она полная, кладёт копию в кэш с отметкой времени сборки. */
-async function renderAndStore(env, ctx, url, key, asset) {
-  const { res, complete } = await render(env, url, 200, asset)
-  if (complete) {
+/** Собирает страницу и, если она полная и индексируемая, кладёт в Cache API с TTL по типу URL. */
+async function renderAndStore(env, ctx, url, key, asset, pathname) {
+  const { res, store } = await render(env, url, 200, asset)
+  if (store) {
+    const keep = seoKeepSeconds(pathname)
     const copy = new Response(res.clone().body, res)
-    copy.headers.set('Cache-Control', `public, max-age=${PAGE_KEEP}`)
+    copy.headers.set('Cache-Control', `public, max-age=${keep}`)
     copy.headers.set('X-Rendered-At', String(Date.now()))
     ctx.waitUntil(caches.default.put(key, copy))
   }
@@ -1417,26 +1415,33 @@ async function renderAndStore(env, ctx, url, key, asset) {
 }
 
 async function cachedPage(request, env, ctx, url) {
-  if (request.method !== 'GET' || UNCACHED.test(url.pathname)) return page(env, url)
+  if (request.method !== 'GET') return page(env, url)
+  const path = url.pathname.replace(/(.)\/+$/, '$1')
+  if (!isSeoCacheable(path, url.searchParams)) return page(env, url)
+  const pathSearch = normalizedPathSearch(url)
+  if (!pathSearch) return page(env, url)
   const asset = await indexHtml(env, url)
-  // В ключе версия index.html: после выкладки страницы со ссылками на прежние файлы сборки не отдаются.
   const version = (asset.headers.get('ETag') ?? '').replace(/[^\w-]/g, '')
   if (!version) return (await render(env, url, 200, asset)).res
-  const key = pageKey(url, version)
+  const key = seoCacheRequest(url.origin, pathSearch, version)
+  const freshMs = seoFreshSeconds(path) * 1000
+  const keepMs = seoKeepSeconds(path) * 1000
   const hit = await caches.default.match(key)
-  if (!hit) {
-    const res = await renderAndStore(env, ctx, url, key, asset)
-    res.headers.set('X-Page-Cache', 'MISS')
-    return res
+  if (hit) {
+    const age = Date.now() - Number(hit.headers.get('X-Rendered-At'))
+    if (age < keepMs) {
+      await asset.body?.cancel()
+      if (age >= freshMs) ctx.waitUntil(renderAndStore(env, ctx, url, key, undefined, path).then((r) => r.body?.cancel()))
+      const out = new Response(hit.body, hit)
+      out.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300')
+      out.headers.delete('X-Rendered-At')
+      out.headers.set('X-Page-Cache', age < freshMs ? 'HIT' : 'STALE')
+      return out
+    }
   }
-  await asset.body?.cancel()
-  const age = Date.now() - Number(hit.headers.get('X-Rendered-At'))
-  if (!(age < PAGE_FRESH * 1000)) ctx.waitUntil(renderAndStore(env, ctx, url, key).then((r) => r.body?.cancel()))
-  const out = new Response(hit.body, hit)
-  out.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300')
-  out.headers.delete('X-Rendered-At')
-  out.headers.set('X-Page-Cache', age < PAGE_FRESH * 1000 ? 'HIT' : 'STALE')
-  return out
+  const res = await renderAndStore(env, ctx, url, key, asset, path)
+  res.headers.set('X-Page-Cache', 'MISS')
+  return res
 }
 
 /** index.html как есть, без сборки страницы. Неизвестный адрес всё равно 404. */
@@ -1457,6 +1462,27 @@ const urlset = (urls) =>
   '\n</urlset>\n'
 const xmlResponse = (xml, ttl) =>
   new Response(xml, { headers: { 'Content-Type': XML, 'Cache-Control': `public, max-age=${Math.min(ttl, 3600)}, s-maxage=${ttl}` } })
+
+const sitemapKey = (path) => new Request(`${ORIGIN}${path}`)
+
+/** Готовый XML карты сайта в Cache API: повторный заход робота не тратит CPU и Shikimori (вызов Worker — да). */
+async function cachedSitemap(ctx, path, ttl, build) {
+  const key = sitemapKey(path)
+  const hit = await caches.default.match(key)
+  if (hit) {
+    const out = new Response(hit.body, hit)
+    out.headers.delete('X-Built-At')
+    out.headers.set('X-Sitemap-Cache', 'HIT')
+    return out
+  }
+  const xml = build()
+  const res = xmlResponse(xml, ttl)
+  const copy = new Response(res.clone().body, res)
+  copy.headers.set('X-Built-At', String(Date.now()))
+  ctx.waitUntil(caches.default.put(key, copy))
+  res.headers.set('X-Sitemap-Cache', 'MISS')
+  return res
+}
 
 // Части карты сайта: разделы и посадочные, тайтлы, серии онгоингов, студии, хронологии, тропы.
 const SITEMAPS = [
@@ -1506,37 +1532,43 @@ async function rssFeed(ctx) {
 }
 
 /** /sitemap.xml — индекс: поисковик сам заберёт части. Сюда указывает robots.txt. */
-function sitemapIndex() {
+function sitemapIndex(ctx) {
   const day = today()
-  const xml =
-    '<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    SITEMAPS.map((p) => `  <sitemap><loc>${ORIGIN}${p}</loc><lastmod>${day}</lastmod></sitemap>`).join('\n') +
-    '\n</sitemapindex>\n'
-  return xmlResponse(xml, 3600)
+  return cachedSitemap(
+    ctx,
+    '/sitemap.xml',
+    3600,
+    () =>
+      '<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      SITEMAPS.map((p) => `  <sitemap><loc>${ORIGIN}${p}</loc><lastmod>${day}</lastmod></sitemap>`).join('\n') +
+      '\n</sitemapindex>\n',
+  )
 }
 
-function sitemapVoices() {
+function sitemapVoices(ctx) {
   const day = today()
-  return xmlResponse(urlset(VOICE_STUDIO_LIST.map((slug) => [`/voice/${slug}`, day])), DAY)
+  return cachedSitemap(ctx, '/sitemap-voices.xml', DAY, () =>
+    urlset(VOICE_STUDIO_LIST.map((slug) => [`/voice/${slug}`, day])),
+  )
 }
 
-function sitemapChronology() {
+function sitemapChronology(ctx) {
   const day = today()
-  return xmlResponse(urlset(FRANCHISE_LIST.map((id) => [`/chronology/${id}`, day])), DAY)
+  return cachedSitemap(ctx, '/sitemap-chronology.xml', DAY, () => urlset(FRANCHISE_LIST.map((id) => [`/chronology/${id}`, day])))
 }
 
-function sitemapTropes() {
+function sitemapTropes(ctx) {
   const day = today()
-  return xmlResponse(urlset(TROPE_LIST.map((slug) => [`/trope/${slug}`, day])), DAY)
+  return cachedSitemap(ctx, '/sitemap-tropes.xml', DAY, () => urlset(TROPE_LIST.map((slug) => [`/trope/${slug}`, day])))
 }
 
 /** Разделы и посадочные страницы: без запросов к Shikimori. Дата изменения — у того, что обновляется каждый день. */
-function sitemapPages() {
+function sitemapPages(ctx) {
   const day = today()
   const year = new Date().getFullYear()
   const fresh = new Set(['/', '/catalog', '/ongoing', '/schedule', `/year/${year}`, `/year/${year + 1}`])
   const paths = ['/', '/en', '/catalog', '/schedule', '/top', '/collections', '/random', '/quiz', '/changelog', '/together', '/community', '/news', '/season', '/scene', ...landingPaths(), ...[...ABOUT_LINKS, ...LEGAL_LINKS].map(([, p]) => p)]
-  return xmlResponse(urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])), DAY)
+  return cachedSitemap(ctx, '/sitemap-pages.xml', DAY, () => urlset(paths.map((p) => [p, fresh.has(p) ? day : ''])))
 }
 
 /**
@@ -1544,9 +1576,15 @@ function sitemapPages() {
  * но только полными: неполные отдаём без сохранения.
  */
 async function sitemapTitles(ctx, which) {
-  const keys = { titles: new Request(`${ORIGIN}/sitemap-titles.xml`), episodes: new Request(`${ORIGIN}/sitemap-episodes.xml`) }
+  const paths = { titles: '/sitemap-titles.xml', episodes: '/sitemap-episodes.xml' }
+  const keys = { titles: sitemapKey(paths.titles), episodes: sitemapKey(paths.episodes) }
   const hit = await caches.default.match(keys[which])
-  if (hit) return hit
+  if (hit) {
+    const out = new Response(hit.body, hit)
+    out.headers.delete('X-Built-At')
+    out.headers.set('X-Sitemap-Cache', 'HIT')
+    return out
+  }
   // Популярные тайтлы: 10 страниц по 50, и все онгоинги. По одному запросу с повтором: Shikimori пускает
   // не больше 5 запросов в секунду, а параллельные получали отказ, и карта каждый раз выходила разной длины.
   const all = new Map()
@@ -1584,17 +1622,26 @@ async function sitemapTitles(ctx, which) {
   )
   const responses = { titles: xmlResponse(titles, DAY), episodes: xmlResponse(episodes, DAY) }
   if (complete) {
-    for (const k of Object.keys(keys)) ctx.waitUntil(caches.default.put(keys[k], responses[k].clone()))
+    for (const k of Object.keys(keys)) {
+      const copy = new Response(responses[k].clone().body, responses[k])
+      copy.headers.set('X-Built-At', String(Date.now()))
+      ctx.waitUntil(caches.default.put(keys[k], copy))
+    }
   } else {
     for (const r of Object.values(responses)) r.headers.set('Cache-Control', 'public, max-age=300')
   }
+  responses[which].headers.set('X-Sitemap-Cache', complete ? 'MISS' : 'PARTIAL')
   return responses[which]
 }
 
 export { RoomDO } from './core/roomDo.js'
 
 export default {
-  /** Раз в час: старые комнаты и сообщения Core (не трогает лимит зрительских запросов). */
+  /**
+   * Раз в час: старые комнаты и сообщения Core (не трогает лимит зрительских запросов).
+   * Карта сайта и IndexNow сюда не входят: sitemap/RSS прогреваются только по запросу робота (Cache API в fetch).
+   * notifyEpisodes / notifyWeeklyDigests ходят в календарь Shikimori для пушей, не инвалидируют sitemap.
+   */
   async scheduled(_event, env, ctx) {
     if (!env?.DB) return
     ctx.waitUntil(
@@ -1656,13 +1703,13 @@ export default {
     if (isSibnetProxy(url.pathname)) return sibnetProxy(request, ctx)
     // Свой бэкенд вместо Appwrite (worker/core): auth, списки, действия community.
     if (isCoreApi(url.pathname)) return coreApi(request, env)
-    if (url.pathname === '/sitemap.xml') return sitemapIndex()
-    if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
+    if (url.pathname === '/sitemap.xml') return sitemapIndex(ctx)
+    if (url.pathname === '/sitemap-pages.xml') return sitemapPages(ctx)
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')
     if (url.pathname === '/sitemap-episodes.xml') return sitemapTitles(ctx, 'episodes')
-    if (url.pathname === '/sitemap-voices.xml') return sitemapVoices()
-    if (url.pathname === '/sitemap-chronology.xml') return sitemapChronology()
-    if (url.pathname === '/sitemap-tropes.xml') return sitemapTropes()
+    if (url.pathname === '/sitemap-voices.xml') return sitemapVoices(ctx)
+    if (url.pathname === '/sitemap-chronology.xml') return sitemapChronology(ctx)
+    if (url.pathname === '/sitemap-tropes.xml') return sitemapTropes(ctx)
     if (url.pathname === '/rss.xml') return rssFeed(ctx)
     if (request.method !== 'GET' && request.method !== 'HEAD') return env.ASSETS.fetch(request)
     // Поддельный браузер получает обычный index.html: без запросов к Shikimori и без места в кэше.

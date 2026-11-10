@@ -85,9 +85,12 @@ Create rule → Edit expression**, вставить выражение цели�
 (lower(http.user_agent) contains "dotbot") or (lower(http.user_agent) contains "petalbot") or
 (lower(http.user_agent) contains "bytespider") or (lower(http.user_agent) contains "gptbot") or
 (lower(http.user_agent) contains "ccbot") or (lower(http.user_agent) contains "claudebot") or
-(lower(http.user_agent) contains "perplexity") or (lower(http.user_agent) contains "dataforseo") or
+(lower(http.user_agent) contains "perplexity") or (lower(http.user_agent) contains "mistral") or
+(lower(http.user_agent) contains "deepseek") or (lower(http.user_agent) contains "google-extended") or
+(lower(http.user_agent) contains "facebookbot") or (lower(http.user_agent) contains "dataforseo") or
 (lower(http.user_agent) contains "blexbot") or (lower(http.user_agent) contains "python-requests") or
-(lower(http.user_agent) contains "go-http-client") or (lower(http.user_agent) contains "headlesschrome") or
+(lower(http.user_agent) contains "curl/") or (lower(http.user_agent) contains "go-http-client") or
+(lower(http.user_agent) contains "headlesschrome") or (lower(http.user_agent) contains "puppeteer") or
 (http.user_agent eq "") or (http.request.uri.path contains ".php") or (http.request.uri.path contains "/.env") or
 (http.request.uri.path contains "/.git") or starts_with(http.request.uri.path, "/wp-")
 ```
