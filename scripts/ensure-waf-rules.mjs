@@ -91,7 +91,8 @@ const RATE_RULE = {
   action: 'block',
   expression: norm('starts_with(http.request.uri.path, "/api/")'),
   ratelimit: {
-    characteristics: ['ip.src'],
+    // Free/API: counting at colo — cf.colo.id обязателен вместе с ip.src.
+    characteristics: ['cf.colo.id', 'ip.src'],
     period: 10,
     requests_per_period: 30,
     mitigation_timeout: 10,
