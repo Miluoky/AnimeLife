@@ -1,8 +1,6 @@
-import { APPWRITE_ENDPOINT, APPWRITE_PROJECT, BACKEND, COMMUNITY_FUNCTION } from '../api/config'
-
 const SESSION_KEY = 'animelife.analytics.session'
 /**
- * Heartbeat отключён: каждый тик = вызов Worker/бэкенда и лимит Cloudflare.
+ * Heartbeat отключён: каждый тик = вызов Worker и лимит Cloudflare.
  * Онлайн в админке — по pageview за сессию; при необходимости включить > 0.
  */
 const HEARTBEAT = 0
@@ -22,26 +20,14 @@ function sessionId() {
 /** Считаем только настоящий сайт: локальная сборка и тесты статистику не портят. */
 export const live = () => typeof location !== 'undefined' && /(^|\.)animelife\.top$/.test(location.hostname)
 
-/**
- * Отметка просмотра без тяжёлого SDK. На Core — один POST на наш Worker;
- * на Appwrite — async execution (как раньше).
- */
+/** Отметка просмотра — POST на `/api/core/action`. */
 export function beacon(body: object) {
-  if (BACKEND === 'core') {
-    void fetch('/api/core/action', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      keepalive: true,
-      credentials: 'include',
-    }).catch(() => undefined)
-    return
-  }
-  void fetch(`${APPWRITE_ENDPOINT}/functions/${COMMUNITY_FUNCTION}/executions`, {
+  void fetch('/api/core/action', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Appwrite-Project': APPWRITE_PROJECT },
-    body: JSON.stringify({ body: JSON.stringify(body), async: true, method: 'POST' }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
     keepalive: true,
+    credentials: 'include',
   }).catch(() => undefined)
 }
 

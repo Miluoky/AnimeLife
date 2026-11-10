@@ -1,4 +1,3 @@
-import { BACKEND } from '../api/config'
 import { callCommunity } from './community'
 import { createLocalStore } from './localStore'
 import { listStore, type ListEntry } from './myList'
@@ -11,8 +10,8 @@ import { listStore, type ListEntry } from './myList'
 export const SHIKI_CLIENT_ID = import.meta.env.VITE_SHIKIMORI_CLIENT_ID as string | undefined
 const SHIKI = 'https://shikimori.io'
 
-/** Серверный OAuth Shikimori: на Core — через worker (нужны секреты на воркере). */
-export const shikiServerSyncEnabled = () => BACKEND !== 'core' || !!SHIKI_CLIENT_ID
+/** Серверный OAuth Shikimori — через Worker (нужны секреты SHIKIMORI_*). */
+export const shikiServerSyncEnabled = () => !!SHIKI_CLIENT_ID
 
 export const shikiLinkStore = createLocalStore<{ nickname: string; at: number } | null>('anime.shiki.v1', null)
 
@@ -36,7 +35,7 @@ export async function connectShikimori(code: string) {
 
 /** Связь хранится на сервере: на новом устройстве после входа восстанавливаем её из shiki-status. */
 export async function restoreLink() {
-  if (!SHIKI_CLIENT_ID && BACKEND === 'core') return
+  if (!SHIKI_CLIENT_ID) return
   if (shikiLinkStore.get()) return
   const r = await callCommunity<{ connected: boolean; nickname?: string }>({ action: 'shiki-status' })
   if (r.connected && r.nickname) {

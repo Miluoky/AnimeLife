@@ -1591,6 +1591,8 @@ async function sitemapTitles(ctx, which) {
   return responses[which]
 }
 
+export { RoomDO } from './core/roomDo.js'
+
 export default {
   /** Раз в час: старые комнаты и сообщения Core (не трогает лимит зрительских запросов). */
   async scheduled(_event, env, ctx) {

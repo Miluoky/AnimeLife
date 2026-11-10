@@ -1,7 +1,4 @@
-/**
- * Клиент AnimeLife Core (`/api/core`) — свой бэкенд вместо Appwrite.
- * Включается через VITE_BACKEND=core (см. src/api/config.ts).
- */
+/** Клиент AnimeLife Core (`/api/core`). */
 
 import { BACKEND } from './config'
 

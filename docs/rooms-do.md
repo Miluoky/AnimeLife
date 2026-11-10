@@ -1,21 +1,28 @@
 # Комнаты «Вместе»: от polling к Durable Objects
 
-Сейчас голос и синхрон плеера живут на D1 + короткий polling клиента (`room-presence`, `room-signal`, GET `/rooms/:code`). Это работает без Workers Paid extras, но даёт задержку ~1–2.5 с и лишние запросы.
+Сейчас голос и синхрон плеера живут на D1 + короткий polling (`room-presence`, `room-signal`, GET `/rooms/:code`). Это работает на Free, но даёт задержку ~1–2.5 с.
 
-## Цель
+## Уже в коде
 
-Один Durable Object на комнату (`RoomDO`), binding `ROOMS`:
+- `worker/core/roomDo.js` — класс `RoomDO` + `upgradeRoomSocket`
+- `export { RoomDO }` из `worker/index.js`
+- Маршрут `GET /api/core/rooms/:code/ws` в `router.js` (без binding → 501)
+- Клиент: `src/data/roomWs.ts`, `subscribeMembers` пробует WS и откатывается на poll
+- Binding в `wrangler*.jsonc` **закомментирован** — Durable Objects требуют Workers Paid
 
-1. Клиент открывает WebSocket `/api/core/rooms/:code/ws` (или DO stub).
-2. Presence / player control / WebRTC signaling — сообщения по сокету, без записи каждого сигнала в D1.
-3. Состояние комнаты (тайтл, эпизод, playhead) периодически сбрасывается в D1 для списка публичных комнат и после reconnect.
-4. Hibernation WebSocket (CF) — DO спит между событиями, дешевле на пустых комнатах.
+## Включить на Paid
 
-## Миграция без большого bang
+В `wrangler.animelife.jsonc` / `wrangler.jsonc` раскомментируйте:
 
-1. Оставить текущий polling API.
-2. Добавить DO рядом: тот же `roomId` → `env.ROOMS.get(id).fetch(...)`.
-3. Клиент: feature-flag `VITE_ROOMS_WS=1`, fallback на polling.
-4. Когда WS стабилен — выключить polling presence/signals.
+```jsonc
+"durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "RoomDO" }] },
+"migrations": [{ "tag": "v1-rooms", "new_classes": ["RoomDO"] }],
+```
 
-Код presence/signal уже в `worker/core/voice.js` (D1). DO заменит запись в `room_signals` на fan-out по сокетам.
+Выключить клиентский WS: `VITE_ROOMS_WS=0`.
+
+## Дальше
+
+1. Прокинуть WebRTC `signal` через WS в `VoiceChat.send` (сейчас ещё D1 action).
+2. Сбрасывать playhead комнаты в D1 из DO для публичного списка.
+3. Hibernation уже через `acceptWebSocket` — проверить биллинг на пустых комнатах.

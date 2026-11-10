@@ -1,33 +1,8 @@
-import { BACKEND } from '../api/config'
 import { callCommunity } from './community'
 import { createLocalStore } from './localStore'
 import type { ProfileSummary } from './profile'
-import { weekKey, monthKey } from './xp'
 
 /** Социальная часть сайта: подписки и лента, топ зрителей, подборки зрителей, клубы, оценки серий. */
-
-const useCore = () => BACKEND === 'core'
-
-async function aw() {
-  return import('../api/appwrite')
-}
-
-const list = async <T>(tableId: string, queries: string[]) => {
-  const { COMMUNITY_DB, tablesDB } = await aw()
-  return (await tablesDB.listRows({ databaseId: COMMUNITY_DB, tableId, queries })) as unknown as {
-    total: number
-    rows: T[]
-  }
-}
-
-const one = async <T>(tableId: string, rowId: string) => {
-  const { COMMUNITY_DB, tablesDB } = await aw()
-  try {
-    return (await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId, rowId })) as unknown as T
-  } catch {
-    return null
-  }
-}
 
 // --- Подписки и лента ---
 
@@ -48,57 +23,33 @@ export const follow = (userId: string) => callCommunity<{ followers: number }>({
 export const unfollow = (userId: string) => callCommunity<{ followers: number }>({ action: 'unfollow', userId })
 
 export async function followCounts(userId: string) {
-  if (useCore()) {
-    const res = await fetch(`/api/core/social/counts?userId=${encodeURIComponent(userId)}`, { credentials: 'include' })
-    if (!res.ok) return { followers: 0, following: 0 }
-    return (await res.json()) as { followers: number; following: number }
-  }
-  const { Query } = await import('appwrite')
-  const [followers, following] = await Promise.all([
-    list('follows', [Query.equal('followeeId', userId), Query.limit(1)]),
-    list('follows', [Query.equal('followerId', userId), Query.limit(1)]),
-  ])
-  return { followers: followers.total, following: following.total }
+  const res = await fetch(`/api/core/social/counts?userId=${encodeURIComponent(userId)}`, { credentials: 'include' })
+  if (!res.ok) return { followers: 0, following: 0 }
+  return (await res.json()) as { followers: number; following: number }
 }
 
 export async function isFollowing(me: string, userId: string) {
-  if (useCore()) {
-    const res = await fetch(
-      `/api/core/social/is-following?me=${encodeURIComponent(me)}&userId=${encodeURIComponent(userId)}`,
-      { credentials: 'include' },
-    )
-    if (!res.ok) return false
-    return !!(await res.json() as { following: boolean }).following
-  }
-  const { Query } = await import('appwrite')
-  const r = await list('follows', [Query.equal('followerId', me), Query.equal('followeeId', userId), Query.limit(1)])
-  return r.total > 0
+  const res = await fetch(
+    `/api/core/social/is-following?me=${encodeURIComponent(me)}&userId=${encodeURIComponent(userId)}`,
+    { credentials: 'include' },
+  )
+  if (!res.ok) return false
+  return !!(await res.json() as { following: boolean }).following
 }
 
 export async function followingIds(me: string) {
-  if (useCore()) {
-    const res = await fetch(`/api/core/social/following?me=${encodeURIComponent(me)}`, { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { ids: string[] }).ids ?? []
-  }
-  const { Query } = await import('appwrite')
-  const r = await list<{ followeeId: string }>('follows', [Query.equal('followerId', me), Query.limit(500)])
-  return r.rows.map((x) => x.followeeId)
+  const res = await fetch(`/api/core/social/following?me=${encodeURIComponent(me)}`, { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { ids: string[] }).ids ?? []
 }
 
 /** Лента: события людей, на которых подписан; без подписок — все открытые профили. */
 export async function loadFeed(ids?: string[]) {
   if (ids && !ids.length) return []
-  if (useCore()) {
-    const q = ids?.length ? `?ids=${encodeURIComponent(ids.slice(0, 100).join(','))}` : ''
-    const res = await fetch(`/api/core/social/feed${q}`, { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { activity: Activity[] }).activity ?? []
-  }
-  const { Query } = await import('appwrite')
-  const queries = [Query.orderDesc('at'), Query.limit(60)]
-  if (ids) queries.unshift(Query.equal('userId', ids.slice(0, 100)))
-  return (await list<Activity>('activity', queries)).rows
+  const q = ids?.length ? `?ids=${encodeURIComponent(ids.slice(0, 100).join(','))}` : ''
+  const res = await fetch(`/api/core/social/feed${q}`, { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { activity: Activity[] }).activity ?? []
 }
 
 export const sendActivity = (kind: Activity['kind'], anime: { id: string; title: string; poster?: string }, value: number, status?: string) =>
@@ -126,33 +77,17 @@ export const parseSummary = (row: ProfileRow): Partial<ProfileSummary> => {
 }
 
 export async function loadPeople() {
-  if (useCore()) {
-    const res = await fetch('/api/core/social/top', { credentials: 'include' })
-    if (!res.ok) return []
-    return (((await res.json()) as { profiles: ProfileRow[] }).profiles ?? []).slice(0, 30)
-  }
-  const { Query } = await import('appwrite')
-  return list<ProfileRow>('profiles', [Query.orderDesc('updatedAt'), Query.limit(30)]).then((r) => r.rows)
+  const res = await fetch('/api/core/social/top', { credentials: 'include' })
+  if (!res.ok) return []
+  return (((await res.json()) as { profiles: ProfileRow[] }).profiles ?? []).slice(0, 30)
 }
 
 export async function loadLeaders(period: 'week' | 'month' | 'all') {
-  if (useCore()) {
-    // week/month ключи в Core пока не считаем — топ по xp.
-    void period
-    void weekKey
-    void monthKey
-    const res = await fetch('/api/core/social/top', { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { profiles: ProfileRow[] }).profiles ?? []
-  }
-  const { Query } = await import('appwrite')
-  const queries =
-    period === 'week'
-      ? [Query.equal('weekKey', weekKey()), Query.greaterThan('weekXp', 0), Query.orderDesc('weekXp'), Query.limit(50)]
-      : period === 'month'
-        ? [Query.equal('monthKey', monthKey()), Query.greaterThan('monthXp', 0), Query.orderDesc('monthXp'), Query.limit(50)]
-        : [Query.greaterThan('xp', 0), Query.orderDesc('xp'), Query.limit(50)]
-  return list<ProfileRow>('profiles', queries).then((r) => r.rows)
+  // week/month ключи в Core пока не считаем — топ по xp.
+  void period
+  const res = await fetch('/api/core/social/top', { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { profiles: ProfileRow[] }).profiles ?? []
 }
 
 // --- Подборки зрителей ---
@@ -188,26 +123,17 @@ export const collectionItems = (c: UserCollection): CollectionItem[] => {
 }
 
 export async function loadCollection(id: string) {
-  if (useCore()) {
-    const res = await fetch(`/api/core/collections?id=${encodeURIComponent(id)}`, { credentials: 'include' })
-    if (!res.ok) return null
-    return ((await res.json()) as { collection: UserCollection }).collection ?? null
-  }
-  return one<UserCollection>('user_collections', id)
+  const res = await fetch(`/api/core/collections?id=${encodeURIComponent(id)}`, { credentials: 'include' })
+  if (!res.ok) return null
+  return ((await res.json()) as { collection: UserCollection }).collection ?? null
 }
 
 export async function loadCollections(order: 'popular' | 'new' = 'popular', ownerId?: string) {
-  if (useCore()) {
-    const q = new URLSearchParams({ order: order === 'new' ? 'new' : 'popular' })
-    if (ownerId) q.set('ownerId', ownerId)
-    const res = await fetch(`/api/core/collections?${q}`, { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { collections: UserCollection[] }).collections ?? []
-  }
-  const { Query } = await import('appwrite')
-  const queries = [Query.equal('hidden', false), order === 'popular' ? Query.orderDesc('likes') : Query.orderDesc('updatedAt'), Query.limit(48)]
-  if (ownerId) queries.unshift(Query.equal('ownerId', ownerId))
-  return list<UserCollection>('user_collections', queries).then((r) => r.rows)
+  const q = new URLSearchParams({ order: order === 'new' ? 'new' : 'popular' })
+  if (ownerId) q.set('ownerId', ownerId)
+  const res = await fetch(`/api/core/collections?${q}`, { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { collections: UserCollection[] }).collections ?? []
 }
 
 export const saveCollection = (c: { id?: string; title: string; about: string; items: CollectionItem[] }) =>
@@ -242,45 +168,27 @@ export interface ClubPost {
 }
 
 export async function loadClubs(order: 'active' | 'big' = 'active') {
-  if (useCore()) {
-    const res = await fetch(`/api/core/clubs?order=${order === 'big' ? 'big' : 'active'}`, { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { clubs: Club[] }).clubs ?? []
-  }
-  const { Query } = await import('appwrite')
-  return list<Club>('clubs', [order === 'active' ? Query.orderDesc('lastAt') : Query.orderDesc('members'), Query.limit(60)]).then((r) => r.rows)
+  const res = await fetch(`/api/core/clubs?order=${order === 'big' ? 'big' : 'active'}`, { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { clubs: Club[] }).clubs ?? []
 }
 
 export async function loadClub(id: string) {
-  if (useCore()) {
-    const res = await fetch(`/api/core/clubs?id=${encodeURIComponent(id)}`, { credentials: 'include' })
-    if (!res.ok) return null
-    return ((await res.json()) as { club: Club }).club ?? null
-  }
-  return one<Club>('clubs', id)
+  const res = await fetch(`/api/core/clubs?id=${encodeURIComponent(id)}`, { credentials: 'include' })
+  if (!res.ok) return null
+  return ((await res.json()) as { club: Club }).club ?? null
 }
 
 export async function loadClubPosts(clubId: string) {
-  if (useCore()) {
-    const res = await fetch(`/api/core/clubs/posts?clubId=${encodeURIComponent(clubId)}`, { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { posts: ClubPost[] }).posts ?? []
-  }
-  const { Query } = await import('appwrite')
-  return list<ClubPost>('club_posts', [Query.equal('clubId', clubId), Query.equal('hidden', false), Query.orderDesc('at'), Query.limit(100)]).then(
-    (r) => r.rows,
-  )
+  const res = await fetch(`/api/core/clubs/posts?clubId=${encodeURIComponent(clubId)}`, { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { posts: ClubPost[] }).posts ?? []
 }
 
 export async function myClubIds(userId: string) {
-  if (useCore()) {
-    const res = await fetch(`/api/core/clubs/member?userId=${encodeURIComponent(userId)}`, { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { ids: string[] }).ids ?? []
-  }
-  const { Query } = await import('appwrite')
-  const r = await list<{ clubId: string }>('club_members', [Query.equal('userId', userId), Query.limit(200)])
-  return r.rows.map((x) => x.clubId)
+  const res = await fetch(`/api/core/clubs/member?userId=${encodeURIComponent(userId)}`, { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { ids: string[] }).ids ?? []
 }
 
 export const createClub = (title: string, about: string) => callCommunity<{ club: Club }>({ action: 'club-create', title, about }).then((r) => r.club)
@@ -359,29 +267,18 @@ export interface EpisodeScore {
 }
 
 export async function loadEpisodeScore(animeId: string, episode: number) {
-  if (useCore()) {
-    const res = await fetch(
-      `/api/core/social/episode-score?animeId=${encodeURIComponent(animeId)}&episode=${encodeURIComponent(String(episode))}`,
-      { credentials: 'include' },
-    )
-    if (!res.ok) return null
-    return ((await res.json()) as { score: EpisodeScore | null }).score ?? null
-  }
-  const { Query } = await import('appwrite')
-  const r = await list<EpisodeScore>('episode_scores', [Query.equal('animeId', animeId), Query.equal('episode', episode), Query.limit(1)])
-  return r.rows[0] ?? null
+  const res = await fetch(
+    `/api/core/social/episode-score?animeId=${encodeURIComponent(animeId)}&episode=${encodeURIComponent(String(episode))}`,
+    { credentials: 'include' },
+  )
+  if (!res.ok) return null
+  return ((await res.json()) as { score: EpisodeScore | null }).score ?? null
 }
 
 export const loadBestEpisodes = async (animeId: string) => {
-  if (useCore()) {
-    const res = await fetch(`/api/core/social/best-episodes?animeId=${encodeURIComponent(animeId)}`, { credentials: 'include' })
-    if (!res.ok) return [] as EpisodeScore[]
-    return ((await res.json()) as { scores: EpisodeScore[] }).scores ?? []
-  }
-  const { Query } = await import('appwrite')
-  return list<EpisodeScore>('episode_scores', [Query.equal('animeId', animeId), Query.greaterThan('votes', 0), Query.orderDesc('avg'), Query.limit(6)]).then(
-    (r) => r.rows,
-  )
+  const res = await fetch(`/api/core/social/best-episodes?animeId=${encodeURIComponent(animeId)}`, { credentials: 'include' })
+  if (!res.ok) return [] as EpisodeScore[]
+  return ((await res.json()) as { scores: EpisodeScore[] }).scores ?? []
 }
 
 export const rateEpisode = (animeId: string, episode: number, score: number) =>

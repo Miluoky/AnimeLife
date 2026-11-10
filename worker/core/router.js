@@ -13,6 +13,8 @@ import { handleSocialGet } from './social.js'
 import { handleManga } from './manga.js'
 import { handleChatGet } from './chat.js'
 import { handleClubsGet } from './clubs.js'
+import { userFromRequest } from './auth.js'
+import { upgradeRoomSocket } from './roomDo.js'
 
 const PREFIX = '/api/core'
 
@@ -43,6 +45,12 @@ export async function coreApi(request, env) {
       res = await handleLists(request, env, path)
     } else if (path === '/reviews' || path === '/comments') {
       res = (await handleCommunityGet(request, env, path)) || err('Not found', 404)
+    } else if (/^\/rooms\/[A-Za-z0-9]{6}\/ws$/.test(path)) {
+      const code = path.split('/')[2]
+      const session = await userFromRequest(env, request)
+      const upgraded = await upgradeRoomSocket(request, env, code, session)
+      if (upgraded) return upgraded
+      res = err('WebSocket комнат недоступен (нет ROOMS / Durable Objects).', 501, 501)
     } else if (path.startsWith('/rooms')) {
       res = (await handleRoomsGet(request, env, path)) || err('Not found', 404)
     } else if (path === '/chat') {

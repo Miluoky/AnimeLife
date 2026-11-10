@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAsync } from '../api'
-import { BACKEND } from '../api/config'
 import { fetchManga } from '../api/manga'
 import { LANGS } from '../api/mangadex'
-import { forget, OWN_BUCKET, OWN_MANGA_ENABLED, OWN_PREFIX, OWN_TABLE } from '../api/mangaOwn'
+import { forget, OWN_MANGA_ENABLED, OWN_PREFIX } from '../api/mangaOwn'
 import { useAuth } from '../data/auth'
 import { CONTACT_EMAIL } from '../data/legal'
 import { usePageMeta } from '../data/pageMeta'
@@ -27,7 +26,7 @@ const byName = (a: File, b: File) => a.name.localeCompare(b.name, undefined, { n
 
 /**
  * Загрузка главы командой переводчиков.
- * Appwrite: manga-pages + manga_chapters; Core: R2 + D1 через /api/core/manga*.
+ * Core: R2 + D1 через /api/core/manga*.
  * Загружать могут аккаунты с меткой translator или admin.
  */
 export default function MangaUpload() {
@@ -130,37 +129,6 @@ export default function MangaUpload() {
     }
   }
 
-  const submitAppwrite = async (n: string) => {
-    const { Permission, Role, Storage } = await import('appwrite')
-    const { client, COMMUNITY_DB, ID, tablesDB } = await import('../api/appwrite')
-    const storage = new Storage(client)
-    const mine = [Permission.update(Role.user(user!.$id)), Permission.delete(Role.user(user!.$id))]
-    const ids: string[] = []
-    try {
-      for (const [i, file] of files.entries()) {
-        setProgress(`Загружаем страницу ${i + 1} из ${files.length}…`)
-        const f = await storage.createFile({ bucketId: OWN_BUCKET, fileId: ID.unique(), file, permissions: mine })
-        ids.push(f.$id)
-      }
-      setProgress('Сохраняем главу…')
-      const row = await tablesDB.createRow({
-        databaseId: COMMUNITY_DB,
-        tableId: OWN_TABLE,
-        rowId: ID.unique(),
-        data: { mangaId: id, lang, num: n, title: title.trim() || null, team: team.trim(), pages: ids, userId: user!.$id, createdAt: Date.now() },
-        permissions: mine,
-      })
-      forget(id)
-      setDone(`/manga/${id}/chapter/${OWN_PREFIX}${row.$id}?lang=${lang}`)
-      setNum('')
-      setTitle('')
-      setFiles([])
-    } catch (e) {
-      await Promise.all(ids.map((fileId) => storage.deleteFile({ bucketId: OWN_BUCKET, fileId }).catch(() => undefined)))
-      throw e
-    }
-  }
-
   const submit = async () => {
     setError(undefined)
     setDone(undefined)
@@ -177,8 +145,7 @@ export default function MangaUpload() {
       /* */
     }
     try {
-      if (BACKEND === 'core') await submitCore(n)
-      else await submitAppwrite(n)
+      await submitCore(n)
     } catch (e) {
       setError(`Не получилось загрузить: ${e instanceof Error ? e.message : String(e)}`)
     } finally {

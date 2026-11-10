@@ -1,5 +1,4 @@
 import { useSyncExternalStore } from 'react'
-import { BACKEND } from '../api/config'
 import type { CoreUser } from '../api/core'
 import { historyStore, type HistoryEntry } from './history'
 import { listStore, removedStore, type ListEntry } from './myList'
@@ -11,45 +10,32 @@ import { getRecentPositionsForSync, reconcilePositions, subscribePositions, type
 import { episodeReactionsStore, mergeEpisodeReactions, type EpisodeReactionsMap } from './episodeReactions'
 import { mergeSeasonPlans, seasonPlanStore, type SeasonPlanMap } from './seasonPlan'
 
-const useCore = () => BACKEND === 'core'
 const core = () => import('../api/core')
-// SDK Appwrite только пока бэкенд = appwrite.
-const sdk = () => import('../api/appwrite')
 
 /**
- * Аккаунт и синхронизация. Prefs и список живут на бэкенде (Appwrite или свой Core);
+ * Аккаунт и синхронизация. Prefs и список живут на Core;
  * в браузере остаётся копия — сайт работает и без входа, и без сети.
  */
 interface SyncedPrefs {
-  /** старое место списка: настройки аккаунта вмещают только 64 КБ, теперь список в таблице lists */
   list?: ListEntry[] | null
   removed?: Record<string, number>
   history?: HistoryEntry[]
-  /** события для достижений */
   flags?: Partial<Record<Flag, number>>
-  /** где остановились в манге (id Shikimori → глава и страница) */
   manga?: Record<string, ReadProgress>
-  /** открытый профиль /u/:id */
   publicProfile?: boolean
-  /** последние сохранённые позиции воспроизведения (до 20 тайтлов) */
   positions?: Record<string, SyncedPlaybackPosition>
-  /** личная сетка сезона */
   seasonPlan?: SeasonPlanMap
-  /** пометки серий (шедевр / филлер…), с потолком на клиенте */
   episodeReactions?: EpisodeReactionsMap
 }
 
 const REMOVED_TTL = 90 * 24 * 3600 * 1000
 
-/** Достаточно полей и для Appwrite SDK, и для Core (`/api/core`). */
 export type User = CoreUser & { prefs: SyncedPrefs & Record<string, unknown> }
 export type { SyncedPrefs, SyncedPlaybackPosition }
 
 interface AuthState {
-  /** true, пока не выяснили, вошёл ли пользователь */
   checking: boolean
   user: User | null
-  /** ошибка последней синхронизации, если была */
   syncError?: string
 }
 
@@ -82,7 +68,6 @@ function mergeRemoved(a: Record<string, number>, b: Record<string, number>) {
   return out
 }
 
-// Объединяем по тайтлу: остаётся более свежая запись, а удалённые позже последнего изменения выпадают.
 function mergeList(a: ListEntry[], b: ListEntry[], removed: Record<string, number>): ListEntry[] {
   const byId = new Map<string, ListEntry>()
   for (const e of [...a, ...b]) {
@@ -103,65 +88,29 @@ function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
   return [...byId.values()].sort((x, y) => y.updatedAt - x.updatedAt).slice(0, 12)
 }
 
-/**
- * Список хранится в таблице lists (строка = ID пользователя, читать и править может только он):
- * в настройках аккаунта места хватало примерно на 150 тайтлов, а после импорта их бывает тысячи.
- */
 async function loadRemoteList(_userId: string): Promise<ListEntry[] | null> {
-  if (useCore()) {
-    const { coreGetList } = await core()
-    try {
-      const row = await coreGetList()
-      return (row.data ?? []) as ListEntry[]
-    } catch (e) {
-      if (e && typeof e === 'object' && 'code' in e && e.code === 404) return null
-      throw e
-    }
-  }
-  const { tablesDB, COMMUNITY_DB } = await sdk()
+  const { coreGetList } = await core()
   try {
-    const row = await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId: 'lists', rowId: _userId })
-    return JSON.parse(String((row as unknown as { data: string }).data || '[]')) as ListEntry[]
+    const row = await coreGetList()
+    return (row.data ?? []) as ListEntry[]
   } catch (e) {
     if (e && typeof e === 'object' && 'code' in e && e.code === 404) return null
     throw e
   }
 }
 
-async function saveRemoteList(userId: string, list: ListEntry[]) {
-  if (useCore()) {
-    const { coreSaveList, coreAction } = await core()
-    try {
-      await coreSaveList(list)
-    } catch (e) {
-      if (!(e && typeof e === 'object' && 'code' in e && e.code === 404)) throw e
-      await coreAction('list-init')
-      await coreSaveList(list)
-    }
-    return
-  }
-  const { tablesDB, COMMUNITY_DB } = await sdk()
-  const write = () =>
-    tablesDB.updateRow({
-      databaseId: COMMUNITY_DB,
-      tableId: 'lists',
-      rowId: userId,
-      data: { data: JSON.stringify(list), updatedAt: Date.now() },
-    })
+async function saveRemoteList(_userId: string, list: ListEntry[]) {
+  const { coreSaveList, coreAction } = await core()
   try {
-    await write()
+    await coreSaveList(list)
   } catch (e) {
     if (!(e && typeof e === 'object' && 'code' in e && e.code === 404)) throw e
-    // Первая запись: строку с правами владельца создаёт функция, потом пишем как обычно.
-    const { callCommunity } = await import('./community')
-    await callCommunity({ action: 'list-init' })
-    await write()
+    await coreAction('list-init')
+    await coreSaveList(list)
   }
 }
 
-/** Список из аккаунта прочитан: только после этого можно записывать свой, иначе затрём чужие изменения. */
 let remoteListLoaded = false
-
 let pushTimer: ReturnType<typeof setTimeout> | undefined
 let applyingRemote = false
 
@@ -170,7 +119,6 @@ async function push() {
   if (!state.user) return
   try {
     if (remoteListLoaded) await saveRemoteList(state.user.$id, listStore.get())
-    // Старую копию списка в настройках убираем только когда он уже лежит в таблице.
     const prefs: SyncedPrefs = {
       ...(remoteListLoaded ? { list: null } : {}),
       removed: removedStore.get(),
@@ -181,25 +129,16 @@ async function push() {
       seasonPlan: seasonPlanStore.get(),
       episodeReactions: mergeEpisodeReactions({}, episodeReactionsStore.get()),
     }
-    if (useCore()) {
-      const { coreUpdatePrefs } = await core()
-      const next = await coreUpdatePrefs({ ...state.user.prefs, ...prefs })
-      setState({ user: next.user as User, syncError: undefined })
-    } else {
-      const { account } = await sdk()
-      const user = (await account.updatePrefs({ ...state.user.prefs, ...prefs })) as User
-      setState({ user, syncError: undefined })
-    }
+    const { coreUpdatePrefs } = await core()
+    const next = await coreUpdatePrefs({ ...state.user.prefs, ...prefs })
+    setState({ user: next.user as User, syncError: undefined })
   } catch (e) {
     setState({ syncError: e instanceof Error ? e.message : String(e) })
   }
 }
 
-// Каждое изменение списка или истории уходит в аккаунт, пачкой раз в секунду.
-// Место в манге меняется на каждой странице, поэтому его отправляем реже: через 10 секунд после последнего листания.
 function schedulePush(delay = 1000) {
   if (!state.user || applyingRemote) return
-  // Уже назначенную отправку листание не откладывает: пока читают, место уходит не чаще раза в 10 секунд.
   if (pushTimer && delay > 1000) return
   clearTimeout(pushTimer)
   pushTimer = setTimeout(push, delay)
@@ -212,16 +151,13 @@ subscribePositions(() => schedulePush(5_000))
 seasonPlanStore.subscribe(schedulePush)
 episodeReactionsStore.subscribe(schedulePush)
 
-/** После входа: объединить то, что было в браузере, с тем, что уже лежит в аккаунте. */
 async function adopt(user: User) {
   const remote = user.prefs as SyncedPrefs
-  // Пока список не переехал в таблицу, берём его из настроек аккаунта.
   let remoteList: ListEntry[]
   try {
     remoteList = (await loadRemoteList(user.$id)) ?? remote.list ?? []
     remoteListLoaded = true
   } catch {
-    // Таблица не ответила: работаем со своим списком, но в аккаунт его не пишем, пока не прочитаем.
     remoteList = remote.list ?? []
   }
   applyingRemote = true
@@ -237,19 +173,16 @@ async function adopt(user: User) {
   applyingRemote = false
   setState({ checking: false, user })
   await push()
-  // Пришли по ссылке «Позови друга»: засчитываем приглашение после входа или регистрации.
   if (pendingInvite()) void import('./invites').then((m) => m.claimInvite())
 }
 
-// Был ли зритель гостем в прошлый раз. Гостю при открытии страницы не грузим библиотеку Appwrite (~27 КБ)
-// и не спрашиваем сервер ради ответа «не вошёл». Любой вход проходит через refresh() и снимает отметку.
 const GUEST_KEY = 'anime.guest.v1'
 function rememberGuest(on: boolean) {
   try {
     if (on) localStorage.setItem(GUEST_KEY, '1')
     else localStorage.removeItem(GUEST_KEY)
   } catch {
-    // Хранилище недоступно (приватный режим): просто проверяем вход каждый раз.
+    /* */
   }
 }
 function knownGuest() {
@@ -260,46 +193,27 @@ function knownGuest() {
   }
 }
 
-/**
- * Есть ли след сессии. Appwrite — cookieFallback в localStorage; Core — cookie HttpOnly,
- * поэтому без метки гостя всегда проверяем /auth/me.
- */
 function maybeSignedIn() {
-  if (useCore()) return !knownGuest()
-  try {
-    return (localStorage.getItem('cookieFallback') ?? '').includes('a_session_')
-  } catch {
-    return true
-  }
+  return !knownGuest()
 }
 
 export async function refresh() {
   try {
-    if (useCore()) {
-      const { coreMe } = await core()
-      const { user } = await coreMe()
-      rememberGuest(false)
-      await adopt(user as User)
-      return
-    }
-    const { account } = await sdk()
-    const user = (await account.get()) as User
+    const { coreMe } = await core()
+    const { user } = await coreMe()
     rememberGuest(false)
-    await adopt(user)
+    await adopt(user as User)
   } catch (e) {
-    // Гостем считаем только по ответу 401: при сбое сети в следующий раз проверим снова.
     if (e instanceof Error && 'code' in e && e.code === 401) rememberGuest(true)
     setState({ checking: false, user: null })
   }
 }
 
 if (typeof window !== 'undefined') {
-  // Возврат после входа через VK/Яндекс/Google (/auth) проверяем всегда: сессия только что создана.
   const authReturn = /^\/auth(\/|$)/.test(window.location.pathname)
   if (!authReturn && (knownGuest() || !maybeSignedIn())) setState({ checking: false, user: null })
   else if (/^\/(account|my-list|moderation|chat|together|auth)(\/|$)/.test(window.location.pathname)) void refresh()
   else {
-    // Public pages can render from local stores; keep the Appwrite SDK off their initial loading path.
     window.addEventListener(
       'load',
       () => {
@@ -310,7 +224,6 @@ if (typeof window !== 'undefined') {
       { once: true },
     )
   }
-  // Вернулись на вкладку: подтягиваем то, что могли поменять на другом устройстве.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && state.user) void refresh()
   })
@@ -327,113 +240,71 @@ const messages: Record<string, string> = {
   general_argument_invalid: 'Проверьте поля: пароль должен быть не короче 8 символов.',
   user_invalid_token: 'Ссылка входа устарела. Попробуйте войти ещё раз.',
   user_not_found: 'Аккаунта с этой почтой нет. Проверьте адрес или зарегистрируйтесь.',
-  general_unknown_origin: 'Сайт ещё не добавлен в настройки Appwrite, вход пока не работает.',
 }
 
-/** Понятное сообщение для формы входа. */
 export function authErrorMessage(e: unknown): string {
-  // AppwriteException несёт код ошибки в поле type; проверяем по форме, чтобы не тянуть сюда SDK.
   if (e instanceof Error && 'type' in e && typeof e.type === 'string') return messages[e.type] ?? e.message
   if (e instanceof Error && (e.name === 'SocialLoginError' || e.name === 'CommunityError')) return e.message
   return 'Не получилось связаться с сервером. Проверьте интернет и попробуйте ещё раз.'
 }
 
 export async function signIn(email: string, password: string) {
-  if (useCore()) {
-    const { coreLogin } = await core()
-    await coreLogin(email, password)
-    await refresh()
-    return
-  }
-  const { account } = await sdk()
-  await account.createEmailPasswordSession({ email, password })
+  const { coreLogin } = await core()
+  await coreLogin(email, password)
   await refresh()
 }
 
 export async function signUp(name: string, email: string, password: string) {
-  if (useCore()) {
-    const { coreRegister } = await core()
-    await coreRegister(email, password, name || undefined)
-    await refresh()
-    return
-  }
-  const { account, ID } = await sdk()
-  await account.create({ userId: ID.unique(), email, password, name: name || undefined })
-  await signIn(email, password)
-}
-
-/** Обмен одноразового токена (Google, Яндекс) на сессию Appwrite. VK/Telegram на Core ставят cookie в /auth/oauth. */
-export async function finishSession(userId: string, secret: string) {
-  if (useCore()) {
-    await refresh()
-    return
-  }
-  const { account } = await sdk()
-  await account.createSession({ userId, secret })
+  const { coreRegister } = await core()
+  await coreRegister(email, password, name || undefined)
   await refresh()
 }
 
-/** На Core нет Appwrite Recovery API и исходящей почты. */
-export const corePasswordRecoveryEnabled = () => !useCore()
-
-/** Письмо со ссылкой для нового пароля. Ссылка ведёт на /account/recovery этого же сайта. */
-export async function requestRecovery(email: string) {
-  if (useCore()) {
-    throw new Error(
-      'Сброс пароля по почте на Core пока недоступен — на сервере нет отправки писем. Войдите, если помните пароль, или создайте новый аккаунт.',
-    )
-  }
-  const { account } = await sdk()
-  await account.createRecovery({ email, url: `${window.location.origin}${import.meta.env.BASE_URL}account/recovery` })
+/** Legacy callback с userId/secret (Google/Яндекс на старом бэкенде): на Core достаточно refresh. */
+export async function finishSession(_userId: string, _secret: string) {
+  void _userId
+  void _secret
+  await refresh()
 }
 
-/** Новый пароль по ссылке из письма (userId и secret приходят в адресе). */
-export async function finishRecovery(userId: string, secret: string, password: string) {
-  if (useCore()) {
-    throw new Error('Сброс пароля по ссылке из письма на Core пока недоступен.')
-  }
-  const { account } = await sdk()
-  await account.updateRecovery({ userId, secret, password })
+export const corePasswordRecoveryEnabled = () => false
+
+export async function requestRecovery(_email: string) {
+  void _email
+  throw new Error(
+    'Сброс пароля по почте на Core пока недоступен — на сервере нет отправки писем. Войдите, если помните пароль, или создайте новый аккаунт.',
+  )
+}
+
+export async function finishRecovery(_userId: string, _secret: string, _password: string) {
+  void _userId
+  void _secret
+  void _password
+  throw new Error('Сброс пароля по ссылке из письма на Core пока недоступен.')
 }
 
 export async function signOut() {
   clearTimeout(pushTimer)
   await push()
   try {
-    if (useCore()) {
-      const { coreLogout } = await core()
-      await coreLogout()
-    } else {
-      const { account } = await sdk()
-      await account.deleteSession({ sessionId: 'current' })
-    }
+    const { coreLogout } = await core()
+    await coreLogout()
   } finally {
-    // Список остаётся в браузере: выход не должен ничего стирать.
     remoteListLoaded = false
     rememberGuest(true)
-    // Уведомления в Telegram привязаны к аккаунту: без входа колокольчик о них не знает.
     telegramOnStore.set(false)
     inviteStore.set({ invited: 0, invitedBy: false })
     setState({ user: null, syncError: undefined })
   }
 }
 
-/**
- * Аккаунт удалён на сервере (AccountData): забываем вход, ничего не отправляя. Если функции не хватило
- * прав удалить сам аккаунт, отключаем его от имени пользователя — войти в него больше нельзя.
- */
-export async function forgetDeletedAccount(accountDeleted: boolean) {
+export async function forgetDeletedAccount(_accountDeleted: boolean) {
+  void _accountDeleted
   clearTimeout(pushTimer)
   pushTimer = undefined
   try {
-    if (useCore()) {
-      const { coreLogout } = await core()
-      await coreLogout().catch(() => undefined)
-    } else {
-      const { account } = await sdk()
-      if (!accountDeleted) await account.updateStatus()
-      else await account.deleteSession({ sessionId: 'current' }).catch(() => undefined)
-    }
+    const { coreLogout } = await core()
+    await coreLogout().catch(() => undefined)
   } finally {
     remoteListLoaded = false
     rememberGuest(true)
@@ -443,16 +314,9 @@ export async function forgetDeletedAccount(accountDeleted: boolean) {
   }
 }
 
-/** Включить или выключить открытый профиль: флаг хранится в настройках аккаунта. */
 export async function setPublicProfile(on: boolean) {
   if (!state.user) return
-  if (useCore()) {
-    const { coreUpdatePrefs } = await core()
-    const next = await coreUpdatePrefs({ ...state.user.prefs, publicProfile: on })
-    setState({ user: next.user as User })
-    return
-  }
-  const { account } = await sdk()
-  const user = (await account.updatePrefs({ ...state.user.prefs, publicProfile: on })) as User
-  setState({ user })
+  const { coreUpdatePrefs } = await core()
+  const next = await coreUpdatePrefs({ ...state.user.prefs, publicProfile: on })
+  setState({ user: next.user as User })
 }

@@ -1,8 +1,6 @@
-import { BACKEND, SOCIAL_FUNCTION, SOCIAL_LOGIN } from '../api/config'
-import { finishSession, refresh } from './auth'
+import { SOCIAL_LOGIN } from '../api/config'
+import { refresh } from './auth'
 import type { CoreUser } from '../api/core'
-
-const useCore = () => BACKEND === 'core'
 
 /** Ошибка входа, которую можно показать как есть. */
 export class SocialLoginError extends Error {
@@ -14,22 +12,13 @@ const appUrl = (path: string) => `${window.location.origin}${import.meta.env.BAS
 export const CALLBACK_PATH = 'auth/callback'
 export const VK_CALLBACK_PATH = 'auth/vk'
 
-/** Google и Яндекс: на Appwrite — OAuth2 token; на Core пока нет ключей провайдера (501). */
+/** Google и Яндекс: на Core пока нет ключей провайдера (501). */
 export async function signInWithOAuth(provider: 'google' | 'yandex') {
-  if (useCore()) {
-    throw new SocialLoginError(
-      provider === 'google'
-        ? 'Вход через Google на Core ещё не подключён. Войдите по почте, VK или Telegram.'
-        : 'Вход через Яндекс на Core ещё не подключён. Войдите по почте, VK или Telegram.',
-    )
-  }
-  const { OAuthProvider } = await import('appwrite')
-  const { account } = await import('../api/appwrite')
-  void account.createOAuth2Token({
-    provider: provider === 'google' ? OAuthProvider.Google : OAuthProvider.Yandex,
-    success: appUrl(CALLBACK_PATH),
-    failure: appUrl(`${CALLBACK_PATH}?failed=${provider}`),
-  })
+  throw new SocialLoginError(
+    provider === 'google'
+      ? 'Вход через Google на Core ещё не подключён. Войдите по почте, VK или Telegram.'
+      : 'Вход через Яндекс на Core ещё не подключён. Войдите по почте, VK или Telegram.',
+  )
 }
 
 interface FunctionReply {
@@ -46,56 +35,32 @@ interface FunctionReply {
 }
 
 async function runFunction(body: object): Promise<FunctionReply> {
-  if (useCore()) {
-    const res = await fetch(`${window.location.origin}/api/core/auth/oauth`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    let reply: FunctionReply = {}
-    try {
-      reply = (await res.json()) as FunctionReply
-    } catch {
-      // ответ не JSON
-    }
-    const msg = reply.message ?? reply.error
-    if (msg || res.status >= 300) {
-      throw new SocialLoginError(msg ?? 'Сервер входа не ответил. Попробуйте ещё раз.')
-    }
-    return reply
-  }
-  const { ExecutionMethod } = await import('appwrite')
-  const { functions } = await import('../api/appwrite')
-  const run = await functions.createExecution({
-    functionId: SOCIAL_FUNCTION,
+  const res = await fetch(`${window.location.origin}/api/core/auth/oauth`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    async: false,
-    method: ExecutionMethod.POST,
   })
   let reply: FunctionReply = {}
   try {
-    reply = JSON.parse(run.responseBody || '{}')
+    reply = (await res.json()) as FunctionReply
   } catch {
-    // ответ не JSON: ниже покажем общую ошибку
+    // ответ не JSON
   }
-  if (reply.error || run.responseStatusCode >= 300) {
-    throw new SocialLoginError(reply.error ?? 'Сервер входа не ответил. Попробуйте ещё раз.')
+  const msg = reply.message ?? reply.error
+  if (msg || res.status >= 300) {
+    throw new SocialLoginError(msg ?? 'Сервер входа не ответил. Попробуйте ещё раз.')
   }
   return reply
 }
 
 async function finishWith(reply: FunctionReply) {
-  if (useCore()) {
-    if (reply.pending) return
-    if (reply.user) {
-      await refresh()
-      return
-    }
-    throw new SocialLoginError('Сервер входа не ответил. Попробуйте ещё раз.')
+  if (reply.pending) return
+  if (reply.user) {
+    await refresh()
+    return
   }
-  if (!reply.userId || !reply.secret) throw new SocialLoginError('Сервер входа не ответил. Попробуйте ещё раз.')
-  await finishSession(reply.userId, reply.secret)
+  throw new SocialLoginError('Сервер входа не ответил. Попробуйте ещё раз.')
 }
 
 // --- VK ID: OAuth 2.1 с PKCE, код обменивает бэкенд ---
@@ -150,8 +115,6 @@ export async function finishVk(params: URLSearchParams) {
 }
 
 // --- Telegram: вход через бота ---
-// Сайт получает код, пользователь открывает бота по ссылке t.me/<бот>?start=<код> и нажимает
-// «Подтвердить», а сайт тем временем спрашивает бэкенд, подтверждён ли вход.
 
 export interface TelegramLogin {
   code: string
@@ -182,7 +145,6 @@ export async function waitForTelegram(login: TelegramLogin, signal: AbortSignal)
     const reply = await runFunction({ provider: 'telegram-poll', code: login.code, pollKey: login.pollKey })
     if (signal.aborted) return
     if (!reply.pending) return finishWith(reply)
-    // Ждём следующей проверки; когда пользователь возвращается из Telegram, проверяем сразу.
     await new Promise<void>((resolve) => {
       const done = () => {
         clearTimeout(timer)
@@ -197,9 +159,6 @@ export async function waitForTelegram(login: TelegramLogin, signal: AbortSignal)
     })
   }
 }
-
-// --- Telegram Mini App: вход без кнопок ---
-// Telegram подписывает данные запуска токеном бота, бэкенд проверяет подпись (src/data/telegramMiniApp.ts).
 
 export async function signInWithTelegramApp(initData: string) {
   await finishWith(await runFunction({ provider: 'telegram-webapp', initData }))

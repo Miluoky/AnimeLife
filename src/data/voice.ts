@@ -1,4 +1,3 @@
-import { BACKEND } from '../api/config'
 import { callCommunity } from './community'
 import { createLocalStore } from './localStore'
 import { serverNow } from './rooms'
@@ -6,7 +5,7 @@ import { serverNow } from './rooms'
 /**
  * Голосовой чат комнаты: звук идёт напрямую между браузерами (WebRTC, каждый с каждым, до 6 человек).
  * Сервер нужен только чтобы познакомить браузеры: предложение и ответ с адресами (SDP) передаются
- * через функцию в таблицу signals, строку видит только адресат. Кто зашёл позже, тот и звонит.
+ * через Core action room-signal. Кто зашёл позже, тот и звонит.
  */
 
 export interface Member {
@@ -32,8 +31,6 @@ export const MEMBER_TTL = 2 * 60 * 1000
 export const PRESENCE_EVERY = 45 * 1000
 const CORE_POLL_MS = 2000
 
-const useCore = () => BACKEND === 'core'
-
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
 ]
@@ -48,89 +45,104 @@ export const presence = (roomId: string, state: { voice?: boolean; muted?: boole
 }
 
 export async function loadMembers(roomId: string, since: number): Promise<Member[]> {
-  if (useCore()) {
-    const res = await fetch(
-      `/api/core/rooms/${encodeURIComponent(roomId)}/members?since=${encodeURIComponent(String(since))}`,
-      { credentials: 'include' },
-    )
-    if (!res.ok) return []
-    return ((await res.json()) as { members?: Member[] }).members ?? []
-  }
-  const { Query } = await import('appwrite')
-  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
-  const res = await tablesDB.listRows({
-    databaseId: COMMUNITY_DB,
-    tableId: 'members',
-    queries: [Query.equal('roomId', roomId), Query.greaterThan('at', since), Query.limit(100)],
-  })
-  return res.rows as unknown as Member[]
+  const res = await fetch(
+    `/api/core/rooms/${encodeURIComponent(roomId)}/members?since=${encodeURIComponent(String(since))}`,
+    { credentials: 'include' },
+  )
+  if (!res.ok) return []
+  return ((await res.json()) as { members?: Member[] }).members ?? []
 }
 
 /** Сколько вошедших зрителей в каждой из комнат (для карточек во «Вместе»). */
 export async function countMembers(roomIds: string[], since: number): Promise<Map<string, number>> {
   const out = new Map<string, number>()
   if (!roomIds.length) return out
-  if (useCore()) {
-    const res = await fetch(
-      `/api/core/rooms/member-counts?ids=${encodeURIComponent(roomIds.join(','))}&since=${encodeURIComponent(String(since))}`,
-      { credentials: 'include' },
-    )
-    if (!res.ok) return out
-    const data = (await res.json()) as { counts?: Record<string, number> }
-    for (const id of roomIds) out.set(id, data.counts?.[id.toUpperCase()] ?? data.counts?.[id] ?? 0)
-    return out
-  }
-  const { Query } = await import('appwrite')
-  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
-  const res = await tablesDB.listRows({
-    databaseId: COMMUNITY_DB,
-    tableId: 'members',
-    queries: [Query.equal('roomId', roomIds), Query.greaterThan('at', since), Query.limit(500)],
-  })
-  for (const m of res.rows as unknown as Member[]) out.set(m.roomId, (out.get(m.roomId) ?? 0) + 1)
+  const res = await fetch(
+    `/api/core/rooms/member-counts?ids=${encodeURIComponent(roomIds.join(','))}&since=${encodeURIComponent(String(since))}`,
+    { credentials: 'include' },
+  )
+  if (!res.ok) return out
+  const data = (await res.json()) as { counts?: Record<string, number> }
+  for (const id of roomIds) out.set(id, data.counts?.[id.toUpperCase()] ?? data.counts?.[id] ?? 0)
   return out
 }
 
 export function subscribeMembers(roomId: string, onChange: (m: Member, gone: boolean) => void) {
-  if (useCore()) {
-    let stopped = false
-    let prev = new Map<string, Member>()
-    const emit = (m: Member, gone: boolean) => onChange(m, gone)
+  let stopped = false
+  let prev = new Map<string, Member>()
+  const emit = (m: Member, gone: boolean) => onChange(m, gone)
+  const applyList = (list: Member[]) => {
+    const next = new Map(list.map((m) => [m.userId, m]))
+    for (const m of list) {
+      const old = prev.get(m.userId)
+      if (!old || old.at !== m.at || old.voice !== m.voice || old.muted !== m.muted || old.name !== m.name) {
+        emit(m, false)
+      }
+    }
+    for (const [userId, old] of prev) {
+      if (!next.has(userId)) emit(old, true)
+    }
+    prev = next
+  }
+
+  let wsClose: (() => void) | undefined
+  let timer: number | undefined
+  const startPoll = () => {
+    if (stopped || timer) return
     const tick = async () => {
       if (stopped) return
       try {
-        const since = serverNow() - MEMBER_TTL
-        const list = await loadMembers(roomId, since)
-        const next = new Map(list.map((m) => [m.userId, m]))
-        for (const m of list) {
-          const old = prev.get(m.userId)
-          if (!old || old.at !== m.at || old.voice !== m.voice || old.muted !== m.muted || old.name !== m.name) {
-            emit(m, false)
-          }
-        }
-        for (const [userId, old] of prev) {
-          if (!next.has(userId)) emit(old, true)
-        }
-        prev = next
+        applyList(await loadMembers(roomId, serverNow() - MEMBER_TTL))
       } catch {
         // сеть — следующий тик
       }
     }
     void tick()
-    const timer = window.setInterval(tick, CORE_POLL_MS)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
+    timer = window.setInterval(tick, CORE_POLL_MS)
   }
-  let unsub = () => {}
-  void import('../api/appwrite').then(({ COMMUNITY_DB, client }) => {
-    unsub = client.subscribe<Member>(`databases.${COMMUNITY_DB}.tables.members.rows`, (e) => {
-      if (e.payload.roomId !== roomId) return
-      onChange(e.payload, e.events.some((ev) => ev.endsWith('.delete')))
+
+  void import('./roomWs').then(({ connectRoomWs, roomsWsWanted }) => {
+    if (stopped || !roomsWsWanted()) {
+      startPoll()
+      return
+    }
+    const conn = connectRoomWs(roomId, {
+      onMembers: (members) => {
+        applyList(
+          members.map((m) => ({
+            $id: `${roomId}:${m.userId}`,
+            roomId,
+            userId: m.userId,
+            name: m.name,
+            voice: m.voice,
+            muted: m.muted,
+            at: m.at,
+          })),
+        )
+      },
+      onClose: () => {
+        wsClose = undefined
+        startPoll()
+      },
     })
+    if (!conn) {
+      startPoll()
+      return
+    }
+    wsClose = conn.close
+    window.setTimeout(() => {
+      if (stopped || prev.size || timer) return
+      wsClose?.()
+      wsClose = undefined
+      startPoll()
+    }, 2000)
   })
-  return () => unsub()
+
+  return () => {
+    stopped = true
+    wsClose?.()
+    if (timer) window.clearInterval(timer)
+  }
 }
 
 async function loadSignals(roomId: string, since: number): Promise<(Signal & { $id: string })[]> {
@@ -157,10 +169,6 @@ function gathered(pc: RTCPeerConnection) {
   })
 }
 
-/**
- * Шумоподавление микрофона: «сильное» — нейросеть RNNoise в браузере (клавиатура, вентилятор, улица),
- * «обычное» — встроенное в браузер, «выключено» — звук как есть (музыка, инструменты).
- */
 export type NoiseMode = 'strong' | 'browser' | 'off'
 export const noiseStore = createLocalStore<NoiseMode>('anime.noise.v1', 'strong')
 
@@ -180,15 +188,12 @@ interface Peer {
 
 export class VoiceChat {
   private peers = new Map<string, Peer>()
-  /** микрофон как есть */
   private mic: MediaStream | null = null
-  /** что слышат остальные: микрофон после шумоподавления */
   private stream: MediaStream | null = null
   private stopNoise: (() => void) | null = null
   private ctx: AudioContext | null = null
   private localAnalyser: AnalyserNode | null = null
   private localSource: MediaStreamAudioSourceNode | null = null
-  private unsubscribe: (() => void) | null = null
   private signalPoll: ReturnType<typeof setInterval> | undefined
   private meter: ReturnType<typeof setInterval> | undefined
   muted = false
@@ -203,41 +208,29 @@ export class VoiceChat {
     return !!this.stream
   }
 
-  /** Возвращает шумоподавление, которое на самом деле включилось. */
   async join(members: Member[], noise: NoiseMode = 'strong'): Promise<NoiseMode> {
     this.mic = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: noise === 'browser', autoGainControl: true },
     })
-    // RNNoise обучен на 48 кГц: так звук не пересчитывается лишний раз.
     this.ctx = new AudioContext({ sampleRate: 48000 })
     const applied = await this.applyNoise(noise)
-    if (useCore()) {
-      const seen = new Set<string>()
-      let cursor = Date.now()
-      const poll = async () => {
-        try {
-          const batch = await loadSignals(this.roomId, cursor)
-          for (const s of batch) {
-            if (seen.has(s.$id)) continue
-            seen.add(s.$id)
-            cursor = Math.max(cursor, s.at)
-            if (s.to === this.me) void this.onSignal(s)
-          }
-        } catch {
-          // сеть — следующий тик
+    const seen = new Set<string>()
+    let cursor = Date.now()
+    const poll = async () => {
+      try {
+        const batch = await loadSignals(this.roomId, cursor)
+        for (const s of batch) {
+          if (seen.has(s.$id)) continue
+          seen.add(s.$id)
+          cursor = Math.max(cursor, s.at)
+          if (s.to === this.me) void this.onSignal(s)
         }
+      } catch {
+        // сеть — следующий тик
       }
-      void poll()
-      this.signalPoll = setInterval(poll, CORE_POLL_MS)
-    } else {
-      void import('../api/appwrite').then(({ COMMUNITY_DB, client }) => {
-        this.unsubscribe = client.subscribe<Signal>(`databases.${COMMUNITY_DB}.tables.signals.rows`, (e) => {
-          const s = e.payload
-          if (s.to === this.me && s.roomId === this.roomId && e.events.some((ev) => ev.endsWith('.create')))
-            void this.onSignal(s)
-        })
-      })
     }
+    void poll()
+    this.signalPoll = setInterval(poll, CORE_POLL_MS)
     try {
       await presence(this.roomId, { voice: true, muted: false })
     } catch (e) {
@@ -245,7 +238,6 @@ export class VoiceChat {
       throw e
     }
     this.meter = setInterval(() => this.report(), 150)
-    // Звоним всем, кто уже в голосовом чате.
     for (const m of members) if (m.voice && m.userId !== this.me) void this.call(m.userId)
     return applied
   }
@@ -257,8 +249,6 @@ export class VoiceChat {
     this.mic?.getTracks().forEach((t) => t.stop())
     this.mic = null
     this.stream = null
-    this.unsubscribe?.()
-    this.unsubscribe = null
     clearInterval(this.signalPoll)
     this.signalPoll = undefined
     clearInterval(this.meter)
@@ -275,7 +265,6 @@ export class VoiceChat {
     void presence(this.roomId, { voice: true, muted }).catch(() => undefined)
   }
 
-  /** Сменить шумоподавление на ходу: собеседникам подменяем дорожку без нового звонка. */
   async setNoise(mode: NoiseMode) {
     if (!this.mic) return mode
     const applied = await this.applyNoise(mode)
@@ -287,7 +276,6 @@ export class VoiceChat {
     return applied
   }
 
-  /** Собирает звук для отправки. Нейросеть не загрузилась — включаем встроенное шумоподавление браузера. */
   private async applyNoise(mode: NoiseMode): Promise<NoiseMode> {
     const mic = this.mic!
     const track = mic.getAudioTracks()[0]
@@ -307,7 +295,6 @@ export class VoiceChat {
     await track?.applyConstraints({ noiseSuppression: applied === 'browser' }).catch(() => undefined)
     if (applied !== 'strong') this.stream = mic
     this.stream?.getAudioTracks().forEach((t) => (t.enabled = !this.muted))
-    // Старый индикатор громкости отцепляем, иначе при каждой смене режима копились бы узлы.
     this.localSource?.disconnect()
     this.localSource = this.ctx?.createMediaStreamSource(this.stream!) ?? null
     this.localAnalyser = this.ctx?.createAnalyser() ?? null
@@ -318,7 +305,6 @@ export class VoiceChat {
     return applied
   }
 
-  /** Список участников обновился: с ушедшими из голоса разрываем соединение. */
   syncMembers(members: Member[]) {
     const alive = new Set(members.filter((m) => m.voice).map((m) => m.userId))
     for (const id of [...this.peers.keys()]) if (!alive.has(id)) this.drop(id)
@@ -393,7 +379,6 @@ export class VoiceChat {
     if (!this.stream) return
     if (s.kind === 'bye') return this.drop(s.from)
     if (s.kind === 'offer') {
-      // Оба позвонили друг другу одновременно: отвечает тот, у кого ID меньше, второй звонок отменяется.
       const mine = this.peers.get(s.from)
       if (mine && mine.pc.signalingState === 'have-local-offer' && this.me > s.from) return
       const pc = this.peer(s.from)

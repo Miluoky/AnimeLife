@@ -1,4 +1,3 @@
-import { BACKEND } from '../api/config'
 import { callCommunity } from './community'
 
 /** Комната совместного просмотра. Код комнаты (6 символов) и есть ID строки. */
@@ -40,8 +39,6 @@ export interface RoomMessage {
 }
 
 export const REACTIONS = ['❤️', '😂', '😮', '😭', '🔥', '👏']
-
-const useCore = () => BACKEND === 'core'
 
 // --- Общие часы ---
 let offset = 0
@@ -126,82 +123,34 @@ export const deleteRoomMessage = (messageId: string) => callCommunity({ action: 
 export const closeRoom = (roomId: string) => callCommunity({ action: 'room-close', roomId })
 
 export async function loadRoom(code: string): Promise<Room | null> {
-  if (useCore()) {
-    const res = await fetch(`/api/core/rooms/${encodeURIComponent(code)}`, { credentials: 'include' })
-    if (!res.ok) return null
-    const data = (await res.json()) as { room: Room; serverNow?: number }
-    if (typeof data.serverNow === 'number') noteServerTime(data.serverNow, Date.now(), Date.now())
-    return data.room
-  }
-  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
-  try {
-    return (await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId: 'rooms', rowId: code })) as unknown as Room
-  } catch {
-    return null
-  }
+  const res = await fetch(`/api/core/rooms/${encodeURIComponent(code)}`, { credentials: 'include' })
+  if (!res.ok) return null
+  const data = (await res.json()) as { room: Room; serverNow?: number }
+  if (typeof data.serverNow === 'number') noteServerTime(data.serverNow, Date.now(), Date.now())
+  return data.room
 }
 
 export async function loadMessages(roomId: string): Promise<RoomMessage[]> {
-  if (useCore()) {
-    const res = await fetch(`/api/core/rooms/${encodeURIComponent(roomId)}/messages`, { credentials: 'include' })
-    if (!res.ok) return []
-    const data = (await res.json()) as { messages: RoomMessage[] }
-    return data.messages ?? []
-  }
-  const { Query } = await import('appwrite')
-  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
-  const res = await tablesDB.listRows({
-    databaseId: COMMUNITY_DB,
-    tableId: 'messages',
-    queries: [Query.equal('roomId', roomId), Query.orderDesc('at'), Query.limit(60)],
-  })
-  return (res.rows as unknown as RoomMessage[]).reverse()
+  const res = await fetch(`/api/core/rooms/${encodeURIComponent(roomId)}/messages`, { credentials: 'include' })
+  if (!res.ok) return []
+  const data = (await res.json()) as { messages: RoomMessage[] }
+  return data.messages ?? []
 }
 
 export async function loadPublicRooms(): Promise<Room[]> {
-  if (useCore()) {
-    const res = await fetch('/api/core/rooms', { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { rooms: Room[] }).rooms ?? []
-  }
-  const { Query } = await import('appwrite')
-  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
-  const res = await tablesDB.listRows({
-    databaseId: COMMUNITY_DB,
-    tableId: 'rooms',
-    queries: [
-      Query.equal('public', true),
-      Query.greaterThan('lastActive', serverNow() - 30 * 60 * 1000),
-      Query.orderDesc('lastActive'),
-      Query.limit(30),
-    ],
-  })
-  return res.rows as unknown as Room[]
+  const res = await fetch('/api/core/rooms', { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { rooms: Room[] }).rooms ?? []
 }
 
 export async function loadUpcomingRooms(): Promise<Room[]> {
-  if (useCore()) {
-    const res = await fetch('/api/core/rooms/upcoming', { credentials: 'include' })
-    if (!res.ok) return []
-    return ((await res.json()) as { rooms: Room[] }).rooms ?? []
-  }
-  const { Query } = await import('appwrite')
-  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
-  const res = await tablesDB.listRows({
-    databaseId: COMMUNITY_DB,
-    tableId: 'rooms',
-    queries: [
-      Query.equal('public', true),
-      Query.greaterThan('startsAt', serverNow()),
-      Query.orderAsc('startsAt'),
-      Query.limit(12),
-    ],
-  })
-  return res.rows as unknown as Room[]
+  const res = await fetch('/api/core/rooms/upcoming', { credentials: 'include' })
+  if (!res.ok) return []
+  return ((await res.json()) as { rooms: Room[] }).rooms ?? []
 }
 
 /**
- * Живые обновления: на Core — polling раз в 2.5 с (без WebSocket / Appwrite Realtime).
+ * Живые обновления: polling раз в 2.5 с.
  * onRoom(null) — комнату закрыли.
  */
 export function subscribeRoom(
@@ -212,63 +161,45 @@ export function subscribeRoom(
     onMessageGone?: (id: string) => void
   },
 ) {
-  if (useCore()) {
-    let stopped = false
-    let lastSig = ''
-    const seen = new Set<string>()
-    let primed = false
-    const tick = async () => {
+  void handlers.onMessageGone
+  let stopped = false
+  let lastSig = ''
+  const seen = new Set<string>()
+  let primed = false
+  const tick = async () => {
+    if (stopped) return
+    try {
+      const [room, messages] = await Promise.all([loadRoom(code), loadMessages(code)])
       if (stopped) return
-      try {
-        const [room, messages] = await Promise.all([loadRoom(code), loadMessages(code)])
-        if (stopped) return
-        if (!room) {
-          handlers.onRoom(null)
-          return
-        }
-        const sig = `${room.at}|${room.playing}|${room.position}|${room.episode}|${room.lastActive}`
-        if (sig !== lastSig) {
-          lastSig = sig
-          handlers.onRoom(room)
-        }
-        if (!primed) {
-          for (const m of messages) seen.add(m.$id)
-          primed = true
-          return
-        }
-        for (const m of messages) {
-          if (seen.has(m.$id)) continue
-          seen.add(m.$id)
-          handlers.onMessage(m)
-        }
-      } catch {
-        // сеть — следующий тик
+      if (!room) {
+        handlers.onRoom(null)
+        return
       }
-    }
-    void tick()
-    const timer = window.setInterval(tick, 2500)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
+      const sig = `${room.at}|${room.playing}|${room.position}|${room.episode}|${room.lastActive}`
+      if (sig !== lastSig) {
+        lastSig = sig
+        handlers.onRoom(room)
+      }
+      if (!primed) {
+        for (const m of messages) seen.add(m.$id)
+        primed = true
+        return
+      }
+      for (const m of messages) {
+        if (seen.has(m.$id)) continue
+        seen.add(m.$id)
+        handlers.onMessage(m)
+      }
+    } catch {
+      // сеть — следующий тик
     }
   }
-
-  let unsub = () => {}
-  void import('../api/appwrite').then(({ COMMUNITY_DB, client }) => {
-    const roomChannel = `databases.${COMMUNITY_DB}.tables.rooms.rows.${code}`
-    const messagesChannel = `databases.${COMMUNITY_DB}.tables.messages.rows`
-    unsub = client.subscribe<Room | RoomMessage>([roomChannel, messagesChannel], (e) => {
-      const deleted = e.events.some((ev) => ev.endsWith('.delete'))
-      const isRoom = e.events.some((ev) => ev.includes('.rooms.'))
-      if (isRoom) {
-        if ((e.payload as Room).$id === code) handlers.onRoom(deleted ? null : (e.payload as Room))
-      } else if ((e.payload as RoomMessage).roomId === code) {
-        if (deleted) handlers.onMessageGone?.((e.payload as RoomMessage).$id)
-        else handlers.onMessage(e.payload as RoomMessage)
-      }
-    })
-  })
-  return () => unsub()
+  void tick()
+  const timer = window.setInterval(tick, 2500)
+  return () => {
+    stopped = true
+    window.clearInterval(timer)
+  }
 }
 
 export const youtubeId = (url?: string) => url?.match(/(?:embed\/|v=|youtu\.be\/)([\w-]{6,20})/)?.[1]

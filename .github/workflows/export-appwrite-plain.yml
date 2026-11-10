@@ -1,41 +1,24 @@
-# Разовая выгрузка базы Appwrite без шифрования — чтобы перенести в Cloudflare Core.
-# Ключ берётся из secrets (его нельзя прочитать из UI). Артефакт хранится 1 день.
-name: Выгрузка Appwrite (plain)
+name: Выгрузка Appwrite (выкл.)
 
+# Миграция в Core завершена. Экспорт plain-бэкапов больше не запускаем автоматически.
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Введите RETIRED — workflow ничего не выгружает'
+        required: true
 
 permissions:
   contents: read
 
-concurrency:
-  group: export-appwrite-plain
-  cancel-in-progress: true
-
 jobs:
-  export:
+  notice:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
     steps:
-      - name: Проверить ключ
+      - name: Appwrite export retired
         run: |
-          if [ -z "$APPWRITE_API_KEY" ]; then
-            echo "::error::Нет секрета APPWRITE_API_KEY"
+          echo "::notice::База живёт в D1 (Core). Экспорт Appwrite отключён."
+          if [ "${{ inputs.confirm }}" != "RETIRED" ]; then
+            echo "::error::Для подтверждения введите RETIRED."
             exit 1
           fi
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: scripts
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Выгрузить базу
-        run: node scripts/backup-appwrite.mjs backup
-      - uses: actions/upload-artifact@v4
-        with:
-          name: appwrite-backup-plain
-          path: backup/
-          retention-days: 1
-          compression-level: 6

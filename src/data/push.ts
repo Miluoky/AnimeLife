@@ -1,15 +1,10 @@
 import { useSyncExternalStore } from 'react'
-import { BACKEND, VAPID_PUBLIC_KEY } from '../api/config'
-// Функция community тянет SDK Appwrite: подключаем её, только когда пуши правда включают или выключают.
+import { VAPID_PUBLIC_KEY } from '../api/config'
 const community = () => import('./community')
 
 async function pushAction<T>(body: object): Promise<T> {
-  if (BACKEND === 'core') {
-    const { coreAction } = await import('../api/core')
-    return coreAction<T>((body as { action: string }).action, body as Record<string, unknown>)
-  }
-  const { callCommunity } = await community()
-  return callCommunity<T>(body)
+  const { coreAction } = await import('../api/core')
+  return coreAction<T>((body as { action: string }).action, body as Record<string, unknown>)
 }
 import { createLocalStore } from './localStore'
 import { listStore } from './myList'

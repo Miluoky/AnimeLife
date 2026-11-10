@@ -1,17 +1,16 @@
-// Настройки бэкенда и внешних сервисов без тяжёлого SDK: этот файл можно подключать в основную сборку.
-// Appwrite SDK (src/api/appwrite.ts) грузится отдельной частью, только пока BACKEND=appwrite.
+// Настройки бэкенда и внешних сервисов (без SDK).
+
+/** Аккаунты и коммьюнити — только AnimeLife Core (`/api/core`, worker/core). */
+export const BACKEND = 'core' as const
 
 /**
- * Где живут аккаунты и коммьюнити:
- * - `core` — свой API на Cloudflare Worker (`/api/core`, worker/core) — по умолчанию;
- * - `appwrite` — устаревший откат (VITE_BACKEND=appwrite), проект Appwrite больше не обязателен.
+ * Публичные константы старого хранилища Appwrite (Frankfurt).
+ * Только для legacy URL картинок своих глав, загруженных до перехода на Core — не SDK.
  */
-export const BACKEND = ((import.meta.env.VITE_BACKEND as string | undefined) ?? 'core') === 'appwrite' ? 'appwrite' : 'core'
-
-// Проект Appwrite (регион Франкфурт). ID проекта не секретный, он и так виден в браузере.
-export const APPWRITE_ENDPOINT =
+export const LEGACY_APPWRITE_V1 =
   (import.meta.env.VITE_APPWRITE_ENDPOINT as string | undefined) ?? 'https://fra.cloud.appwrite.io/v1'
-export const APPWRITE_PROJECT = (import.meta.env.VITE_APPWRITE_PROJECT as string | undefined) ?? '6abf65850016889f9b1b'
+export const LEGACY_APPWRITE_PROJECT =
+  (import.meta.env.VITE_APPWRITE_PROJECT as string | undefined) ?? '6abf65850016889f9b1b'
 
 const env = import.meta.env as Record<string, string | undefined>
 
@@ -28,19 +27,12 @@ export const SOCIAL_LOGIN = {
   telegram: (env.VITE_AUTH_TELEGRAM ?? '1') === '1',
 }
 
-/** Функция Appwrite, которая проверяет вход через VK и Telegram (functions/social-login). */
-export const SOCIAL_FUNCTION = 'social-login'
-
-/** Функция Appwrite для отзывов и уведомлений о сериях (functions/community) и её база. */
-export const COMMUNITY_FUNCTION = 'community'
-export const COMMUNITY_DB = 'anime'
-
-/** Публичный ключ VAPID для пуш-уведомлений. Секретная половина хранится только в переменных функции. */
+/** Публичный ключ VAPID для пуш-уведомлений. Секретная половина хранится только на Worker. */
 export const VAPID_PUBLIC_KEY =
   env.VITE_VAPID_PUBLIC_KEY ?? 'BHgyQXea-s96oolbzWaTuGkW6TlVgqKpCyl8y7bEQCHA33CJ2MrQdH-w_JPc5iMw7M6BDW4aBsFiEUNVTCURVt8'
 
 /**
  * Капча Cloudflare Turnstile для отзывов и жалоб. Ключ сайта публичный; пока он пустой, капчи нет.
- * Включать вместе с секретом TURNSTILE_SECRET в переменных функции community.
+ * Включать вместе с секретом TURNSTILE_SECRET на Worker.
  */
 export const TURNSTILE_SITE_KEY = env.VITE_TURNSTILE_SITE_KEY ?? ''

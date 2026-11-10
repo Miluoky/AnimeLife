@@ -31,5 +31,9 @@
   // R2 (свои главы манги) отложено: нужна карта вне РФ. Когда будет — раскомментируйте и:
   //   npx wrangler r2 bucket create anime-manga
   // "r2_buckets": [{ "binding": "MANGA", "bucket_name": "anime-manga" }],
+  // Durable Objects для комнат «Вместе» — нужен Workers Paid. Код: worker/core/roomDo.js
+  // Когда будет Paid — раскомментируйте:
+  // "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "RoomDO" }] },
+  // "migrations": [{ "tag": "v1-rooms", "new_classes": ["RoomDO"] }],
   "triggers": { "crons": ["17 * * * *"] }
 }

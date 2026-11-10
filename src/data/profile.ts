@@ -1,4 +1,3 @@
-import { BACKEND } from '../api/config'
 import { unlocked, listFacts, type ListFacts } from './achievements'
 import { callCommunity } from './community'
 import { flagsStore } from './flags'
@@ -101,33 +100,18 @@ export const publishProfile = (about?: string) =>
 export const hideProfile = () => callCommunity({ action: 'profile-hide' })
 
 export async function loadProfile(userId: string): Promise<PublicProfile | null> {
-  if (BACKEND === 'core') {
-    try {
-      const data = await callCommunity<{
-        profile: { userId: string; name: string; about?: string; summary: ProfileSummary; updatedAt?: number }
-      }>({ action: 'profile-get', userId })
-      const p = data.profile
-      return {
-        $id: p.userId,
-        name: p.name,
-        about: p.about,
-        updatedAt: p.updatedAt ?? Date.now(),
-        summary: typeof p.summary === 'string' ? (JSON.parse(p.summary) as ProfileSummary) : p.summary,
-      }
-    } catch {
-      return null
-    }
-  }
   try {
-    const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
-    const row = (await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId: 'profiles', rowId: userId })) as unknown as {
-      $id: string
-      name: string
-      about?: string
-      updatedAt: number
-      summary: string
+    const data = await callCommunity<{
+      profile: { userId: string; name: string; about?: string; summary: ProfileSummary; updatedAt?: number }
+    }>({ action: 'profile-get', userId })
+    const p = data.profile
+    return {
+      $id: p.userId,
+      name: p.name,
+      about: p.about,
+      updatedAt: p.updatedAt ?? Date.now(),
+      summary: typeof p.summary === 'string' ? (JSON.parse(p.summary) as ProfileSummary) : p.summary,
     }
-    return { ...row, summary: JSON.parse(row.summary) as ProfileSummary }
   } catch {
     return null
   }

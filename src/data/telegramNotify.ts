@@ -1,5 +1,4 @@
 import { useSyncExternalStore } from 'react'
-import { BACKEND } from '../api/config'
 import { createLocalStore } from './localStore'
 import { listStore } from './myList'
 import { followStore, muteStore, site, watchingIds } from './push'
@@ -27,15 +26,9 @@ export function useWeeklyDigest() {
 /** loading — спрашиваем функцию; unavailable — бот для уведомлений ещё не настроен на сервере. */
 export type TelegramNotifyState = 'loading' | 'unavailable' | 'off' | 'on'
 
-const community = () => import('./community')
-
 async function tgAction<T>(body: object): Promise<T> {
-  if (BACKEND === 'core') {
-    const { coreAction } = await import('../api/core')
-    return coreAction<T>((body as { action: string }).action, body as Record<string, unknown>)
-  }
-  const { callCommunity } = await community()
-  return callCommunity<T>(body)
+  const { coreAction } = await import('../api/core')
+  return coreAction<T>((body as { action: string }).action, body as Record<string, unknown>)
 }
 
 let state: TelegramNotifyState = 'loading'
