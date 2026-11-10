@@ -273,7 +273,7 @@ function maybeSignedIn() {
   }
 }
 
-async function refresh() {
+export async function refresh() {
   try {
     if (useCore()) {
       const { coreMe } = await core()
@@ -362,9 +362,12 @@ export async function signUp(name: string, email: string, password: string) {
   await signIn(email, password)
 }
 
-/** Обмен одноразового токена (Google, Яндекс, VK, Telegram) на обычную сессию. */
+/** Обмен одноразового токена (Google, Яндекс) на сессию Appwrite. VK/Telegram на Core ставят cookie в /auth/oauth. */
 export async function finishSession(userId: string, secret: string) {
-  if (useCore()) throw new Error('OAuth для Core ещё в переносе — пока войдите почтой.')
+  if (useCore()) {
+    await refresh()
+    return
+  }
   const { account } = await sdk()
   await account.createSession({ userId, secret })
   await refresh()

@@ -5,7 +5,7 @@ import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } f
 import { useCouch } from '../data/couchMode'
 import { useMyList } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
-import { SOCIAL_LOGIN } from '../api/appwrite'
+import { SOCIAL_LOGIN } from '../api/config'
 import {
   signInWithOAuth,
   signInWithVk,
@@ -145,7 +145,7 @@ function SocialButtons({ onError }: { onError: (message: string) => void }) {
     try {
       // VK, Google и Яндекс уводят на свою страницу и возвращают на сайт.
       if (id === 'vk') await signInWithVk()
-      else signInWithOAuth(id)
+      else await signInWithOAuth(id)
     } catch (err) {
       onError(authErrorMessage(err))
       setBusy('')

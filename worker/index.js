@@ -30,6 +30,8 @@ import { isYummyProxy, yummyProxy } from './yummyProxy.js'
 import { isMangadexProxy, mangadexProxy } from './mangadexProxy.js'
 import { isSibnetProxy, sibnetProxy } from './sibnetProxy.js'
 import { isCoreApi, coreApi } from './core/router.js'
+import { notifyEpisodes, notifyWeeklyDigests } from './core/push.js'
+import { d1First, roomMetaFromRow } from './core/seo.js'
 import { guard } from './guard.js'
 import { EN_HOME, enDescription, enFacts, enName, enPath, enTitle } from '../src/data/en.ts'
 import {
@@ -61,8 +63,6 @@ import {
 } from '../src/data/seo.ts'
 
 const SHIKIMORI = 'https://shikimori.io'
-const APPWRITE = 'https://fra.cloud.appwrite.io/v1'
-const APPWRITE_PROJECT = '6abf65850016889f9b1b'
 const DAY = 24 * 3600
 // Основной адрес сайта: на него указывают canonical, og:url, sitemap и robots.txt с любого зеркала.
 const ORIGIN = 'https://animelife.top'
@@ -93,7 +93,7 @@ async function json(url, init, ttl = 3600) {
     // Страница не ждёт зависший сервис дольше 3 секунд: дальше отдаётся обычный index.html.
     signal: AbortSignal.timeout(3000),
   })
-  // Код ответа нужен дальше: 404 от Shikimori или Appwrite значит, что страницы нет.
+  // Код ответа нужен дальше: 404 от Shikimori значит, что страницы нет.
   if (!res.ok) throw Object.assign(new Error(`${res.status} ${url}`), { status: res.status })
   return res.json()
 }
@@ -138,11 +138,6 @@ async function posters(ids) {
 const absolute = (path) => (!path || path.includes('missing_') ? undefined : path.startsWith('http') ? path : SHIKIMORI + path)
 
 const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
-
-const appwriteRow = (table, id) =>
-  json(`${APPWRITE}/tablesdb/anime/tables/${table}/rows/${encodeURIComponent(id)}`, {
-    headers: { 'X-Appwrite-Project': APPWRITE_PROJECT },
-  }, 60)
 
 const link = (path, text) => `<a href="${path}">${escapeHtml(text)}</a>`
 const links = (list) => list.map(([text, path]) => link(path, text)).join(' · ')
@@ -1171,7 +1166,7 @@ function tropePage(slug, page = 1) {
   }
 }
 
-async function metaFor(path, params) {
+async function metaFor(env, path, params) {
   const page = PAGED.test(path) ? pageParam(params.get('page')) : 1
   if (path === '/') return home()
   if (path === '/en') return enHome()
@@ -1204,36 +1199,69 @@ async function metaFor(path, params) {
   if (m) return mangaPage(m[1])
   m = path.match(/^\/together\/([A-Za-z0-9]{6})$/)
   if (m) {
-    const r = await appwriteRow('rooms', m[1].toUpperCase())
+    if (!env.DB) return null
+    const row = await d1First(env.DB, 'SELECT * FROM rooms WHERE code = ?', m[1].toUpperCase())
+    const r = roomMetaFromRow(row)
+    if (!r) throw notFound()
     return {
       title: `Смотрим вместе: ${r.title || r.animeTitle} | ${SITE}`,
       description: `${r.hostName} зовёт посмотреть «${r.animeTitle}», серия ${r.episode}. Видео идёт у всех одновременно, рядом чат и голос.`,
-      image: r.poster || undefined,
+      image: r.poster,
     }
   }
   m = path.match(/^\/club\/([A-Za-z0-9_.-]{1,36})$/)
   if (m) {
-    const c = await appwriteRow('clubs', m[1])
-    return {
-      title: `Клуб «${c.title}» | ${SITE}`,
-      description: c.about || `Клуб зрителей Anime Life: ${c.members} участников, обсуждения и советы.`,
+    if (!env.DB) return null
+    try {
+      const c = await d1First(env.DB, 'SELECT title, about, members FROM clubs WHERE id = ?', m[1])
+      if (!c) throw notFound()
+      return {
+        title: `Клуб «${c.title}» | ${SITE}`,
+        description: c.about || `Клуб зрителей Anime Life: ${c.members} участников, обсуждения и советы.`,
+      }
+    } catch (e) {
+      if (e.status === 404 || e.message === 'd1 timeout') throw e
+      // Таблица clubs ещё не накатана — дефолтный SPA meta из index.html.
+      if (/no such table/i.test(String(e.message || ''))) return null
+      throw e
     }
   }
   m = path.match(/^\/c\/([A-Za-z0-9_.-]{1,36})$/)
   if (m) {
-    const c = await appwriteRow('user_collections', m[1])
-    const items = JSON.parse(c.items || '[]')
+    if (!env.DB) return null
+    const c = await d1First(
+      env.DB,
+      'SELECT title, about, items, owner_name, cover FROM user_collections WHERE id = ? AND hidden = 0',
+      m[1],
+    )
+    if (!c) throw notFound()
+    let items = []
+    try {
+      items = JSON.parse(c.items || '[]')
+    } catch {
+      items = []
+    }
     return {
       title: `${c.title}: подборка аниме | ${SITE}`,
-      description: c.about || `Подборка от ${c.ownerName}: ${items.slice(0, 5).map((i) => i.title).join(', ')}.`,
+      description: c.about || `Подборка от ${c.owner_name}: ${items.slice(0, 5).map((i) => i.title).join(', ')}.`,
       image: c.cover || undefined,
     }
   }
   m = path.match(/^\/u\/([A-Za-z0-9_.-]{1,36})$/)
   if (m) {
-    // Скрытый профиль Appwrite не отдаёт (404): такая страница тоже получает 404.
-    const p = await appwriteRow('profiles', m[1])
-    const s = JSON.parse(p.summary || '{}')
+    if (!env.DB) return null
+    const p = await d1First(
+      env.DB,
+      'SELECT name, about, summary FROM profiles WHERE user_id = ? AND hidden = 0',
+      m[1],
+    )
+    if (!p) throw notFound()
+    let s = {}
+    try {
+      s = JSON.parse(p.summary || '{}')
+    } catch {
+      s = {}
+    }
     const done = s.counts?.completed ?? 0
     return {
       title: `${p.name}: профиль | ${SITE}`,
@@ -1286,7 +1314,7 @@ async function render(env, url, status = 200, asset) {
   let complete = status === 200
   if (status === 200) {
     try {
-      meta = await metaFor(path, url.searchParams)
+      meta = await metaFor(env, path, url.searchParams)
       if (meta?.partial) complete = false
     } catch (e) {
       if (e.location) {
@@ -1573,6 +1601,22 @@ export default {
         const cutMsg = Date.now() - 24 * 3600 * 1000
         await env.DB.prepare('DELETE FROM messages WHERE created_at < ?').bind(cutMsg).run()
         await env.DB.prepare('DELETE FROM rooms WHERE updated_at < ?').bind(cutRooms).run()
+        // Чат сообщества: старше 7 дней (как community-chat-cleanup в Appwrite).
+        const cutChat = Date.now() - 7 * 24 * 3600 * 1000
+        await env.DB.prepare('DELETE FROM community_chat_reports WHERE at < ?').bind(cutChat).run().catch(() => undefined)
+        await env.DB.prepare('DELETE FROM community_chat WHERE at < ?').bind(cutChat).run().catch(() => undefined)
+        try {
+          const episodes = await notifyEpisodes(env)
+          if (episodes.sent || episodes.due) console.log('notifyEpisodes', JSON.stringify(episodes))
+        } catch (e) {
+          console.error('notifyEpisodes', e)
+        }
+        try {
+          const weekly = await notifyWeeklyDigests(env)
+          if (weekly.sent) console.log('notifyWeeklyDigests', JSON.stringify(weekly))
+        } catch (e) {
+          console.error('notifyWeeklyDigests', e)
+        }
       })().catch((e) => console.error('scheduled', e)),
     )
   },

@@ -3,9 +3,14 @@
  */
 
 import { err, json, userFromRequest } from './auth.js'
+import { handleAnalyticsAction } from './analytics.js'
 import { handleCommunityAction } from './community.js'
+import { handlePushAction } from './push.js'
 import { handleRoomAction } from './rooms.js'
 import { handleSocialAction } from './social.js'
+import { handleChatAction } from './chat.js'
+import { handleClubsAction } from './clubs.js'
+import { handleMiscAction } from './misc.js'
 
 const IMPLEMENTED = new Set([
   'health',
@@ -22,6 +27,12 @@ const IMPLEMENTED = new Set([
   'comment-delete',
   'comment-report',
   'analytics-track',
+  'analytics-stats',
+  'quality-track',
+  'quality-stats',
+  'error-report',
+  'error-list',
+  'error-clear',
   'room-time',
   'room-create',
   'room-control',
@@ -31,9 +42,42 @@ const IMPLEMENTED = new Set([
   'room-presence',
   'room-signal',
   'rooms-cleanup',
+  'community-chat-send',
+  'community-chat-delete',
+  'community-chat-report',
+  'community-chat-mod-list',
+  'community-chat-mod-action',
+  'community-chat-cleanup',
   'follow',
   'unfollow',
   'activity-add',
+  'ucol-save',
+  'ucol-delete',
+  'ucol-like',
+  'ucol-my-likes',
+  'club-create',
+  'club-delete',
+  'club-join',
+  'club-leave',
+  'club-post',
+  'club-post-delete',
+  'club-post-report',
+  'push-subscribe',
+  'push-unsubscribe',
+  'tg-status',
+  'tg-subscribe',
+  'tg-unsubscribe',
+  'wall-list',
+  'wall-post',
+  'wall-delete',
+  'wall-like',
+  'notif-list',
+  'notif-read',
+  'invite-stats',
+  'invite-claim',
+  'takedown-create',
+  'takedown-list',
+  'takedown-status',
 ])
 
 export async function handleAction(request, env) {
@@ -88,6 +132,7 @@ export async function handleAction(request, env) {
         summary,
         xp: row.xp,
         level: row.level,
+        updatedAt: row.updated_at,
       },
     })
   }
@@ -122,10 +167,21 @@ export async function handleAction(request, env) {
     return json({ ok: true })
   }
 
-  for (const handler of [handleRoomAction, handleSocialAction, handleCommunityAction]) {
+  for (const handler of [
+    handleRoomAction,
+    handleChatAction,
+    handleSocialAction,
+    handleClubsAction,
+    handlePushAction,
+    handleCommunityAction,
+    handleAnalyticsAction,
+  ]) {
     const handled = await handler(env, session, body)
     if (handled) return handled
   }
+
+  const misc = await handleMiscAction(env, session, body, request)
+  if (misc) return misc
 
   return err(`Действие «${action}» ещё переносится в Core`, 501, 501)
 }

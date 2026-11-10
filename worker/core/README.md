@@ -8,7 +8,7 @@
 | TablesDB | D1 (`lists`, reviews, comments, rooms, follows…) |
 | Function `community` | `/api/core/action` |
 | Realtime (комнаты) | Polling раз в 2.5 с → позже Durable Objects |
-| Storage `manga-pages` | R2 (ещё не подключено) |
+| Storage `manga-pages` | R2 binding `MANGA` (`anime-manga`), `worker/core/manga.js` |
 
 ## Cloudflare (уже создано)
 
@@ -20,11 +20,33 @@
 
 По умолчанию `VITE_BACKEND=core`. Откат: `VITE_BACKEND=appwrite`.
 
-**Готово:** регистрация/логин, списки, prefs, отзывы, комменты, профили, analytics pageview, комнаты «Вместе», follow/лента/топ.
+**Готово:** регистрация/логин, списки, prefs, отзывы, комменты, профили, analytics pageview, комнаты «Вместе» (+ голос: `room_members` / `room_signals`, polling 2 с), follow/лента/топ.
 
-**В очереди:** OAuth (Google/VK/TG), голос WebRTC, push/Telegram, клубы, коллекции, community chat, манга R2, admin analytics-stats.
+**OAuth:** VK, Telegram (бот + Mini App) — `/api/core/auth/oauth`, вебхук `…/auth/oauth/telegram/webhook`. Google/Яндекс — заглушки.
+
+**В очереди:** голос WebRTC, push/Telegram-уведомления, клубы, коллекции, community chat, admin analytics-stats.
 
 Старых пользователей Appwrite не переносим — регистрируются заново.
+
+## Остаточные точки Appwrite (чеклист клиента)
+
+Пакет `appwrite` в Core-сборке не должен попадать в начальную загрузку — только `import()` в ветках `BACKEND === 'appwrite'`.
+
+| Область | Файл | На Core |
+|---|---|---|
+| SDK-клиент | `src/api/appwrite.ts` | не импортируется |
+| OAuth Google/Яндекс | `src/data/socialAuth.ts` | Core: `/api/core/auth/oauth`; Appwrite: SDK |
+| Отзывы/комменты (чтение) | `community.ts`, `comments.ts`, `rooms.ts` | REST `/api/core/*` |
+| Подборки/клубы (частично) | `src/data/social.ts` | Core GET; оценки серий — заглушка |
+| Community chat | `src/data/communityChat.ts` | `GET /api/core/chat` + polling |
+| Голос в комнатах | `src/data/voice.ts` | polling; `room-presence`/`room-signal` пока no-op на сервере |
+| Загрузка манги | `src/pages/MangaUpload.tsx` | R2 `/api/core/manga/*` |
+| CDN manga (legacy) | `src/api/mangaOwn.ts` | fetch к Appwrite endpoint без SDK |
+| Shikimori sync | `src/data/shikiSync.ts` | **выкл.** до `shiki-*` в Core |
+| Экспорт/удаление аккаунта | `src/components/AccountData.tsx` | **выкл.** до `account-*` в Core |
+| Пуши | `src/data/push.ts` | lazy, только при включении |
+| Аналитика (fallback) | `src/data/analytics.ts` | на Appwrite — прямой fetch к Functions |
+| `index.html` | — | без `preconnect` на fra.cloud.appwrite.io |
 
 ## Лимит Worker
 

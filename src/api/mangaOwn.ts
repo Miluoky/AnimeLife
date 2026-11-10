@@ -1,8 +1,9 @@
-import { APPWRITE_ENDPOINT, APPWRITE_PROJECT, COMMUNITY_DB } from './config'
+import { APPWRITE_ENDPOINT, APPWRITE_PROJECT, BACKEND, COMMUNITY_DB } from './config'
 import type { Chapter } from './mangadex'
 
-// Главы, которые команды переводчиков загрузили прямо на Anime Life (таблица manga_chapters, хранилище manga-pages,
-// см. functions/community/setup-manga.mjs). Читаем обычным запросом без SDK Appwrite: он тяжёлый, а чтение публичное.
+// Главы, которые команды переводчиков загрузили прямо на Anime Life.
+// Appwrite: таблица manga_chapters + хранилище manga-pages.
+// Core: D1 manga_chapters + R2 (/api/core/manga*).
 
 export const OWN_TABLE = 'manga_chapters'
 export const OWN_BUCKET = 'manga-pages'
@@ -19,39 +20,79 @@ interface OwnRow {
   pages: string[]
 }
 
-export const pageUrl = (fileId: string) =>
-  `${APPWRITE_ENDPOINT}/storage/buckets/${OWN_BUCKET}/files/${encodeURIComponent(fileId)}/view?project=${APPWRITE_PROJECT}`
+interface CoreChapterRow {
+  id: string
+  mangaId: string
+  lang: string
+  num: string
+  title?: string | null
+  team: string
+  pages: string[]
+  pageUrls: string[]
+}
 
-const toChapter = (r: OwnRow): Chapter => ({
-  id: OWN_PREFIX + r.$id,
-  num: r.num,
-  title: r.title || undefined,
-  pages: r.pages.length,
-  group: r.team,
-  own: true,
-  lang: r.lang,
-  pageUrls: r.pages.map(pageUrl),
-})
+export const pageUrl = (fileId: string) =>
+  BACKEND === 'core'
+    ? `${typeof location !== 'undefined' ? location.origin : ''}/api/core/manga-img/${encodeURIComponent(fileId)}`
+    : `${APPWRITE_ENDPOINT}/storage/buckets/${OWN_BUCKET}/files/${encodeURIComponent(fileId)}/view?project=${APPWRITE_PROJECT}`
+
+const toChapter = (r: OwnRow | CoreChapterRow, pageUrls?: string[]): Chapter => {
+  const id = '$id' in r ? r.$id : r.id
+  const urls = pageUrls ?? ('pageUrls' in r && r.pageUrls?.length ? r.pageUrls : r.pages.map(pageUrl))
+  return {
+    id: OWN_PREFIX + id,
+    num: r.num,
+    title: r.title || undefined,
+    pages: r.pages.length,
+    group: r.team,
+    own: true,
+    lang: r.lang,
+    pageUrls: urls,
+  }
+}
 
 async function rows<T>(path: string, queries: object[] = []): Promise<T | null> {
   const url = new URL(`${APPWRITE_ENDPOINT}/tablesdb/${COMMUNITY_DB}/tables/${OWN_TABLE}/rows${path}`)
   for (const q of queries) url.searchParams.append('queries[]', JSON.stringify(q))
   const res = await fetch(url, { headers: { 'X-Appwrite-Project': APPWRITE_PROJECT } })
-  // Таблицы ещё нет или глава удалена: просто нет наших глав.
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Appwrite ${res.status}`)
   return res.json() as Promise<T>
+}
+
+async function coreChapters(mangaId: string): Promise<Chapter[]> {
+  const res = await fetch(`/api/core/manga/chapters?mangaId=${encodeURIComponent(mangaId)}`, { credentials: 'include' })
+  if (res.status === 404 || res.status === 503) return []
+  if (!res.ok) throw new Error(`Core ${res.status}`)
+  const data = (await res.json()) as { chapters?: CoreChapterRow[] }
+  return (data.chapters ?? []).map((c) => toChapter(c))
+}
+
+async function coreChapter(rowId: string): Promise<Chapter | null> {
+  const res = await fetch(`/api/core/manga/chapters/${encodeURIComponent(rowId)}`, { credentials: 'include' })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Core ${res.status}`)
+  const data = (await res.json()) as { chapter?: CoreChapterRow }
+  return data.chapter ? toChapter(data.chapter) : null
 }
 
 const cache = new Map<string, Promise<Chapter[]>>()
 
 /** Все наши главы тайтла на всех языках. */
 export function fetchOwnChapters(mangaId: string): Promise<Chapter[]> {
+  if (BACKEND === 'core') {
+    if (!cache.has(mangaId)) {
+      const p = coreChapters(mangaId)
+      p.catch(() => cache.delete(mangaId))
+      cache.set(mangaId, p)
+    }
+    return cache.get(mangaId)!
+  }
   if (!cache.has(mangaId)) {
     const p = rows<{ rows: OwnRow[] }>('', [
       { method: 'equal', attribute: 'mangaId', values: [mangaId] },
       { method: 'limit', values: [1000] },
-    ]).then((res) => (res?.rows ?? []).map(toChapter))
+    ]).then((res) => (res?.rows ?? []).map((r) => toChapter(r)))
     p.catch(() => cache.delete(mangaId))
     cache.set(mangaId, p)
   }
@@ -60,6 +101,7 @@ export function fetchOwnChapters(mangaId: string): Promise<Chapter[]> {
 
 /** Одна наша глава по id из адреса читалки (без приставки). */
 export async function fetchOwnChapter(rowId: string): Promise<Chapter | null> {
+  if (BACKEND === 'core') return coreChapter(rowId)
   const r = await rows<OwnRow>(`/${encodeURIComponent(rowId)}`)
   return r ? toChapter(r) : null
 }

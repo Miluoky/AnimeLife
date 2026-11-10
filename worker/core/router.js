@@ -4,11 +4,15 @@
  */
 
 import { coreReady, err, handleAuth, json } from './auth.js'
+import { handleOAuth } from './oauth.js'
 import { handleLists } from './lists.js'
 import { handleAction } from './actions.js'
 import { handleCommunityGet } from './community.js'
 import { handleRoomsGet } from './rooms.js'
 import { handleSocialGet } from './social.js'
+import { handleManga } from './manga.js'
+import { handleChatGet } from './chat.js'
+import { handleClubsGet } from './clubs.js'
 
 const PREFIX = '/api/core'
 
@@ -31,6 +35,8 @@ export async function coreApi(request, env) {
   try {
     if (path === '/health' || path === '/') {
       res = json({ ok: true, backend: 'core', time: Date.now() })
+    } else if (path.startsWith('/auth/oauth')) {
+      res = await handleOAuth(request, env, path)
     } else if (path.startsWith('/auth/')) {
       res = await handleAuth(request, env, path)
     } else if (path.startsWith('/lists/')) {
@@ -39,10 +45,18 @@ export async function coreApi(request, env) {
       res = (await handleCommunityGet(request, env, path)) || err('Not found', 404)
     } else if (path.startsWith('/rooms')) {
       res = (await handleRoomsGet(request, env, path)) || err('Not found', 404)
+    } else if (path === '/chat') {
+      res = (await handleChatGet(request, env, path)) || err('Not found', 404)
     } else if (path.startsWith('/social/')) {
       res = (await handleSocialGet(request, env, path)) || err('Not found', 404)
+    } else if (path === '/clubs' || path.startsWith('/clubs/')) {
+      res = (await handleClubsGet(request, env, path)) || err('Not found', 404)
+    } else if (path === '/collections') {
+      res = (await handleClubsGet(request, env, path)) || err('Not found', 404)
     } else if (path === '/action') {
       res = await handleAction(request, env)
+    } else if (path.startsWith('/manga-img/') || path.startsWith('/manga')) {
+      res = (await handleManga(request, env, path)) || err('Not found', 404)
     } else {
       res = err('Not found', 404)
     }

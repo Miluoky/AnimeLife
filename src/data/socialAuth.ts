@@ -1,6 +1,8 @@
-import { ExecutionMethod, OAuthProvider } from 'appwrite'
-import { SOCIAL_FUNCTION, SOCIAL_LOGIN, account, functions } from '../api/appwrite'
-import { finishSession } from './auth'
+import { BACKEND, SOCIAL_FUNCTION, SOCIAL_LOGIN } from '../api/config'
+import { finishSession, refresh } from './auth'
+import type { CoreUser } from '../api/core'
+
+const useCore = () => BACKEND === 'core'
 
 /** Ошибка входа, которую можно показать как есть. */
 export class SocialLoginError extends Error {
@@ -13,7 +15,13 @@ export const CALLBACK_PATH = 'auth/callback'
 export const VK_CALLBACK_PATH = 'auth/vk'
 
 /** Google и Яндекс встроены в Appwrite: он сам ведёт на страницу сервиса и возвращает одноразовый токен. */
-export function signInWithOAuth(provider: 'google' | 'yandex') {
+export async function signInWithOAuth(provider: 'google' | 'yandex') {
+  if (useCore()) {
+    await runFunction({ provider })
+    return
+  }
+  const { OAuthProvider } = await import('appwrite')
+  const { account } = await import('../api/appwrite')
   void account.createOAuth2Token({
     provider: provider === 'google' ? OAuthProvider.Google : OAuthProvider.Yandex,
     success: appUrl(CALLBACK_PATH),
@@ -22,9 +30,11 @@ export function signInWithOAuth(provider: 'google' | 'yandex') {
 }
 
 interface FunctionReply {
+  user?: CoreUser
   userId?: string
   secret?: string
   error?: string
+  message?: string
   pending?: boolean
   code?: string
   pollKey?: string
@@ -33,6 +43,27 @@ interface FunctionReply {
 }
 
 async function runFunction(body: object): Promise<FunctionReply> {
+  if (useCore()) {
+    const res = await fetch(`${window.location.origin}/api/core/auth/oauth`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    let reply: FunctionReply = {}
+    try {
+      reply = (await res.json()) as FunctionReply
+    } catch {
+      // ответ не JSON
+    }
+    const msg = reply.message ?? reply.error
+    if (msg || res.status >= 300) {
+      throw new SocialLoginError(msg ?? 'Сервер входа не ответил. Попробуйте ещё раз.')
+    }
+    return reply
+  }
+  const { ExecutionMethod } = await import('appwrite')
+  const { functions } = await import('../api/appwrite')
   const run = await functions.createExecution({
     functionId: SOCIAL_FUNCTION,
     body: JSON.stringify(body),
@@ -52,11 +83,19 @@ async function runFunction(body: object): Promise<FunctionReply> {
 }
 
 async function finishWith(reply: FunctionReply) {
+  if (useCore()) {
+    if (reply.pending) return
+    if (reply.user) {
+      await refresh()
+      return
+    }
+    throw new SocialLoginError('Сервер входа не ответил. Попробуйте ещё раз.')
+  }
   if (!reply.userId || !reply.secret) throw new SocialLoginError('Сервер входа не ответил. Попробуйте ещё раз.')
   await finishSession(reply.userId, reply.secret)
 }
 
-// --- VK ID: OAuth 2.1 с PKCE, код обменивает функция ---
+// --- VK ID: OAuth 2.1 с PKCE, код обменивает бэкенд ---
 
 const VK_STATE = 'anime.vkid.pkce'
 
@@ -109,7 +148,7 @@ export async function finishVk(params: URLSearchParams) {
 
 // --- Telegram: вход через бота ---
 // Сайт получает код, пользователь открывает бота по ссылке t.me/<бот>?start=<код> и нажимает
-// «Подтвердить», а сайт тем временем спрашивает функцию, подтверждён ли вход.
+// «Подтвердить», а сайт тем временем спрашивает бэкенд, подтверждён ли вход.
 
 export interface TelegramLogin {
   code: string
@@ -157,7 +196,7 @@ export async function waitForTelegram(login: TelegramLogin, signal: AbortSignal)
 }
 
 // --- Telegram Mini App: вход без кнопок ---
-// Telegram подписывает данные запуска токеном бота, функция проверяет подпись и выдаёт токен (src/data/telegramMiniApp.ts).
+// Telegram подписывает данные запуска токеном бота, бэкенд проверяет подпись (src/data/telegramMiniApp.ts).
 
 export async function signInWithTelegramApp(initData: string) {
   await finishWith(await runFunction({ provider: 'telegram-webapp', initData }))

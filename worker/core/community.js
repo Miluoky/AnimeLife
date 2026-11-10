@@ -265,24 +265,6 @@ export async function handleCommunityAction(env, session, body) {
     return json({ ok: true })
   }
 
-  if (action === 'analytics-track') {
-    const day = new Date().toISOString().slice(0, 10)
-    const id = randomId(12)
-    const data = JSON.stringify({
-      sessionId: String(body.sessionId || '').slice(0, 64),
-      path: String(body.path || '').slice(0, 200),
-      pageview: !!body.pageview,
-      device: String(body.device || '').slice(0, 20),
-      referrer: String(body.referrer || '').slice(0, 200),
-      utm: String(body.utm || '').slice(0, 64),
-      userId: session?.user?.$id || null,
-    }).slice(0, 2000)
-    await env.DB.prepare('INSERT INTO analytics (id, day, data, created_at) VALUES (?, ?, ?, ?)')
-      .bind(id, day, data, Date.now())
-      .run()
-    return json({ ok: true })
-  }
-
   if (action === 'room-time') {
     return json({ serverNow: Date.now() })
   }

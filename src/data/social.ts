@@ -1,4 +1,3 @@
-import { Query } from 'appwrite'
 import { BACKEND } from '../api/config'
 import { callCommunity } from './community'
 import { createLocalStore } from './localStore'
@@ -132,6 +131,7 @@ export async function loadPeople() {
     if (!res.ok) return []
     return (((await res.json()) as { profiles: ProfileRow[] }).profiles ?? []).slice(0, 30)
   }
+  const { Query } = await import('appwrite')
   return list<ProfileRow>('profiles', [Query.orderDesc('updatedAt'), Query.limit(30)]).then((r) => r.rows)
 }
 
@@ -145,6 +145,7 @@ export async function loadLeaders(period: 'week' | 'month' | 'all') {
     if (!res.ok) return []
     return ((await res.json()) as { profiles: ProfileRow[] }).profiles ?? []
   }
+  const { Query } = await import('appwrite')
   const queries =
     period === 'week'
       ? [Query.equal('weekKey', weekKey()), Query.greaterThan('weekXp', 0), Query.orderDesc('weekXp'), Query.limit(50)]
@@ -186,9 +187,24 @@ export const collectionItems = (c: UserCollection): CollectionItem[] => {
   }
 }
 
-export const loadCollection = (id: string) => one<UserCollection>('user_collections', id)
+export async function loadCollection(id: string) {
+  if (useCore()) {
+    const res = await fetch(`/api/core/collections?id=${encodeURIComponent(id)}`, { credentials: 'include' })
+    if (!res.ok) return null
+    return ((await res.json()) as { collection: UserCollection }).collection ?? null
+  }
+  return one<UserCollection>('user_collections', id)
+}
 
-export function loadCollections(order: 'popular' | 'new' = 'popular', ownerId?: string) {
+export async function loadCollections(order: 'popular' | 'new' = 'popular', ownerId?: string) {
+  if (useCore()) {
+    const q = new URLSearchParams({ order: order === 'new' ? 'new' : 'popular' })
+    if (ownerId) q.set('ownerId', ownerId)
+    const res = await fetch(`/api/core/collections?${q}`, { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { collections: UserCollection[] }).collections ?? []
+  }
+  const { Query } = await import('appwrite')
   const queries = [Query.equal('hidden', false), order === 'popular' ? Query.orderDesc('likes') : Query.orderDesc('updatedAt'), Query.limit(48)]
   if (ownerId) queries.unshift(Query.equal('ownerId', ownerId))
   return list<UserCollection>('user_collections', queries).then((r) => r.rows)
@@ -225,15 +241,44 @@ export interface ClubPost {
   hidden?: boolean
 }
 
-export const loadClubs = (order: 'active' | 'big' = 'active') =>
-  list<Club>('clubs', [order === 'active' ? Query.orderDesc('lastAt') : Query.orderDesc('members'), Query.limit(60)]).then((r) => r.rows)
+export async function loadClubs(order: 'active' | 'big' = 'active') {
+  if (useCore()) {
+    const res = await fetch(`/api/core/clubs?order=${order === 'big' ? 'big' : 'active'}`, { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { clubs: Club[] }).clubs ?? []
+  }
+  const { Query } = await import('appwrite')
+  return list<Club>('clubs', [order === 'active' ? Query.orderDesc('lastAt') : Query.orderDesc('members'), Query.limit(60)]).then((r) => r.rows)
+}
 
-export const loadClub = (id: string) => one<Club>('clubs', id)
+export async function loadClub(id: string) {
+  if (useCore()) {
+    const res = await fetch(`/api/core/clubs?id=${encodeURIComponent(id)}`, { credentials: 'include' })
+    if (!res.ok) return null
+    return ((await res.json()) as { club: Club }).club ?? null
+  }
+  return one<Club>('clubs', id)
+}
 
-export const loadClubPosts = (clubId: string) =>
-  list<ClubPost>('club_posts', [Query.equal('clubId', clubId), Query.equal('hidden', false), Query.orderDesc('at'), Query.limit(100)]).then((r) => r.rows)
+export async function loadClubPosts(clubId: string) {
+  if (useCore()) {
+    const res = await fetch(`/api/core/clubs/posts?clubId=${encodeURIComponent(clubId)}`, { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { posts: ClubPost[] }).posts ?? []
+  }
+  const { Query } = await import('appwrite')
+  return list<ClubPost>('club_posts', [Query.equal('clubId', clubId), Query.equal('hidden', false), Query.orderDesc('at'), Query.limit(100)]).then(
+    (r) => r.rows,
+  )
+}
 
 export async function myClubIds(userId: string) {
+  if (useCore()) {
+    const res = await fetch(`/api/core/clubs/member?userId=${encodeURIComponent(userId)}`, { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { ids: string[] }).ids ?? []
+  }
+  const { Query } = await import('appwrite')
   const r = await list<{ clubId: string }>('club_members', [Query.equal('userId', userId), Query.limit(200)])
   return r.rows.map((x) => x.clubId)
 }
@@ -314,14 +359,23 @@ export interface EpisodeScore {
 }
 
 export async function loadEpisodeScore(animeId: string, episode: number) {
+  if (useCore()) {
+    void animeId
+    void episode
+    return null
+  }
+  const { Query } = await import('appwrite')
   const r = await list<EpisodeScore>('episode_scores', [Query.equal('animeId', animeId), Query.equal('episode', episode), Query.limit(1)])
   return r.rows[0] ?? null
 }
 
-export const loadBestEpisodes = (animeId: string) =>
-  list<EpisodeScore>('episode_scores', [Query.equal('animeId', animeId), Query.greaterThan('votes', 0), Query.orderDesc('avg'), Query.limit(6)]).then(
+export const loadBestEpisodes = async (animeId: string) => {
+  if (useCore()) return [] as EpisodeScore[]
+  const { Query } = await import('appwrite')
+  return list<EpisodeScore>('episode_scores', [Query.equal('animeId', animeId), Query.greaterThan('votes', 0), Query.orderDesc('avg'), Query.limit(6)]).then(
     (r) => r.rows,
   )
+}
 
 export const rateEpisode = (animeId: string, episode: number, score: number) =>
   callCommunity<{ score: number; avg: number; votes: number }>({ action: 'episode-rate', animeId, episode, score })

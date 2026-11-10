@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { BACKEND } from '../api/config'
 import { createLocalStore } from './localStore'
 import { listStore } from './myList'
 import { followStore, muteStore, site, watchingIds } from './push'
@@ -28,6 +29,15 @@ export type TelegramNotifyState = 'loading' | 'unavailable' | 'off' | 'on'
 
 const community = () => import('./community')
 
+async function tgAction<T>(body: object): Promise<T> {
+  if (BACKEND === 'core') {
+    const { coreAction } = await import('../api/core')
+    return coreAction<T>((body as { action: string }).action, body as Record<string, unknown>)
+  }
+  const { callCommunity } = await community()
+  return callCommunity<T>(body)
+}
+
 let state: TelegramNotifyState = 'loading'
 const listeners = new Set<() => void>()
 
@@ -51,8 +61,7 @@ export function useTelegramNotify(): TelegramNotifyState {
 export const isTelegramAccount = (userId: string | undefined) => /^tg_\d+$/.test(userId ?? '')
 
 const send = async () => {
-  const { callCommunity } = await community()
-  await callCommunity({
+  await tgAction({
     action: 'tg-subscribe',
     animeIds: watchingIds(),
     site: site(),
@@ -62,8 +71,7 @@ const send = async () => {
 
 /** Спрашиваем функцию, включены ли уведомления, когда открывают профиль. */
 export async function refreshTelegramNotify() {
-  const { callCommunity } = await community()
-  const reply = await callCommunity<{ configured: boolean; on: boolean; weekly?: boolean }>({ action: 'tg-status' })
+  const reply = await tgAction<{ configured: boolean; on: boolean; weekly?: boolean }>({ action: 'tg-status' })
   setState(reply.on ? 'on' : reply.configured ? 'off' : 'unavailable')
   // Подписка есть: сервер знает, включена ли сводка. Пока бот выключен, не затираем местный выбор.
   if (reply.on && typeof reply.weekly === 'boolean') weeklyDigestStore.set(reply.weekly)
@@ -88,8 +96,7 @@ export async function enableTelegramNotify() {
 }
 
 export async function disableTelegramNotify() {
-  const { callCommunity } = await community()
-  await callCommunity({ action: 'tg-unsubscribe' })
+  await tgAction({ action: 'tg-unsubscribe' })
   setState('off')
 }
 

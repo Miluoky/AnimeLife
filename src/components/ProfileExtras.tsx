@@ -8,7 +8,16 @@ import { STATUS_ORDER, type ProfileSummary } from '../data/profile'
 import { COVERS, FRAMES, NAME_COLORS, profileStyleStore } from '../data/profileStyle'
 import { Avatar } from './socialUi'
 import { follow, followCounts, isFollowing, unfollow } from '../data/social'
-import { SHIKI_CLIENT_ID, disconnectShikimori, pullAll, pushAll, restoreLink, shikiAuthorizeUrl, shikiLinkStore } from '../data/shikiSync'
+import {
+  SHIKI_CLIENT_ID,
+  disconnectShikimori,
+  pullAll,
+  pushAll,
+  restoreLink,
+  shikiAuthorizeUrl,
+  shikiLinkStore,
+  shikiServerSyncEnabled,
+} from '../data/shikiSync'
 import { toast } from '../data/toast'
 import { unlocked } from '../data/achievements'
 import { INVITE_CAP, XP, levelOf, totalXp } from '../data/xp'
@@ -342,6 +351,7 @@ export function ShikimoriSync() {
     if (user && !link) restoreLink().catch(() => undefined)
   }, [user, link])
   if (!SHIKI_CLIENT_ID && !link) return null
+  const serverOk = shikiServerSyncEnabled()
 
   const takeAll = async () => {
     setBusy('Забираем…')
@@ -370,16 +380,19 @@ export function ShikimoriSync() {
   return (
     <section className="stack pf-shiki">
       <h2>Синхронизация с Shikimori</h2>
+      {!serverOk && (
+        <p className="muted notice">На Core связь списка с Shikimori через сервер пока недоступна (действия shiki-* ещё не перенесены).</p>
+      )}
       {link ? (
         <>
           <p className="muted">
             Список связан с аккаунтом <b>{link.nickname}</b>: статусы, серии и оценки уходят на Shikimori сами. Список с Shikimori можно забрать сюда одной кнопкой.
           </p>
           <div className="actions">
-            <button type="button" className="btn btn--accent btn--small" disabled={!!busy || !listStore.get().length} onClick={sendAll}>
+            <button type="button" className="btn btn--accent btn--small" disabled={!!busy || !listStore.get().length || !serverOk} onClick={sendAll}>
               {busy || 'Отправить весь список'}
             </button>
-            <button type="button" className="btn btn--ghost btn--small" disabled={!!busy} onClick={takeAll}>
+            <button type="button" className="btn btn--ghost btn--small" disabled={!!busy || !serverOk} onClick={takeAll}>
               Забрать с Shikimori
             </button>
             <button
@@ -395,9 +408,13 @@ export function ShikimoriSync() {
       ) : (
         <>
           <p className="muted">Отмечайте серии здесь, а список на Shikimori обновится сам.</p>
-          <a className="btn btn--accent btn--small" href={shikiAuthorizeUrl()}>
-            Подключить Shikimori
-          </a>
+          {serverOk ? (
+            <a className="btn btn--accent btn--small" href={shikiAuthorizeUrl()}>
+              Подключить Shikimori
+            </a>
+          ) : (
+            <p className="muted">Подключение вернётся после переноса OAuth Shikimori на Core.</p>
+          )}
         </>
       )}
     </section>

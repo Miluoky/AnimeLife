@@ -4,6 +4,7 @@
 {
   "name": "anime",
   "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
   "main": "worker/index.js",
   "keep_vars": true,
   // Коды подтверждения сайта в поисковиках (не секретные, видны в <head> каждой страницы).
@@ -27,5 +28,7 @@
   "kv_namespaces": [
     { "binding": "SESSIONS", "id": "8e2bdf43b8de4282a4d191964577cc14" }
   ],
+  // Страницы своих глав манги (worker/core/manga.js). Создайте: npx wrangler r2 bucket create anime-manga
+  "r2_buckets": [{ "binding": "MANGA", "bucket_name": "anime-manga" }],
   "triggers": { "crons": ["17 * * * *"] }
 }

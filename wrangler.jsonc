@@ -3,6 +3,8 @@
 {
   "name": "anime",
   "compatibility_date": "2026-09-01",
+  // web-push (Core push.js) нужен Node crypto/Buffer на Workers.
+  "compatibility_flags": ["nodejs_compat"],
   "main": "worker/index.js",
   "build": { "command": "npm run build" },
   // Переменные из панели Cloudflare (коды подтверждения для поисковиков, см. README) не стираются при публикации.
@@ -27,6 +29,8 @@
   "kv_namespaces": [
     { "binding": "SESSIONS", "id": "8e2bdf43b8de4282a4d191964577cc14" }
   ],
+  // Страницы своих глав манги (worker/core/manga.js). Создайте: npx wrangler r2 bucket create anime-manga
+  "r2_buckets": [{ "binding": "MANGA", "bucket_name": "anime-manga" }],
   // Чистка старых комнат/сообщений — раз в час, не бьёт лимит зрителей.
   "triggers": { "crons": ["17 * * * *"] }
 }

@@ -1,7 +1,7 @@
-import { Query } from 'appwrite'
-import { COMMUNITY_DB, client, tablesDB } from '../api/appwrite'
+import { BACKEND } from '../api/config'
 import { callCommunity } from './community'
 import { createLocalStore } from './localStore'
+import { serverNow } from './rooms'
 
 /**
  * Голосовой чат комнаты: звук идёт напрямую между браузерами (WebRTC, каждый с каждым, до 6 человек).
@@ -30,6 +30,9 @@ interface Signal {
 
 export const MEMBER_TTL = 2 * 60 * 1000
 export const PRESENCE_EVERY = 45 * 1000
+const CORE_POLL_MS = 2000
+
+const useCore = () => BACKEND === 'core'
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
@@ -45,6 +48,16 @@ export const presence = (roomId: string, state: { voice?: boolean; muted?: boole
 }
 
 export async function loadMembers(roomId: string, since: number): Promise<Member[]> {
+  if (useCore()) {
+    const res = await fetch(
+      `/api/core/rooms/${encodeURIComponent(roomId)}/members?since=${encodeURIComponent(String(since))}`,
+      { credentials: 'include' },
+    )
+    if (!res.ok) return []
+    return ((await res.json()) as { members?: Member[] }).members ?? []
+  }
+  const { Query } = await import('appwrite')
+  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
   const res = await tablesDB.listRows({
     databaseId: COMMUNITY_DB,
     tableId: 'members',
@@ -57,6 +70,18 @@ export async function loadMembers(roomId: string, since: number): Promise<Member
 export async function countMembers(roomIds: string[], since: number): Promise<Map<string, number>> {
   const out = new Map<string, number>()
   if (!roomIds.length) return out
+  if (useCore()) {
+    const res = await fetch(
+      `/api/core/rooms/member-counts?ids=${encodeURIComponent(roomIds.join(','))}&since=${encodeURIComponent(String(since))}`,
+      { credentials: 'include' },
+    )
+    if (!res.ok) return out
+    const data = (await res.json()) as { counts?: Record<string, number> }
+    for (const id of roomIds) out.set(id, data.counts?.[id.toUpperCase()] ?? data.counts?.[id] ?? 0)
+    return out
+  }
+  const { Query } = await import('appwrite')
+  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
   const res = await tablesDB.listRows({
     databaseId: COMMUNITY_DB,
     tableId: 'members',
@@ -67,10 +92,54 @@ export async function countMembers(roomIds: string[], since: number): Promise<Ma
 }
 
 export function subscribeMembers(roomId: string, onChange: (m: Member, gone: boolean) => void) {
-  return client.subscribe<Member>(`databases.${COMMUNITY_DB}.tables.members.rows`, (e) => {
-    if (e.payload.roomId !== roomId) return
-    onChange(e.payload, e.events.some((ev) => ev.endsWith('.delete')))
+  if (useCore()) {
+    let stopped = false
+    let prev = new Map<string, Member>()
+    const emit = (m: Member, gone: boolean) => onChange(m, gone)
+    const tick = async () => {
+      if (stopped) return
+      try {
+        const since = serverNow() - MEMBER_TTL
+        const list = await loadMembers(roomId, since)
+        const next = new Map(list.map((m) => [m.userId, m]))
+        for (const m of list) {
+          const old = prev.get(m.userId)
+          if (!old || old.at !== m.at || old.voice !== m.voice || old.muted !== m.muted || old.name !== m.name) {
+            emit(m, false)
+          }
+        }
+        for (const [userId, old] of prev) {
+          if (!next.has(userId)) emit(old, true)
+        }
+        prev = next
+      } catch {
+        // сеть — следующий тик
+      }
+    }
+    void tick()
+    const timer = window.setInterval(tick, CORE_POLL_MS)
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }
+  let unsub = () => {}
+  void import('../api/appwrite').then(({ COMMUNITY_DB, client }) => {
+    unsub = client.subscribe<Member>(`databases.${COMMUNITY_DB}.tables.members.rows`, (e) => {
+      if (e.payload.roomId !== roomId) return
+      onChange(e.payload, e.events.some((ev) => ev.endsWith('.delete')))
+    })
   })
+  return () => unsub()
+}
+
+async function loadSignals(roomId: string, since: number): Promise<(Signal & { $id: string })[]> {
+  const res = await fetch(
+    `/api/core/rooms/${encodeURIComponent(roomId)}/signals?since=${encodeURIComponent(String(since))}`,
+    { credentials: 'include' },
+  )
+  if (!res.ok) return []
+  return ((await res.json()) as { signals?: (Signal & { $id: string })[] }).signals ?? []
 }
 
 /** Ждём, пока браузер соберёт свои адреса: одно сообщение вместо десятка. */
@@ -120,6 +189,7 @@ export class VoiceChat {
   private localAnalyser: AnalyserNode | null = null
   private localSource: MediaStreamAudioSourceNode | null = null
   private unsubscribe: (() => void) | null = null
+  private signalPoll: ReturnType<typeof setInterval> | undefined
   private meter: ReturnType<typeof setInterval> | undefined
   muted = false
 
@@ -141,11 +211,33 @@ export class VoiceChat {
     // RNNoise обучен на 48 кГц: так звук не пересчитывается лишний раз.
     this.ctx = new AudioContext({ sampleRate: 48000 })
     const applied = await this.applyNoise(noise)
-    this.unsubscribe = client.subscribe<Signal>(`databases.${COMMUNITY_DB}.tables.signals.rows`, (e) => {
-      const s = e.payload
-      if (s.to === this.me && s.roomId === this.roomId && e.events.some((ev) => ev.endsWith('.create')))
-        void this.onSignal(s)
-    })
+    if (useCore()) {
+      const seen = new Set<string>()
+      let cursor = Date.now()
+      const poll = async () => {
+        try {
+          const batch = await loadSignals(this.roomId, cursor)
+          for (const s of batch) {
+            if (seen.has(s.$id)) continue
+            seen.add(s.$id)
+            cursor = Math.max(cursor, s.at)
+            if (s.to === this.me) void this.onSignal(s)
+          }
+        } catch {
+          // сеть — следующий тик
+        }
+      }
+      void poll()
+      this.signalPoll = setInterval(poll, CORE_POLL_MS)
+    } else {
+      void import('../api/appwrite').then(({ COMMUNITY_DB, client }) => {
+        this.unsubscribe = client.subscribe<Signal>(`databases.${COMMUNITY_DB}.tables.signals.rows`, (e) => {
+          const s = e.payload
+          if (s.to === this.me && s.roomId === this.roomId && e.events.some((ev) => ev.endsWith('.create')))
+            void this.onSignal(s)
+        })
+      })
+    }
     try {
       await presence(this.roomId, { voice: true, muted: false })
     } catch (e) {
@@ -167,6 +259,8 @@ export class VoiceChat {
     this.stream = null
     this.unsubscribe?.()
     this.unsubscribe = null
+    clearInterval(this.signalPoll)
+    this.signalPoll = undefined
     clearInterval(this.meter)
     void this.ctx?.close()
     this.ctx = null

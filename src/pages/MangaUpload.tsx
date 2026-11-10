@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Permission, Role, Storage } from 'appwrite'
 import { useAsync } from '../api'
-import { client, COMMUNITY_DB, ID, tablesDB } from '../api/appwrite'
+import { BACKEND } from '../api/config'
 import { fetchManga } from '../api/manga'
 import { LANGS } from '../api/mangadex'
 import { forget, OWN_BUCKET, OWN_PREFIX, OWN_TABLE } from '../api/mangaOwn'
@@ -11,7 +10,6 @@ import { CONTACT_EMAIL } from '../data/legal'
 import { usePageMeta } from '../data/pageMeta'
 import './manga-reader.css'
 
-const storage = new Storage(client)
 const TEAM_KEY = 'anime.mangaTeam.v1'
 const MAX_PAGES = 300
 const MAX_MB = 15
@@ -25,12 +23,12 @@ const loadTeam = () => {
   }
 }
 
-// Файлы страниц сортируем по имени «как человек»: 2.png раньше 10.png.
 const byName = (a: File, b: File) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
 
 /**
- * Загрузка главы командой переводчиков: картинки в хранилище manga-pages, глава в таблицу manga_chapters.
- * Загружать могут аккаунты с меткой translator (её ставит админ) и админы, это проверяет сам Appwrite.
+ * Загрузка главы командой переводчиков.
+ * Appwrite: manga-pages + manga_chapters; Core: R2 + D1 через /api/core/manga*.
+ * Загружать могут аккаунты с меткой translator или admin.
  */
 export default function MangaUpload() {
   const { id = '' } = useParams()
@@ -71,21 +69,61 @@ export default function MangaUpload() {
       </main>
     )
 
-  const submit = async () => {
-    setError(undefined)
-    setDone(undefined)
-    const n = num.trim().replace(',', '.')
-    if (!/^\d{1,5}(\.\d{1,2})?$/.test(n)) return setError('Номер главы: число, например 12 или 12.5.')
-    if (!team.trim()) return setError('Укажите название команды.')
-    if (!files.length) return setError('Выберите картинки страниц.')
-    if (files.length > MAX_PAGES) return setError(`Не больше ${MAX_PAGES} страниц в главе.`)
-    const big = files.find((f) => f.size > MAX_MB * 1024 * 1024)
-    if (big) return setError(`Файл ${big.name} больше ${MAX_MB} МБ.`)
+  const submitCore = async (n: string) => {
+    const keys: string[] = []
     try {
-      localStorage.setItem(TEAM_KEY, team.trim())
-    } catch {
-      // Без хранилища название команды просто не запомнится.
+      for (const [i, file] of files.entries()) {
+        setProgress(`Загружаем страницу ${i + 1} из ${files.length}…`)
+        const form = new FormData()
+        form.append('file', file)
+        const res = await fetch('/api/core/manga/page', { method: 'POST', credentials: 'include', body: form })
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}))
+          throw new Error((j as { message?: string }).message || `Core ${res.status}`)
+        }
+        const { key } = (await res.json()) as { key: string }
+        keys.push(key)
+      }
+      setProgress('Сохраняем главу…')
+      const res = await fetch('/api/core/manga/chapters', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mangaId: id,
+          lang,
+          num: n,
+          title: title.trim() || null,
+          team: team.trim(),
+          pages: keys,
+        }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error((j as { message?: string }).message || `Core ${res.status}`)
+      }
+      const data = (await res.json()) as { chapter: { id: string } }
+      forget(id)
+      setDone(`/manga/${id}/chapter/${OWN_PREFIX}${data.chapter.id}?lang=${lang}`)
+      setNum('')
+      setTitle('')
+      setFiles([])
+    } catch (e) {
+      await Promise.all(
+        keys.map((key) =>
+          fetch(`/api/core/manga/page/${encodeURIComponent(key)}`, { method: 'DELETE', credentials: 'include' }).catch(
+            () => undefined,
+          ),
+        ),
+      )
+      throw e
     }
+  }
+
+  const submitAppwrite = async (n: string) => {
+    const { Permission, Role, Storage } = await import('appwrite')
+    const { client, COMMUNITY_DB, ID, tablesDB } = await import('../api/appwrite')
+    const storage = new Storage(client)
     const mine = [Permission.update(Role.user(user!.$id)), Permission.delete(Role.user(user!.$id))]
     const ids: string[] = []
     try {
@@ -108,8 +146,30 @@ export default function MangaUpload() {
       setTitle('')
       setFiles([])
     } catch (e) {
-      // Загруженные страницы без главы никому не видны в читалке, но место занимают: убираем их.
       await Promise.all(ids.map((fileId) => storage.deleteFile({ bucketId: OWN_BUCKET, fileId }).catch(() => undefined)))
+      throw e
+    }
+  }
+
+  const submit = async () => {
+    setError(undefined)
+    setDone(undefined)
+    const n = num.trim().replace(',', '.')
+    if (!/^\d{1,5}(\.\d{1,2})?$/.test(n)) return setError('Номер главы: число, например 12 или 12.5.')
+    if (!team.trim()) return setError('Укажите название команды.')
+    if (!files.length) return setError('Выберите картинки страниц.')
+    if (files.length > MAX_PAGES) return setError(`Не больше ${MAX_PAGES} страниц в главе.`)
+    const big = files.find((f) => f.size > MAX_MB * 1024 * 1024)
+    if (big) return setError(`Файл ${big.name} больше ${MAX_MB} МБ.`)
+    try {
+      localStorage.setItem(TEAM_KEY, team.trim())
+    } catch {
+      /* */
+    }
+    try {
+      if (BACKEND === 'core') await submitCore(n)
+      else await submitAppwrite(n)
+    } catch (e) {
       setError(`Не получилось загрузить: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setProgress(undefined)

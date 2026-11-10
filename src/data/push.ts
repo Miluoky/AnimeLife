@@ -1,7 +1,16 @@
 import { useSyncExternalStore } from 'react'
-import { VAPID_PUBLIC_KEY } from '../api/config'
+import { BACKEND, VAPID_PUBLIC_KEY } from '../api/config'
 // Функция community тянет SDK Appwrite: подключаем её, только когда пуши правда включают или выключают.
 const community = () => import('./community')
+
+async function pushAction<T>(body: object): Promise<T> {
+  if (BACKEND === 'core') {
+    const { coreAction } = await import('../api/core')
+    return coreAction<T>((body as { action: string }).action, body as Record<string, unknown>)
+  }
+  const { callCommunity } = await community()
+  return callCommunity<T>(body)
+}
 import { createLocalStore } from './localStore'
 import { listStore } from './myList'
 import { telegramOnStore } from './telegramFlag'
@@ -98,8 +107,7 @@ async function currentSubscription() {
 }
 
 async function send(sub: PushSubscription) {
-  const { callCommunity } = await community()
-  await callCommunity({ action: 'push-subscribe', subscription: sub.toJSON(), animeIds: watchingIds(), site: site() })
+  await pushAction({ action: 'push-subscribe', subscription: sub.toJSON(), animeIds: watchingIds(), site: site() })
 }
 
 /** Узнаём состояние при запуске и следим за «Смотрю». */
@@ -150,8 +158,7 @@ export async function enablePush() {
 export async function disablePush() {
   const sub = await currentSubscription()
   if (sub) {
-    const { callCommunity } = await community()
-    await callCommunity({ action: 'push-unsubscribe', endpoint: sub.endpoint }).catch(() => undefined)
+    await pushAction({ action: 'push-unsubscribe', endpoint: sub.endpoint }).catch(() => undefined)
     await sub.unsubscribe()
   }
   setState('off')

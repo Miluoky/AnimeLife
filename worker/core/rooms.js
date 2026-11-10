@@ -4,6 +4,7 @@
 
 import { err, json, userFromRequest } from './auth.js'
 import { randomId } from './crypto.js'
+import { cleanupVoice, deleteRoomVoice, handleVoiceGet, roomPresence, roomSignal } from './voice.js'
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const REACTIONS = new Set(['❤️', '😂', '😮', '😭', '🔥', '👏'])
@@ -75,6 +76,9 @@ async function getRow(env, roomId) {
 
 export async function handleRoomsGet(request, env, path) {
   const url = new URL(request.url)
+  const voiceRes = await handleVoiceGet(request, env, path)
+  if (voiceRes) return voiceRes
+
   if (path === '/rooms' && request.method === 'GET') {
     const since = Date.now() - 30 * 60 * 1000
     const res = await env.DB.prepare('SELECT * FROM rooms WHERE updated_at > ? ORDER BY updated_at DESC LIMIT 40')
@@ -275,19 +279,21 @@ export async function handleRoomAction(env, session, body) {
       return err('Закрыть может только ведущий.', 403)
     }
     await env.DB.prepare('DELETE FROM messages WHERE room_code = ?').bind(row.code).run()
+    await deleteRoomVoice(env, row.code)
     await env.DB.prepare('DELETE FROM rooms WHERE code = ?').bind(row.code).run()
     return json({ ok: true })
   }
 
-  if (action === 'room-presence' || action === 'room-signal') {
-    // Голос/presence — позже на Durable Objects; пока no-op, чтобы клиент не падал.
-    return json({ ok: true })
-  }
+  if (action === 'room-presence') return roomPresence(env, session, body)
+  if (action === 'room-signal') return roomSignal(env, session, body)
 
   if (action === 'rooms-cleanup') {
     const cut = Date.now() - ROOM_TTL
     await env.DB.prepare('DELETE FROM messages WHERE created_at < ?').bind(Date.now() - 24 * 3600 * 1000).run()
+    const stale = await env.DB.prepare('SELECT code FROM rooms WHERE updated_at < ?').bind(cut).all()
+    for (const row of stale.results || []) await deleteRoomVoice(env, row.code)
     await env.DB.prepare('DELETE FROM rooms WHERE updated_at < ?').bind(cut).run()
+    await cleanupVoice(env)
     return json({ ok: true })
   }
 

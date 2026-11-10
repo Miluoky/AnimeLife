@@ -16,7 +16,9 @@
       "binding": "SESSIONS",
       "id": "REPLACE_WITH_KV_ID"
     }
-  ]
-  // Позже:
-  // "r2_buckets": [{ "binding": "MANGA", "bucket_name": "anime-manga" }]
+  ],
+  // Секреты (wrangler secret put …):
+  // VK_APP_ID, TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, TELEGRAM_WEBHOOK_SECRET, IP_HASH_SALT, SITE_URL
+  // Позже OAuth: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET
+  "r2_buckets": [{ "binding": "MANGA", "bucket_name": "anime-manga" }]
 }

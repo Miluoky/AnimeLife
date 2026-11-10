@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { BACKEND } from '../api/config'
 import { callCommunity, CommunityError } from '../data/community'
 import { forgetDeletedAccount } from '../data/auth'
 import { toast } from '../data/toast'
@@ -35,6 +36,8 @@ function download(name: string, data: unknown) {
 }
 
 /** «Мои данные» в профиле: скачать всё одним файлом и удалить аккаунт без писем в поддержку. */
+const accountDataActionsReady = () => BACKEND !== 'core'
+
 export default function AccountData() {
   const [busy, setBusy] = useState<'' | 'export' | 'delete'>('')
   const [asking, setAsking] = useState(false)
@@ -42,6 +45,13 @@ export default function AccountData() {
   const [error, setError] = useState('')
 
   const exportData = async () => {
+    if (!accountDataActionsReady()) {
+      setBusy('export')
+      setError('')
+      download(`animelife-browser-${new Date().toISOString().slice(0, 10)}.json`, { browser: localData(), note: 'Только данные этого браузера; серверная выгрузка на Core ещё не перенесена.' })
+      setBusy('')
+      return
+    }
     setBusy('export')
     setError('')
     try {
@@ -56,6 +66,10 @@ export default function AccountData() {
 
   const remove = async (e: FormEvent) => {
     e.preventDefault()
+    if (!accountDataActionsReady()) {
+      setError('Удаление аккаунта на Core через сайт пока недоступно — напишите в поддержку (action account-delete ещё не в Core).')
+      return
+    }
     setBusy('delete')
     setError('')
     try {
