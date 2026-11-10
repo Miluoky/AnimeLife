@@ -187,6 +187,37 @@ async function bot(env, method, params) {
   return res.json().catch(() => ({}))
 }
 
+const TG_OFFSET_KEY = 'oauth:tg:offset'
+
+/**
+ * Cloudflare WAF/Bot Fight режет входящие webhook-запросы Telegram (Go-http-client → 403).
+ * Поэтому бот работает через getUpdates: сайт при start/poll забирает апдейты сам.
+ */
+async function drainTelegramUpdates(env) {
+  if (!env.TELEGRAM_BOT_TOKEN || !env.SESSIONS) return
+  const rawOffset = await env.SESSIONS.get(TG_OFFSET_KEY)
+  const offset = rawOffset ? Number(rawOffset) : 0
+  const data = await bot(env, 'getUpdates', {
+    offset: Number.isFinite(offset) && offset > 0 ? offset : undefined,
+    timeout: 0,
+    allowed_updates: ['message', 'callback_query'],
+    limit: 50,
+  })
+  if (!data?.ok || !Array.isArray(data.result)) return
+  let next = offset
+  for (const update of data.result) {
+    try {
+      await telegramUpdate(env, update)
+    } catch (e) {
+      console.error('telegram update', e)
+    }
+    if (typeof update.update_id === 'number') next = update.update_id + 1
+  }
+  if (next > offset) {
+    await env.SESSIONS.put(TG_OFFSET_KEY, String(next), { expirationTtl: 60 * 60 * 24 * 30 })
+  }
+}
+
 async function pendingLogin(env, code) {
   if (!/^[a-f0-9]{24}$/.test(code ?? '')) return null
   const raw = await env.SESSIONS.get(`${PENDING_PREFIX}${code}`)
@@ -203,6 +234,9 @@ async function pendingLogin(env, code) {
 
 async function telegramStart(env) {
   if (!env.TELEGRAM_BOT_TOKEN) throw new LoginError('Вход через Telegram ещё не настроен.')
+  // Снимаем webhook, если остался от старого деплоя — иначе getUpdates не работает.
+  await bot(env, 'deleteWebhook', { drop_pending_updates: false }).catch(() => undefined)
+  await drainTelegramUpdates(env).catch((e) => console.error('telegram drain', e))
   const code = randomId(12)
   const pollKey = randomId(16)
   const expiresAt = Date.now() + LOGIN_TTL_MS
@@ -220,6 +254,7 @@ async function telegramStart(env) {
 }
 
 async function telegramPoll(env, request, { code, pollKey }) {
+  await drainTelegramUpdates(env).catch((e) => console.error('telegram drain', e))
   const login = await pendingLogin(env, code)
   if (!login || !sameText(login.pollHash, await sha256Hex(pollKey ?? ''))) {
     throw new LoginError('Время на вход вышло. Нажмите кнопку Telegram ещё раз.')

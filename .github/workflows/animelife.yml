@@ -65,18 +65,10 @@ jobs:
           printf '%s' "$TELEGRAM_BOT_TOKEN" | npx --yes wrangler@4 secret put TELEGRAM_BOT_TOKEN -c wrangler.animelife.jsonc
           printf '%s' "AnimeLifeAuth_bot" | npx --yes wrangler@4 secret put TELEGRAM_BOT_USERNAME -c wrangler.animelife.jsonc
           printf '%s' "https://animelife.top" | npx --yes wrangler@4 secret put SITE_URL -c wrangler.animelife.jsonc
-          # Простой токен (A-Z a-z 0-9 _ -): совпадает с требованиями Telegram secret_token.
-          WH="$TELEGRAM_WEBHOOK_SECRET"
-          if [ -z "$WH" ]; then
-            WH="animelife_core_tg_webhook_v1"
-          fi
-          printf '%s' "$WH" | npx --yes wrangler@4 secret put TELEGRAM_WEBHOOK_SECRET -c wrangler.animelife.jsonc
-          # workers.dev обходит WAF/Bot Fight зоны animelife.top (иначе Telegram Go-http-client ловит 403).
-          HOOK_URL="https://anime.pijolhera3263.workers.dev/api/core/auth/oauth/telegram/webhook"
+          # Входящий webhook Telegram режется WAF (Go-http-client → 403). Бот читает апдейты через getUpdates
+          # при /auth/oauth (telegram-start / telegram-poll) в worker/core/oauth.js.
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook" --data 'drop_pending_updates=false'
-          curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
-            -H 'Content-Type: application/json' \
-            --data "{\"url\":\"${HOOK_URL}\",\"secret_token\":\"${WH}\",\"allowed_updates\":[\"message\",\"callback_query\"]}"
+          echo
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"
           echo
       # IndexNow: сразу сообщить Яндексу и Bing об обновлённых разделах, посадочных страницах и онгоингах
