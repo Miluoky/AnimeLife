@@ -7,7 +7,7 @@ import { animeHref } from '../data/animeUrl'
 import { useHistory } from '../data/history'
 import { inboxStore, isFresh, markInboxSeen, WEEK_MS, type EpisodeArrival, type InboxItem } from '../data/inbox'
 import { checkInbox } from '../data/inboxCheck'
-import { setWatched, todayIso, useMyList, type ListEntry } from '../data/myList'
+import { effectiveWatched, setWatched, todayIso, useMyList, type ListEntry } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
 import { followStore, muteStore, watchingIds } from '../data/push'
 import { GENRES } from '../data/seo'
@@ -277,7 +277,13 @@ export default function Watching({ embedded = false }: { embedded?: boolean } = 
   }, [])
 
   const tracked = new Set(watchingIds())
-  const watched = new Map(list.map((e) => [e.anime.id, e.watched ?? 0]))
+  const history = useHistory()
+  const watched = new Map(
+    list.map((e) => {
+      const seen = history.find((h) => h.animeId === e.anime.id)
+      return [e.anime.id, effectiveWatched(e.watched, seen?.episode)] as const
+    }),
+  )
   const items = state.items.filter((i) => tracked.has(i.id))
   const ready = items
     .filter((i) => i.aired > (watched.get(i.id) ?? 0))

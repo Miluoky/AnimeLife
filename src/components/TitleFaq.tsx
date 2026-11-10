@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useJsonLd } from '../data/pageMeta'
 
 export interface TitleFaqProps {
   title: string
@@ -14,7 +13,7 @@ export interface TitleFaqProps {
   mangaTitle?: string
 }
 
-export default function TitleFaq({
+export function buildTitleFaqItems({
   title,
   originalTitle,
   episodesTotal,
@@ -26,57 +25,53 @@ export default function TitleFaq({
   ageRating,
   mangaTitle,
 }: TitleFaqProps) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null)
-
   const isOngoing = status === 'ongoing'
   const epCount = episodesTotal || episodesAired || 'не указано'
   const genreList = genres && genres.length > 0 ? genres.join(', ') : 'аниме'
 
-  const items = [
+  return [
     {
       q: `Сколько серий в аниме «${title}»?`,
       a: isOngoing
         ? `На данный момент вышло ${episodesAired || 0} серий (всего запланировано ${episodesTotal || 'уточняется'}). Статус тайтла — онгоинг.`
-        : `В аниме «${title}» ${epCount} серий. Релиз полностью завершен.`
+        : `В аниме «${title}» ${epCount} серий. Релиз полностью завершен.`,
     },
     {
       q: `В какой озвучке лучше смотреть «${title}»?`,
-      a: `На AnimeLife доступны популярные варианты профессионального и любительского дубляжа: AniLibria, Studio Band, Dream Cast, SHIZA Project, а также оригинальная японская дорожка с русскими субтитрами.`
+      a: `На AnimeLife доступны популярные варианты профессионального и любительского дубляжа: AniLibria, Studio Band, Dream Cast, SHIZA Project, а также оригинальная японская дорожка с русскими субтитрами.`,
     },
     {
       q: `Какой жанр и возрастной рейтинг у «${title}»?`,
-      a: `Основные жанры: ${genreList}. Возрастной рейтинг: ${ageRating || '16+'}.` + (studio ? ` Производство студии ${studio}.` : '')
+      a: `Основные жанры: ${genreList}. Возрастной рейтинг: ${ageRating || '16+'}.` + (studio ? ` Производство студии ${studio}.` : ''),
     },
-    ...(mangaTitle ? [{
-      q: `Где продолжить читать мангу после просмотра «${title}»?`,
-      a: `Первоисточником является «${mangaTitle}». Вы можете продолжить чтение манги прямо в нашей встроенной читалке манги AnimeLife.`
-    }] : []),
-    ...(year ? [{
-      q: `В каком году вышло аниме «${title}»?`,
-      a: `Премьера состоялась в ${year} году.` + (originalTitle ? ` Оригинальное название: ${originalTitle}.` : '')
-    }] : [])
+    ...(mangaTitle
+      ? [
+          {
+            q: `Где продолжить читать мангу после просмотра «${title}»?`,
+            a: `Первоисточником является «${mangaTitle}». Вы можете продолжить чтение манги прямо в нашей встроенной читалке манги AnimeLife.`,
+          },
+        ]
+      : []),
+    ...(year
+      ? [
+          {
+            q: `В каком году вышло аниме «${title}»?`,
+            a: `Премьера состоялась в ${year} году.` + (originalTitle ? ` Оригинальное название: ${originalTitle}.` : ''),
+          },
+        ]
+      : []),
   ]
+}
 
-  // Schema.org FAQPage for Google Rich Snippets
-  const faqSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    'mainEntity': items.map((item) => ({
-      '@type': 'Question',
-      'name': item.q,
-      'acceptedAnswer': {
-        '@type': 'Answer',
-        'text': item.a,
-      },
-    })),
-  }
-
-  useJsonLd(faqSchema)
+export default function TitleFaq(props: TitleFaqProps) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const items = buildTitleFaqItems(props)
+  // JSON-LD FAQ отдаёт SeoMeta на странице тайтла — иначе useJsonLd затирает TVSeries.
 
   return (
     <section className="title-faq-section" style={{ marginTop: '2.5rem', marginBottom: '2.5rem' }}>
       <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: '#fff' }}>
-        Часто задаваемые вопросы о «{title}»
+        Часто задаваемые вопросы о «{props.title}»
       </h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {items.map((item, idx) => {

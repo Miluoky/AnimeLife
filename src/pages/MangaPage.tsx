@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga, type MangaPage as Manga } from '../api/manga'
 import { chapterLabel, findMangadex, langName, mergeChapters, preferredLang, readProgress, setPreferredLang, sortLangs } from '../api/mangadex'
@@ -48,17 +48,20 @@ function Description({ parts }: { parts: Manga['description'] }) {
   )
 }
 
-const chapterUrl = (mangaId: string, chapterId: string, lang: string) => `/manga/${mangaId}/chapter/${chapterId}?lang=${lang}`
+const chapterUrl = (mangaId: string, chapterId: string, lang: string, base = '/manga') =>
+  `${base}/${mangaId}/chapter/${chapterId}?lang=${lang}`
 
 /** «Читать»: главы прямо на сайте — загруженные командами к нам и из MangaDex, язык на выбор (русский первым). */
-function ReadBlock({ m }: { m: Manga }) {
+function ReadBlock({ m, adult }: { m: Manga; adult?: boolean }) {
+  const location = useLocation()
+  const mangaBase = location.pathname.startsWith('/hentai-manga') ? '/hentai-manga' : '/manga'
   const sources = useAsync(
     () =>
       Promise.all([
-        findMangadex(m.id, [m.originalTitle, m.english, m.title]).catch(() => null),
+        findMangadex(m.id, [m.originalTitle, m.english, m.title], { adult: !!adult }).catch(() => null),
         fetchOwnChapters(m.id).catch(() => []),
       ]).then(([md, own]) => ({ md, own, langs: sortLangs([...(md?.langs ?? []), ...own.map((c) => c.lang ?? 'ru')]) })),
-    [m.id],
+    [m.id, adult],
   )
   const [picked, setPicked] = useState<string>()
   const title = sources.value?.langs.length ? sources.value : undefined
@@ -104,11 +107,11 @@ function ReadBlock({ m }: { m: Manga }) {
     body = (
       <>
         <div className="manga__links">
-          <Link className="btn btn--accent" to={chapterUrl(m.id, list[0].id, lang)}>
+          <Link className="btn btn--accent" to={chapterUrl(m.id, list[0].id, lang, mangaBase)}>
             Читать с начала
           </Link>
           {progress && (
-            <Link className="btn" to={chapterUrl(m.id, progress.chapterId, progress.lang)}>
+            <Link className="btn" to={chapterUrl(m.id, progress.chapterId, progress.lang, mangaBase)}>
               Продолжить: {chapterLabel({ num: progress.num })}
               {progress.page && progress.page > 1 ? `, стр. ${progress.page}` : ''}
               {progress.lang !== lang ? ` (${langName(progress.lang).toLowerCase()})` : ''}
@@ -118,7 +121,7 @@ function ReadBlock({ m }: { m: Manga }) {
         <ol className="manga__chapters" reversed>
           {[...list].reverse().map((c) => (
             <li key={c.id}>
-              <Link to={chapterUrl(m.id, c.id, lang)} className={c.id === progress?.chapterId ? 'is-current' : read(c.num) ? 'is-read' : undefined}>
+              <Link to={chapterUrl(m.id, c.id, lang, mangaBase)} className={c.id === progress?.chapterId ? 'is-current' : read(c.num) ? 'is-read' : undefined}>
                 <span>{chapterLabel(c)}</span>
                 {c.title && c.num && <span className="muted"> · {c.title}</span>}
               </Link>
@@ -126,14 +129,16 @@ function ReadBlock({ m }: { m: Manga }) {
           ))}
         </ol>
         <p className="muted manga__credit">
-          {list.length} гл. на языке «{langName(lang)}». Переводы команд, их имена указаны в каждой главе; источники: Anime Life
-          {title.md && (
+          {list.length} гл. на языке «{langName(lang)}»
+          {title.md ? (
             <>
-              {' '}и{' '}
+              . Источник глав:{' '}
               <a href={`https://mangadex.org/title/${title.md.id}`} target="_blank" rel="noopener noreferrer">
                 MangaDex
               </a>
             </>
+          ) : (
+            '. Глав на сайте пока мало — открывайте тайтл, когда появятся переводы.'
           )}
           .
         </p>
@@ -156,6 +161,8 @@ function ReadBlock({ m }: { m: Manga }) {
 /** Страница манги или ранобэ: описание, тома и главы, экранизации и другие части, официальные сайты. */
 export default function MangaPage() {
   const { id = '' } = useParams()
+  const location = useLocation()
+  const hentaiPath = location.pathname.startsWith('/hentai-manga')
   const [attempt, setAttempt] = useState(0)
   const [adultOk, setAdultOk] = useState(isAgeVerified)
   // null — такой манги нет (404), 'error' — Shikimori не ответил: тогда предлагаем повторить, а не «не найдено».
@@ -164,6 +171,7 @@ export default function MangaPage() {
     [id, attempt],
   )
   const m = state.value && state.value !== 'error' && state.value.id === id ? state.value : undefined
+  const needGate = hentaiPath || (!!m && isAdultContent(m))
   usePageMeta(
     m ? `${m.title}: ${m.kind.toLowerCase()}` : 'Манга',
     m ? `${m.title}${m.originalTitle ? ` (${m.originalTitle})` : ''}: описание, тома и главы, аниме-экранизации.` : '',
@@ -181,7 +189,7 @@ export default function MangaPage() {
       </main>
     )
   if (!m) return <main className="container empty-page" aria-busy="true" />
-  if (isAdultContent(m) && !adultOk) {
+  if (needGate && !adultOk) {
     return <AgeGateModal onVerified={() => setAdultOk(true)} />
   }
 
@@ -228,7 +236,7 @@ export default function MangaPage() {
 
       {m.description.length > 0 && <Description parts={m.description} />}
 
-      {m.kind !== 'Ранобэ' && m.kind !== 'Новелла' && <ReadBlock m={m} />}
+      {m.kind !== 'Ранобэ' && m.kind !== 'Новелла' && <ReadBlock m={m} adult={needGate && adultOk} />}
 
       {m.links.length > 0 && (
         <section className="stack">

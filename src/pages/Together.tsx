@@ -307,6 +307,7 @@ export default function Together() {
   // Новая комната со страницы серии: сразу включаем первую озвучку вместо трейлера.
   const fresh = !!(location.state as { fresh?: boolean } | null)?.fresh
   const autoPicked = useRef(false)
+  const inviteOpened = useRef(false)
   useEffect(() => {
     const first = voices.value?.[0]
     if (!fresh || autoPicked.current || !isHost || !room || !first || playing?.type === 'player' || room.position > 0) return
@@ -314,6 +315,12 @@ export default function Together() {
     void send({ source: 'trailer', videoId: pickCode(first), playing: false, position: 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fresh, voices.value, isHost, room?.$id])
+  // Host только что создал комнату — сразу показать InviteCard со ссылкой.
+  useEffect(() => {
+    if (!fresh || inviteOpened.current || !isHost || !room) return
+    inviteOpened.current = true
+    setShowInvite(true)
+  }, [fresh, isHost, room?.$id])
 
   usePageMeta(room ? `Смотрим вместе: ${room.title || room.animeTitle}` : room === null ? 'Комната закрыта' : undefined)
 

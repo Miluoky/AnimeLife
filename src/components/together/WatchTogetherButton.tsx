@@ -36,6 +36,7 @@ export default function WatchTogetherButton({
         episode,
         source: videoId ? 'trailer' : 'file',
         videoId,
+        public: true,
       })
       markFlag('hostedRoom')
       navigate(`/together/${room.$id}`, { state: { fresh: true } })

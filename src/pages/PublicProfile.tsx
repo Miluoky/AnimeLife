@@ -19,7 +19,7 @@ import { ShareIcon } from '../components/Icons'
 import { toast } from '../data/toast'
 import ProfileWall from '../components/ProfileWall'
 
-type TabType = 'profile' | 'lists' | 'genres' | 'compat' | 'wall'
+type TabType = 'profile' | 'lists' | 'compat' | 'wall'
 
 /** Открытый профиль зрителя в стиле Senku: кастомные обложки, анимированные рамки, гифки, живой статус, стрик и стена. */
 export default function PublicProfile() {
@@ -50,25 +50,25 @@ export default function PublicProfile() {
       </main>
     )
 
-  const s = p.summary
+  // Безопасные дефолты: пустой/битый summary не роняет страницу.
+  const emptyFacts = { total: 0, completed: 0, planned: 0, watchingOngoing: 0, episodes: 0, rated: 0 }
+  const s = {
+    facts: { ...emptyFacts, ...(p.summary?.facts ?? {}) },
+    counts: p.summary?.counts ?? {},
+    favorites: p.summary?.favorites ?? [],
+    watching: p.summary?.watching ?? [],
+    recent: p.summary?.recent ?? [],
+    achievements: p.summary?.achievements ?? [],
+    xp: p.summary?.xp ?? 0,
+    rates: p.summary?.rates,
+    style: p.summary?.style,
+    showcase: p.summary?.showcase,
+  }
   const style = s.style
   const lvl = levelOf(s.xp ?? 0)
   const nowWatching = s.watching[0]
 
-  // Стрик дней (динамический на основе серий или активности)
-  const streak = Math.max(7, Math.min(365, Math.round((s.facts.episodes % 120) + 14)))
-
-  // Жанровый расчёт на основе тайтлов пользователя
-  const topGenres = [
-    { name: 'Экшен', count: Math.max(12, Math.round(s.facts.episodes * 0.35)), pct: 28 },
-    { name: 'Сёнен', count: Math.max(10, Math.round(s.facts.episodes * 0.28)), pct: 22 },
-    { name: 'Приключения', count: Math.max(8, Math.round(s.facts.episodes * 0.22)), pct: 18 },
-    { name: 'Фэнтези', count: Math.max(6, Math.round(s.facts.episodes * 0.15)), pct: 14 },
-    { name: 'Комедия', count: Math.max(4, Math.round(s.facts.episodes * 0.10)), pct: 10 },
-    { name: 'Драма', count: Math.max(3, Math.round(s.facts.episodes * 0.08)), pct: 8 },
-  ]
-
-  // Сегменты списков
+  // Сегменты списков — только реальные counts, без fake streak/online/жанров.
   const watchingCount = s.counts['watching'] ?? 0
   const plannedCount = s.counts['planned'] ?? 0
   const completedCount = s.counts['completed'] ?? 0
@@ -103,15 +103,13 @@ export default function PublicProfile() {
         <div className="pf-hero-banner" style={coverBg} aria-hidden="true" />
         <div className="pf-hero-body">
           <div className="pf-hero-avatar-box">
-            <Avatar name={p.name} avatarUrl={style?.avatarUrl} frame={style?.frame} size={106} online={true} />
+            <Avatar name={p.name} avatarUrl={style?.avatarUrl} frame={style?.frame} size={106} />
           </div>
 
           <h1 className={`pf-hero-name ${style?.nameColor ? `pf-name--${style.nameColor}` : ''}`}>{p.name}</h1>
 
           <div className="pf-hero-meta">
             <span>#{p.$id.slice(0, 8)}</span>
-            <span className="pf-hero-meta__online">• В сети</span>
-            <span className="pf-streak">🔥 {streak} дн. подряд</span>
           </div>
 
           <div className="pf-follow">
@@ -207,13 +205,6 @@ export default function PublicProfile() {
         </button>
         <button
           type="button"
-          className={`pf-nav-tab ${tab === 'genres' ? 'is-active' : ''}`}
-          onClick={() => setTab('genres')}
-        >
-          Жанры
-        </button>
-        <button
-          type="button"
           className={`pf-nav-tab ${tab === 'compat' ? 'is-active' : ''}`}
           onClick={() => setTab('compat')}
         >
@@ -282,33 +273,7 @@ export default function PublicProfile() {
               </ul>
             </div>
 
-            {/* Блок: Любимые жанры */}
-            <div className="pf-panel">
-              <h2 className="pf-panel__title">Любимые жанры</h2>
-              <div className="pf-genre-list">
-                {topGenres.map((g, i) => (
-                  <div key={g.name} className="pf-genre-row">
-                    <span className="pf-genre-num">{i + 1}</span>
-                    <span style={{ fontWeight: 600 }}>{g.name}</span>
-                    <b>{g.count}</b>
-                    <span className="muted" style={{ fontSize: 12 }}>
-                      {g.pct}%
-                    </span>
-                    <div className="pf-genre-bar-box">
-                      <div
-                        className="pf-genre-bar-fill"
-                        style={{
-                          width: `${g.pct * 3.5}%`,
-                          background: i === 0 ? 'var(--accent)' : 'rgba(255, 255, 255, 0.25)',
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Блок: Активность */}
+            {/* Блок: Активность — только реальные цифры из summary */}
             <div className="pf-panel">
               <h2 className="pf-panel__title">Активность</h2>
               <div className="pf-act-list">
@@ -317,27 +282,19 @@ export default function PublicProfile() {
                   <span className="pf-act-val">{s.facts.total}</span>
                 </div>
                 <div className="pf-act-row">
-                  <span className="muted">Глав манги</span>
-                  <span className="pf-act-val">0</span>
+                  <span className="muted">Серий</span>
+                  <span className="pf-act-val">{s.facts.episodes.toLocaleString('ru-RU')}</span>
                 </div>
                 <div className="pf-act-row">
                   <span className="muted">Друзей</span>
                   <span className="pf-act-val">{counts.followers}</span>
                 </div>
-                <div className="pf-act-row">
-                  <span className="muted">Дней подряд</span>
-                  <span className="pf-act-val pf-act-val--streak">🔥 {streak}</span>
-                </div>
-                <div className="pf-act-row">
-                  <span className="muted">Дней с просмотром</span>
-                  <span className="pf-act-val">{Math.max(1, Math.round(s.facts.episodes / 4))}</span>
-                </div>
-                <div className="pf-act-row">
-                  <span className="muted">На неделе</span>
-                  <span className="pf-act-val">
-                    {s.week?.xp ? `${Math.round(((s.week.xp / 10) * 24) / 60)} ч` : '6 ч 20 мин'}
-                  </span>
-                </div>
+                {p.summary?.week?.xp != null && p.summary.week.xp > 0 && (
+                  <div className="pf-act-row">
+                    <span className="muted">XP за неделю</span>
+                    <span className="pf-act-val">{p.summary.week.xp}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -407,34 +364,6 @@ export default function PublicProfile() {
             </Shelf>
           )}
         </div>
-      )}
-
-      {/* Вкладка: Жанры */}
-      {tab === 'genres' && (
-        <section className="pf-panel">
-          <h2 className="pf-panel__title">Предпочтения по жанрам</h2>
-          <div className="pf-genre-list" style={{ marginTop: 12 }}>
-            {topGenres.map((g, i) => (
-              <div key={g.name} className="pf-genre-row" style={{ padding: '8px 0' }}>
-                <span className="pf-genre-num" style={{ fontSize: 14 }}>
-                  {i + 1}
-                </span>
-                <span style={{ fontWeight: 700, fontSize: 15 }}>{g.name}</span>
-                <b>{g.count} тайтлов</b>
-                <span className="muted">{g.pct}%</span>
-                <div className="pf-genre-bar-box" style={{ height: 8 }}>
-                  <div
-                    className="pf-genre-bar-fill"
-                    style={{
-                      width: `${g.pct * 3.5}%`,
-                      background: i === 0 ? 'var(--accent)' : 'rgba(255, 255, 255, 0.25)',
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
       )}
 
       {/* Вкладка: Совпадение вкусов */}

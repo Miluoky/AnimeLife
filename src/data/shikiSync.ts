@@ -30,6 +30,8 @@ export function shikiAuthorizeUrl() {
 export async function connectShikimori(code: string) {
   const r = await callCommunity<{ nickname: string }>({ action: 'shiki-connect', code, redirectUri: shikiRedirect() })
   shikiLinkStore.set({ nickname: r.nickname, at: Date.now() })
+  // Сразу после OAuth, без F5 / ухода с playback.
+  autoSync()
   return r.nickname
 }
 

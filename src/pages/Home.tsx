@@ -72,6 +72,15 @@ function Hero() {
   const current = items[index] ?? items[0]
   const details = useAsync(async () => (current ? { of: current.id, data: (await loadAnime(current.id)).data } : undefined), [current?.id])
   const anime = (details.value?.of === current?.id && details.value?.data) || current
+  const history = useHistory()
+  const myList = useMyList()
+  const resume = (() => {
+    if (!anime?.id) return { ep: 1, label: 'Смотреть' as const }
+    const h = history.find((x) => x.animeId === anime.id)
+    const entry = myList.find((e) => e.anime.id === anime.id)
+    const ep = h?.episode || (entry?.watched ? entry.watched + 1 : 1)
+    return { ep: Math.max(1, ep), label: ep > 1 ? `Продолжить · ${ep} эп.` : ('Смотреть' as const) }
+  })()
   // Кадры только на широком экране: на телефоне LCP — постер, а не поздний screenshot с Shikimori.
   const wideHero = typeof window !== 'undefined' && matchMedia('(min-width: 1101px)').matches
   const shots = useAsync(
@@ -251,9 +260,9 @@ function Hero() {
         )}
         {anime.description && <p className="hero__desc clamp-4">{anime.description}</p>}
         <div className="actions">
-          <Link to={`/watch/${anime.id}/1`} className="btn btn--accent">
+          <Link to={`/watch/${anime.id}/${resume.ep}`} className="btn btn--accent">
             <PlayIcon />
-            Смотреть
+            {resume.label}
           </Link>
           <Link to={`/anime/${anime.id}`} className="btn btn--ghost">
             Подробнее

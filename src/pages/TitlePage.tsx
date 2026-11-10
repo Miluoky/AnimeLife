@@ -43,7 +43,7 @@ const Reviews = lazy(() => import('../components/Reviews'))
 const TitleComments = lazy(() => import('../components/EpisodeComments'))
 const ThemeSongs = lazy(() => import('../components/ThemeSongs'))
 const BestEpisodes = lazy(() => import('../components/BestEpisodes'))
-const TitleFaq = lazy(() => import('../components/TitleFaq'))
+import TitleFaq, { buildTitleFaqItems } from '../components/TitleFaq'
 const Lightbox = lazy(() => import('../components/Lightbox'))
 
 const MAX_SHOTS = 8
@@ -338,14 +338,14 @@ export default function TitlePage() {
   const kindKind = isMovie ? 'movie' : loaded?.kind === 'OVA' ? 'ova' : 'tv'
   const scores = extras.value?.scores
 
+  // AggregateRating только при реальных голосах — без fake ratingCount:1000.
   const ratingData = useMemo(() => {
-    if (!loaded?.score) return undefined
+    if (!loaded?.score || !scores?.votes) return undefined
     return {
       ratingValue: loaded.score,
       bestRating: 10,
       worstRating: 1,
-      ratingCount: scores?.votes || 1000,
-      reviewCount: scores?.votes ? Math.round(scores.votes * 0.1) : 100,
+      ratingCount: scores.votes,
     }
   }, [loaded?.score, scores?.votes])
 
@@ -402,14 +402,29 @@ export default function TitlePage() {
   }, [loaded])
 
   const ratingSchema = useMemo(() => {
-    if (!loaded?.score) return null
+    if (!loaded?.score || !scores?.votes) return null
     return {
       ratingValue: loaded.score,
       bestRating: 10,
       worstRating: 1,
-      ratingCount: scores?.votes || 1000,
+      ratingCount: scores.votes,
     }
   }, [loaded?.score, scores?.votes])
+
+  const faqItems = useMemo(() => {
+    if (!loaded) return null
+    return buildTitleFaqItems({
+      title: loaded.title,
+      originalTitle: loaded.originalTitle,
+      episodesTotal: loaded.episodes,
+      episodesAired: loaded.episodesAired,
+      year: loaded.year,
+      genres: loaded.genres,
+      studio: loaded.studio,
+      status: loaded.ongoing ? 'ongoing' : 'released',
+      ageRating: ageLabel(loaded.rating),
+    })
+  }, [loaded])
 
   // Старый адрес /anime/6 (или с прежним названием) меняется на /anime/6-trigun без новой записи в истории.
   const navigate = useNavigate()
@@ -505,6 +520,7 @@ export default function TitlePage() {
         movie={movieSchema}
         breadcrumbs={breadcrumbs}
         rating={ratingSchema}
+        faq={faqItems}
       />
       <div className="banner" style={{ background: anime.posterFill }}>
         {shots.length ? (

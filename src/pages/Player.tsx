@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useAmbient } from '../components/ambient'
 import { appearanceStore } from '../data/theme'
@@ -55,6 +55,9 @@ const GlowCaptureButton = lazy(() => import('../components/PlayerGlow').then((m)
 export default function Player() {
   const { id = '', episode = '1' } = useParams()
   const navigate = useNavigate()
+  const route = useLocation()
+  // Adult-раздел: не уводить на /watch при смене серии / share / JSON-LD.
+  const watchBase = route.pathname.startsWith('/hentai/') ? '/hentai/watch' : '/watch'
   // Ссылка на момент (?t=секунды): кладём его как место, где остановились, и плеер начнёт оттуда.
   const [params] = useSearchParams()
   const startAt = Number(params.get('t'))
@@ -251,7 +254,7 @@ export default function Player() {
     if (!anime) return null
     const origin = typeof location !== 'undefined' ? location.origin : 'https://animelife.top'
     const baseUrl = `${origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
-    const episodeUrl = `${baseUrl}/watch/${anime.id}/${current}`
+    const episodeUrl = `${baseUrl}${watchBase}/${anime.id}/${current}`
     const animeUrl = `${baseUrl}/anime/${anime.id}`
 
     const episodeSchema = buildJsonLdEpisode(
@@ -269,14 +272,7 @@ export default function Player() {
         kind: (anime.kind as any) || 'tv',
         status: anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes ? 'ongoing' : 'released',
         description: anime.description,
-        rating: anime.score
-          ? {
-              ratingValue: anime.score,
-              bestRating: 10,
-              worstRating: 1,
-              ratingCount: 100,
-            }
-          : undefined,
+        // Без fake AggregateRating на episode (как worker / TitlePage).
       },
       {
         episodeNumber: current,
@@ -285,23 +281,6 @@ export default function Player() {
       undefined,
       baseUrl
     )
-
-    const aggregateRating = anime.score
-      ? {
-          '@type': 'AggregateRating',
-          ratingValue: anime.score,
-          bestRating: 10,
-          worstRating: 1,
-          ratingCount: 100,
-        }
-      : undefined
-
-    if (aggregateRating) {
-      ;(episodeSchema as any).aggregateRating = aggregateRating
-      if ((episodeSchema as any).partOfSeries) {
-        ;(episodeSchema as any).partOfSeries.aggregateRating = aggregateRating
-      }
-    }
 
     const breadcrumbs = {
       '@type': 'BreadcrumbList',
@@ -336,7 +315,7 @@ export default function Player() {
         breadcrumbs,
       ],
     }
-  }, [anime, current, names])
+  }, [anime, current, names, watchBase])
 
   useJsonLd(episodeJsonLd as unknown as Record<string, any>)
 
@@ -363,7 +342,7 @@ export default function Player() {
         title="Серия ещё не вышла"
         text={anime.ongoing ? `Пока вышло серий: ${total}. Новые появляются здесь сразу после выхода.` : `Всего серий: ${total}.`}
         action={
-          <Link to={`/watch/${anime.id}/${total}`} className="btn btn--accent">
+          <Link to={`${watchBase}/${anime.id}/${total}`} className="btn btn--accent">
             Последняя серия
           </Link>
         }
@@ -371,7 +350,7 @@ export default function Player() {
     )
   }
 
-  const goTo = (n: number) => navigate(`/watch/${anime.id}/${n}`)
+  const goTo = (n: number) => navigate(`${watchBase}/${anime.id}/${n}`)
   // Вперёд на одну серию с включённым пропуском — через все филлеры подряд.
   const goNext = () => {
     let n = current + 1
@@ -617,6 +596,7 @@ export default function Player() {
         {voices.length > 0 && <VoicePicker voices={voices} current={voice?.key} total={total} onChoose={chooseVoice} onHint={setHint} />}
         <EpisodePicker
           animeId={anime.id}
+          watchBase={watchBase}
           total={total}
           label={episodesLabel(anime, available)}
           current={current}
@@ -688,6 +668,7 @@ const RANGE = 100
  */
 function EpisodePicker({
   animeId,
+  watchBase = '/watch',
   total,
   label,
   current,
@@ -697,6 +678,7 @@ function EpisodePicker({
   fillers,
 }: {
   animeId: string
+  watchBase?: string
   total: number
   /** «1180 вышло · 1157 доступно» */
   label: string
@@ -768,7 +750,7 @@ function EpisodePicker({
                 if (e.key === 'Enter') {
                   const n = parseInt(query.trim(), 10)
                   if (!isNaN(n) && n >= 1 && n <= total) {
-                    navigate(`/watch/${animeId}/${n}`)
+                    navigate(`${watchBase}/${animeId}/${n}`)
                   }
                 }
               }}
@@ -780,7 +762,7 @@ function EpisodePicker({
               className="btn btn--ghost btn--small ep-unwatched"
               onClick={() => {
                 const nextEp = seen < total ? seen + 1 : 1
-                navigate(`/watch/${animeId}/${nextEp}`)
+                navigate(`${watchBase}/${animeId}/${nextEp}`)
               }}
               title={seen < total ? `Перейти к серии ${seen + 1}` : 'Все серии просмотрены'}
             >
@@ -809,7 +791,7 @@ function EpisodePicker({
         {shown.map((n) => (
           <Link
             key={n}
-            to={`/watch/${animeId}/${n}`}
+            to={`${watchBase}/${animeId}/${n}`}
             className={`ep-chip${n <= seen && n !== current ? ' ep-chip--seen' : ''}${missing(n) ? ' ep-chip--missing' : ''}${fillers?.has(n) ? ' ep-chip--filler' : ''}`}
             aria-current={n === current ? 'page' : undefined}
             aria-label={`Серия ${n}${names[n] ? `: ${names[n]}` : ''}${fillers?.has(n) ? ', филлер' : ''}${n <= seen ? ', просмотрена' : ''}${missing(n) ? `, нет в озвучке ${provider}` : ''}`}

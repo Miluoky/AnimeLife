@@ -33,6 +33,11 @@ export default function Danmaku({ animeId, episode }: { animeId: string; episode
   const lane = useRef(0)
 
   useEffect(() => {
+    if (!on) {
+      setCues([])
+      setFlying([])
+      return
+    }
     let alive = true
     setCues([])
     setFlying([])
@@ -55,7 +60,7 @@ export default function Danmaku({ animeId, episode }: { animeId: string; episode
     return () => {
       alive = false
     }
-  }, [animeId, episode])
+  }, [animeId, episode, on])
 
   useEffect(() => {
     if (!on || !cues.length) return
@@ -70,29 +75,41 @@ export default function Danmaku({ animeId, episode }: { animeId: string; episode
     })
   }, [on, cues])
 
+  // Пока выкл. — только кнопка (без fetch). После вкл. — счётчик и полёт.
+  if (!on) {
+    return (
+      <button
+        type="button"
+        className="danmaku__toggle"
+        aria-pressed={false}
+        title="Показывать комментарии поверх видео"
+        onClick={() => danmakuStore.set(true)}
+      >
+        💬
+      </button>
+    )
+  }
   if (!cues.length) return null
   return (
     <>
-      {on && (
-        <div className="danmaku" aria-hidden="true">
-          {flying.map((f) => (
-            <span
-              key={f.id}
-              className="danmaku__item"
-              style={{ top: `${8 + f.lane * 11}%` }}
-              onAnimationEnd={() => setFlying((prev) => prev.filter((x) => x.id !== f.id))}
-            >
-              {f.text}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="danmaku" aria-hidden="true">
+        {flying.map((f) => (
+          <span
+            key={f.id}
+            className="danmaku__item"
+            style={{ top: `${8 + f.lane * 11}%` }}
+            onAnimationEnd={() => setFlying((prev) => prev.filter((x) => x.id !== f.id))}
+          >
+            {f.text}
+          </span>
+        ))}
+      </div>
       <button
         type="button"
-        className={`danmaku__toggle${on ? ' is-on' : ''}`}
-        aria-pressed={on}
-        title={on ? 'Скрыть комментарии поверх видео' : 'Показывать комментарии поверх видео'}
-        onClick={() => danmakuStore.set(!on)}
+        className="danmaku__toggle is-on"
+        aria-pressed={true}
+        title="Скрыть комментарии поверх видео"
+        onClick={() => danmakuStore.set(false)}
       >
         💬 {cues.length}
       </button>

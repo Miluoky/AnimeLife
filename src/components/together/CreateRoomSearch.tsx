@@ -52,6 +52,7 @@ export default function CreateRoomSearch() {
         episode: 1,
         source: videoId ? 'trailer' : 'file',
         videoId,
+        public: true,
       })
       markFlag('hostedRoom')
       navigate(`/together/${room.$id}`, { state: { fresh: true } })

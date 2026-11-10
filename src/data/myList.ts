@@ -142,12 +142,19 @@ export function setEntryDetails(animeId: string, patch: EntryDetails) {
 
 export const getEntry = (animeId: string) => store.get().find((e) => e.anime.id === animeId)
 
-/** Импорт: добавляет новые тайтлы, у уже отмеченных дополняет прогресс и оценку. Возвращает число новых. */
+/** Сколько серий реально «закрыто»: max(список, история−1). Одна формула для Home и Library. */
+export function effectiveWatched(listWatched?: number, historyEpisode?: number) {
+  return Math.max(listWatched ?? 0, Math.max(0, (historyEpisode ?? 1) - 1))
+}
+
+/** Импорт: добавляет новые тайтлы, у уже отмеченных дополняет статус/прогресс/оценку. Tombstones локальных удалений не снимаем. */
 export function mergeImported(entries: ListEntry[]) {
   const current = store.get()
+  const removed = removedStore.get()
   const byId = new Map(current.map((e) => [e.anime.id, e]))
   let added = 0
   for (const e of entries) {
+    if (removed[e.anime.id]) continue
     const prev = byId.get(e.anime.id)
     if (!prev) {
       byId.set(e.anime.id, e)
@@ -155,6 +162,7 @@ export function mergeImported(entries: ListEntry[]) {
     } else {
       byId.set(e.anime.id, {
         ...prev,
+        status: e.status || prev.status,
         watched: Math.max(prev.watched ?? 0, e.watched ?? 0) || undefined,
         rating: prev.rating ?? e.rating,
         ratedAt: prev.ratedAt ?? e.ratedAt,
@@ -162,9 +170,6 @@ export function mergeImported(entries: ListEntry[]) {
       })
     }
   }
-  const removed = { ...removedStore.get() }
-  for (const e of entries) delete removed[e.anime.id]
-  removedStore.set(removed)
   store.set([...byId.values()].sort((a, b) => (b.updatedAt ?? b.addedAt) - (a.updatedAt ?? a.addedAt)))
   return added
 }

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { loadCatalog, loadSchedule, useAsync, type CatalogQuery, type ScheduleItem } from '../api'
 import Shelf from './Shelf'
 import PosterCard, { Poster } from './PosterCard'
-import { useMyList } from '../data/myList'
+import { effectiveWatched, useMyList } from '../data/myList'
 import { useHistory } from '../data/history'
 import { CalendarIcon, ClockIcon, FilmIcon, ListIcon, PlayIcon, SparkIcon, TrophyIcon } from './Icons'
 import { COUCH_HIDE, useCouch } from '../data/couchMode'
@@ -116,7 +116,7 @@ export function NewEpisodesShelf() {
       if (!next) return []
       const aired = next.at.getTime() <= now ? next.episode : next.episode - 1
       const seen = history.find((h) => h.animeId === e.anime.id)
-      const watched = Math.max(e.watched ?? 0, (seen?.episode ?? 1) - 1)
+      const watched = effectiveWatched(e.watched, seen?.episode)
       return aired > watched ? [{ anime: { ...e.anime, ...next.anime }, fresh: aired - watched, aired }] : []
     })
   if (!items.length) return null

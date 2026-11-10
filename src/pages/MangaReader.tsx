@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga } from '../api/manga'
 import { chapterLabel, fallbackPage, fetchPages, findMangadex, langName, mergeChapters, preferredLang, readProgress, saveProgress } from '../api/mangadex'
+import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
+import { isAdultContent } from '../data/adult'
 import { CheckIcon, DownloadIcon } from '../components/Icons'
 import { isChapterOffline, saveChapterOffline, getOfflinePages } from '../data/mangaOffline'
 import { OWN_PREFIX, fetchOwnChapter, fetchOwnChapters } from '../api/mangaOwn'
@@ -66,6 +68,9 @@ export default function MangaReader() {
   const [params] = useSearchParams()
   const lang = params.get('lang') || preferredLang()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const hentaiPath = pathname.startsWith('/hentai-manga')
+  const [adultOk, setAdultOk] = useState(isAgeVerified)
   const [saver, setSaver] = useState(loadSaver)
   const [view, setView] = useState(loadView)
   // Номер страницы с нуля; равен числу страниц — значит, глава дочитана (в постраничном режиме карточка «Дальше»).
@@ -102,7 +107,12 @@ export default function MangaReader() {
 
   const manga = useAsync(() => fetchManga(id).catch(() => undefined), [id])
   const m = manga.value
-  const md = useAsync(() => (m ? findMangadex(m.id, [m.originalTitle, m.english, m.title]).catch(() => null) : Promise.resolve(null)), [m?.id])
+  const needGate = hentaiPath || (!!m && isAdultContent(m))
+  const adult = needGate && adultOk
+  const md = useAsync(
+    () => (m ? findMangadex(m.id, [m.originalTitle, m.english, m.title], { adult }).catch(() => null) : Promise.resolve(null)),
+    [m?.id, adult],
+  )
   const chapters = useAsync(
     () =>
       m && !md.loading
@@ -132,12 +142,17 @@ export default function MangaReader() {
   const current = index >= 0 ? list[index] : undefined
   const prev = index > 0 ? list[index - 1] : undefined
   const next = index >= 0 && index < list.length - 1 ? list[index + 1] : undefined
-  const to = (c: { id: string }) => `/manga/${id}/chapter/${c.id}?lang=${lang}`
+  const mangaBase = hentaiPath ? '/hentai-manga' : '/manga'
+  const to = (c: { id: string }) => `${mangaBase}/${id}/chapter/${c.id}?lang=${lang}`
 
   usePageMeta(
     m && current ? `${m.title}: ${chapterLabel(current).toLowerCase()} читать онлайн` : 'Читать мангу',
     m ? `«${m.title}»: читать онлайн на Anime Life.` : '',
   )
+
+  if (m && needGate && !adultOk) {
+    return <AgeGateModal onVerified={() => setAdultOk(true)} />
+  }
 
   const urls = pages.value ?? []
   const total = urls.length

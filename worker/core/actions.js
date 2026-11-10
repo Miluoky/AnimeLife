@@ -128,11 +128,8 @@ export async function handleAction(request, env) {
     const id = String(body.userId || session?.user?.$id || '')
     if (!id) return err('userId', 400)
     const row = await env.DB.prepare('SELECT * FROM profiles WHERE user_id = ? AND hidden = 0').bind(id).first()
-    if (!row) {
-      const u = await env.DB.prepare('SELECT id, name FROM users WHERE id = ?').bind(id).first()
-      if (!u) return err('Нет профиля', 404)
-      return json({ profile: { userId: u.id, name: u.name, about: '', summary: {}, xp: 0, level: 1 } })
-    }
+    // Скрытый или отсутствующий профиль — 404, без stub с именем (утечка privacy).
+    if (!row) return err('Нет профиля', 404)
     let summary = {}
     try {
       summary = JSON.parse(row.summary || '{}')
