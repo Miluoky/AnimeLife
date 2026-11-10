@@ -1,6 +1,7 @@
 /**
  * Собственные главы манги (переводы команд): D1 manga_chapters + R2 binding MANGA.
  * Картинки: GET /api/core/manga-img/<key>
+ * R2 пока не подключён (биллинг из РФ) — без env.MANGA все /manga* → 503.
  */
 
 import { err, json, userFromRequest } from './auth.js'
@@ -82,7 +83,7 @@ function validKey(key, userId) {
 }
 
 export async function serveMangaImage(request, env, keyEnc) {
-  if (!env?.MANGA) return err('R2 MANGA не настроен', 503, 503)
+  if (!env?.MANGA) return err('Свои главы манги временно отключены (нет R2)', 503, 503)
   let key
   try {
     key = decodeURIComponent(keyEnc)
@@ -104,8 +105,9 @@ export async function serveMangaImage(request, env, keyEnc) {
 
 export async function handleManga(request, env, path) {
   if (!env?.MANGA) {
-    if (path.startsWith('/manga-img/')) return err('R2 MANGA не настроен', 503, 503)
-    if (path.startsWith('/manga')) return err('R2 MANGA не настроен', 503, 503)
+    if (path.startsWith('/manga-img/') || path.startsWith('/manga')) {
+      return err('Свои главы манги временно отключены (нет R2)', 503, 503)
+    }
     return null
   }
 

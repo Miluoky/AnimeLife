@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAsync } from '../api'
 import { fetchManga, type MangaPage as Manga } from '../api/manga'
 import { chapterLabel, findMangadex, langName, mergeChapters, preferredLang, readProgress, setPreferredLang, sortLangs } from '../api/mangadex'
-import { fetchOwnChapters } from '../api/mangaOwn'
+import { fetchOwnChapters, OWN_MANGA_ENABLED } from '../api/mangaOwn'
 import { useAuth } from '../data/auth'
 import PosterCard from '../components/PosterCard'
 import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
@@ -73,7 +73,7 @@ function ReadBlock({ m }: { m: Manga }) {
   // Главы до той, на которой остановились, считаем прочитанными: в списке они приглушены.
   const read = (num: string) => !!progress?.num && !!num && Number(num) < Number(progress.num)
   const { user } = useAuth()
-  const canUpload = !!user?.labels?.some((l) => l === 'translator' || l === 'admin')
+  const canUpload = OWN_MANGA_ENABLED && !!user?.labels?.some((l) => l === 'translator' || l === 'admin')
 
   const langs = title && lang && title.langs.length > 1 && (
     <div className="manga__langs" role="group" aria-label="Язык перевода">
@@ -144,9 +144,11 @@ function ReadBlock({ m }: { m: Manga }) {
       <h2>Читать</h2>
       {langs}
       {body}
-      <p className="muted manga__credit">
-        <Link to={`/manga/${m.id}/upload`}>{canUpload ? 'Загрузить главу' : 'Вы переводчик? Выкладывайте главы у нас'}</Link>
-      </p>
+      {OWN_MANGA_ENABLED && (
+        <p className="muted manga__credit">
+          <Link to={`/manga/${m.id}/upload`}>{canUpload ? 'Загрузить главу' : 'Вы переводчик? Выкладывайте главы у нас'}</Link>
+        </p>
+      )}
     </section>
   )
 }

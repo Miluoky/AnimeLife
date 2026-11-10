@@ -4,7 +4,7 @@ import { useAsync } from '../api'
 import { BACKEND } from '../api/config'
 import { fetchManga } from '../api/manga'
 import { LANGS } from '../api/mangadex'
-import { forget, OWN_BUCKET, OWN_PREFIX, OWN_TABLE } from '../api/mangaOwn'
+import { forget, OWN_BUCKET, OWN_MANGA_ENABLED, OWN_PREFIX, OWN_TABLE } from '../api/mangaOwn'
 import { useAuth } from '../data/auth'
 import { CONTACT_EMAIL } from '../data/legal'
 import { usePageMeta } from '../data/pageMeta'
@@ -49,6 +49,16 @@ export default function MangaUpload() {
   const allowed = !!user?.labels?.some((l) => l === 'translator' || l === 'admin')
 
   if (checking) return <main className="container empty-page" aria-busy="true" />
+  if (!OWN_MANGA_ENABLED)
+    return (
+      <main className="container empty-page stack">
+        <h1>Загрузка глав временно недоступна</h1>
+        <p>Свои главы на сайте отложены: для хранилища страниц нужна карта вне РФ (Cloudflare R2). Читать мангу с MangaDex можно как обычно.</p>
+        <p>
+          <Link to={`/manga/${id}`}>← К манге</Link>
+        </p>
+      </main>
+    )
   if (!allowed)
     return (
       <main className="container empty-page stack">

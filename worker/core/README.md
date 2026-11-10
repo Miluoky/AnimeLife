@@ -8,7 +8,7 @@
 | TablesDB | D1 (`lists`, reviews, comments, rooms, follows…) |
 | Function `community` | `/api/core/action` |
 | Realtime (комнаты) | Polling раз в 2.5 с → позже Durable Objects |
-| Storage `manga-pages` | R2 binding `MANGA` (`anime-manga`), `worker/core/manga.js` |
+| Storage `manga-pages` | **отложено** (R2 нужен billing вне РФ); код в `worker/core/manga.js` |
 
 ## Cloudflare (уже создано)
 
@@ -40,7 +40,7 @@
 | Подборки/клубы (частично) | `src/data/social.ts` | Core GET; оценки серий — заглушка |
 | Community chat | `src/data/communityChat.ts` | `GET /api/core/chat` + polling |
 | Голос в комнатах | `src/data/voice.ts` | polling; `room-presence`/`room-signal` пока no-op на сервере |
-| Загрузка манги | `src/pages/MangaUpload.tsx` | R2 `/api/core/manga/*` |
+| Загрузка манги | `src/pages/MangaUpload.tsx` | **выкл.** (`OWN_MANGA_ENABLED`), пока нет R2 |
 | CDN manga (legacy) | `src/api/mangaOwn.ts` | fetch к Appwrite endpoint без SDK |
 | Shikimori sync | `src/data/shikiSync.ts` | **выкл.** до `shiki-*` в Core |
 | Экспорт/удаление аккаунта | `src/components/AccountData.tsx` | **выкл.** до `account-*` в Core |

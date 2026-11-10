@@ -4,11 +4,14 @@ import type { Chapter } from './mangadex'
 // Главы, которые команды переводчиков загрузили прямо на Anime Life.
 // Appwrite: таблица manga_chapters + хранилище manga-pages.
 // Core: D1 manga_chapters + R2 (/api/core/manga*).
+// R2 пока отложено (биллинг Cloudflare из РФ) — свои главы на Core выключены.
 
 export const OWN_TABLE = 'manga_chapters'
 export const OWN_BUCKET = 'manga-pages'
 /** id наших глав в адресе читалки начинаются с этой приставки, у глав MangaDex там UUID */
 export const OWN_PREFIX = 'al-'
+/** false, пока нет R2 / внешнего object storage. Включить вместе с binding MANGA. */
+export const OWN_MANGA_ENABLED = false
 
 interface OwnRow {
   $id: string
@@ -81,6 +84,7 @@ const cache = new Map<string, Promise<Chapter[]>>()
 /** Все наши главы тайтла на всех языках. */
 export function fetchOwnChapters(mangaId: string): Promise<Chapter[]> {
   if (BACKEND === 'core') {
+    if (!OWN_MANGA_ENABLED) return Promise.resolve([])
     if (!cache.has(mangaId)) {
       const p = coreChapters(mangaId)
       p.catch(() => cache.delete(mangaId))
@@ -101,7 +105,10 @@ export function fetchOwnChapters(mangaId: string): Promise<Chapter[]> {
 
 /** Одна наша глава по id из адреса читалки (без приставки). */
 export async function fetchOwnChapter(rowId: string): Promise<Chapter | null> {
-  if (BACKEND === 'core') return coreChapter(rowId)
+  if (BACKEND === 'core') {
+    if (!OWN_MANGA_ENABLED) return null
+    return coreChapter(rowId)
+  }
   const r = await rows<OwnRow>(`/${encodeURIComponent(rowId)}`)
   return r ? toChapter(r) : null
 }
