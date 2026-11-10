@@ -27,7 +27,6 @@ const H = 18
 /** Сколько секунд серии светит один кадр тайтла. */
 const SHOT_SECONDS = 25
 
-const still = () => document.documentElement.dataset.calm === '1' || matchMedia('(prefers-reduced-motion: reduce)').matches
 const lite = () => document.documentElement.dataset.lite === '1'
 
 /* ─── Свет из кадра iframe: захват своей вкладки, обрезанный до экрана плеера ─── */
@@ -118,7 +117,7 @@ async function startCapture(frame: Element) {
 
 /** Кнопка «Свет из кадра» у плееров в iframe: включает и выключает захват. */
 export function GlowCaptureButton({ slot }: { slot: RefObject<HTMLElement | null> }) {
-  const { glow = true } = useAppearance()
+  const { glow = false } = useAppearance()
   const active = useCapture()
   // «Без анимаций» и reduced motion кнопку не прячут: свет из кадра зритель включает сам, нажатием.
   if (!canCaptureFrame() || !glow || lite()) return null
@@ -141,9 +140,10 @@ export function GlowCaptureButton({ slot }: { slot: RefObject<HTMLElement | null
 }
 
 export default function PlayerGlow({ slot, poster, animeId }: { slot: RefObject<HTMLElement | null>; poster?: string; animeId: string }) {
-  const { glow = true, calm } = useAppearance()
+  const { glow = false } = useAppearance()
   const on = glow && !lite()
-  const moving = on && !calm && !still()
+  // Смена скриншотов + тяжёлый blur роняли FPS у Kodik/Crunchyroll — только статичный постер.
+  const moving = false
   const canvas = useRef<HTMLCanvasElement>(null)
   const [live, setLive] = useState(false)
   const captured = useCapture()

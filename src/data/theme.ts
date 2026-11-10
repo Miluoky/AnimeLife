@@ -14,7 +14,7 @@ export interface Appearance {
   calm: boolean
   /** экономия трафика: сама на медленной сети, всегда или никогда (src/data/saver.ts) */
   saver?: 'auto' | 'on' | 'off'
-  /** подсветка вокруг плеера в цветах кадра (src/components/PlayerGlow.tsx); по умолчанию включена */
+  /** подсветка вокруг плеера в цветах кадра (src/components/PlayerGlow.tsx); по умолчанию выкл. — blur жрёт FPS */
   glow?: boolean
 }
 

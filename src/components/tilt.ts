@@ -27,6 +27,14 @@ export function startTilt() {
     frame = 0
     const e = last
     if (!e) return
+    // На /watch наклон не нужен: pointermove + rAF рядом с Kodik iframe лишняя нагрузка.
+    if (location.pathname.startsWith('/watch')) {
+      if (current) {
+        reset(current)
+        current = null
+      }
+      return
+    }
     // Настройка «Спокойный режим» в оформлении выключает наклон на лету.
     const target = document.documentElement.dataset.calm === '1' ? null : (e.target as Element | null)?.closest<HTMLElement>(SELECTOR) ?? null
     if (current && current !== target) reset(current)

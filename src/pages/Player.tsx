@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { useAmbient } from '../components/ambient'
+import { useAppearance } from '../data/theme'
 import { loadAnime, useAsync } from '../api'
 import { episodeTotals, episodesLabel } from '../data/catalog'
 import { saveProgress } from '../data/history'
@@ -75,8 +76,9 @@ export default function Player() {
   }, [id, episode, startAt])
   const result = useAsync(() => loadAnime(id), [id])
   const anime = result.value?.data
-  // Ambient выкл. на /watch: подсветку даёт PlayerGlow — два blur(80px) одновременно роняли FPS.
+  // Ambient выкл. на /watch: подсветку даёт PlayerGlow — два blur одновременно роняли FPS.
   useAmbient(undefined)
+  const { glow: wantGlow } = useAppearance()
   // Названия серий приходят от AniLibria, когда плеер нашёл релиз.
   const [names, setNames] = useState<Record<number, string>>({})
   // Другой тайтл — серии прошлого релиза не в счёт.
@@ -411,13 +413,15 @@ export default function Player() {
         className={`video-slot${miniPlayer.mini ? ' video-slot--mini' : ''}`}
         style={miniPlayer.mini ? { minHeight: miniPlayer.height } : undefined}
       >
-      <Suspense fallback={null}>
-        <PlayerGlow
-          slot={miniPlayer.slot}
-          poster={anime.posterSmall2x ?? anime.posterSmall ?? anime.posterUrl ?? blurPoster(anime.posterUrl)}
-          animeId={anime.id}
-        />
-      </Suspense>
+      {wantGlow === true && (
+        <Suspense fallback={null}>
+          <PlayerGlow
+            slot={miniPlayer.slot}
+            poster={anime.posterSmall2x ?? anime.posterSmall ?? anime.posterUrl ?? blurPoster(anime.posterUrl)}
+            animeId={anime.id}
+          />
+        </Suspense>
+      )}
       {miniPlayer.mini && (
         <div className="video-slot__actions">
           <button
@@ -553,7 +557,7 @@ export default function Player() {
               <BulbIcon />
               <span className="sr-only">Шторка света</span>
             </button>
-            {(host?.player || !isOwnProvider(voice?.provider)) && (
+            {wantGlow === true && (host?.player || !isOwnProvider(voice?.provider)) && (
               <Suspense fallback={null}>
                 <GlowCaptureButton slot={miniPlayer.slot} />
               </Suspense>

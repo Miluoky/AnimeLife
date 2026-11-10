@@ -169,7 +169,7 @@ export default function Layout() {
       <Suspense fallback={null}>
         <BurnoutNotice />
         <InstallBanner />
-        {hoverCards && <HoverCards />}
+        {hoverCards && !location.pathname.startsWith('/watch') && <HoverCards />}
       </Suspense>
       <Toasts />
       <NetworkStatus />

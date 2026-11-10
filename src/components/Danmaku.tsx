@@ -8,7 +8,7 @@ import './danmaku.css'
  * Комментарии поверх видео, как на Niconico и Bilibili: комментарий с таймкодом («12:34 вот это поворот»)
  * пролетает над серией ровно в этот момент. Спойлеры не показываем. Работает и со своим плеером, и с Kodik.
  */
-export const danmakuStore = createLocalStore('anime.danmaku.v1', true)
+export const danmakuStore = createLocalStore('anime.danmaku.v2', false)
 
 const TIMECODE = /\b(?:(\d{1,2}):)?(\d{1,2}):([0-5]\d)\b/
 const LANES = 4

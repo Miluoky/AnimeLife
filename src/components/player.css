@@ -24,8 +24,17 @@
     max-height: calc(100vh - 120px);
     overflow-y: auto;
     scrollbar-width: thin;
+    contain: layout style;
+    content-visibility: auto;
     contain-intrinsic-size: 340px 600px;
   }
+}
+
+/* Ниже плеера: не красим и не анимируем, пока не в зоне видимости. */
+.player-page .watch-engage,
+.player-page .watch-comments {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 480px;
 }
 
 /* Широкий экран: видео на всю ширину страницы (но целиком влезает по высоте), озвучки и серии — двумя колонками ниже. */
@@ -1942,19 +1951,23 @@
   left: 0;
   width: 100%;
   aspect-ratio: 16 / 9;
-  filter: blur(48px) saturate(1.3);
-  opacity: 0.85;
+  /* Слабее blur: 48px на полном кадре съедал GPU вместе с Kodik iframe. */
+  filter: blur(24px) saturate(1.15);
+  opacity: 0.55;
   pointer-events: none;
+  contain: layout paint;
+  will-change: auto;
 }
 /* На компьютере свет чуть шире экрана; на слабых/мобильных — без scale и слабее blur. */
 @media (min-width: 901px) {
   .vp-glow {
-    transform: scale(1.06, 1.12);
+    transform: scale(1.04, 1.08);
   }
 }
 @media (max-width: 900px), (prefers-reduced-motion: reduce) {
   .vp-glow {
-    filter: blur(32px) saturate(1.2);
+    filter: blur(16px) saturate(1.1);
+    transform: none;
   }
 }
 .vp-glow > * {
