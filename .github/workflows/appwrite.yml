@@ -1,108 +1,26 @@
-name: Функции Appwrite
+name: Функции Appwrite (выкл.)
 
-# Выкладывает серверные функции community (отзывы, комментарии, жалобы, совместный просмотр) и social-login
-# (вход через VK и Telegram, Telegram Mini App) в Appwrite, когда их код меняется в main. Ключ Appwrite берётся только из секрета APPWRITE_API_KEY и в сайт не попадает.
+# Prod на AnimeLife Core (D1/Worker). Деплой Appwrite Functions больше не нужен —
+# community / social-login живут в worker/core. Workflow оставлен как заглушка,
+# чтобы случайный push в functions/** не пытался выложить устаревший бэкенд.
 on:
-  push:
-    branches: [main]
-    paths: ['functions/community/**', 'functions/social-login/**', 'scripts/telegram-menu.mjs', 'scripts/deploy-function.mjs', 'scripts/set-function-var.mjs', 'scripts/telegram-test.mjs', '.github/workflows/appwrite.yml']
   workflow_dispatch:
     inputs:
-      telegram_test_chat:
-        description: 'ID чата Telegram для тестового уведомления о серии (пусто — не отправлять)'
-        required: false
-        default: ''
+      confirm:
+        description: 'Введите RETIRED — workflow ничего не деплоит'
+        required: true
 
 permissions:
   contents: read
 
-concurrency:
-  group: appwrite
-  cancel-in-progress: false
-
 jobs:
-  deploy:
+  notice:
     runs-on: ubuntu-latest
-    env:
-      APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
     steps:
-      - name: Проверить ключ Appwrite
-        id: keys
+      - name: Appwrite Functions retired
         run: |
-          if [ -n "$APPWRITE_API_KEY" ]; then
-            echo "ok=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::Секрет APPWRITE_API_KEY не задан, функция не выложена."
+          echo "::notice::Сайт на Core (/api/core). Функции Appwrite не публикуем."
+          if [ "${{ inputs.confirm }}" != "RETIRED" ]; then
+            echo "::error::Для подтверждения введите RETIRED (деплоя всё равно нет)."
+            exit 1
           fi
-      - if: steps.keys.outputs.ok == 'true'
-        uses: actions/checkout@v4
-      - if: steps.keys.outputs.ok == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      # Колонки для жалоб на комментарии. Скрипт пропускает то, что уже есть.
-      - if: steps.keys.outputs.ok == 'true'
-        name: Подготовить таблицы
-        run: node functions/community/setup-comment-reports.mjs
-      - if: steps.keys.outputs.ok == 'true'
-        name: Подготовить общий чат
-        run: node functions/community/setup-community-chat.mjs
-      # Закрытые таблицы статистики для админа (/admin/analytics). Скрипт пропускает то, что уже есть.
-      - if: steps.keys.outputs.ok == 'true'
-        name: Подготовить таблицы статистики
-        run: node functions/community/setup-analytics.mjs
-      # Подписки и лента, подборки зрителей, клубы, оценки серий, связь с Shikimori, опыт в профилях.
-      - if: steps.keys.outputs.ok == 'true'
-        name: Подготовить таблицы сообщества
-        run: node functions/community/setup-social.mjs
-      # Синхронизация списка с Shikimori: приложение OAuth «AnimeLife» на shikimori.io. Client ID публичный (он и так виден в адресе входа),
-      # поэтому записан тут запасным значением; секрет SHIKIMORI_CLIENT_SECRET только в секретах GitHub или в переменных функции Appwrite.
-      - if: steps.keys.outputs.ok == 'true'
-        name: Ключи Shikimori
-        continue-on-error: true
-        env:
-          VAR_VALUE: ${{ vars.SHIKIMORI_CLIENT_ID || 'UYiG8nr9OhwMD8EypNgxTjYTiAxJ5gXuWZcokFkR_j4' }}
-        run: node scripts/set-function-var.mjs community SHIKIMORI_CLIENT_ID
-      - if: steps.keys.outputs.ok == 'true'
-        name: Секрет Shikimori
-        continue-on-error: true
-        env:
-          VAR_VALUE: ${{ secrets.SHIKIMORI_CLIENT_SECRET }}
-        run: node scripts/set-function-var.mjs community SHIKIMORI_CLIENT_SECRET
-      # Главы манги от команд переводчиков: таблица manga_chapters и хранилище manga-pages.
-      # Если у ключа нет прав на хранилища, шаг падает, но функция всё равно выкладывается.
-      - if: steps.keys.outputs.ok == 'true'
-        name: Подготовить главы манги
-        continue-on-error: true
-        run: node functions/community/setup-manga.mjs
-      # Токен бота для уведомлений в Telegram: из секрета TELEGRAM_BOT_TOKEN или, если его нет, из функции входа.
-      - if: steps.keys.outputs.ok == 'true'
-        name: Токен Telegram-бота
-        continue-on-error: true
-        env:
-          VAR_VALUE: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: node scripts/set-function-var.mjs community TELEGRAM_BOT_TOKEN --from social-login
-      - if: steps.keys.outputs.ok == 'true'
-        name: Выложить функцию community
-        run: node scripts/deploy-function.mjs community
-      # Тестовый вызов после выкладки: настройки функции и ошибки последних вызовов видны в журнале.
-      - if: steps.keys.outputs.ok == 'true'
-        name: Проверить функцию community
-        continue-on-error: true
-        run: node scripts/function-status.mjs community
-      - if: steps.keys.outputs.ok == 'true'
-        name: Выложить функцию входа social-login
-        run: node scripts/deploy-function.mjs social-login
-      # Кнопка «Смотреть» у бота открывает сайт как Telegram Mini App.
-      - if: steps.keys.outputs.ok == 'true'
-        name: Кнопка Mini App у бота
-        continue-on-error: true
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: node scripts/telegram-menu.mjs
-      - if: steps.keys.outputs.ok == 'true' && inputs.telegram_test_chat != ''
-        name: Тестовое уведомление в Telegram
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT: ${{ inputs.telegram_test_chat }}
-        run: node scripts/telegram-test.mjs "$CHAT"

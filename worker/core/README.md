@@ -24,7 +24,9 @@
 
 **OAuth:** VK, Telegram — `/api/core/auth/oauth`. Google/Яндекс — клиент показывает понятную ошибку, пока нет ключей на воркере.
 
-**Позже:** исходящая почта (сброс пароля), R2 для своей манги, Google/Яндекс OAuth (ключи).
+**Позже:** исходящая почта (сброс пароля), R2 для своей манги, Google/Яндекс OAuth (ключи), Durable Objects для комнат (`docs/rooms-do.md`).
+
+**Операции:** суточный экспорт D1 — `.github/workflows/backup.yml`. Деплой Appwrite Functions выключен (`.github/workflows/appwrite.yml`).
 
 Старых пользователей Appwrite не переносим — регистрируются заново.
 
@@ -40,7 +42,7 @@
 | Отзывы/комменты (чтение) | `community.ts`, `comments.ts`, `rooms.ts` | REST `/api/core/*` |
 | Подборки/клубы/оценки серий | `src/data/social.ts` | Core GET + `episode-rate` |
 | Community chat | `src/data/communityChat.ts` | `GET /api/core/chat` + polling |
-| Голос в комнатах | `src/data/voice.ts` | polling; `room-presence`/`room-signal` пока no-op на сервере |
+| Голос в комнатах | `src/data/voice.ts` | D1 + polling (`voice.js`); дальше DO — `docs/rooms-do.md` |
 | Загрузка манги | `src/pages/MangaUpload.tsx` | **выкл.** (`OWN_MANGA_ENABLED`), пока нет R2 |
 | CDN manga (legacy) | `src/api/mangaOwn.ts` | fetch к Appwrite endpoint без SDK |
 | Shikimori sync | `src/data/shikiSync.ts` | `shiki-*` (секреты `SHIKIMORI_*` на воркере) |
