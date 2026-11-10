@@ -1942,14 +1942,19 @@
   left: 0;
   width: 100%;
   aspect-ratio: 16 / 9;
-  filter: blur(80px) saturate(1.4);
-  opacity: 0.9;
+  filter: blur(48px) saturate(1.3);
+  opacity: 0.85;
   pointer-events: none;
 }
-/* На компьютере свет чуть шире экрана: запас 6% меньше отступа страницы (40 px), прокрутки вбок нет. */
-@media (min-width: 641px) {
+/* На компьютере свет чуть шире экрана; на слабых/мобильных — без scale и слабее blur. */
+@media (min-width: 901px) {
   .vp-glow {
     transform: scale(1.06, 1.12);
+  }
+}
+@media (max-width: 900px), (prefers-reduced-motion: reduce) {
+  .vp-glow {
+    filter: blur(32px) saturate(1.2);
   }
 }
 .vp-glow > * {

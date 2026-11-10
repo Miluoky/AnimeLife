@@ -75,8 +75,8 @@ export default function Player() {
   }, [id, episode, startAt])
   const result = useAsync(() => loadAnime(id), [id])
   const anime = result.value?.data
-  // «Кадр»: вокруг плеера свет постера.
-  useAmbient(anime?.posterSmall ?? blurPoster(anime?.posterUrl))
+  // Ambient выкл. на /watch: подсветку даёт PlayerGlow — два blur(80px) одновременно роняли FPS.
+  useAmbient(undefined)
   // Названия серий приходят от AniLibria, когда плеер нашёл релиз.
   const [names, setNames] = useState<Record<number, string>>({})
   // Другой тайтл — серии прошлого релиза не в счёт.

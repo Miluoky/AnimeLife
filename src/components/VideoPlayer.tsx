@@ -13,7 +13,7 @@
  * Если ни один источник не может показать серию, вместо пустого экрана — трейлер с Shikimori.
  */
 
-import { rememberQuality, saverOn, slowNetwork, startQuality } from '../data/saver'
+import { rememberQuality, saverOn, startQuality } from '../data/saver'
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense, type CSSProperties, type RefObject } from 'react'
 import {
   findRelease,
@@ -956,7 +956,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     const hush = window.setInterval(() => {
       for (const s of slots.current) if (s.loaded && !s.idle && (!s.ready || s.key === pendingKey.current) && s.key !== liveKey.current) send(s, 'mute')
-    }, 250)
+    }, 2000)
     const ready = (s: Slot) => {
       if (s.ready || s.idle || s.key === liveKey.current) return
       s.ready = s.loaded = true
@@ -1203,7 +1203,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       // Прогретые отстали: видео ушло дальше их буфера (Kodik держит ~30 с вперёд). Подтягиваем их на паузе
       // к текущему месту по одному, каждый не чаще раза в 45 с: такая перемотка — около 1,5 МБ. На телефоне —
       // только прежнюю озвучку, в «Экономии трафика» — никого.
-      const close = saverOn() ? 0 : warmLimit() > 2 ? 3 : 1
+      const close = saverOn() ? 0 : 1
       const back = slots.current
         .filter((s) => s !== live && s.ready && s.paused && s.episode === episodeKey)
         .sort((a, b) => b.used - a.used)
@@ -1215,14 +1215,13 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         send(back, 'seek', { seconds: Math.floor(back.pos) })
       }
       if (slots.current.some((s) => s !== live && !s.ready && !s.idle && now - s.since < 60000)) return
-      const { hint, next, warm } = wish.current
+      const { hint, next } = wish.current
       const { duration } = liveState.current
       const nearEnd = duration > 0 && (t / duration > 0.5 || duration - t < 360)
-      const eager = !saverOn() && !slowNetwork() && now - live.used > 8000
+      // Не греем пачку студий заранее во время просмотра — каждый iframe жрёт GPU.
       const order: [string, boolean][] = []
       if (hint) order.push([hint, false])
       if (next && nearEnd && !saverOn()) order.push([next, true])
-      if (eager) for (const src of warm) order.push([src, false])
       for (const [raw, isNext] of order) {
         const src = kodikHost(raw)
         if (!isKodik(src)) continue
@@ -1478,8 +1477,9 @@ const SEEK_LEAD = 0.3
  * десяток секунд видео: на телефоне и в «Экономии трафика» — только прежнюю озвучку.
  */
 function warmLimit() {
-  if (saverOn() || slowNetwork()) return 1
-  return matchMedia('(pointer: coarse)').matches || innerWidth < 760 ? 2 : 3
+  // Раньше до 3 скрытых Kodik iframe декодировали 720p параллельно с живым — FPS падал до ~20.
+  // Один прогретый слот достаточно (предыдущая озвучка или следующая серия).
+  return 1
 }
 
 /** Плеер Kodik (свой или из Anixart и YummyAnime): он понимает команды через postMessage и параметр start_from. */

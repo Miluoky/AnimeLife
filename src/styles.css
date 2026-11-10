@@ -2275,7 +2275,7 @@ input[type='radio'] {
   width: 130vw;
   height: 95vh;
   object-fit: cover;
-  filter: blur(80px) saturate(1.5);
+  filter: blur(48px) saturate(1.35);
   opacity: 0.3;
   -webkit-mask-image: linear-gradient(#000 25%, transparent);
   mask-image: linear-gradient(#000 25%, transparent);
