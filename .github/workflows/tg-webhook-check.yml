@@ -11,12 +11,18 @@ jobs:
         run: |
           set -euo pipefail
           WH="${TELEGRAM_WEBHOOK_SECRET:-animelife_core_tg_webhook_v1}"
+          HOOK_URL="https://anime.pijolhera3263.workers.dev/api/core/auth/oauth/telegram/webhook"
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook" --data 'drop_pending_updates=false'
           echo
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
             -H 'Content-Type: application/json' \
-            --data "{\"url\":\"https://animelife.top/api/core/auth/oauth/telegram/webhook\",\"secret_token\":\"${WH}\",\"allowed_updates\":[\"message\",\"callback_query\"]}"
+            --data "{\"url\":\"${HOOK_URL}\",\"secret_token\":\"${WH}\",\"allowed_updates\":[\"message\",\"callback_query\"]}"
           echo
           sleep 5
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"
           echo
+          curl -sS -w "\\nprobe_http=%{http_code}\\n" -X POST "$HOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -H "X-Telegram-Bot-Api-Secret-Token: ${WH}" \
+            -A 'Go-http-client/1.1' \
+            --data '{"update_id":1,"message":{"message_id":1,"date":1,"chat":{"id":1,"type":"private"},"from":{"id":1,"first_name":"T"},"text":"/start"}}'

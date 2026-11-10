@@ -71,10 +71,12 @@ jobs:
             WH="animelife_core_tg_webhook_v1"
           fi
           printf '%s' "$WH" | npx --yes wrangler@4 secret put TELEGRAM_WEBHOOK_SECRET -c wrangler.animelife.jsonc
+          # workers.dev обходит WAF/Bot Fight зоны animelife.top (иначе Telegram Go-http-client ловит 403).
+          HOOK_URL="https://anime.pijolhera3263.workers.dev/api/core/auth/oauth/telegram/webhook"
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook" --data 'drop_pending_updates=false'
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
             -H 'Content-Type: application/json' \
-            --data "{\"url\":\"https://animelife.top/api/core/auth/oauth/telegram/webhook\",\"secret_token\":\"${WH}\",\"allowed_updates\":[\"message\",\"callback_query\"]}"
+            --data "{\"url\":\"${HOOK_URL}\",\"secret_token\":\"${WH}\",\"allowed_updates\":[\"message\",\"callback_query\"]}"
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"
           echo
       # IndexNow: сразу сообщить Яндексу и Bing об обновлённых разделах, посадочных страницах и онгоингах
