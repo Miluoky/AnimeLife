@@ -105,13 +105,24 @@ function routeExternalLinks(app: WebApp) {
 
 async function signIn(app: WebApp) {
   if (!app.initData) return
-  const { account } = await import('../api/appwrite')
-  try {
-    await account.get()
-    return
-  } catch (e) {
-    // Входим только когда сервер точно ответил «не вошёл», а не при сбое сети.
-    if (!(e instanceof Error && 'code' in e && e.code === 401)) return
+  const { BACKEND } = await import('../api/config')
+  if (BACKEND === 'core') {
+    try {
+      const { coreMe } = await import('../api/core')
+      await coreMe()
+      return
+    } catch (e) {
+      // Входим только когда сервер точно ответил «не вошёл», а не при сбое сети.
+      if (!(e instanceof Error && 'code' in e && e.code === 401)) return
+    }
+  } else {
+    const { account } = await import('../api/appwrite')
+    try {
+      await account.get()
+      return
+    } catch (e) {
+      if (!(e instanceof Error && 'code' in e && e.code === 401)) return
+    }
   }
   const { signInWithTelegramApp } = await import('./socialAuth')
   await signInWithTelegramApp(app.initData)

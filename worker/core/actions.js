@@ -11,6 +11,8 @@ import { handleSocialAction } from './social.js'
 import { handleChatAction } from './chat.js'
 import { handleClubsAction } from './clubs.js'
 import { handleMiscAction } from './misc.js'
+import { handleAccountAction } from './account.js'
+import { handleShikiAction } from './shiki.js'
 
 const IMPLEMENTED = new Set([
   'health',
@@ -78,6 +80,18 @@ const IMPLEMENTED = new Set([
   'takedown-create',
   'takedown-list',
   'takedown-status',
+  'account-export',
+  'account-delete',
+  'mod-list',
+  'mod-action',
+  'comment-mod-list',
+  'comment-mod-action',
+  'episode-rate',
+  'episode-my-rate',
+  'shiki-connect',
+  'shiki-status',
+  'shiki-disconnect',
+  'shiki-push',
 ])
 
 export async function handleAction(request, env) {
@@ -171,10 +185,12 @@ export async function handleAction(request, env) {
     handleRoomAction,
     handleChatAction,
     handleSocialAction,
+    handleShikiAction,
     handleClubsAction,
     handlePushAction,
     handleCommunityAction,
     handleAnalyticsAction,
+    handleAccountAction,
   ]) {
     const handled = await handler(env, session, body)
     if (handled) return handled

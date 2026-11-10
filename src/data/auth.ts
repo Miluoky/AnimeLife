@@ -373,16 +373,25 @@ export async function finishSession(userId: string, secret: string) {
   await refresh()
 }
 
+/** На Core нет Appwrite Recovery API и исходящей почты. */
+export const corePasswordRecoveryEnabled = () => !useCore()
+
 /** Письмо со ссылкой для нового пароля. Ссылка ведёт на /account/recovery этого же сайта. */
 export async function requestRecovery(email: string) {
-  if (useCore()) throw new Error('Сброс пароля в Core скоро; пока напишите в поддержку.')
+  if (useCore()) {
+    throw new Error(
+      'Сброс пароля по почте на Core пока недоступен — на сервере нет отправки писем. Войдите, если помните пароль, или создайте новый аккаунт.',
+    )
+  }
   const { account } = await sdk()
   await account.createRecovery({ email, url: `${window.location.origin}${import.meta.env.BASE_URL}account/recovery` })
 }
 
 /** Новый пароль по ссылке из письма (userId и secret приходят в адресе). */
 export async function finishRecovery(userId: string, secret: string, password: string) {
-  if (useCore()) throw new Error('Сброс пароля в Core скоро.')
+  if (useCore()) {
+    throw new Error('Сброс пароля по ссылке из письма на Core пока недоступен.')
+  }
   const { account } = await sdk()
   await account.updateRecovery({ userId, secret, password })
 }

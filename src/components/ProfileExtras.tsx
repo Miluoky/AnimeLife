@@ -381,7 +381,7 @@ export function ShikimoriSync() {
     <section className="stack pf-shiki">
       <h2>Синхронизация с Shikimori</h2>
       {!serverOk && (
-        <p className="muted notice">На Core связь списка с Shikimori через сервер пока недоступна (действия shiki-* ещё не перенесены).</p>
+        <p className="muted notice">Чтобы синхронизировать список с Shikimori, задайте VITE_SHIKIMORI_CLIENT_ID и секреты SHIKIMORI_* на воркере.</p>
       )}
       {link ? (
         <>
@@ -413,7 +413,7 @@ export function ShikimoriSync() {
               Подключить Shikimori
             </a>
           ) : (
-            <p className="muted">Подключение вернётся после переноса OAuth Shikimori на Core.</p>
+            <p className="muted">Настройте OAuth Shikimori (клиентский ID и секреты на воркере), чтобы подключить аккаунт.</p>
           )}
         </>
       )}

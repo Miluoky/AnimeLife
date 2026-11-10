@@ -3,11 +3,9 @@
 
 /**
  * Где живут аккаунты и коммьюнити:
- * - `appwrite` — Appwrite Cloud (пока по умолчанию);
- * - `core` — свой API на Cloudflare Worker (`/api/core`, worker/core).
- * Переключение: VITE_BACKEND=core в сборке, после создания D1/KV (worker/core/README.md).
+ * - `core` — свой API на Cloudflare Worker (`/api/core`, worker/core) — по умолчанию;
+ * - `appwrite` — устаревший откат (VITE_BACKEND=appwrite), проект Appwrite больше не обязателен.
  */
-/** По умолчанию Core (Cloudflare). Appwrite — только VITE_BACKEND=appwrite на время отката. */
 export const BACKEND = ((import.meta.env.VITE_BACKEND as string | undefined) ?? 'core') === 'appwrite' ? 'appwrite' : 'core'
 
 // Проект Appwrite (регион Франкфурт). ID проекта не секретный, он и так виден в браузере.
@@ -18,15 +16,15 @@ export const APPWRITE_PROJECT = (import.meta.env.VITE_APPWRITE_PROJECT as string
 const env = import.meta.env as Record<string, string | undefined>
 
 /**
- * Способы входа через другие сервисы. Каждый включается, когда приложение у сервиса зарегистрировано
- * и ключи внесены в Appwrite (см. README). ID приложений не секретные.
+ * Способы входа через другие сервисы. ID приложений не секретные.
+ * Google/Яндекс на Core выкл. по умолчанию (нет серверных ключей); VK/Telegram — через `/api/core/auth/oauth`.
  */
 export const SOCIAL_LOGIN = {
   google: (env.VITE_AUTH_GOOGLE ?? '0') === '1',
   yandex: (env.VITE_AUTH_YANDEX ?? '0') === '1',
   /** ID приложения VK ID */
   vkAppId: env.VITE_VK_APP_ID ?? '',
-  /** вход через бота @AnimeLifeAuth_bot (настройки бота живут в функции social-login) */
+  /** вход через бота @AnimeLifeAuth_bot (секреты на Worker) */
   telegram: (env.VITE_AUTH_TELEGRAM ?? '1') === '1',
 }
 

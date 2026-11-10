@@ -14,6 +14,17 @@ function iso(ts) {
   return new Date(ts).toISOString()
 }
 
+function isAdmin(session) {
+  return (session?.user?.labels || []).includes('admin')
+}
+
+function parseTarget(targetId) {
+  const m = /^(\d{1,10}):(\d+)$/.exec(String(targetId || ''))
+  if (m) return { animeId: m[1], episode: Number(m[2]) }
+  if (/^\d{1,10}$/.test(targetId || '')) return { animeId: String(targetId), episode: 0 }
+  return { animeId: '', episode: 0 }
+}
+
 function rowReview(r) {
   return {
     $id: r.id,
@@ -27,6 +38,7 @@ function rowReview(r) {
     likes: r.likes,
     reports: r.reports,
     hidden: !!r.hidden,
+    moderated: !!r.moderated,
   }
 }
 
@@ -38,6 +50,22 @@ function rowComment(c) {
     userName: c.author_name,
     targetId: c.target_id,
     text: c.text,
+    hidden: !!c.hidden,
+  }
+}
+
+function rowEpisodeComment(c) {
+  const { animeId, episode } = parseTarget(c.target_id)
+  return {
+    $id: c.id,
+    animeId,
+    episode,
+    userId: c.user_id,
+    name: c.author_name,
+    text: c.text,
+    spoiler: false,
+    at: c.created_at,
+    reports: c.reports ?? 0,
     hidden: !!c.hidden,
   }
 }
@@ -258,11 +286,69 @@ export async function handleCommunityAction(env, session, body) {
     const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM votes WHERE target_id = ? AND kind = ?')
       .bind(commentId, 'creport')
       .first()
-    if ((count?.n || 0) >= REPORTS_TO_HIDE) {
-      await env.DB.prepare('UPDATE comments SET hidden = 1 WHERE id = ?').bind(commentId).run()
-      return json({ hidden: true })
-    }
+    const reports = Number(count?.n) || 0
+    const commentRow = await env.DB.prepare('SELECT moderated FROM comments WHERE id = ?').bind(commentId).first()
+    const moderated = !!commentRow?.moderated
+    const hidden = reports >= REPORTS_TO_HIDE && !moderated
+    await env.DB.prepare('UPDATE comments SET reports = ?, hidden = CASE WHEN ? = 1 THEN 1 ELSE hidden END WHERE id = ?')
+      .bind(reports, hidden ? 1 : 0, commentId)
+      .run()
+    if (hidden) return json({ hidden: true })
     return json({ ok: true })
+  }
+
+  if (action === 'mod-list') {
+    if (!session) return err('Войдите, чтобы модерировать.', 401)
+    if (!isAdmin(session)) return err('Нужны права модератора.', 403)
+    const res = await env.DB.prepare(
+      'SELECT * FROM reviews WHERE reports > 0 OR hidden = 1 ORDER BY reports DESC LIMIT 100',
+    ).all()
+    return json({ reviews: (res.results || []).map(rowReview) })
+  }
+
+  if (action === 'mod-action') {
+    if (!session) return err('Войдите, чтобы модерировать.', 401)
+    if (!isAdmin(session)) return err('Нужны права модератора.', 403)
+    const reviewId = String(body.reviewId || '')
+    const review = await env.DB.prepare('SELECT * FROM reviews WHERE id = ?').bind(reviewId).first()
+    if (!review) return err('Отзыв не найден.', 404)
+    if (body.decision === 'delete') {
+      await env.DB.prepare('DELETE FROM votes WHERE target_id = ?').bind(reviewId).run()
+      await env.DB.prepare('DELETE FROM reviews WHERE id = ?').bind(reviewId).run()
+      return json({ ok: true })
+    }
+    if (body.decision !== 'hide' && body.decision !== 'show') return err('Неизвестное действие модератора.', 400)
+    const hidden = body.decision === 'hide' ? 1 : 0
+    await env.DB.prepare('UPDATE reviews SET hidden = ?, moderated = 1 WHERE id = ?').bind(hidden, reviewId).run()
+    const row = await env.DB.prepare('SELECT * FROM reviews WHERE id = ?').bind(reviewId).first()
+    return json({ review: rowReview(row) })
+  }
+
+  if (action === 'comment-mod-list') {
+    if (!session) return err('Войдите, чтобы модерировать.', 401)
+    if (!isAdmin(session)) return err('Нужны права модератора.', 403)
+    const res = await env.DB.prepare(
+      'SELECT * FROM comments WHERE reports > 0 OR hidden = 1 ORDER BY reports DESC LIMIT 100',
+    ).all()
+    return json({ comments: (res.results || []).map(rowEpisodeComment) })
+  }
+
+  if (action === 'comment-mod-action') {
+    if (!session) return err('Войдите, чтобы модерировать.', 401)
+    if (!isAdmin(session)) return err('Нужны права модератора.', 403)
+    const commentId = String(body.commentId || '')
+    const comment = await env.DB.prepare('SELECT * FROM comments WHERE id = ?').bind(commentId).first()
+    if (!comment) return err('Комментарий не найден.', 404)
+    if (body.decision === 'delete') {
+      await env.DB.prepare('DELETE FROM votes WHERE target_id = ? AND kind = ?').bind(commentId, 'creport').run()
+      await env.DB.prepare('DELETE FROM comments WHERE id = ?').bind(commentId).run()
+      return json({ ok: true })
+    }
+    if (body.decision !== 'hide' && body.decision !== 'show') return err('Неизвестное действие модератора.', 400)
+    const hidden = body.decision === 'hide' ? 1 : 0
+    await env.DB.prepare('UPDATE comments SET hidden = ?, moderated = 1 WHERE id = ?').bind(hidden, commentId).run()
+    const row = await env.DB.prepare('SELECT * FROM comments WHERE id = ?').bind(commentId).first()
+    return json({ comment: rowEpisodeComment(row) })
   }
 
   if (action === 'room-time') {

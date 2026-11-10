@@ -14,11 +14,14 @@ const appUrl = (path: string) => `${window.location.origin}${import.meta.env.BAS
 export const CALLBACK_PATH = 'auth/callback'
 export const VK_CALLBACK_PATH = 'auth/vk'
 
-/** Google и Яндекс встроены в Appwrite: он сам ведёт на страницу сервиса и возвращает одноразовый токен. */
+/** Google и Яндекс: на Appwrite — OAuth2 token; на Core пока нет ключей провайдера (501). */
 export async function signInWithOAuth(provider: 'google' | 'yandex') {
   if (useCore()) {
-    await runFunction({ provider })
-    return
+    throw new SocialLoginError(
+      provider === 'google'
+        ? 'Вход через Google на Core ещё не подключён. Войдите по почте, VK или Telegram.'
+        : 'Вход через Яндекс на Core ещё не подключён. Войдите по почте, VK или Telegram.',
+    )
   }
   const { OAuthProvider } = await import('appwrite')
   const { account } = await import('../api/appwrite')

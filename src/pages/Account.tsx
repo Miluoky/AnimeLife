@@ -1,7 +1,7 @@
 import './account.css'
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { authErrorMessage, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
+import { authErrorMessage, corePasswordRecoveryEnabled, requestRecovery, signIn, signOut, signUp, useAuth } from '../data/auth'
 import { useCouch } from '../data/couchMode'
 import { useMyList } from '../data/myList'
 import { usePageMeta } from '../data/pageMeta'
@@ -320,11 +320,16 @@ function AuthForm() {
           {mode === 'up' && <small className="muted">Не короче 8 символов.</small>}
         </label>
       )}
-      {mode === 'in' && (
-        <button type="button" className="link-btn" onClick={() => switchMode('reset')}>
-          Забыли пароль?
-        </button>
-      )}
+      {mode === 'in' &&
+        (corePasswordRecoveryEnabled() ? (
+          <button type="button" className="link-btn" onClick={() => switchMode('reset')}>
+            Забыли пароль?
+          </button>
+        ) : (
+          <p className="muted" style={{ margin: 0 }}>
+            Сброс пароля по почте на Core пока недоступен (нет отправки писем). Если пароль забыли — напишите в поддержку.
+          </p>
+        ))}
 
       {error && (
         <p className="notice notice--error" role="alert">

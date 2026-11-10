@@ -20,11 +20,11 @@
 
 По умолчанию `VITE_BACKEND=core`. Откат: `VITE_BACKEND=appwrite`.
 
-**Готово:** регистрация/логин, списки, prefs, отзывы, комменты, профили, analytics pageview, комнаты «Вместе» (+ голос: `room_members` / `room_signals`, polling 2 с), follow/лента/топ.
+**Готово:** регистрация/логин, списки, prefs, отзывы/модерация, комменты, профили, account export/delete, оценки серий, Shikimori sync (`shiki-*` + секреты), community chat, клубы/подборки, analytics, комнаты «Вместе».
 
-**OAuth:** VK, Telegram (бот + Mini App) — `/api/core/auth/oauth`, вебхук `…/auth/oauth/telegram/webhook`. Google/Яндекс — заглушки.
+**OAuth:** VK, Telegram — `/api/core/auth/oauth`. Google/Яндекс — клиент показывает понятную ошибку, пока нет ключей на воркере.
 
-**В очереди:** голос WebRTC, push/Telegram-уведомления, клубы, коллекции, community chat, admin analytics-stats.
+**Позже:** исходящая почта (сброс пароля), R2 для своей манги, Google/Яндекс OAuth (ключи).
 
 Старых пользователей Appwrite не переносим — регистрируются заново.
 
@@ -35,15 +35,16 @@
 | Область | Файл | На Core |
 |---|---|---|
 | SDK-клиент | `src/api/appwrite.ts` | не импортируется |
-| OAuth Google/Яндекс | `src/data/socialAuth.ts` | Core: `/api/core/auth/oauth`; Appwrite: SDK |
+| OAuth Google/Яндекс | `src/data/socialAuth.ts` | Core: явная ошибка без ключей; Appwrite: SDK |
+| Сброс пароля | `Account.tsx`, `PasswordRecovery.tsx` | Core: выкл. до почты на воркере |
 | Отзывы/комменты (чтение) | `community.ts`, `comments.ts`, `rooms.ts` | REST `/api/core/*` |
-| Подборки/клубы (частично) | `src/data/social.ts` | Core GET; оценки серий — заглушка |
+| Подборки/клубы/оценки серий | `src/data/social.ts` | Core GET + `episode-rate` |
 | Community chat | `src/data/communityChat.ts` | `GET /api/core/chat` + polling |
 | Голос в комнатах | `src/data/voice.ts` | polling; `room-presence`/`room-signal` пока no-op на сервере |
 | Загрузка манги | `src/pages/MangaUpload.tsx` | **выкл.** (`OWN_MANGA_ENABLED`), пока нет R2 |
 | CDN manga (legacy) | `src/api/mangaOwn.ts` | fetch к Appwrite endpoint без SDK |
-| Shikimori sync | `src/data/shikiSync.ts` | **выкл.** до `shiki-*` в Core |
-| Экспорт/удаление аккаунта | `src/components/AccountData.tsx` | **выкл.** до `account-*` в Core |
+| Shikimori sync | `src/data/shikiSync.ts` | `shiki-*` (секреты `SHIKIMORI_*` на воркере) |
+| Экспорт/удаление аккаунта | `src/components/AccountData.tsx` | `account-export` / `account-delete` |
 | Пуши | `src/data/push.ts` | lazy, только при включении |
 | Аналитика (fallback) | `src/data/analytics.ts` | на Appwrite — прямой fetch к Functions |
 | `index.html` | — | без `preconnect` на fra.cloud.appwrite.io |

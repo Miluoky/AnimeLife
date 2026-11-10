@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { authErrorMessage, finishRecovery } from '../data/auth'
+import { authErrorMessage, corePasswordRecoveryEnabled, finishRecovery } from '../data/auth'
 import { usePageMeta } from '../data/pageMeta'
 
 /** Сюда ведёт ссылка из письма «Забыли пароль?»: userId и secret в адресе, здесь задают новый пароль. */
@@ -36,6 +36,25 @@ export default function PasswordRecovery() {
     } finally {
       setBusy(false)
     }
+  }
+
+  if (!corePasswordRecoveryEnabled()) {
+    return (
+      <main className="container home">
+        <section className="stack auth-page">
+          <h1 className="page-title">Новый пароль</h1>
+          <div className="auth-card stack">
+            <p className="notice" role="status">
+              Восстановление пароля по письму на Core пока не настроено. Задайте пароль при входе, если помните его, или
+              зарегистрируйте новый аккаунт.
+            </p>
+            <Link to="/account" className="btn btn--accent">
+              На страницу входа
+            </Link>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   return (

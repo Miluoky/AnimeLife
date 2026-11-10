@@ -49,6 +49,9 @@ jobs:
           VITE_KODIK_DOMAIN: ${{ vars.KODIK_DOMAIN }}
           VITE_ALLOHA_TOKEN: ${{ secrets.VITE_ALLOHA_TOKEN }}
       - if: steps.keys.outputs.ok == 'true'
+        name: Схема D1 (episode/shiki)
+        run: npx --yes wrangler@4 d1 execute anime_core --remote --file=worker/core/migrations/2026-04-episode-shiki.sql -c wrangler.animelife.jsonc
+      - if: steps.keys.outputs.ok == 'true'
         name: Выложить Worker с сайтом
         run: npx --yes wrangler@4 deploy -c wrangler.animelife.jsonc
       # Секреты Core для входа/уведомлений Telegram (раньше жили в Appwrite Function social-login).
@@ -71,6 +74,19 @@ jobs:
           echo
           curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"
           echo
+      # Shikimori OAuth на Core (список ↔ Shikimori). Без секрета sync на сервере остаётся выключенным.
+      - if: steps.keys.outputs.ok == 'true'
+        name: Секреты Shikimori на Worker
+        env:
+          SHIKIMORI_CLIENT_ID: ${{ vars.SHIKIMORI_CLIENT_ID }}
+          SHIKIMORI_CLIENT_SECRET: ${{ secrets.SHIKIMORI_CLIENT_SECRET }}
+        run: |
+          if [ -z "$SHIKIMORI_CLIENT_ID" ] || [ -z "$SHIKIMORI_CLIENT_SECRET" ]; then
+            echo "::warning::SHIKIMORI_CLIENT_ID (vars) / SHIKIMORI_CLIENT_SECRET не заданы — sync Shikimori на Core выкл."
+            exit 0
+          fi
+          printf '%s' "$SHIKIMORI_CLIENT_ID" | npx --yes wrangler@4 secret put SHIKIMORI_CLIENT_ID -c wrangler.animelife.jsonc
+          printf '%s' "$SHIKIMORI_CLIENT_SECRET" | npx --yes wrangler@4 secret put SHIKIMORI_CLIENT_SECRET -c wrangler.animelife.jsonc
       # IndexNow: сразу сообщить Яндексу и Bing об обновлённых разделах, посадочных страницах и онгоингах
       # (scripts/indexnow.mjs). Это ускоряет обход, но не обязательно: ошибка здесь публикацию не ломает.
       - if: steps.keys.outputs.ok == 'true'

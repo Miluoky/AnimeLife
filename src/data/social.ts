@@ -360,9 +360,12 @@ export interface EpisodeScore {
 
 export async function loadEpisodeScore(animeId: string, episode: number) {
   if (useCore()) {
-    void animeId
-    void episode
-    return null
+    const res = await fetch(
+      `/api/core/social/episode-score?animeId=${encodeURIComponent(animeId)}&episode=${encodeURIComponent(String(episode))}`,
+      { credentials: 'include' },
+    )
+    if (!res.ok) return null
+    return ((await res.json()) as { score: EpisodeScore | null }).score ?? null
   }
   const { Query } = await import('appwrite')
   const r = await list<EpisodeScore>('episode_scores', [Query.equal('animeId', animeId), Query.equal('episode', episode), Query.limit(1)])
@@ -370,7 +373,11 @@ export async function loadEpisodeScore(animeId: string, episode: number) {
 }
 
 export const loadBestEpisodes = async (animeId: string) => {
-  if (useCore()) return [] as EpisodeScore[]
+  if (useCore()) {
+    const res = await fetch(`/api/core/social/best-episodes?animeId=${encodeURIComponent(animeId)}`, { credentials: 'include' })
+    if (!res.ok) return [] as EpisodeScore[]
+    return ((await res.json()) as { scores: EpisodeScore[] }).scores ?? []
+  }
   const { Query } = await import('appwrite')
   return list<EpisodeScore>('episode_scores', [Query.equal('animeId', animeId), Query.greaterThan('votes', 0), Query.orderDesc('avg'), Query.limit(6)]).then(
     (r) => r.rows,

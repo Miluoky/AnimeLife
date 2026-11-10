@@ -1,5 +1,5 @@
 import { BACKEND } from '../api/config'
-import { callCommunity, CommunityError } from './community'
+import { callCommunity } from './community'
 import { createLocalStore } from './localStore'
 import { listStore, type ListEntry } from './myList'
 
@@ -11,11 +11,8 @@ import { listStore, type ListEntry } from './myList'
 export const SHIKI_CLIENT_ID = import.meta.env.VITE_SHIKIMORI_CLIENT_ID as string | undefined
 const SHIKI = 'https://shikimori.io'
 
-/** OAuth Shikimori на Core ещё в functions/community; на Core UI можно показать, но серверные действия пока нет. */
-export const shikiServerSyncEnabled = () => BACKEND !== 'core'
-
-const shikiUnavailable = () =>
-  new CommunityError('Синхронизация списка с Shikimori на Core временно недоступна — действие ещё не перенесено с Appwrite.')
+/** Серверный OAuth Shikimori: на Core — через worker (нужны секреты на воркере). */
+export const shikiServerSyncEnabled = () => BACKEND !== 'core' || !!SHIKI_CLIENT_ID
 
 export const shikiLinkStore = createLocalStore<{ nickname: string; at: number } | null>('anime.shiki.v1', null)
 
@@ -32,7 +29,6 @@ export function shikiAuthorizeUrl() {
 }
 
 export async function connectShikimori(code: string) {
-  if (!shikiServerSyncEnabled()) throw shikiUnavailable()
   const r = await callCommunity<{ nickname: string }>({ action: 'shiki-connect', code, redirectUri: shikiRedirect() })
   shikiLinkStore.set({ nickname: r.nickname, at: Date.now() })
   return r.nickname
@@ -40,7 +36,7 @@ export async function connectShikimori(code: string) {
 
 /** Связь хранится на сервере: на новом устройстве после входа восстанавливаем её из shiki-status. */
 export async function restoreLink() {
-  if (!shikiServerSyncEnabled()) return
+  if (!SHIKI_CLIENT_ID && BACKEND === 'core') return
   if (shikiLinkStore.get()) return
   const r = await callCommunity<{ connected: boolean; nickname?: string }>({ action: 'shiki-status' })
   if (r.connected && r.nickname) {
@@ -65,11 +61,7 @@ export async function pullAll() {
 }
 
 export async function disconnectShikimori() {
-  if (!shikiServerSyncEnabled()) {
-    shikiLinkStore.set(null)
-    return
-  }
-  await callCommunity({ action: 'shiki-disconnect' })
+  await callCommunity({ action: 'shiki-disconnect' }).catch(() => undefined)
   shikiLinkStore.set(null)
 }
 
@@ -77,7 +69,6 @@ const toItem = (e: ListEntry) => ({ id: e.anime.id, status: e.status, episodes: 
 
 /** Отправить весь список. Возвращает, сколько тайтлов ушло. */
 export async function pushAll(onProgress?: (done: number, total: number) => void) {
-  if (!shikiServerSyncEnabled()) throw shikiUnavailable()
   const items = listStore.get().map(toItem)
   let done = 0
   for (let i = 0; i < items.length; i += 10) {
