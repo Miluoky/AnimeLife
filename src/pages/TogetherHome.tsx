@@ -1,3 +1,4 @@
+import './together-rec.css'
 import './together.css'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'

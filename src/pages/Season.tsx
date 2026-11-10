@@ -73,8 +73,25 @@ function sortList(list: SeasonAnime[], sort: SortId, now: number) {
 function useMinuteClock() {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 60_000)
-    return () => clearInterval(t)
+    // Скрытая вкладка: не гоняем setState каждую минуту — сетка сезона не дешёвая.
+    let t: ReturnType<typeof setInterval> | undefined
+    const start = () => {
+      clearInterval(t)
+      t = setInterval(() => setNow(Date.now()), 60_000)
+    }
+    const onVis = () => {
+      if (document.hidden) clearInterval(t)
+      else {
+        setNow(Date.now())
+        start()
+      }
+    }
+    start()
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [])
   return now
 }

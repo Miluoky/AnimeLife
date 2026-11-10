@@ -739,6 +739,8 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   const settle = useRef<{ at: number; since: number; paused: boolean; tries: number; start: number } | null>(null)
   // Что знаем о показанном плеере из его сообщений: длительность, пауза и последнее время с отметкой.
   const liveState = useRef({ duration: 0, paused: false, t: 0, at: 0 })
+  /** Поднять mute-интервал для warm/pending (создан слот / пришло сообщение). */
+  const armHush = useRef<() => void>(() => {})
   const [, bump] = useState(0)
   const rerender = () => bump((n) => n + 1)
   const slotOf = (key: string | null) => (key ? slots.current.find((s) => s.key === key) : undefined)
@@ -811,6 +813,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
     const next = slotOf(pendingKey.current)
     const live = slotOf(liveKey.current)
     if (!next || !live) return
+    armHush.current()
     const sameEpisode = next.episode === live.episode
     const win = (s: Slot) => frameRef.current?.querySelector<HTMLIFrameElement>(`iframe[data-key="${CSS.escape(s.key)}"]`)?.contentWindow
     let done = false
@@ -868,7 +871,9 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       next.paused = false
       // Пошёл ли новый, узнаём по его точному времени: time_update у Kodik приходит раз в секунду и целым числом.
       // Место уже в буфере — новый трогается за 0–0,4 с, далеко — за ~2 с; всё это время звучит прежний.
+      // В скрытой вкладке get_time не дёргаем — poll всё равно ждёт видимости / stall.
       poll = window.setInterval(() => {
+        if (document.hidden) return
         send(next, 'get_time')
         send(live, 'get_time')
       }, 150)
@@ -887,7 +892,10 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       next.t0 = undefined
       // Kodik не слушает «play», пока грузит рекламу: повторяем, пока видео в новом не пойдёт.
       send(next, 'play')
-      retry = window.setInterval(() => !next.ready && send(next, 'play'), 1500)
+      retry = window.setInterval(() => {
+        if (document.hidden || next.ready) return
+        send(next, 'play')
+      }, 1500)
       window.clearTimeout(giveUp)
       giveUp = window.setTimeout(() => go(liveNow()), 25000)
       rerender()
@@ -953,10 +961,28 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   }, [pending?.key])
 
   // Плееры, которые не на экране: пока видео в них не пошло, держим без звука; пошло — ставим на паузу и считаем готовыми.
+  // Интервал mute только пока вкладка видна и есть warm/pending, которым нужен hush — иначе мёртвый таймер.
   useEffect(() => {
-    const hush = window.setInterval(() => {
-      for (const s of slots.current) if (s.loaded && !s.idle && (!s.ready || s.key === pendingKey.current) && s.key !== liveKey.current) send(s, 'mute')
-    }, 2000)
+    let hush = 0
+    const needsHush = () =>
+      slots.current.some(
+        (s) => s.loaded && !s.idle && (!s.ready || s.key === pendingKey.current) && s.key !== liveKey.current,
+      )
+    const tick = () => {
+      if (document.hidden || !needsHush()) {
+        window.clearInterval(hush)
+        hush = 0
+        return
+      }
+      for (const s of slots.current) {
+        if (s.loaded && !s.idle && (!s.ready || s.key === pendingKey.current) && s.key !== liveKey.current) send(s, 'mute')
+      }
+    }
+    const arm = () => {
+      if (hush || document.hidden || !needsHush()) return
+      hush = window.setInterval(tick, 2000)
+    }
+    armHush.current = arm
     const ready = (s: Slot) => {
       if (s.ready || s.idle || s.key === liveKey.current) return
       s.ready = s.loaded = true
@@ -967,6 +993,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       send(s, 'mute')
       onReady.current?.(s)
       rerender()
+      arm()
     }
     const onMessage = (e: MessageEvent) => {
       const { key, value } = (e.data ?? {}) as { key?: unknown; value?: unknown }
@@ -983,10 +1010,22 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         s.t0 ??= value
         // Выбранная озвучка, которую не ставим на паузу, может подменить прежнюю и раньше: застрянет — подмена отменится.
         if ((s.ad && value !== s.t0) || value - s.t0 >= (s.key === pendingKey.current ? 3 : 20)) ready(s)
+        else arm()
       }
+      if (key === 'kodik_player_play' || key === 'kodik_player_video_started') arm()
     }
+    const onVis = () => {
+      if (document.hidden) {
+        window.clearInterval(hush)
+        hush = 0
+      } else arm()
+    }
+    arm()
+    document.addEventListener('visibilitychange', onVis)
     window.addEventListener('message', onMessage)
     return () => {
+      armHush.current = () => {}
+      document.removeEventListener('visibilitychange', onVis)
       window.removeEventListener('message', onMessage)
       window.clearInterval(hush)
     }
@@ -1057,6 +1096,7 @@ export default function VideoPlayer(props: VideoPlayerProps) {
       if (!slot?.ready) {
         target?.postMessage({ key: 'kodik_player_api', value: { method: 'mute' } }, '*')
         target?.postMessage({ key: 'kodik_player_api', value: { method: 'play' } }, '*')
+        armHush.current()
       }
       if (role === 'next') {
         setLoading(false)
@@ -1195,11 +1235,27 @@ export default function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     if (!pooled || unavailable) return
     const nextEpisode = `${shikimoriId}|${episode + 1}`
+    let timer = 0
     const tick = () => {
       const live = slotOf(liveKey.current)
       if (!live?.ready || !isKodik(live.src) || pendingKey.current || document.hidden) return
       const now = Date.now()
       const t = liveNow()
+      const { hint, next } = wish.current
+      const { duration } = liveState.current
+      const nearEnd = duration > 0 && (t / duration > 0.5 || duration - t < 360)
+      // warmLimit=0: без hint/next лишние прогретые сразу уходят — иначе iframe продолжает декодировать.
+      const wantWarm = !!hint || (!!next && nearEnd && !saverOn())
+      if (!wantWarm && warmLimit() <= 0) {
+        const spare = slots.current.filter(
+          (s) => s.key !== liveKey.current && s.key !== pendingKey.current && s.key !== heldKey.current,
+        )
+        if (spare.length) {
+          trim(0)
+          rerender()
+        }
+        return
+      }
       // Прогретые отстали: видео ушло дальше их буфера (Kodik держит ~30 с вперёд). Подтягиваем их на паузе
       // к текущему месту по одному, каждый не чаще раза в 45 с: такая перемотка — около 1,5 МБ. На телефоне —
       // только прежнюю озвучку, в «Экономии трафика» — никого.
@@ -1215,9 +1271,6 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         send(back, 'seek', { seconds: Math.floor(back.pos) })
       }
       if (slots.current.some((s) => s !== live && !s.ready && !s.idle && now - s.since < 60000)) return
-      const { hint, next } = wish.current
-      const { duration } = liveState.current
-      const nearEnd = duration > 0 && (t / duration > 0.5 || duration - t < 360)
       // Не греем пачку студий заранее во время просмотра — каждый iframe жрёт GPU.
       const order: [string, boolean][] = []
       if (hint) order.push([hint, false])
@@ -1239,11 +1292,24 @@ export default function VideoPlayer(props: VideoPlayerProps) {
         // и запущенная заранее серия потом застывала. Готовый плеер на месте всё равно экономит его загрузку.
         slot.idle = isNext
         slots.current.push(slot)
+        armHush.current()
         return rerender()
       }
     }
-    const timer = window.setInterval(tick, 1500)
-    return () => window.clearInterval(timer)
+    // Интервал только на видимой вкладке: в фоне tick всё равно early-return, но таймер будит main thread.
+    const sync = () => {
+      window.clearInterval(timer)
+      timer = 0
+      if (document.hidden) return
+      timer = window.setInterval(tick, 1500)
+      tick()
+    }
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => {
+      document.removeEventListener('visibilitychange', sync)
+      window.clearInterval(timer)
+    }
   }, [pooled, !!unavailable, shikimoriId, episode, frameAttempt, frameTitle])
   // Сообщаем странице, что источник не справился, но не сразу: короткие промежуточные состояния не в счёт.
   const onUnavailable = useRef(props.onUnavailable)

@@ -46,6 +46,8 @@
   border: 1px solid var(--line);
   scroll-margin-top: calc(var(--schedule-header-h) + env(safe-area-inset-top, 0px) + var(--schedule-sticky-extra));
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.22);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
 }
 
 .schedule-day__head {
@@ -242,9 +244,8 @@
   margin-bottom: 16px;
   padding-block: 6px 8px;
   padding-inline: var(--schedule-pad-inline);
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  /* Без backdrop-filter: sticky-полоса иначе пересчитывает blur на каждом кадре скролла. */
+  background: color-mix(in srgb, var(--bg) 94%, var(--surface));
   border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
   box-shadow: 0 10px 28px -18px rgba(0, 0, 0, 0.65);
 }

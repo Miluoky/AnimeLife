@@ -7,11 +7,24 @@
 import './tilt.css'
 
 const SELECTOR = '.poster-card__img, [data-tilt]'
-const MAX_DEG = 9
+/** Мягкий наклон ≤4° (раньше 9°) — дешевле для compositor на витрине. */
+const MAX_DEG = 4
+
+let started = false
+
+const isPlayback = () => /^\/(watch|together)(\/|$)/.test(location.pathname)
+
+/** lite / спокойный режим / скрытая вкладка — без 3D-наклона. */
+const muted = () =>
+  document.documentElement.dataset.lite === '1' ||
+  document.documentElement.dataset.calm === '1' ||
+  document.hidden
 
 export function startTilt() {
+  if (started) return
   const motion = matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)')
   if (!motion.matches) return
+  started = true
   let current: HTMLElement | null = null
   let frame = 0
   let last: PointerEvent | null = null
@@ -23,20 +36,23 @@ export function startTilt() {
     el.style.removeProperty('--gy')
   }
 
+  const clearCurrent = () => {
+    if (current) {
+      reset(current)
+      current = null
+    }
+  }
+
   const apply = () => {
     frame = 0
     const e = last
     if (!e) return
-    // На /watch наклон не нужен: pointermove + rAF рядом с Kodik iframe лишняя нагрузка.
-    if (location.pathname.startsWith('/watch')) {
-      if (current) {
-        reset(current)
-        current = null
-      }
+    // На /watch|/together наклон не нужен: pointermove + rAF рядом с iframe лишняя нагрузка.
+    if (isPlayback() || muted()) {
+      clearCurrent()
       return
     }
-    // Настройка «Спокойный режим» в оформлении выключает наклон на лету.
-    const target = document.documentElement.dataset.calm === '1' ? null : (e.target as Element | null)?.closest<HTMLElement>(SELECTOR) ?? null
+    const target = (e.target as Element | null)?.closest<HTMLElement>(SELECTOR) ?? null
     if (current && current !== target) reset(current)
     current = target
     if (!target) return
@@ -53,10 +69,40 @@ export function startTilt() {
     'pointermove',
     (e) => {
       if (e.pointerType !== 'mouse') return
+      // Не ставим rAF на playback — иначе каждый move будит main thread рядом с видео.
+      if (isPlayback()) {
+        if (frame) {
+          cancelAnimationFrame(frame)
+          frame = 0
+        }
+        last = null
+        clearCurrent()
+        return
+      }
+      // lite/calm/hidden: без rAF, сброс текущего наклона.
+      if (muted()) {
+        if (frame) {
+          cancelAnimationFrame(frame)
+          frame = 0
+        }
+        last = null
+        clearCurrent()
+        return
+      }
       last = e
       if (!frame) frame = requestAnimationFrame(apply)
     },
     { passive: true },
   )
   document.addEventListener('pointerleave', () => current && reset(current))
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (frame) {
+        cancelAnimationFrame(frame)
+        frame = 0
+      }
+      last = null
+      clearCurrent()
+    }
+  })
 }

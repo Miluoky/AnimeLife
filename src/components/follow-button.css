@@ -1,0 +1,5 @@
+/* Состояние «включено» у колокольчика: и /anime, и /watch без title.css. */
+.follow-btn--on {
+  color: var(--accent-soft);
+  border-color: var(--accent);
+}

@@ -110,6 +110,9 @@ let entry: { referrer: string; utm: string } | undefined = {
   utm: typeof location !== 'undefined' ? new URLSearchParams(location.search).get('utm_source') ?? '' : '',
 }
 
+/** Playback-маршруты: heartbeat не должен будить main thread рядом с видео. */
+const isPlaybackPath = (path: string) => /^\/(watch|together)(\/|$)/.test(path)
+
 export function trackPage(path: string) {
   const id = live() ? sessionId() : undefined
   if (!id) return
@@ -123,12 +126,13 @@ export function trackPage(path: string) {
   }
   const schedule = () => {
     window.clearInterval(timer)
-    if (HEARTBEAT > 0 && document.visibilityState === 'visible') {
+    // Pause-on-watch/hidden: тик только на видимой вкладке вне /watch|/together.
+    if (HEARTBEAT > 0 && document.visibilityState === 'visible' && !isPlaybackPath(path)) {
       timer = window.setInterval(() => send(false), HEARTBEAT)
     }
   }
   const onVisibility = () => {
-    if (HEARTBEAT > 0 && document.visibilityState === 'visible') send(false)
+    if (HEARTBEAT > 0 && document.visibilityState === 'visible' && !isPlaybackPath(path)) send(false)
     schedule()
   }
   // Первая отметка — когда страница уже показана, чтобы не мешать загрузке.

@@ -9,12 +9,15 @@ const MoreSheet = lazy(() => import('./MoreSheet'))
 const IN_MORE = /^\/(together|account|top|random|collections|quiz|duel|chat|ongoing|changelog|u\/|community|club\/|c\/|recap|scene|news|manga|chronology|trope|voice|hentai|hentai-manga)/
 const IN_LIBRARY = /^\/(library|watching|my-list)(\/|$)/
 
-function useInboxCheck() {
+function useInboxCheck(pathname: string) {
   useEffect(() => {
+    const playback = /^\/(watch|together)(\/|$)/.test(pathname)
     const check = () => {
-      if (document.hidden || !listStore.get().some((e) => e.status === 'watching')) return
+      // На /watch|/together и скрытой вкладке не будим сеть/main thread.
+      if (playback || document.hidden || !listStore.get().some((e) => e.status === 'watching')) return
       void import('../data/inboxCheck').then((m) => m.checkInbox()).catch(() => undefined)
     }
+    if (playback) return
     const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 3000))
     idle(check)
     const timer = setInterval(check, 20 * 60_000)
@@ -23,14 +26,14 @@ function useInboxCheck() {
       clearInterval(timer)
       document.removeEventListener('visibilitychange', check)
     }
-  }, [])
+  }, [pathname])
 }
 
 export default function BottomNav() {
   const { pathname } = useLocation()
   const fresh = useInboxCount()
   const [more, setMore] = useState(false)
-  useInboxCheck()
+  useInboxCheck(pathname)
   useEffect(() => setMore(false), [pathname])
 
   useEffect(() => {

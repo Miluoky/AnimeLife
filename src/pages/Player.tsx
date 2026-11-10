@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useAmbient } from '../components/ambient'
-import { useAppearance } from '../data/theme'
+import { appearanceStore } from '../data/theme'
 import { loadAnime, useAsync } from '../api'
 import { episodeTotals, episodesLabel } from '../data/catalog'
 import { saveProgress } from '../data/history'
@@ -9,7 +9,7 @@ import { savePosition } from '../data/positions'
 import { logEpisode } from '../data/watchLog'
 import { playerTime } from '../data/playerTime'
 import { usePlayerHealth } from '../data/quality'
-import { getEntry, setListStatus, setWatched, useMyList } from '../data/myList'
+import { getEntry, setListStatus, setWatched, useMyListEntry } from '../data/myList'
 import NotFound from './NotFound'
 import VideoPlayer, { isOwnProvider, type Provider, BALANCER_FALLBACK_LADDER } from '../components/VideoPlayer'
 import { isBalancerAvailable } from '../api/balancers'
@@ -27,7 +27,7 @@ import { usePageMeta, useJsonLd } from '../data/pageMeta'
 import { buildJsonLdEpisode } from '../data/seoEngine'
 import { ageLabel, animeInfo, watchPageDescription, watchPageTitle } from '../data/seo'
 import { BackIcon, BulbIcon, CloseIcon, SearchIcon, ShareIcon, SkipIcon, WideIcon } from '../components/Icons'
-import { useLightsOff, useMiniPlayer } from '../components/watchModes'
+import { useEngageReady, useLightsOff, useMiniPlayer } from '../components/watchModes'
 import { calm } from '../components/morph'
 import VoiceLogo from '../components/VoiceLogo'
 import AgeGateModal, { isAgeVerified } from '../components/AgeGateModal'
@@ -60,17 +60,8 @@ export default function Player() {
   const startAt = Number(params.get('t'))
   const [shareOpen, setShareOpen] = useState(false)
   const [adultOk, setAdultOk] = useState(isAgeVerified)
-  // В Playwright сразу: тесты не ждут idle. У людей — после первого кадра плеера.
-  const [engageReady, setEngageReady] = useState(() => typeof navigator !== 'undefined' && !!navigator.webdriver)
-  useEffect(() => {
-    if (engageReady) return
-    const idle = globalThis.requestIdleCallback?.(() => setEngageReady(true), { timeout: 2500 })
-    const timer = idle === undefined ? window.setTimeout(() => setEngageReady(true), 400) : undefined
-    return () => {
-      if (idle !== undefined) globalThis.cancelIdleCallback?.(idle)
-      if (timer !== undefined) clearTimeout(timer)
-    }
-  }, [engageReady])
+  // Sentinel через callback-ref: появляется после загрузки тайтла, IO подхватывает.
+  const { engageReady, engageSentinel } = useEngageReady()
   useMemo(() => {
     if (startAt > 0) savePosition(id, Math.max(1, Number(episode) || 1), startAt, 0, true)
   }, [id, episode, startAt])
@@ -78,13 +69,19 @@ export default function Player() {
   const anime = result.value?.data
   // Ambient выкл. на /watch: подсветку даёт PlayerGlow — два blur одновременно роняли FPS.
   useAmbient(undefined)
-  const { glow: wantGlow } = useAppearance()
+  // Только boolean glow: смена темы/акцента не должна ререндерить всю страницу плеера.
+  const wantGlow = useSyncExternalStore(
+    appearanceStore.subscribe,
+    () => appearanceStore.get().glow === true,
+    () => false,
+  )
   // Названия серий приходят от AniLibria, когда плеер нашёл релиз.
   const [names, setNames] = useState<Record<number, string>>({})
   // Другой тайтл — серии прошлого релиза не в счёт.
   useEffect(() => setNames({}), [id])
-  const list = useMyList()
-  const seen = (anime && list.find((e) => e.anime.id === anime.id)?.watched) || 0
+  // Одна запись списка: чужие тайтлы не дергают Player.
+  const myEntry = useMyListEntry(id)
+  const seen = myEntry?.watched || 0
 
   const kodik = useAsync(() => fetchKodikTranslations(id).catch(() => []), [id])
   // Где есть серии из бесплатных источников. Ответы запоминаются, плеер потом берёт их же без новых запросов.
@@ -168,12 +165,14 @@ export default function Player() {
     tried.current = new Set()
     manual.current = false
   }, [anime?.id, current])
-  // Здоровье плеера у зрителей: запустился ли источник, был ли сбой, чем кончилась серия (data/quality.ts).
+  // Здоровье плеера: без setState; ref стабилизирует вызов при автопереключении.
   const playerFailed = usePlayerHealth(anime ? `${anime.id}:${current}` : undefined, voice && (host?.player ? 'embed' : voice.provider))
+  const playerFailedRef = useRef(playerFailed)
+  playerFailedRef.current = playerFailed
   // Источник не грузится или серии в нём нет: сами включаем следующий, а не просим зрителя перебирать плееры.
   // Если зритель выбрал источник сам, оставляем его выбор и пояснение под видео.
   const fallBack = () => {
-    playerFailed()
+    playerFailedRef.current()
     if (manual.current || !voice || tried.current.size >= MAX_AUTO_SWITCHES) return
     tried.current.add(sourceSlot(voice, host))
     const next = nextSource(voices, voice, current, tried.current)
@@ -513,9 +512,11 @@ export default function Player() {
                 {ageLabel(anime.rating)}
               </span>
             )}
-            <Suspense fallback={null}>
-              <WatchStreak compact className="watch-head__streak" />
-            </Suspense>
+            {engageReady && (
+              <Suspense fallback={null}>
+                <WatchStreak compact className="watch-head__streak" />
+              </Suspense>
+            )}
           </div>
         </div>
 
@@ -571,10 +572,12 @@ export default function Player() {
               <ShareIcon size={18} />
               <span className="sr-only">Поделиться</span>
             </button>
-            <Suspense fallback={null}>
-              <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
-            </Suspense>
-            {(anime.ongoing || (anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes)) && (
+            {engageReady && (
+              <Suspense fallback={null}>
+                <WatchTogetherButton anime={anime} episode={current} className="btn btn--ghost watch-together" />
+              </Suspense>
+            )}
+            {engageReady && (anime.ongoing || (anime.episodesAired && anime.episodes && anime.episodesAired < anime.episodes)) && (
               <Suspense fallback={null}>
                 <FollowButton animeId={anime.id} title={anime.title} />
               </Suspense>
@@ -588,7 +591,7 @@ export default function Player() {
             <Suspense fallback={null}>
               <NextEpisode at={anime.nextEpisodeAt} episode={total + 1} />
             </Suspense>
-            {list.find((e) => e.anime.id === anime.id)?.status === 'watching' ? (
+            {myEntry?.status === 'watching' ? (
               <p className="muted watch-follow__text">Тайтл в «Смотрю»: новая серия появится там с отметкой, а в приложении — числом на значке.</p>
             ) : (
               <div className="watch-follow__text">
@@ -622,21 +625,28 @@ export default function Player() {
           provider="AniLibria"
           fillers={fillers.value}
         />
-        <Suspense fallback={null}>
-          <WatchStreak currentAnimeId={anime.id} />
-        </Suspense>
+        {engageReady && (
+          <Suspense fallback={null}>
+            <WatchStreak currentAnimeId={anime.id} />
+          </Suspense>
+        )}
       </div>
 
-      {engageReady && (
-        <Suspense fallback={null}>
-          {current >= total && !anime.ongoing && !anime.upcoming && <NextPart animeId={anime.id} />}
-          <WatchReturn anime={anime} current={current} total={total} />
-          <div className="watch-engage">
+      {/* Ниже fold: content-visibility + mount только после play/idle/scroll. */}
+      <div
+        ref={engageSentinel}
+        className="watch-engage"
+        style={{ contentVisibility: 'auto', containIntrinsicSize: '1px 520px' }}
+      >
+        {engageReady && (
+          <Suspense fallback={null}>
+            {current >= total && !anime.ongoing && !anime.upcoming && <NextPart animeId={anime.id} />}
+            <WatchReturn anime={anime} current={current} total={total} />
             <EpisodeRating animeId={anime.id} episode={current} />
             <TitleComments animeId={anime.id} aboutTitle />
-          </div>
-        </Suspense>
-      )}
+          </Suspense>
+        )}
+      </div>
 
       {shareOpen && (
         <Suspense fallback={null}>

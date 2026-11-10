@@ -200,9 +200,7 @@ export default function Random() {
         )}
         {!spinning && shown && (
           <article className="pick" style={{ ['--glow' as string]: shown.posterFill }}>
-            <div className="pick__bg" aria-hidden="true">
-              {shown.posterUrl && <img src={shown.posterUrl} alt="" />}
-            </div>
+            <div className="pick__bg" aria-hidden="true" />
             <Link
               to={`/anime/${shown.id}`}
               className="pick__poster"

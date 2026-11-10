@@ -384,13 +384,13 @@ export function SeasonShelf() {
         ranked={10}
         eager
       />
+      {/* Сезон ниже топа: грузим по IntersectionObserver, без параллельного eager-запроса. */}
       <CatalogShelf
         title={season.label}
         subtitle="Новинки сезона"
         icon={<CalendarIcon size={18} />}
         query={{ season: season.code }}
         more="/season"
-        eager
       />
     </>
   )

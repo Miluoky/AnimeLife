@@ -38,8 +38,10 @@ function requestKey(path: string, init: RequestInit): { method: string; dedupeKe
 async function executeReq<T>(path: string, init: RequestInit): Promise<T> {
   const res = await fetch(`${base()}${path}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
+    // Auth/lists не должны залипать в HTTP-кэше браузера; memo выше — только для /health.
+    cache: 'no-store',
     ...init,
+    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
   })
   const data = (await res.json().catch(() => ({}))) as T & { message?: string; code?: number }
   if (!res.ok) {

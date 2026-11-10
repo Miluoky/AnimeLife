@@ -656,9 +656,10 @@
   background: rgba(5, 6, 10, 0.35);
 }
 
-/* Смена серии, озвучки или плеера: прежний Kodik стоит на паузе, пока новый не загрузится, и тот проявляется поверх. */
+/* Смена серии, озвучки или плеера: прежний Kodik стоит на паузе, пока новый не загрузится.
+   Без transition на opacity: compositor + Kodik iframe на /watch лишний раз красят слой. */
 .player-frame .player-iframe {
-  transition: opacity 0.35s ease;
+  transition: none;
 }
 .player-frame .player-iframe--old {
   pointer-events: none;
@@ -763,8 +764,9 @@
   display: grid;
   place-items: center;
   padding-left: 4px;
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent), 0 16px 40px -10px rgba(0, 0, 0, 0.8);
-  animation: vp-pop-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), vp-glow 2.4s 0.4s ease-out infinite;
+  /* Без infinite vp-glow: пульс box-shadow рядом с видео жрёт GPU на /watch. */
+  box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 22%, transparent), 0 16px 40px -10px rgba(0, 0, 0, 0.8);
+  animation: vp-pop-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   transition: transform 0.15s;
 }
 
@@ -876,10 +878,10 @@
   right: 14px;
   bottom: 76px;
   gap: 8px;
-  background: rgba(10, 11, 16, 0.78);
+  /* Без backdrop-filter поверх кадра: читаемость за счёт плотного фона. */
+  background: rgba(10, 11, 16, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.28);
   color: #fff;
-  backdrop-filter: blur(6px);
   animation: vp-next-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -1171,10 +1173,8 @@
   overflow-y: auto;
   padding: 12px;
   border-radius: 6px;
-  background: rgba(22, 23, 31, 0.94);
+  background: rgba(22, 23, 31, 0.98);
   border: 1px solid var(--line);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.8);
   transform-origin: bottom right;
   animation: menu-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -1465,15 +1465,16 @@
   height: 100%;
   border-radius: 1px;
   background: currentColor;
-  animation: voice-eq 0.9s ease-in-out infinite alternate;
+  /* Статичные полоски: infinite voice-eq рядом с iframe на /watch лишний paint. */
+  transform: scaleY(0.7);
 }
 
 .voice__eq i:nth-child(2) {
-  animation-delay: -0.3s;
+  transform: scaleY(1);
 }
 
 .voice__eq i:nth-child(3) {
-  animation-delay: -0.6s;
+  transform: scaleY(0.45);
 }
 
 @keyframes voice-eq {
@@ -1482,12 +1483,6 @@
   }
   to {
     transform: scaleY(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .voice__eq i {
-    animation: none;
   }
 }
 
@@ -1545,8 +1540,7 @@
   font-weight: 700;
   font-size: 14px;
   color: var(--text);
-  background: color-mix(in srgb, #000 55%, transparent);
-  backdrop-filter: blur(8px);
+  background: rgb(0 0 0 / 0.82);
   transition: opacity 0.25s, background 0.2s;
 }
 
@@ -1938,68 +1932,9 @@
   border-width: 0;
 }
 
-/* ─── Подсветка вокруг плеера (PlayerGlow.tsx): свет кадра или постера растекается за экраном,
-   как Ambient Mode на YouTube ─── */
+/* Подсветка vp-glow — в player-glow.css (только с PlayerGlow). */
 .video-slot {
   isolation: isolate;
-}
-.vp-glow {
-  position: absolute;
-  z-index: -1;
-  /* Размытие растекается за края само и не добавляет прокрутки, а растянутый слой добавил бы. */
-  top: 0;
-  left: 0;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  /* Слабее blur: 48px на полном кадре съедал GPU вместе с Kodik iframe. */
-  filter: blur(24px) saturate(1.15);
-  opacity: 0.55;
-  pointer-events: none;
-  contain: layout paint;
-  will-change: auto;
-}
-/* На компьютере свет чуть шире экрана; на слабых/мобильных — без scale и слабее blur. */
-@media (min-width: 901px) {
-  .vp-glow {
-    transform: scale(1.04, 1.08);
-  }
-}
-@media (max-width: 900px), (prefers-reduced-motion: reduce) {
-  .vp-glow {
-    filter: blur(16px) saturate(1.1);
-    transform: none;
-  }
-}
-.vp-glow > * {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.vp-glow__img--in {
-  animation: vp-glow-in 2.5s ease both;
-}
-.vp-glow__live {
-  opacity: 0;
-  transition: opacity 1.2s ease;
-}
-.vp-glow__live--on {
-  opacity: 1;
-}
-@keyframes vp-glow-in {
-  from {
-    opacity: 0;
-  }
-}
-.video-slot--mini .vp-glow,
-:root[data-lite='1'] .vp-glow {
-  display: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .vp-glow__img--in {
-    animation: none;
-  }
 }
 
 /* Своя кнопка поверх перепутанного значка Aksor: тёмное пятно прячет его значок, клик ловим всегда */
@@ -2147,8 +2082,7 @@
   gap: 8px;
   padding: 14px 18px;
   border-radius: 12px;
-  background: rgba(10, 10, 14, 0.88);
-  backdrop-filter: blur(12px);
+  background: rgba(10, 10, 14, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
@@ -2198,8 +2132,7 @@
   border: 0;
   border-radius: 50%;
   color: var(--text);
-  background: rgb(0 0 0 / 0.75);
-  backdrop-filter: blur(8px);
+  background: rgb(0 0 0 / 0.85);
   border: 1px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
   transition: transform 0.15s, background 0.15s;
@@ -2211,5 +2144,71 @@
 @media (max-width: 1099px) {
   .video-slot__actions {
     bottom: calc(84px + env(safe-area-inset-bottom) + min(300px, 58vw) * 9 / 16 - 40px);
+  }
+}
+
+/* ─── /watch lite + reduced-motion: без infinite paint и без лишних enter-анимаций ─── */
+:root[data-lite='1'] .vp-spinner__ring,
+:root[data-lite='1'] .vp-loader,
+:root[data-lite='1'] .vp-big-play,
+:root[data-lite='1'] .vp-flash,
+:root[data-lite='1'] .vp-ripple,
+:root[data-lite='1'] .vp-next,
+:root[data-lite='1'] .vp-skip,
+:root[data-lite='1'] .vp-skip-note,
+:root[data-lite='1'] .vp-rate-note,
+:root[data-lite='1'] .vp-menu,
+:root[data-lite='1'] .vp-autonext,
+:root[data-lite='1'] .vp-resume,
+:root[data-lite='1'] .video-slot--mini .video-player,
+:root[data-lite='1'] .lights-curtain {
+  animation: none;
+}
+
+:root[data-lite='1'] .vp-bar,
+:root[data-lite='1'] .vp-btn,
+:root[data-lite='1'] .vp-btn--gear svg,
+:root[data-lite='1'] .vp-seek__track,
+:root[data-lite='1'] .vp-seek__thumb,
+:root[data-lite='1'] .vp-volume__range,
+:root[data-lite='1'] .vp-next-top,
+:root[data-lite='1'] .vp-akfs,
+:root[data-lite='1'] .video-slot__btn {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vp-spinner__ring,
+  .vp-loader,
+  .vp-big-play,
+  .vp-flash,
+  .vp-ripple,
+  .vp-next,
+  .vp-skip,
+  .vp-skip-note,
+  .vp-rate-note,
+  .vp-menu,
+  .vp-autonext,
+  .vp-resume,
+  .lights-curtain {
+    animation: none;
+  }
+
+  .vp-bar,
+  .vp-btn,
+  .vp-btn--gear svg,
+  .vp-seek__track,
+  .vp-seek__thumb,
+  .vp-volume__range,
+  .vp-next-top,
+  .vp-akfs,
+  .video-slot__btn {
+    transition: none;
+  }
+
+  /* Таймер автоперехода: без анимации полоска сразу полная — UX решает JS, CSS не крутит scaleX. */
+  .vp-autonext__bar {
+    animation: none;
+    transform: scaleX(1);
   }
 }

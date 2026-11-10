@@ -1,13 +1,12 @@
 /* Грузится вместе с tilt.ts, только у пользователей с мышью. */
-/* Витрина в глубину: карточка под мышью наклоняется за курсором (--rx/--ry ставит tilt.ts),
-   а блик следует за ним (--gx/--gy). Без мыши остаётся простой подъём. */
+/* Витрина: лёгкий подъём + слабый блик. Полный 3D-наклон только без data-lite/calm. */
 .poster-card__img::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 2;
   border-radius: inherit;
-  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), rgb(255 255 255 / 0.22), transparent 55%);
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), rgb(255 255 255 / 0.16), transparent 55%);
   opacity: 0;
   transition: opacity 0.3s;
   pointer-events: none;
@@ -16,12 +15,41 @@
   .poster-card:hover .poster-card__img::before {
     opacity: 1;
   }
+  /* База без tilt-переменных: простой подъём (перекрывает тяжёлый 3D из styles при наличии tilt.css). */
   .poster-card:hover .poster-card__img,
   .poster-card:focus-visible .poster-card__img {
-    transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-6px) scale(1.02);
+    transform: translateY(-4px) scale(1.015);
+    filter: none;
+  }
+  /* Курсор ведёт карточку: мягкий наклон ≤4° вместо 9°. */
+  .poster-card:hover .poster-card__img[style*='--rx'],
+  .poster-card:focus-visible .poster-card__img[style*='--rx'] {
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-4px) scale(1.015);
+  }
+}
+:root[data-lite='1'] .poster-card__img::before,
+:root[data-calm='1'] .poster-card__img::before {
+  display: none;
+}
+:root[data-lite='1'] .poster-card:hover .poster-card__img,
+:root[data-lite='1'] .poster-card:focus-visible .poster-card__img,
+:root[data-calm='1'] .poster-card:hover .poster-card__img,
+:root[data-calm='1'] .poster-card:focus-visible .poster-card__img {
+  transform: translateY(-2px);
+  filter: none;
+  box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+}
+@media (prefers-reduced-motion: reduce) {
+  .poster-card__img::before {
+    display: none;
+  }
+  .poster-card:hover .poster-card__img,
+  .poster-card:focus-visible .poster-card__img {
+    transform: none;
+    filter: none;
   }
 }
 /* Пока курсор ведёт карточку, наклон догоняет его быстро, без «резины». */
 .poster-card__img[style*='--rx'] {
-  transition: transform 0.12s linear, box-shadow 0.35s var(--ease), filter 0.35s var(--ease);
+  transition: transform 0.12s linear, box-shadow 0.3s var(--ease);
 }

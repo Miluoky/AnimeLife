@@ -23,6 +23,9 @@ const BackToTop = lazy(() => import('./BackToTop'))
 const HoverCards = lazy(() => import('./HoverCards'))
 const BurnoutNotice = lazy(() => import('./BurnoutNotice'))
 
+/** /watch и /together: playback — минимум глобальных слушателей рядом с видео. */
+export const isPlaybackPath = (path: string) => /^\/(watch|together)(\/|$)/.test(path)
+
 function Ambient() {
   const src = useAmbientSrc()
   return <div className="ambient" aria-hidden="true">{src && <img key={src} src={src} alt="" decoding="async" />}</div>
@@ -36,6 +39,8 @@ export default function Layout() {
   const [menuClosing, setMenuClosing] = useState(false)
   const header = useRef<HTMLElement>(null)
   const [hoverCards, setHoverCards] = useState(false)
+  const extrasArmed = useRef(false)
+  const playback = isPlaybackPath(location.pathname)
 
   useViewTransitions()
   useCanonical()
@@ -61,28 +66,51 @@ export default function Layout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [menuOpen])
 
-  const publicProfile = !!(user?.prefs as { publicProfile?: boolean } | undefined)?.publicProfile
+  // Класс на html: CSS снимает тяжёлый backdrop-filter у шапки на playback.
   useEffect(() => {
+    document.documentElement.classList.toggle('route-playback', playback)
+    return () => document.documentElement.classList.remove('route-playback')
+  }, [playback])
+
+  const publicProfile = !!(user?.prefs as { publicProfile?: boolean } | undefined)?.publicProfile
+  // Achievements / HoverCards / tilt — не будим main thread на /watch|/together; один раз после ухода.
+  useEffect(() => {
+    if (playback || extrasArmed.current) return
+    let cancelled = false
     const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500))
     idle(() => {
+      if (cancelled || extrasArmed.current || isPlaybackPath(location.pathname)) return
+      extrasArmed.current = true
       void import('../data/achievements').then((m) => m.watchAchievements())
       setHoverCards(matchMedia('(hover: hover) and (pointer: fine)').matches)
       void import('./tilt').then((m) => m.startTilt())
     })
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [playback, location.pathname])
+
   useEffect(() => {
     if (publicProfile) void import('../data/profile').then((m) => m.autoPublish())
   }, [publicProfile])
+
+  // Shiki autoSync — только вне playback, чтобы subscribe/таймеры не стартовали во время просмотра.
   useEffect(() => {
+    if (playback) return
     try {
       if (localStorage.getItem('anime.shiki.v1')?.startsWith('{')) void import('../data/shikiSync').then((m) => m.autoSync())
     } catch {
       // без хранилища связи нет
     }
-  }, [])
+  }, [playback])
 
   useEffect(() => {
     applyAppearance()
+    if (playback) {
+      header.current?.classList.remove('site-header--hidden', 'site-header--scrolled')
+      document.documentElement.classList.remove('scroll-down')
+      return
+    }
     let last = window.scrollY
     let hidden = false
     const onScroll = () => {
@@ -99,7 +127,7 @@ export default function Layout() {
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [playback])
 
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -169,11 +197,11 @@ export default function Layout() {
       <Suspense fallback={null}>
         <BurnoutNotice />
         <InstallBanner />
-        {hoverCards && !location.pathname.startsWith('/watch') && <HoverCards />}
+        {hoverCards && !playback && <HoverCards />}
       </Suspense>
       <Toasts />
       <NetworkStatus />
-      {!/^\/(watch|together)\//.test(location.pathname) && (
+      {!playback && (
         <Suspense fallback={null}>
           <BackToTop />
         </Suspense>

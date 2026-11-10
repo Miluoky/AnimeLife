@@ -130,6 +130,8 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           const normalized = id.replace(/\\/g, '/')
+          // hls.js только для AniLibria/HLS в части браузеров — не в main и не в Player.
+          if (normalized.includes('node_modules/hls.js')) return 'hls'
           if (
             normalized.includes('node_modules/@remix-run') ||
             normalized.includes('node_modules/react-router') ||

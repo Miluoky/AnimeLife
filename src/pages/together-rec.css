@@ -1,0 +1,33 @@
+/* Маркер LIVE: нужен Community и Together — без всего together.css. */
+.together-rec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+.together-rec span {
+  color: var(--muted);
+}
+.together-rec i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: together-rec 1.6s steps(2, jump-none) infinite;
+}
+.together-rec b {
+  color: var(--accent);
+}
+.together-rec span::before {
+  content: '·';
+  margin-right: 10px;
+  color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+@keyframes together-rec {
+  50% {
+    opacity: 0.25;
+  }
+}

@@ -25,7 +25,13 @@ const CatalogSection = lazy(() => import('../components/CatalogSection'))
 
 // Отдельный CSS-чанк: sync-импорт Home в App иначе раздувает index.css сверх бюджета.
 void import('./hero.css')
-if (matchMedia('(min-width: 1101px)').matches) void import('./hero-ring.css')
+if (
+  matchMedia('(min-width: 1101px)').matches &&
+  document.documentElement.dataset.lite !== '1' &&
+  document.documentElement.dataset.calm !== '1'
+) {
+  void import('./hero-ring.css')
+}
 
 const HERO_COUNT = 5
 const ONGOING_TOP = { status: 'ongoing', order: 'popularity', limit: 10 } as const
@@ -45,10 +51,20 @@ function heroLabel(at?: string) {
   return 'Онгоинг'
 }
 
+const heroLite = () =>
+  document.documentElement.dataset.lite === '1' ||
+  document.documentElement.dataset.calm === '1' ||
+  saverOn()
+
 function Hero() {
   const list = useAsync(() => loadCatalog(ONGOING_TOP), [])
   const [step, setStep] = useState(0)
-  const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const [paused, setPaused] = useState(
+    () =>
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      document.documentElement.dataset.lite === '1' ||
+      document.documentElement.dataset.calm === '1',
+  )
   const items = list.value?.data.slice(0, HERO_COUNT) ?? []
   const count = items.length || 1
   const index = ((step % count) + count) % count
@@ -60,13 +76,14 @@ function Hero() {
   const wideHero = typeof window !== 'undefined' && matchMedia('(min-width: 1101px)').matches
   const shots = useAsync(
     async () =>
-      current && !saverOn() && wideHero ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined,
+      current && !heroLite() && wideHero ? (await fetchScreenshots(current.id).catch(() => []))[0] : undefined,
     [current?.id, wideHero],
   )
   const next = items[(index + 1) % items.length]
   useEffect(() => {
-    if (!next || items.length < 2 || saverOn()) return
+    if (!next || items.length < 2 || heroLite() || document.hidden) return
     const t = setTimeout(() => {
+      if (document.hidden || heroLite()) return
       new Image().src = `${SHIKIMORI_URL}/system/animes/x96/${next.id}.jpg`
       if (!wideHero) return
       void fetchScreenshots(next.id)
@@ -81,34 +98,71 @@ function Hero() {
   // Ambient после первой отрисовки героя — не тянет второй постер в ту же очередь, что LCP.
   const [ambientSrc, setAmbientSrc] = useState<string | undefined>()
   useEffect(() => {
-    if (!current?.posterSmall) {
+    if (!current?.posterSmall || heroLite()) {
       setAmbientSrc(undefined)
       return
     }
-    const t = window.setTimeout(() => setAmbientSrc(current.posterSmall), 1200)
+    const t = window.setTimeout(() => {
+      if (!document.hidden && !heroLite()) setAmbientSrc(current.posterSmall)
+    }, 1200)
     return () => clearTimeout(t)
   }, [current?.posterSmall])
   useAmbient(ambientSrc)
 
-  // Listen for media query change to ensure hero-ring.css is loaded on desktop
+  // 3D-кольцо только на широком экране и без lite/calm — иначе плоский ряд миниатюр.
   useEffect(() => {
     const mql = window.matchMedia('(min-width: 1101px)')
-    if (mql.matches) {
-      void import('./hero-ring.css')
+    const loadRing = () => {
+      if (mql.matches && !heroLite()) void import('./hero-ring.css')
     }
+    loadRing()
     const handler = (e: MediaQueryListEvent) => {
-      if (e.matches) void import('./hero-ring.css')
+      if (e.matches && !heroLite()) void import('./hero-ring.css')
     }
     mql.addEventListener?.('change', handler)
     return () => mql.removeEventListener?.('change', handler)
+  }, [])
+
+  // Синхронизация паузы с reduced-motion / data-lite / скрытой вкладкой.
+  useEffect(() => {
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const syncPause = () => {
+      if (motion.matches || heroLite()) setPaused(true)
+    }
+    syncPause()
+    motion.addEventListener?.('change', syncPause)
+    const onVis = () => {
+      if (document.hidden) return
+      syncPause()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      motion.removeEventListener?.('change', syncPause)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [])
 
   const pausedNow = useRef(paused)
   pausedNow.current = paused
   useEffect(() => {
     if (items.length < 2 || paused) return
-    const timer = setInterval(() => !document.hidden && !pausedNow.current && setStep((s) => s + 1), HERO_INTERVAL)
-    return () => clearInterval(timer)
+    let timer = 0
+    const tick = () => {
+      if (!document.hidden && !pausedNow.current && !heroLite()) setStep((s) => s + 1)
+    }
+    const arm = () => {
+      if (timer) clearInterval(timer)
+      timer = 0
+      if (document.hidden || pausedNow.current || heroLite()) return
+      timer = window.setInterval(tick, HERO_INTERVAL)
+    }
+    arm()
+    const onVis = () => arm()
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      if (timer) clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [items.length, paused])
 
   if (!current) {
@@ -264,13 +318,14 @@ function ContinueWatching({ history }: { history: HistoryEntry[] }) {
         <h2>Продолжить просмотр</h2>
       </div>
       <div className="grid grid--wide">
-        {history.slice(0, 6).map((h, i) => {
+        {history.slice(0, 6).map((h) => {
           const at = getPosition(h.animeId, h.episode)
           return (
             <div key={h.animeId} className="continue-item">
               <Link to={`/watch/${h.animeId}/${h.episode}`} className="continue-card">
                 <div className="continue-card__img" style={{ background: h.posterFill }}>
-                  <Poster anime={h} className="poster-img--cover" priority={i === 0} />
+                  {/* LCP — hero backdrop; continue всегда lazy, без гонки eager. */}
+                  <Poster anime={h} className="poster-img--cover" />
                   <span className="continue-card__play">
                     <PlayIcon size={20} />
                   </span>

@@ -7,8 +7,13 @@ const EVERY_MS = 20 * 60_000
 
 let running: Promise<void> | undefined
 
+/** На /watch не дёргаем Shikimori: бейдж и так из local store, проверка подождёт выхода с плеера. */
+const onWatchPath = () =>
+  typeof location !== 'undefined' && /^\/(watch|hentai\/watch)\//.test(location.pathname)
+
 /** Проверить, какие серии вышли у тайтлов из «Смотрю». force — не смотреть на время прошлой проверки. */
 export function checkInbox(force = false): Promise<void> {
+  if (!force && onWatchPath()) return Promise.resolve()
   const state = inboxStore.get()
   if (!force && Date.now() - state.checkedAt < EVERY_MS) return Promise.resolve()
   running ??= run().finally(() => (running = undefined))

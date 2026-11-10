@@ -1,88 +1,10 @@
-/* Страница тайтла: то, что грузится только вместе с ней. */
-
-/* Таймер до следующей серии онгоинга. */
-.next-ep {
-  display: inline-grid;
-  gap: 8px;
-  align-self: start;
-  padding: 12px 16px;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
-}
-
-.next-ep__head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.next-ep__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
-  animation: next-ep-pulse 2s infinite;
-}
-
-@keyframes next-ep-pulse {
-  70% {
-    box-shadow: 0 0 0 8px transparent;
-  }
-}
-
-.next-ep__clock {
-  display: flex;
-  gap: 8px;
-}
-
-.next-ep__part {
-  display: grid;
-  justify-items: center;
-  min-width: 52px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: var(--surface-2);
-}
-
-.next-ep__part b {
-  font-family: var(--font-display, inherit);
-  font-size: 22px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.next-ep__part small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.next-ep__date {
-  font-size: 12px;
-}
-
-.next-ep__date::first-letter {
-  text-transform: uppercase;
-}
+/* Страница тайтла: то, что грузится только вместе с ней.
+   Таймер next-ep — в components/next-episode.css (NextEpisode).
+   follow-btn--on — в components/follow-button.css (FollowButton). */
 
 /* Фильтр видео по виду: трейлеры, опенинги, эндинги. */
 .video-kinds {
   margin: -4px 0 4px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .next-ep__dot {
-    animation: none;
-  }
-}
-
-/* Колокольчик «сообщить о новой серии». */
-.follow-btn--on {
-  color: var(--accent-soft);
-  border-color: var(--accent);
 }
 
 /* Карточка серии с настоящим кадром из AniLibria и названием серии. */
@@ -223,10 +145,10 @@
   /* вправо не выходим: иначе на телефоне страница шире экрана */
   inset: -80px 0 auto -40px;
   height: 360px;
-  background: radial-gradient(60% 80% at 20% 0%, color-mix(in srgb, var(--glow, var(--surface)) 55%, transparent), transparent 70%);
+  /* Мягкость даёт сам radial-gradient — без filter:blur (дорого на большом псевдоэлементе). */
+  background: radial-gradient(70% 90% at 20% 0%, color-mix(in srgb, var(--glow, var(--surface)) 48%, transparent), transparent 72%);
   pointer-events: none;
   z-index: -1;
-  filter: blur(20px);
 }
 
 /* Факты о тайтле плашками «подпись: значение» прямо в шапке. */
@@ -808,7 +730,7 @@
   padding: 2px 7px;
   border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
   border-radius: 2px;
-  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
   color: var(--accent);
   font: 700 10px/1.3 var(--font-mono);
   letter-spacing: 0.04em;
@@ -816,7 +738,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  backdrop-filter: blur(6px);
 }
 
 .episode-card__meta {

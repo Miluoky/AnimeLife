@@ -222,6 +222,19 @@
   box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent);
   animation: catalog-rec 1.6s steps(2, jump-none) infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+  .catalog__dot {
+    animation: none;
+  }
+}
+:root[data-lite='1'] .catalog__dot,
+:root[data-calm='1'] .catalog__dot {
+  animation: none;
+}
+:root[data-lite='1'] .catalog-empty__box {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 .catalog__rec > span:nth-child(3) {
   color: var(--text-soft);
 }

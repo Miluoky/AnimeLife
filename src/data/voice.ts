@@ -1,6 +1,7 @@
 import { callCommunity } from './community'
 import { createLocalStore } from './localStore'
 import { serverNow } from './rooms'
+import { startVisibilityPoll } from './visibilityPoll'
 
 /**
  * Голосовой чат комнаты: звук идёт напрямую между браузерами (WebRTC, каждый с каждым, до 6 человек).
@@ -29,34 +30,10 @@ interface Signal {
 
 export const MEMBER_TTL = 2 * 60 * 1000
 export const PRESENCE_EVERY = 45 * 1000
-const CORE_POLL_VISIBLE_MS = 3750
-const CORE_POLL_HIDDEN_MS = 15000
-
-const corePollMs = () => (document.hidden ? CORE_POLL_HIDDEN_MS : CORE_POLL_VISIBLE_MS)
+const CORE_POLL_MS = 3750
 
 function startCorePoll(tick: () => void | Promise<void>, stopped: () => boolean) {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const schedule = () => {
-    timer = window.setTimeout(async () => {
-      if (stopped()) return
-      await tick()
-      if (!stopped()) schedule()
-    }, corePollMs())
-  }
-  const onVis = () => {
-    if (stopped()) return
-    if (timer) window.clearTimeout(timer)
-    if (!document.hidden) void tick()
-    schedule()
-  }
-  void Promise.resolve(tick()).then(() => {
-    if (!stopped()) schedule()
-  })
-  document.addEventListener('visibilitychange', onVis)
-  return () => {
-    if (timer) window.clearTimeout(timer)
-    document.removeEventListener('visibilitychange', onVis)
-  }
+  return startVisibilityPoll(tick, { intervalMs: CORE_POLL_MS, stopped })
 }
 
 const ICE_SERVERS: RTCIceServer[] = [
@@ -75,7 +52,7 @@ export const presence = (roomId: string, state: { voice?: boolean; muted?: boole
 export async function loadMembers(roomId: string, since: number): Promise<Member[]> {
   const res = await fetch(
     `/api/core/rooms/${encodeURIComponent(roomId)}/members?since=${encodeURIComponent(String(since))}`,
-    { credentials: 'include' },
+    { credentials: 'include', cache: 'no-store' },
   )
   if (!res.ok) return []
   return ((await res.json()) as { members?: Member[] }).members ?? []
@@ -87,7 +64,7 @@ export async function countMembers(roomIds: string[], since: number): Promise<Ma
   if (!roomIds.length) return out
   const res = await fetch(
     `/api/core/rooms/member-counts?ids=${encodeURIComponent(roomIds.join(','))}&since=${encodeURIComponent(String(since))}`,
-    { credentials: 'include' },
+    { credentials: 'include', cache: 'no-store' },
   )
   if (!res.ok) return out
   const data = (await res.json()) as { counts?: Record<string, number> }
@@ -176,7 +153,7 @@ export function subscribeMembers(roomId: string, onChange: (m: Member, gone: boo
 async function loadSignals(roomId: string, since: number): Promise<(Signal & { $id: string })[]> {
   const res = await fetch(
     `/api/core/rooms/${encodeURIComponent(roomId)}/signals?since=${encodeURIComponent(String(since))}`,
-    { credentials: 'include' },
+    { credentials: 'include', cache: 'no-store' },
   )
   if (!res.ok) return []
   return ((await res.json()) as { signals?: (Signal & { $id: string })[] }).signals ?? []

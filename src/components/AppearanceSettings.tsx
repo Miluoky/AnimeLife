@@ -78,7 +78,7 @@ export default function AppearanceSettings() {
       </label>
       <label className="appearance__row appearance__toggle">
         <input type="checkbox" checked={a.glow === true} onChange={(e) => setAppearance({ glow: e.target.checked })} />
-        <span>Подсветка вокруг плеера в цветах кадра (на слабых ПК может лагать)</span>
+        <span>Подсветка вокруг плеера (выкл. по умолчанию — на слабых ПК может лагать)</span>
       </label>
       <label className="appearance__row appearance__toggle">
         <input type="checkbox" checked={couch} onChange={(e) => setCouch(e.target.checked)} />

@@ -19,10 +19,10 @@
     justify-self: center;
     width: var(--card);
     height: calc(var(--card) * 1.5);
-    perspective: 1100px;
+    perspective: 900px;
     transform-style: preserve-3d;
     /* Смотрим на кольцо чуть сверху: задние постеры выглядывают над передними. */
-    transform: translateY(14px) rotateX(-16deg);
+    transform: translateY(14px) rotateX(-12deg);
     gap: 0;
   }
   .hero--ring .hero__thumb,
@@ -34,13 +34,13 @@
     border-radius: 6px;
     opacity: calc(0.35 + var(--depth, 1) * 0.65);
     filter: brightness(calc(0.45 + var(--depth, 1) * 0.55));
-    box-shadow: 0 30px 60px -24px rgb(0 0 0 / 0.9);
+    box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.85);
     /* Кольцо поворачивается целиком (rotateY(-turn)), а постер — обратно, лицом к зрителю. */
     transform: rotateY(calc(var(--a) - var(--turn))) translateZ(var(--r)) rotateY(calc(var(--turn) - var(--a)));
     transition:
-      transform 1s var(--ease),
-      opacity 1s var(--ease),
-      filter 1s var(--ease),
+      transform 0.85s var(--ease),
+      opacity 0.85s var(--ease),
+      filter 0.85s var(--ease),
       border-color 0.3s;
   }
   .hero--ring .hero__thumb:hover,
@@ -50,7 +50,7 @@
   }
   .hero--ring .hero__thumb--on,
   .hero .hero__thumb--on {
-    transform: rotateY(calc(var(--a) - var(--turn))) translateZ(var(--r)) rotateY(calc(var(--turn) - var(--a))) scale(1.08);
+    transform: rotateY(calc(var(--a) - var(--turn))) translateZ(var(--r)) rotateY(calc(var(--turn) - var(--a))) scale(1.05);
   }
   /* Отражение-подсветка под кольцом: сцена «стоит» на полу кинозала. */
   .hero--ring .hero__thumbs::before,
@@ -60,18 +60,89 @@
     left: 50%;
     top: 100%;
     width: calc(var(--r) * 2.6);
-    height: 60px;
+    height: 48px;
     transform: translate(-50%, 10px) rotateX(75deg);
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 35%, transparent), transparent);
-    filter: blur(6px);
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 28%, transparent), transparent);
+    filter: blur(4px);
     pointer-events: none;
   }
 }
 @media (min-width: 1101px) and (prefers-reduced-motion: reduce) {
-  .hero--ring .hero__thumb,
-  .hero .hero__thumb {
-    transition: none;
+  .hero--ring .hero__thumbs,
+  .hero .hero__thumbs {
+    perspective: none;
+    transform: none;
+    transform-style: flat;
+    display: flex;
+    width: auto;
+    height: auto;
+    gap: 10px;
   }
+  .hero--ring .hero__thumb,
+  .hero .hero__thumb,
+  .hero--ring .hero__thumb--on,
+  .hero .hero__thumb--on {
+    position: relative;
+    inset: auto;
+    width: var(--card, 100px);
+    height: calc(var(--card, 100px) * 1.5);
+    transform: none;
+    transition: none;
+    filter: none;
+    opacity: 0.55;
+  }
+  .hero--ring .hero__thumb--on,
+  .hero .hero__thumb--on {
+    opacity: 1;
+    border-color: var(--accent);
+  }
+  .hero--ring .hero__thumbs::before,
+  .hero .hero__thumbs::before {
+    display: none;
+  }
+}
+/* Lite/calm: CSS-чанк может уже быть в кэше — гасим 3D без перезагрузки. */
+:root[data-lite='1'] .hero--ring .hero__thumbs,
+:root[data-lite='1'] .hero .hero__thumbs,
+:root[data-calm='1'] .hero--ring .hero__thumbs,
+:root[data-calm='1'] .hero .hero__thumbs {
+  perspective: none;
+  transform: none;
+  transform-style: flat;
+  display: flex;
+  width: auto;
+  height: auto;
+  gap: 10px;
+}
+:root[data-lite='1'] .hero--ring .hero__thumb,
+:root[data-lite='1'] .hero .hero__thumb,
+:root[data-lite='1'] .hero--ring .hero__thumb--on,
+:root[data-lite='1'] .hero .hero__thumb--on,
+:root[data-calm='1'] .hero--ring .hero__thumb,
+:root[data-calm='1'] .hero .hero__thumb,
+:root[data-calm='1'] .hero--ring .hero__thumb--on,
+:root[data-calm='1'] .hero .hero__thumb--on {
+  position: relative;
+  inset: auto;
+  width: clamp(72px, 7vw, 100px);
+  height: calc(clamp(72px, 7vw, 100px) * 1.5);
+  transform: none !important;
+  transition: none;
+  filter: none;
+  opacity: 0.55;
+  box-shadow: 0 12px 28px -16px rgb(0 0 0 / 0.7);
+}
+:root[data-lite='1'] .hero--ring .hero__thumb--on,
+:root[data-lite='1'] .hero .hero__thumb--on,
+:root[data-calm='1'] .hero--ring .hero__thumb--on,
+:root[data-calm='1'] .hero .hero__thumb--on {
+  opacity: 1;
+}
+:root[data-lite='1'] .hero--ring .hero__thumbs::before,
+:root[data-lite='1'] .hero .hero__thumbs::before,
+:root[data-calm='1'] .hero--ring .hero__thumbs::before,
+:root[data-calm='1'] .hero .hero__thumbs::before {
+  display: none;
 }
 :root[data-calm='1'] .hero--ring .hero__thumb,
 :root[data-calm='1'] .hero .hero__thumb {

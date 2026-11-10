@@ -1,4 +1,5 @@
 import { callCommunity } from './community'
+import { startVisibilityPoll } from './visibilityPoll'
 
 /** Комната совместного просмотра. Код комнаты (6 символов) и есть ID строки. */
 export interface Room {
@@ -149,7 +150,7 @@ export const closeRoom = (roomId: string) => callCommunity({ action: 'room-close
 
 export async function loadRoom(code: string): Promise<Room | null> {
   const sentAt = Date.now()
-  const res = await fetch(`/api/core/rooms/${encodeURIComponent(code)}`, { credentials: 'include' })
+  const res = await fetch(`/api/core/rooms/${encodeURIComponent(code)}`, { credentials: 'include', cache: 'no-store' })
   const receivedAt = Date.now()
   if (!res.ok) return null
   const data = (await res.json()) as { room: Room; serverNow?: number }
@@ -158,31 +159,31 @@ export async function loadRoom(code: string): Promise<Room | null> {
 }
 
 export async function loadMessages(roomId: string): Promise<RoomMessage[]> {
-  const res = await fetch(`/api/core/rooms/${encodeURIComponent(roomId)}/messages`, { credentials: 'include' })
+  const res = await fetch(`/api/core/rooms/${encodeURIComponent(roomId)}/messages`, {
+    credentials: 'include',
+    cache: 'no-store',
+  })
   if (!res.ok) return []
   const data = (await res.json()) as { messages: RoomMessage[] }
   return data.messages ?? []
 }
 
 export async function loadPublicRooms(): Promise<Room[]> {
-  const res = await fetch('/api/core/rooms', { credentials: 'include' })
+  const res = await fetch('/api/core/rooms', { credentials: 'include', cache: 'no-store' })
   if (!res.ok) return []
   return ((await res.json()) as { rooms: Room[] }).rooms ?? []
 }
 
 export async function loadUpcomingRooms(): Promise<Room[]> {
-  const res = await fetch('/api/core/rooms/upcoming', { credentials: 'include' })
+  const res = await fetch('/api/core/rooms/upcoming', { credentials: 'include', cache: 'no-store' })
   if (!res.ok) return []
   return ((await res.json()) as { rooms: Room[] }).rooms ?? []
 }
 
-const ROOM_POLL_VISIBLE_MS = 4500
-const ROOM_POLL_HIDDEN_MS = 15000
-
-const roomPollMs = () => (document.hidden ? ROOM_POLL_HIDDEN_MS : ROOM_POLL_VISIBLE_MS)
+const ROOM_POLL_MS = 4500
 
 /**
- * Живые обновления: ~4.5 с в активной вкладке, ~15 с в фоне.
+ * Живые обновления: ~4.5 с, только пока вкладка видима (hidden → пауза, resume → backoff).
  * onRoom(null) — комнату закрыли.
  */
 export function subscribeRoom(
@@ -226,28 +227,10 @@ export function subscribeRoom(
       // сеть — следующий тик
     }
   }
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const schedule = () => {
-    timer = window.setTimeout(async () => {
-      if (stopped) return
-      await tick()
-      if (!stopped) schedule()
-    }, roomPollMs())
-  }
-  const onVis = () => {
-    if (stopped) return
-    if (timer) window.clearTimeout(timer)
-    if (!document.hidden) void tick()
-    schedule()
-  }
-  void tick().then(() => {
-    if (!stopped) schedule()
-  })
-  document.addEventListener('visibilitychange', onVis)
+  const stop = startVisibilityPoll(tick, { intervalMs: ROOM_POLL_MS, stopped: () => stopped })
   return () => {
     stopped = true
-    if (timer) window.clearTimeout(timer)
-    document.removeEventListener('visibilitychange', onVis)
+    stop()
   }
 }
 

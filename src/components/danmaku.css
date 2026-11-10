@@ -13,7 +13,6 @@
   color: #fff;
   text-shadow: 0 0 3px #000, 0 1px 2px #000;
   animation: danmaku-fly 9s linear forwards;
-  will-change: transform;
 }
 @keyframes danmaku-fly {
   to {
@@ -42,8 +41,20 @@
 .danmaku__toggle:focus-visible {
   opacity: 1;
 }
+
+/* data-lite / reduced-motion: без fly поверх видео, статичный текст справа. */
+:root[data-lite='1'] .danmaku__item {
+  animation: none;
+  left: auto;
+  right: 12px;
+  opacity: 0.85;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .danmaku__item {
-    animation-duration: 14s;
+    animation: none;
+    left: auto;
+    right: 12px;
+    opacity: 0.85;
   }
 }

@@ -188,11 +188,11 @@ export function OptimizedImage({
               height: '100%',
               objectFit: 'cover',
               opacity: loaded ? 1 : 0,
-              filter: loaded ? 'none' : 'blur(10px)',
-              // После загрузки transform не фиксируем: наведение (кадры на главной) само увеличивает картинку.
-              transform: loaded ? undefined : 'scale(1.04)',
-              transition: 'opacity 0.35s var(--ease), filter 0.35s var(--ease), transform 0.35s var(--ease)',
-              willChange: loaded ? 'auto' : 'opacity, filter, transform',
+              // Лёгкий blur-up ≤8px: дешевле полного 10px+scale на десятках постеров полки.
+              filter: loaded ? 'none' : 'blur(6px)',
+              transform: loaded ? undefined : 'scale(1.02)',
+              transition: 'opacity 0.3s var(--ease), filter 0.3s var(--ease), transform 0.3s var(--ease)',
+              willChange: loaded ? 'auto' : 'opacity, filter',
             }}
             {...rest}
           />

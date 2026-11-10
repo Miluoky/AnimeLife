@@ -35,8 +35,25 @@ export default function ScheduleSession({
 
   useEffect(() => {
     if (!upcoming) return
-    const timer = setInterval(() => tick((n) => n + 1), 30_000)
-    return () => clearInterval(timer)
+    // Только UI-таймер обратного отсчёта; на скрытой вкладке не тикаем.
+    let timer: ReturnType<typeof setInterval> | undefined
+    const start = () => {
+      clearInterval(timer)
+      timer = setInterval(() => tick((n) => n + 1), 30_000)
+    }
+    const onVis = () => {
+      if (document.hidden) clearInterval(timer)
+      else {
+        tick((n) => n + 1)
+        start()
+      }
+    }
+    start()
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [upcoming])
 
   const addToCalendar = () =>

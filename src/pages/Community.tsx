@@ -1,7 +1,7 @@
 import { COVERS } from '../data/profileStyle'
 import './top.css'
 import './social.css'
-import './together.css'
+import './together-rec.css'
 import './community-cinema.css'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'

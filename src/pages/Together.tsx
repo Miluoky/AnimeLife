@@ -1,3 +1,4 @@
+import './together-rec.css'
 import './together.css'
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -231,7 +232,13 @@ export default function Together() {
     const unsubscribe = subscribeMembers(roomId, (m, gone) =>
       setMembers((list) => fresh([...list.filter((x) => x.userId !== m.userId), ...(gone ? [] : [m])])),
     )
-    const prune = setInterval(() => setMembers((list) => fresh(list)), 30_000)
+    // Не трогаем state, если никто не протух — иначе лишний re-render Hall каждые 30 с.
+    const prune = setInterval(() => {
+      setMembers((list) => {
+        const next = fresh(list)
+        return next.length === list.length ? list : next
+      })
+    }, 30_000)
     let beat: ReturnType<typeof setInterval> | undefined
     if (myId) {
       const ping = () => void presence(roomId).catch(() => undefined)

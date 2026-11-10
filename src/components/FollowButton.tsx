@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { setFollowing, useFollowing, usePushState } from '../data/push'
 import { telegramOnStore } from '../data/telegramFlag'
 import { toast } from '../data/toast'
+import './follow-button.css'
 
 /**
  * Колокольчик на странице онгоинга или анонса: уведомление о новых сериях именно этого тайтла,

@@ -222,6 +222,30 @@ function Scores({ stats }: { stats: ScoreStats }) {
 const RANGE = 100
 const CHUNK = 24
 
+/** Ниже первого экрана: монтируем виджет только когда секция почти в зоне видимости. */
+function DeferNear({ children, minHeight = 280 }: { children: ReactNode; minHeight?: number }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [near, setNear] = useState(false)
+  useEffect(() => {
+    const el = box.current
+    if (!el || near) return
+    if (!('IntersectionObserver' in window)) {
+      setNear(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setNear(true)
+      },
+      { rootMargin: `${Math.max(800, Math.round(innerHeight))}px 0px` },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [near])
+  if (near) return <>{children}</>
+  return <div ref={box} style={{ minHeight }} aria-hidden="true" />
+}
+
 /**
  * Телефон: когда кнопка «Смотреть» уехала вверх, внизу появляется полоска с ней, как в приложениях
  * Crunchyroll и Netflix. Список серий и описание длинные, и возвращаться наверх за кнопкой неудобно.
@@ -770,8 +794,9 @@ export default function TitlePage() {
           </aside>
         </div>
 
-        {characters.length > 0 && (
-          <Shelf title="Персонажи" variant="compact">
+        <DeferNear minHeight={320}>
+          {characters.length > 0 && (
+            <Shelf title="Персонажи" variant="compact">
               {characters.map((c) => (
                 <Link key={c.id} to={`/character/${c.id}`} className="row-scroll__item character-card">
                   <span className="character-card__img">
@@ -781,34 +806,34 @@ export default function TitlePage() {
                   <span className="muted character-card__role">{c.main ? 'Главный герой' : 'Второстепенный'}</span>
                 </Link>
               ))}
-          </Shelf>
-        )}
+            </Shelf>
+          )}
 
-        {videos.length > 0 && (
-          <Shelf
-            title="Видео"
-            variant="wide"
-            extra={
-              videoKinds.length > 1 && (
-                <div className="chips video-kinds" role="group" aria-label="Какие видео показать">
-                  {['', ...videoKinds].map((k) => (
-                    <button
-                      key={k || 'all'}
-                      type="button"
-                      className={`pill${videoKind === k ? ' active' : ''}`}
-                      aria-pressed={videoKind === k}
-                      onClick={() => {
-                        setVideoKind(k)
-                        setVideoOpen(undefined)
-                      }}
-                    >
-                      {k ? `${k} · ${allVideos.filter((v) => v.kind === k).length}` : `Все · ${allVideos.length}`}
-                    </button>
-                  ))}
-                </div>
-              )
-            }
-          >
+          {videos.length > 0 && (
+            <Shelf
+              title="Видео"
+              variant="wide"
+              extra={
+                videoKinds.length > 1 && (
+                  <div className="chips video-kinds" role="group" aria-label="Какие видео показать">
+                    {['', ...videoKinds].map((k) => (
+                      <button
+                        key={k || 'all'}
+                        type="button"
+                        className={`pill${videoKind === k ? ' active' : ''}`}
+                        aria-pressed={videoKind === k}
+                        onClick={() => {
+                          setVideoKind(k)
+                          setVideoOpen(undefined)
+                        }}
+                      >
+                        {k ? `${k} · ${allVideos.filter((v) => v.kind === k).length}` : `Все · ${allVideos.length}`}
+                      </button>
+                    ))}
+                  </div>
+                )
+              }
+            >
               {videos.map((v, i) => (
                 <button key={v.youtubeId} type="button" className="row-scroll__item video-card" onClick={() => setVideoOpen(i)}>
                   <span className="video-card__img">
@@ -820,23 +845,24 @@ export default function TitlePage() {
                   <span className="video-card__title">{v.title}</span>
                 </button>
               ))}
-          </Shelf>
-        )}
+            </Shelf>
+          )}
 
-        {gallery.length > 1 && (
-          <section className="stack">
-            <div className="section-head">
-              <h2>Кадры</h2>
-            </div>
-            <div className="shots-grid">
-              {gallery.map((src, i) => (
-                <button key={src} type="button" className="shot" onClick={() => setShotOpen(i)} aria-label={`Кадр ${i + 1}`}>
-                  <img src={shotPreview(src)} alt="" loading="lazy" />
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
+          {gallery.length > 1 && (
+            <section className="stack">
+              <div className="section-head">
+                <h2>Кадры</h2>
+              </div>
+              <div className="shots-grid">
+                {gallery.map((src, i) => (
+                  <button key={src} type="button" className="shot" onClick={() => setShotOpen(i)} aria-label={`Кадр ${i + 1}`}>
+                    <img src={shotPreview(src)} alt="" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+        </DeferNear>
 
         {shotOpen !== undefined && gallery[shotOpen] && (
           <Suspense fallback={null}>
@@ -866,55 +892,57 @@ export default function TitlePage() {
           </Suspense>
         )}
 
-        {!result.value?.demo && <WatchOrder animeId={anime.id} />}
+        <DeferNear minHeight={480}>
+          {!result.value?.demo && <WatchOrder animeId={anime.id} />}
 
-        {!result.value?.demo && (
+          {!result.value?.demo && (
+            <Suspense fallback={null}>
+              <BestEpisodes animeId={anime.id} />
+              <ThemeSongs animeId={anime.id} />
+            </Suspense>
+          )}
+
           <Suspense fallback={null}>
-            <BestEpisodes animeId={anime.id} />
-            <ThemeSongs animeId={anime.id} />
+            <TitleFaq
+              title={anime.title}
+              originalTitle={anime.originalTitle}
+              episodesTotal={anime.episodes}
+              episodesAired={anime.episodesAired}
+              year={anime.year}
+              genres={anime.genres}
+              studio={anime.studio}
+              status={anime.ongoing ? 'ongoing' : 'released'}
+              ageRating={ageLabel(anime.rating)}
+              mangaTitle={mangaRel?.anime.title}
+            />
+            <TitleComments animeId={anime.id} aboutTitle />
+            <Reviews animeId={anime.id} />
           </Suspense>
-        )}
 
-        <Suspense fallback={null}>
-          <TitleFaq
-            title={anime.title}
-            originalTitle={anime.originalTitle}
-            episodesTotal={anime.episodes}
-            episodesAired={anime.episodesAired}
-            year={anime.year}
-            genres={anime.genres}
-            studio={anime.studio}
-            status={anime.ongoing ? 'ongoing' : 'released'}
-            ageRating={ageLabel(anime.rating)}
-            mangaTitle={mangaRel?.anime.title}
-          />
-          <TitleComments animeId={anime.id} aboutTitle />
-          <Reviews animeId={anime.id} />
-        </Suspense>
+          {related.length > 0 && (
+            <Shelf title="Связанное" subtitle="Сначала то, что смотрят по порядку, потом остальные части, манга и ранобэ">
+              {related.map((r) => (
+                <div key={r.anime.id} className="row-scroll__item">
+                  <PosterCard anime={r.anime} href={r.href} tag={{ text: r.href ? r.anime.kind : r.relation, accent: r.chain }} />
+                </div>
+              ))}
+            </Shelf>
+          )}
 
-        {related.length > 0 && (
-          <Shelf title="Связанное" subtitle="Сначала то, что смотрят по порядку, потом остальные части, манга и ранобэ">
-            {related.map((r) => (
-              <div key={r.anime.id} className="row-scroll__item">
-                <PosterCard anime={r.anime} href={r.href} tag={{ text: r.href ? r.anime.kind : r.relation, accent: r.chain }} />
-              </div>
-            ))}
-          </Shelf>
-        )}
-
-        {similar.length > 0 && (
-          <Shelf
-            title="Похожее"
-            subtitle="Если понравилось это, загляните сюда"
-            more={similar.length >= SIMILAR_MIN ? { to: animeHref(anime).replace(/^\/anime\//, '/similar/') } : undefined}
-          >
-            {similar.map((a) => (
-              <div key={a.id} className="row-scroll__item">
-                <PosterCard anime={a} />
-              </div>
-            ))}
-          </Shelf>
-        )}
+          {similar.length > 0 && (
+            <Shelf
+              title="Похожее"
+              subtitle="Если понравилось это, загляните сюда"
+              more={similar.length >= SIMILAR_MIN ? { to: animeHref(anime).replace(/^\/anime\//, '/similar/') } : undefined}
+            >
+              {similar.map((a) => (
+                <div key={a.id} className="row-scroll__item">
+                  <PosterCard anime={a} />
+                </div>
+              ))}
+            </Shelf>
+          )}
+        </DeferNear>
       </main>
     </>
   )

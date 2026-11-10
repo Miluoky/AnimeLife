@@ -73,7 +73,8 @@ export default function CatalogGrid({ query, empty = 'Ничего не нашл
       ) : items.length ? (
         <div className="grid grid--posters">
           {items.map((a, i) => (
-            <PosterCard key={a.id} anime={a} priority={i < 6} />
+            /* Eager только у первого постера сетки (LCP); остальные lazy через OptimizedImage. */
+            <PosterCard key={a.id} anime={a} priority={i === 0} />
           ))}
         </div>
       ) : (
