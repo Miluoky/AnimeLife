@@ -51,6 +51,28 @@ jobs:
       - if: steps.keys.outputs.ok == 'true'
         name: Выложить Worker с сайтом
         run: npx --yes wrangler@4 deploy -c wrangler.animelife.jsonc
+      # Секреты Core для входа/уведомлений Telegram (раньше жили в Appwrite Function social-login).
+      - if: steps.keys.outputs.ok == 'true'
+        name: Секреты Telegram на Worker
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::warning::Секрет TELEGRAM_BOT_TOKEN не задан — вход через Telegram останется выключенным."
+            exit 0
+          fi
+          printf '%s' "$TELEGRAM_BOT_TOKEN" | npx --yes wrangler@4 secret put TELEGRAM_BOT_TOKEN -c wrangler.animelife.jsonc
+          printf '%s' "AnimeLifeAuth_bot" | npx --yes wrangler@4 secret put TELEGRAM_BOT_USERNAME -c wrangler.animelife.jsonc
+          printf '%s' "https://animelife.top" | npx --yes wrangler@4 secret put SITE_URL -c wrangler.animelife.jsonc
+          WH="$TELEGRAM_WEBHOOK_SECRET"
+          if [ -z "$WH" ]; then
+            WH=$(printf '%s' "animelife-tg-hook:$TELEGRAM_BOT_TOKEN" | sha256sum | awk '{print $1}')
+          fi
+          printf '%s' "$WH" | npx --yes wrangler@4 secret put TELEGRAM_WEBHOOK_SECRET -c wrangler.animelife.jsonc
+          curl -fsS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+            -H 'Content-Type: application/json' \
+            --data "{\"url\":\"https://animelife.top/api/core/auth/oauth/telegram/webhook\",\"secret_token\":\"${WH}\",\"allowed_updates\":[\"message\",\"callback_query\"]}"
       # IndexNow: сразу сообщить Яндексу и Bing об обновлённых разделах, посадочных страницах и онгоингах
       # (scripts/indexnow.mjs). Это ускоряет обход, но не обязательно: ошибка здесь публикацию не ломает.
       - if: steps.keys.outputs.ok == 'true'

@@ -214,7 +214,7 @@ async function telegramStart(env) {
   return {
     code,
     pollKey,
-    bot: env.TELEGRAM_BOT_USERNAME || '',
+    bot: env.TELEGRAM_BOT_USERNAME || 'AnimeLifeAuth_bot',
     expiresIn: LOGIN_TTL_MS / 1000,
   }
 }
