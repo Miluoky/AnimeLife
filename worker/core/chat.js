@@ -3,7 +3,7 @@
  */
 
 import { err, json } from './auth.js'
-import { heldReason, rejectSpam, ChatUserError } from './automod.js'
+import { heldReason, rejectSpam, UserError } from './automod.js'
 import { randomId, sha256Hex } from './crypto.js'
 
 const MAX_TEXT = 500
@@ -77,7 +77,7 @@ export async function handleChatAction(env, session, body) {
     try {
       rejectSpam(message, (recent.results || []).map((r) => r.text))
     } catch (e) {
-      return err(e instanceof ChatUserError ? e.message : 'Сообщение отклонено.', 400)
+      return err(e instanceof UserError ? e.message : 'Сообщение отклонено.', 400)
     }
     if (heldReason(message)) return err('В общем чате нельзя мат и ссылки на чужие сайты.', 400)
 
