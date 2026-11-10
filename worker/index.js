@@ -29,6 +29,7 @@ import { isShikiProxy, shikiProxy } from './shikiProxy.js'
 import { isYummyProxy, yummyProxy } from './yummyProxy.js'
 import { isMangadexProxy, mangadexProxy } from './mangadexProxy.js'
 import { isSibnetProxy, sibnetProxy } from './sibnetProxy.js'
+import { isCoreApi, coreApi } from './core/router.js'
 import { guard } from './guard.js'
 import { EN_HOME, enDescription, enFacts, enName, enPath, enTitle } from '../src/data/en.ts'
 import {
@@ -1367,7 +1368,8 @@ async function render(env, url, status = 200, asset) {
 
 // Готовая страница хранится в кэше Cloudflare: первые 5 минут отдаётся как есть, потом ещё сутки тоже сразу,
 // а свежая собирается в фоне. Так зритель не ждёт ответов Shikimori, пока Worker собирает страницу.
-const PAGE_FRESH = 300
+// Дольше держим SEO-страницу в Cache API: повторный бот не бьёт Shikimori (вызов Worker всё равно есть).
+const PAGE_FRESH = 900
 const PAGE_KEEP = DAY
 // Комнаты и профили меняются сразу (закрыли комнату, скрыли профиль): их не храним.
 const UNCACHED = /^\/(?:together\/|u\/|club\/|c\/)/
@@ -1562,6 +1564,18 @@ async function sitemapTitles(ctx, which) {
 }
 
 export default {
+  /** Раз в час: старые комнаты и сообщения Core (не трогает лимит зрительских запросов). */
+  async scheduled(_event, env, ctx) {
+    if (!env?.DB) return
+    ctx.waitUntil(
+      (async () => {
+        const cutRooms = Date.now() - 6 * 3600 * 1000
+        const cutMsg = Date.now() - 24 * 3600 * 1000
+        await env.DB.prepare('DELETE FROM messages WHERE created_at < ?').bind(cutMsg).run()
+        await env.DB.prepare('DELETE FROM rooms WHERE updated_at < ?').bind(cutRooms).run()
+      })().catch((e) => console.error('scheduled', e)),
+    )
+  },
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
     // Сканеры, сборщики для ИИ и поддельные браузеры отсеиваются до любой работы (worker/guard.js).
@@ -1594,6 +1608,8 @@ export default {
     // Главы манги из MangaDex для читалки (worker/mangadexProxy.js).
     if (isMangadexProxy(url.pathname)) return mangadexProxy(request, ctx)
     if (isSibnetProxy(url.pathname)) return sibnetProxy(request, ctx)
+    // Свой бэкенд вместо Appwrite (worker/core): auth, списки, действия community.
+    if (isCoreApi(url.pathname)) return coreApi(request, env)
     if (url.pathname === '/sitemap.xml') return sitemapIndex()
     if (url.pathname === '/sitemap-pages.xml') return sitemapPages()
     if (url.pathname === '/sitemap-titles.xml') return sitemapTitles(ctx, 'titles')

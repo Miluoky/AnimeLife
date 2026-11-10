@@ -1,0 +1,22 @@
+// Пример bindings для AnimeLife Core. Скопируйте блоки d1_databases / kv_namespaces
+// в wrangler.jsonc и wrangler.animelife.jsonc после:
+//   npx wrangler d1 create anime_core
+//   npx wrangler kv namespace create anime_sessions
+// Подставьте реальные id. Без них /api/core отвечает 503, сайт на Appwrite не ломается.
+{
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "anime_core",
+      "database_id": "REPLACE_WITH_D1_ID"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "REPLACE_WITH_KV_ID"
+    }
+  ]
+  // Позже:
+  // "r2_buckets": [{ "binding": "MANGA", "bucket_name": "anime-manga" }]
+}

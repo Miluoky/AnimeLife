@@ -83,6 +83,13 @@ async function api<T>(path: string, params: [string, string][] = []): Promise<T>
   return res.json() as Promise<T>
 }
 
+/** Рейтинги контента MangaDex. `adult` — только за Age Gate (хентай-манга): иначе pornographic не ищем. */
+const RATINGS = ['safe', 'suggestive', 'erotica'] as const
+const RATINGS_ADULT = [...RATINGS, 'pornographic'] as const
+export type MangadexOpts = { adult?: boolean }
+const ratingParams = (adult?: boolean): [string, string][] =>
+  (adult ? RATINGS_ADULT : RATINGS).map((r) => ['contentRating[]', r])
+
 interface MdManga {
   id: string
   attributes: { links: Record<string, string> | null; availableTranslatedLanguages: (string | null)[] }
@@ -94,8 +101,13 @@ const found = new Map<string, Promise<MangadexTitle | null>>()
  * Та же манга на MangaDex. Ищем по названиям и берём ту, у которой ссылка на MyAnimeList совпадает с id Shikimori:
  * по одному названию легко попасть в додзинси или антологию.
  */
-export function findMangadex(shikiId: string, names: (string | undefined)[]): Promise<MangadexTitle | null> {
-  if (!found.has(shikiId)) {
+export function findMangadex(
+  shikiId: string,
+  names: (string | undefined)[],
+  opts: MangadexOpts = {},
+): Promise<MangadexTitle | null> {
+  const cacheKey = `${shikiId}:${opts.adult ? 'a' : 's'}`
+  if (!found.has(cacheKey)) {
     const search = async () => {
       for (const name of [...new Set(names.filter((n): n is string => Boolean(n)))].slice(0, 3)) {
         const res = await api<{ data: MdManga[] }>('manga', [
@@ -103,9 +115,7 @@ export function findMangadex(shikiId: string, names: (string | undefined)[]): Pr
           ['limit', '20'],
           // Без сортировки по похожести короткие названия («Monster», «Magi») тонут среди однофамильцев.
           ['order[relevance]', 'desc'],
-          ['contentRating[]', 'safe'],
-          ['contentRating[]', 'suggestive'],
-          ['contentRating[]', 'erotica'],
+          ...ratingParams(opts.adult),
         ])
         const m = res.data.find((d) => d.attributes.links?.mal === shikiId)
         if (m) {
@@ -116,10 +126,10 @@ export function findMangadex(shikiId: string, names: (string | undefined)[]): Pr
       return null
     }
     const p = search()
-    p.catch(() => found.delete(shikiId))
-    found.set(shikiId, p)
+    p.catch(() => found.delete(cacheKey))
+    found.set(cacheKey, p)
   }
-  return found.get(shikiId)!
+  return found.get(cacheKey)!
 }
 
 /** Язык оригинала на MangaDex для вида на Shikimori: манга — японская, манхва — корейская, маньхуа — китайская. */
@@ -130,7 +140,12 @@ export const READABLE_PAGE = 48
  * Манга, которую можно прочитать на сайте на этом языке: всё, где на MangaDex есть главы на нём, самое читаемое первым.
  * Возвращает id Shikimori (ссылка MangaDex на MyAnimeList); у кого её нет, на сайте открыть нечего, их пропускаем.
  */
-export async function readableIds(lang: string, kind: string, page: number): Promise<{ ids: string[]; more: boolean }> {
+export async function readableIds(
+  lang: string,
+  kind: string,
+  page: number,
+  opts: MangadexOpts = {},
+): Promise<{ ids: string[]; more: boolean }> {
   const res = await api<{ data: MdManga[]; total: number }>('manga', [
     ['availableTranslatedLanguage[]', lang],
     ['hasAvailableChapters', 'true'],
@@ -138,8 +153,7 @@ export async function readableIds(lang: string, kind: string, page: number): Pro
     ['limit', String(READABLE_PAGE)],
     ['offset', String((page - 1) * READABLE_PAGE)],
     ...(ORIGINAL[kind] ?? []).map((l): [string, string] => ['originalLanguage[]', l]),
-    ['contentRating[]', 'safe'],
-    ['contentRating[]', 'suggestive'],
+    ...ratingParams(opts.adult),
   ])
   const ids = res.data.map((m) => m.attributes.links?.mal).filter((id): id is string => !!id && /^\d{1,10}$/.test(id))
   return { ids, more: page * READABLE_PAGE < res.total }
@@ -154,8 +168,8 @@ interface MdChapter {
 const lists = new Map<string, Promise<Chapter[]>>()
 
 /** Все главы на одном языке по порядку. Если одну главу перевели несколько команд, берём первый перевод. */
-export function fetchChapters(mdId: string, lang: string): Promise<Chapter[]> {
-  const key = `${mdId}:${lang}`
+export function fetchChapters(mdId: string, lang: string, opts: MangadexOpts = {}): Promise<Chapter[]> {
+  const key = `${mdId}:${lang}:${opts.adult ? 'a' : 's'}`
   if (!lists.has(key)) {
     const load = async () => {
       const out: Chapter[] = []
@@ -170,9 +184,7 @@ export function fetchChapters(mdId: string, lang: string): Promise<Chapter[]> {
           ['includes[]', 'scanlation_group'],
           ['includeExternalUrl', '0'],
           ['includeUnavailable', '0'],
-          ['contentRating[]', 'safe'],
-          ['contentRating[]', 'suggestive'],
-          ['contentRating[]', 'erotica'],
+          ...ratingParams(opts.adult),
         ])
         for (const c of res.data) {
           const num = c.attributes.chapter ?? ''
@@ -245,27 +257,34 @@ export function saveProgress(mangaId: string, p: ReadProgress) {
 }
 
 /** Номер последней главы на этом языке: для значка «новые главы» на полке «Читаю». */
-export async function latestChapter(mdId: string, lang: string): Promise<string | undefined> {
+export async function latestChapter(mdId: string, lang: string, opts: MangadexOpts = {}): Promise<string | undefined> {
   const res = await api<{ data: MdChapter[] }>(`manga/${mdId}/feed`, [
     ['translatedLanguage[]', lang],
     ['limit', '1'],
     ['order[chapter]', 'desc'],
     ['includeExternalUrl', '0'],
     ['includeUnavailable', '0'],
-    ['contentRating[]', 'safe'],
-    ['contentRating[]', 'suggestive'],
-    ['contentRating[]', 'erotica'],
+    ...ratingParams(opts.adult),
   ])
   return res.data[0]?.attributes.chapter ?? undefined
 }
 
 /**
- * Главы на одном языке из обоих источников: наши (загруженные командами) и MangaDex.
- * Если одну главу есть в обоих, берём нашу: её команда выложила для читателей Anime Life.
+ * Главы на одном языке: наши (команды Anime Life), MangaDex, затем запасной каталог (Comick), если передан.
+ * При совпадении номера предпочитаем нашу главу, потом MangaDex.
  */
-export async function mergeChapters(own: Chapter[], mdId: string | undefined, lang: string): Promise<Chapter[]> {
+export async function mergeChapters(
+  own: Chapter[],
+  mdId: string | undefined,
+  lang: string,
+  opts: MangadexOpts & { extra?: Chapter[] } = {},
+): Promise<Chapter[]> {
   const ours = own.filter((c) => c.lang === lang)
-  const md = mdId ? await fetchChapters(mdId, lang) : []
+  const md = mdId ? await fetchChapters(mdId, lang, opts).catch(() => []) : []
+  const extra = (opts.extra ?? []).filter((c) => !c.lang || c.lang === lang)
   const taken = new Set(ours.map((c) => c.num))
-  return [...ours, ...md.filter((c) => !c.num || !taken.has(c.num))].sort((a, b) => (Number(a.num) || 0) - (Number(b.num) || 0))
+  const fromMd = md.filter((c) => !c.num || !taken.has(c.num))
+  for (const c of fromMd) if (c.num) taken.add(c.num)
+  const fromExtra = extra.filter((c) => !c.num || !taken.has(c.num))
+  return [...ours, ...fromMd, ...fromExtra].sort((a, b) => (Number(a.num) || 0) - (Number(b.num) || 0))
 }

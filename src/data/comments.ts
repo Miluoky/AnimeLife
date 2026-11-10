@@ -1,5 +1,4 @@
-import { Query } from 'appwrite'
-import { COMMUNITY_DB, tablesDB } from '../api/appwrite'
+import { BACKEND, COMMUNITY_DB } from '../api/config'
 import { callCommunity } from './community'
 
 /** Комментарии: episode ≥ 1 — к серии, episode = 0 — к тайтлу на странице аниме. */
@@ -21,7 +20,33 @@ export interface EpisodeComment {
   replyName?: string | null
 }
 
+function targetOf(animeId: string, episode: number) {
+  return episode > 0 ? `${animeId}:${episode}` : animeId
+}
+
 export async function loadComments(animeId: string, episode: number): Promise<EpisodeComment[]> {
+  if (BACKEND === 'core') {
+    const targetId = targetOf(animeId, episode)
+    const res = await fetch(`/api/core/comments?targetId=${encodeURIComponent(targetId)}`, { credentials: 'include' })
+    if (!res.ok) return []
+    const data = (await res.json()) as {
+      comments: { $id: string; $createdAt: string; userId: string; userName?: string; text: string; hidden?: boolean }[]
+    }
+    return (data.comments ?? []).map((c) => ({
+      $id: c.$id,
+      animeId,
+      episode,
+      userId: c.userId,
+      name: c.userName || 'Зритель',
+      text: c.text,
+      spoiler: false,
+      at: Date.parse(c.$createdAt) || Date.now(),
+      hidden: c.hidden,
+    }))
+  }
+
+  const { Query } = await import('appwrite')
+  const { tablesDB } = await import('../api/appwrite')
   const res = await tablesDB.listRows({
     databaseId: COMMUNITY_DB,
     tableId: 'comments',

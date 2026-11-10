@@ -18,7 +18,8 @@ const MIN = 60
 const HOUR = 60 * MIN
 const STALE = 24 * HOUR
 const DAY_S = 24 * HOUR
-const BROWSER_TTL = 300
+// 30 мин в браузере: повторное открытие той же манги не бьёт Worker (картинки и так immutable на месяц).
+const BROWSER_TTL = 1800
 const TIMEOUT = 10000
 const UA = 'AnimeLife/1.0 (+https://animelife.top)'
 

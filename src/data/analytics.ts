@@ -1,8 +1,11 @@
-import { APPWRITE_ENDPOINT, APPWRITE_PROJECT, COMMUNITY_FUNCTION } from '../api/config'
+import { APPWRITE_ENDPOINT, APPWRITE_PROJECT, BACKEND, COMMUNITY_FUNCTION } from '../api/config'
 
 const SESSION_KEY = 'animelife.analytics.session'
-/** Отметка «я ещё здесь» раз в 2 минуты и только пока вкладка видна: онлайн — кто отмечался за 5 минут. */
-const HEARTBEAT = 120_000
+/**
+ * Heartbeat отключён: каждый тик = вызов Worker/бэкенда и лимит Cloudflare.
+ * Онлайн в админке — по pageview за сессию; при необходимости включить > 0.
+ */
+const HEARTBEAT = 0
 
 function sessionId() {
   try {
@@ -20,10 +23,20 @@ function sessionId() {
 export const live = () => typeof location !== 'undefined' && /(^|\.)animelife\.top$/.test(location.hostname)
 
 /**
- * Отметка просмотра — обычный запрос к функции, без SDK Appwrite: SDK тяжёлый,
- * а гостю на первом экране он не нужен (см. tests/smoke.spec.ts).
+ * Отметка просмотра без тяжёлого SDK. На Core — один POST на наш Worker;
+ * на Appwrite — async execution (как раньше).
  */
 export function beacon(body: object) {
+  if (BACKEND === 'core') {
+    void fetch('/api/core/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      keepalive: true,
+      credentials: 'include',
+    }).catch(() => undefined)
+    return
+  }
   void fetch(`${APPWRITE_ENDPOINT}/functions/${COMMUNITY_FUNCTION}/executions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Appwrite-Project': APPWRITE_PROJECT },
@@ -58,21 +71,23 @@ export function trackPage(path: string) {
   }
   const schedule = () => {
     window.clearInterval(timer)
-    if (document.visibilityState === 'visible') timer = window.setInterval(() => send(false), HEARTBEAT)
+    if (HEARTBEAT > 0 && document.visibilityState === 'visible') {
+      timer = window.setInterval(() => send(false), HEARTBEAT)
+    }
   }
   const onVisibility = () => {
-    if (document.visibilityState === 'visible') send(false)
+    if (HEARTBEAT > 0 && document.visibilityState === 'visible') send(false)
     schedule()
   }
   // Первая отметка — когда страница уже показана, чтобы не мешать загрузке.
   const first = window.setTimeout(() => send(true), 1500)
   schedule()
-  document.addEventListener('visibilitychange', onVisibility)
+  if (HEARTBEAT > 0) document.addEventListener('visibilitychange', onVisibility)
   return () => {
     stopped = true
     window.clearTimeout(first)
     window.clearInterval(timer)
-    document.removeEventListener('visibilitychange', onVisibility)
+    if (HEARTBEAT > 0) document.removeEventListener('visibilitychange', onVisibility)
   }
 }
 

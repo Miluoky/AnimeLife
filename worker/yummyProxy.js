@@ -13,8 +13,9 @@ const CACHE_ROOT = 'https://animelife.top/__yummy/v1/videos/'
 // Новые серии появляются раз в день-неделю: часа свежести хватает.
 const FRESH = 3600
 const STALE = 7 * 24 * 3600
-// Браузер держит список серий полчаса: повторное открытие плеера того же тайтла не тратит вызов Worker.
-const BROWSER_TTL = 1800
+// Браузер держит список 6 часов: повторный заход в плеер того же тайтла не тратит вызов Worker.
+// Новые серии на Yummy появляются редко; при промахе кэша Worker всё равно обновит за час (FRESH).
+const BROWSER_TTL = 6 * 3600
 const TIMEOUT = 10000
 const UA = 'AnimeLife/1.0 (+https://animelife.top)'
 

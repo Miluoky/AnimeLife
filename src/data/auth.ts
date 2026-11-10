@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import type { Models } from 'appwrite'
+import { BACKEND } from '../api/config'
+import type { CoreUser } from '../api/core'
 import { historyStore, type HistoryEntry } from './history'
 import { listStore, removedStore, type ListEntry } from './myList'
 import { flagsStore, mergeFlags, type Flag } from './flags'
@@ -10,10 +11,14 @@ import { getRecentPositionsForSync, reconcilePositions, subscribePositions, type
 import { episodeReactionsStore, mergeEpisodeReactions, type EpisodeReactionsMap } from './episodeReactions'
 import { mergeSeasonPlans, seasonPlanStore, type SeasonPlanMap } from './seasonPlan'
 
+const useCore = () => BACKEND === 'core'
+const core = () => import('../api/core')
+// SDK Appwrite только пока бэкенд = appwrite.
+const sdk = () => import('../api/appwrite')
+
 /**
- * Аккаунт и синхронизация. «Мой список» и история просмотра лежат в настройках пользователя
- * Appwrite (prefs, до 64 КБ): отдельная база для этого не нужна. В браузере остаётся копия,
- * поэтому сайт работает и без входа, и без сети.
+ * Аккаунт и синхронизация. Prefs и список живут на бэкенде (Appwrite или свой Core);
+ * в браузере остаётся копия — сайт работает и без входа, и без сети.
  */
 interface SyncedPrefs {
   /** старое место списка: настройки аккаунта вмещают только 64 КБ, теперь список в таблице lists */
@@ -36,10 +41,8 @@ interface SyncedPrefs {
 
 const REMOVED_TTL = 90 * 24 * 3600 * 1000
 
-// SDK Appwrite весит заметно, поэтому едет отдельной частью и подключается при первом обращении к аккаунту.
-const sdk = () => import('../api/appwrite')
-
-export type User = Models.User<Models.Preferences>
+/** Достаточно полей и для Appwrite SDK, и для Core (`/api/core`). */
+export type User = CoreUser & { prefs: SyncedPrefs & Record<string, unknown> }
 export type { SyncedPrefs, SyncedPlaybackPosition }
 
 interface AuthState {
@@ -104,10 +107,20 @@ function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
  * Список хранится в таблице lists (строка = ID пользователя, читать и править может только он):
  * в настройках аккаунта места хватало примерно на 150 тайтлов, а после импорта их бывает тысячи.
  */
-async function loadRemoteList(userId: string): Promise<ListEntry[] | null> {
+async function loadRemoteList(_userId: string): Promise<ListEntry[] | null> {
+  if (useCore()) {
+    const { coreGetList } = await core()
+    try {
+      const row = await coreGetList()
+      return (row.data ?? []) as ListEntry[]
+    } catch (e) {
+      if (e && typeof e === 'object' && 'code' in e && e.code === 404) return null
+      throw e
+    }
+  }
   const { tablesDB, COMMUNITY_DB } = await sdk()
   try {
-    const row = await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId: 'lists', rowId: userId })
+    const row = await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId: 'lists', rowId: _userId })
     return JSON.parse(String((row as unknown as { data: string }).data || '[]')) as ListEntry[]
   } catch (e) {
     if (e && typeof e === 'object' && 'code' in e && e.code === 404) return null
@@ -116,6 +129,17 @@ async function loadRemoteList(userId: string): Promise<ListEntry[] | null> {
 }
 
 async function saveRemoteList(userId: string, list: ListEntry[]) {
+  if (useCore()) {
+    const { coreSaveList, coreAction } = await core()
+    try {
+      await coreSaveList(list)
+    } catch (e) {
+      if (!(e && typeof e === 'object' && 'code' in e && e.code === 404)) throw e
+      await coreAction('list-init')
+      await coreSaveList(list)
+    }
+    return
+  }
   const { tablesDB, COMMUNITY_DB } = await sdk()
   const write = () =>
     tablesDB.updateRow({
@@ -157,9 +181,15 @@ async function push() {
       seasonPlan: seasonPlanStore.get(),
       episodeReactions: mergeEpisodeReactions({}, episodeReactionsStore.get()),
     }
-    const { account } = await sdk()
-    const user = await account.updatePrefs({ ...state.user.prefs, ...prefs })
-    setState({ user, syncError: undefined })
+    if (useCore()) {
+      const { coreUpdatePrefs } = await core()
+      const next = await coreUpdatePrefs({ ...state.user.prefs, ...prefs })
+      setState({ user: next.user as User, syncError: undefined })
+    } else {
+      const { account } = await sdk()
+      const user = (await account.updatePrefs({ ...state.user.prefs, ...prefs })) as User
+      setState({ user, syncError: undefined })
+    }
   } catch (e) {
     setState({ syncError: e instanceof Error ? e.message : String(e) })
   }
@@ -231,11 +261,11 @@ function knownGuest() {
 }
 
 /**
- * Есть ли в браузере сессия Appwrite. Appwrite Cloud на каждый вход присылает X-Fallback-Cookies,
- * и SDK кладёт их в localStorage (cookieFallback) — так у всех, кто когда-либо входил на этом устройстве.
- * Нет записи — значит, не входили: account.get() ответил бы 401 (ошибка в консоли у каждого нового гостя).
+ * Есть ли след сессии. Appwrite — cookieFallback в localStorage; Core — cookie HttpOnly,
+ * поэтому без метки гостя всегда проверяем /auth/me.
  */
 function maybeSignedIn() {
+  if (useCore()) return !knownGuest()
   try {
     return (localStorage.getItem('cookieFallback') ?? '').includes('a_session_')
   } catch {
@@ -245,8 +275,15 @@ function maybeSignedIn() {
 
 async function refresh() {
   try {
+    if (useCore()) {
+      const { coreMe } = await core()
+      const { user } = await coreMe()
+      rememberGuest(false)
+      await adopt(user as User)
+      return
+    }
     const { account } = await sdk()
-    const user = await account.get()
+    const user = (await account.get()) as User
     rememberGuest(false)
     await adopt(user)
   } catch (e) {
@@ -302,12 +339,24 @@ export function authErrorMessage(e: unknown): string {
 }
 
 export async function signIn(email: string, password: string) {
+  if (useCore()) {
+    const { coreLogin } = await core()
+    await coreLogin(email, password)
+    await refresh()
+    return
+  }
   const { account } = await sdk()
   await account.createEmailPasswordSession({ email, password })
   await refresh()
 }
 
 export async function signUp(name: string, email: string, password: string) {
+  if (useCore()) {
+    const { coreRegister } = await core()
+    await coreRegister(email, password, name || undefined)
+    await refresh()
+    return
+  }
   const { account, ID } = await sdk()
   await account.create({ userId: ID.unique(), email, password, name: name || undefined })
   await signIn(email, password)
@@ -315,6 +364,7 @@ export async function signUp(name: string, email: string, password: string) {
 
 /** Обмен одноразового токена (Google, Яндекс, VK, Telegram) на обычную сессию. */
 export async function finishSession(userId: string, secret: string) {
+  if (useCore()) throw new Error('OAuth для Core ещё в переносе — пока войдите почтой.')
   const { account } = await sdk()
   await account.createSession({ userId, secret })
   await refresh()
@@ -322,12 +372,14 @@ export async function finishSession(userId: string, secret: string) {
 
 /** Письмо со ссылкой для нового пароля. Ссылка ведёт на /account/recovery этого же сайта. */
 export async function requestRecovery(email: string) {
+  if (useCore()) throw new Error('Сброс пароля в Core скоро; пока напишите в поддержку.')
   const { account } = await sdk()
   await account.createRecovery({ email, url: `${window.location.origin}${import.meta.env.BASE_URL}account/recovery` })
 }
 
 /** Новый пароль по ссылке из письма (userId и secret приходят в адресе). */
 export async function finishRecovery(userId: string, secret: string, password: string) {
+  if (useCore()) throw new Error('Сброс пароля в Core скоро.')
   const { account } = await sdk()
   await account.updateRecovery({ userId, secret, password })
 }
@@ -336,8 +388,13 @@ export async function signOut() {
   clearTimeout(pushTimer)
   await push()
   try {
-    const { account } = await sdk()
-    await account.deleteSession({ sessionId: 'current' })
+    if (useCore()) {
+      const { coreLogout } = await core()
+      await coreLogout()
+    } else {
+      const { account } = await sdk()
+      await account.deleteSession({ sessionId: 'current' })
+    }
   } finally {
     // Список остаётся в браузере: выход не должен ничего стирать.
     remoteListLoaded = false
@@ -357,9 +414,14 @@ export async function forgetDeletedAccount(accountDeleted: boolean) {
   clearTimeout(pushTimer)
   pushTimer = undefined
   try {
-    const { account } = await sdk()
-    if (!accountDeleted) await account.updateStatus()
-    else await account.deleteSession({ sessionId: 'current' }).catch(() => undefined)
+    if (useCore()) {
+      const { coreLogout } = await core()
+      await coreLogout().catch(() => undefined)
+    } else {
+      const { account } = await sdk()
+      if (!accountDeleted) await account.updateStatus()
+      else await account.deleteSession({ sessionId: 'current' }).catch(() => undefined)
+    }
   } finally {
     remoteListLoaded = false
     rememberGuest(true)
@@ -372,7 +434,13 @@ export async function forgetDeletedAccount(accountDeleted: boolean) {
 /** Включить или выключить открытый профиль: флаг хранится в настройках аккаунта. */
 export async function setPublicProfile(on: boolean) {
   if (!state.user) return
+  if (useCore()) {
+    const { coreUpdatePrefs } = await core()
+    const next = await coreUpdatePrefs({ ...state.user.prefs, publicProfile: on })
+    setState({ user: next.user as User })
+    return
+  }
   const { account } = await sdk()
-  const user = await account.updatePrefs({ ...state.user.prefs, publicProfile: on })
+  const user = (await account.updatePrefs({ ...state.user.prefs, publicProfile: on })) as User
   setState({ user })
 }

@@ -1,5 +1,14 @@
-// Настройки Appwrite и внешних сервисов без самого SDK: этот файл можно подключать в основную сборку,
-// а тяжёлый SDK (src/api/appwrite.ts) грузится отдельной частью, когда он действительно нужен.
+// Настройки бэкенда и внешних сервисов без тяжёлого SDK: этот файл можно подключать в основную сборку.
+// Appwrite SDK (src/api/appwrite.ts) грузится отдельной частью, только пока BACKEND=appwrite.
+
+/**
+ * Где живут аккаунты и коммьюнити:
+ * - `appwrite` — Appwrite Cloud (пока по умолчанию);
+ * - `core` — свой API на Cloudflare Worker (`/api/core`, worker/core).
+ * Переключение: VITE_BACKEND=core в сборке, после создания D1/KV (worker/core/README.md).
+ */
+/** По умолчанию Core (Cloudflare). Appwrite — только VITE_BACKEND=appwrite на время отката. */
+export const BACKEND = ((import.meta.env.VITE_BACKEND as string | undefined) ?? 'core') === 'appwrite' ? 'appwrite' : 'core'
 
 // Проект Appwrite (регион Франкфурт). ID проекта не секретный, он и так виден в браузере.
 export const APPWRITE_ENDPOINT =

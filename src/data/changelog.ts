@@ -9,6 +9,23 @@ export interface ChangelogItem {
 
 export const CHANGELOG: { date: string; items: ChangelogItem[] }[] = [
   {
+    date: '2026-11-10',
+    items: [
+      {
+        kind: 'better',
+        title: 'Свой бэкенд на Cloudflare',
+        text: 'Аккаунты, списки, отзывы, комментарии, «Вместе» и подписки больше не зависят от Appwrite. Если входили раньше — зарегистрируйтесь снова (данные облака Appwrite недоступны). Сайт стал независимее от чужих лимитов.',
+        to: '/account',
+      },
+      {
+        kind: 'better',
+        title: 'Меньше нагрузки на Worker',
+        text: 'Реже запросы часов и аналитики, дольше кэш плеера Yummy — укладываемся в лимиты Cloudflare на бесплатном плане.',
+        to: '/',
+      },
+    ],
+  },
+  {
     date: '2026-11-09',
     items: [
       {

@@ -1,16 +1,28 @@
 import { Query } from 'appwrite'
-import { COMMUNITY_DB, tablesDB } from '../api/appwrite'
+import { BACKEND } from '../api/config'
 import { callCommunity } from './community'
 import { createLocalStore } from './localStore'
 import type { ProfileSummary } from './profile'
 import { weekKey, monthKey } from './xp'
 
-/** Социальная часть сайта: подписки и лента, топ зрителей, подборки зрителей, клубы, оценки серий. Пишет функция community. */
+/** Социальная часть сайта: подписки и лента, топ зрителей, подборки зрителей, клубы, оценки серий. */
 
-const list = async <T>(tableId: string, queries: string[]) =>
-  (await tablesDB.listRows({ databaseId: COMMUNITY_DB, tableId, queries })) as unknown as { total: number; rows: T[] }
+const useCore = () => BACKEND === 'core'
+
+async function aw() {
+  return import('../api/appwrite')
+}
+
+const list = async <T>(tableId: string, queries: string[]) => {
+  const { COMMUNITY_DB, tablesDB } = await aw()
+  return (await tablesDB.listRows({ databaseId: COMMUNITY_DB, tableId, queries })) as unknown as {
+    total: number
+    rows: T[]
+  }
+}
 
 const one = async <T>(tableId: string, rowId: string) => {
+  const { COMMUNITY_DB, tablesDB } = await aw()
   try {
     return (await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId, rowId })) as unknown as T
   } catch {
@@ -37,6 +49,12 @@ export const follow = (userId: string) => callCommunity<{ followers: number }>({
 export const unfollow = (userId: string) => callCommunity<{ followers: number }>({ action: 'unfollow', userId })
 
 export async function followCounts(userId: string) {
+  if (useCore()) {
+    const res = await fetch(`/api/core/social/counts?userId=${encodeURIComponent(userId)}`, { credentials: 'include' })
+    if (!res.ok) return { followers: 0, following: 0 }
+    return (await res.json()) as { followers: number; following: number }
+  }
+  const { Query } = await import('appwrite')
   const [followers, following] = await Promise.all([
     list('follows', [Query.equal('followeeId', userId), Query.limit(1)]),
     list('follows', [Query.equal('followerId', userId), Query.limit(1)]),
@@ -45,11 +63,26 @@ export async function followCounts(userId: string) {
 }
 
 export async function isFollowing(me: string, userId: string) {
+  if (useCore()) {
+    const res = await fetch(
+      `/api/core/social/is-following?me=${encodeURIComponent(me)}&userId=${encodeURIComponent(userId)}`,
+      { credentials: 'include' },
+    )
+    if (!res.ok) return false
+    return !!(await res.json() as { following: boolean }).following
+  }
+  const { Query } = await import('appwrite')
   const r = await list('follows', [Query.equal('followerId', me), Query.equal('followeeId', userId), Query.limit(1)])
   return r.total > 0
 }
 
 export async function followingIds(me: string) {
+  if (useCore()) {
+    const res = await fetch(`/api/core/social/following?me=${encodeURIComponent(me)}`, { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { ids: string[] }).ids ?? []
+  }
+  const { Query } = await import('appwrite')
   const r = await list<{ followeeId: string }>('follows', [Query.equal('followerId', me), Query.limit(500)])
   return r.rows.map((x) => x.followeeId)
 }
@@ -57,6 +90,13 @@ export async function followingIds(me: string) {
 /** Лента: события людей, на которых подписан; без подписок — все открытые профили. */
 export async function loadFeed(ids?: string[]) {
   if (ids && !ids.length) return []
+  if (useCore()) {
+    const q = ids?.length ? `?ids=${encodeURIComponent(ids.slice(0, 100).join(','))}` : ''
+    const res = await fetch(`/api/core/social/feed${q}`, { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { activity: Activity[] }).activity ?? []
+  }
+  const { Query } = await import('appwrite')
   const queries = [Query.orderDesc('at'), Query.limit(60)]
   if (ids) queries.unshift(Query.equal('userId', ids.slice(0, 100)))
   return (await list<Activity>('activity', queries)).rows
@@ -86,10 +126,25 @@ export const parseSummary = (row: ProfileRow): Partial<ProfileSummary> => {
   }
 }
 
-export const loadPeople = () =>
-  list<ProfileRow>('profiles', [Query.orderDesc('updatedAt'), Query.limit(30)]).then((r) => r.rows)
+export async function loadPeople() {
+  if (useCore()) {
+    const res = await fetch('/api/core/social/top', { credentials: 'include' })
+    if (!res.ok) return []
+    return (((await res.json()) as { profiles: ProfileRow[] }).profiles ?? []).slice(0, 30)
+  }
+  return list<ProfileRow>('profiles', [Query.orderDesc('updatedAt'), Query.limit(30)]).then((r) => r.rows)
+}
 
-export function loadLeaders(period: 'week' | 'month' | 'all') {
+export async function loadLeaders(period: 'week' | 'month' | 'all') {
+  if (useCore()) {
+    // week/month ключи в Core пока не считаем — топ по xp.
+    void period
+    void weekKey
+    void monthKey
+    const res = await fetch('/api/core/social/top', { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { profiles: ProfileRow[] }).profiles ?? []
+  }
   const queries =
     period === 'week'
       ? [Query.equal('weekKey', weekKey()), Query.greaterThan('weekXp', 0), Query.orderDesc('weekXp'), Query.limit(50)]

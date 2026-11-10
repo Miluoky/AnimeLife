@@ -19,5 +19,13 @@
   "routes": [
     { "pattern": "animelife.top", "custom_domain": true },
     { "pattern": "www.animelife.top", "custom_domain": true }
-  ]
+  ],
+  // AnimeLife Core (вместо Appwrite): auth/сессии/таблицы. См. worker/core/README.md
+  "d1_databases": [
+    { "binding": "DB", "database_name": "anime_core", "database_id": "68a5d9ac-972d-4b24-b0f4-2da7e8636e81" }
+  ],
+  "kv_namespaces": [
+    { "binding": "SESSIONS", "id": "8e2bdf43b8de4282a4d191964577cc14" }
+  ],
+  "triggers": { "crons": ["17 * * * *"] }
 }

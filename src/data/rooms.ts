@@ -1,5 +1,4 @@
-import { Query } from 'appwrite'
-import { COMMUNITY_DB, client, tablesDB } from '../api/appwrite'
+import { BACKEND } from '../api/config'
 import { callCommunity } from './community'
 
 /** Комната совместного просмотра. Код комнаты (6 символов) и есть ID строки. */
@@ -42,18 +41,15 @@ export interface RoomMessage {
 
 export const REACTIONS = ['❤️', '😂', '😮', '😭', '🔥', '👏']
 
-// --- Общие часы ---
-// Позицию видео все считают по одним часам: у телефонов и компьютеров время расходится на секунды.
-// Часы берём у Worker сайта (/api/time): узел Cloudflare рядом, ответ за миллисекунды, и ошибка
-// (половина времени ответа) почти нулевая. Без Worker (локальная разработка) — у функции Appwrite.
+const useCore = () => BACKEND === 'core'
 
+// --- Общие часы ---
 let offset = 0
 let bestRtt = Infinity
 
 function noteServerTime(serverNow: number | undefined, sentAt: number, receivedAt = Date.now()) {
   if (!serverNow) return
   const rtt = receivedAt - sentAt
-  // Самый быстрый ответ точнее всего: задержка сети меньше всего искажает время.
   if (rtt <= bestRtt) {
     bestRtt = rtt
     offset = serverNow - (sentAt + rtt / 2)
@@ -73,27 +69,23 @@ async function edgeTime() {
 
 let clockSynced: Promise<void> | undefined
 
-/** Сверяем часы несколько раз и берём самый быстрый ответ. Повторный вызов ждёт ту же сверку. */
-export function syncClock(samples = 5) {
+/** Сверяем часы. Один запрос к Worker; второй только при RTT > 80 мс. */
+export function syncClock(samples = 1) {
   clockSynced ??= (async () => {
     try {
-      for (let i = 0; i < samples; i++) await edgeTime()
+      await edgeTime()
+      if (samples > 1 && bestRtt > 80) await edgeTime()
     } catch {
-      for (let i = 0; i < Math.min(samples, 3); i++) {
-        const sentAt = Date.now()
-        const reply = await callCommunity<{ serverNow: number }>({ action: 'room-time' }).catch(() => undefined)
-        noteServerTime(reply?.serverNow, sentAt)
-      }
+      const sentAt = Date.now()
+      const reply = await callCommunity<{ serverNow: number }>({ action: 'room-time' }).catch(() => undefined)
+      noteServerTime(reply?.serverNow, sentAt)
     }
   })()
   return clockSynced
 }
 
-/** Где сейчас должно быть видео комнаты, в секундах. */
 export const roomPosition = (room: Pick<Room, 'playing' | 'position' | 'at'>) =>
   room.position + (room.playing ? Math.max(0, serverNow() - room.at) / 1000 : 0)
-
-// --- Действия ---
 
 export interface NewRoom {
   animeId: string
@@ -122,7 +114,6 @@ export const controlRoom = (
     public?: boolean
     title?: string
     startsAt?: number | null
-    /** когда нажали, по общим часам (serverNow): от этого момента все считают позицию видео */
     at?: number
   },
 ) => callCommunity<{ serverNow: number }>({ action: 'room-control', roomId, ...state })
@@ -134,9 +125,15 @@ export const deleteRoomMessage = (messageId: string) => callCommunity({ action: 
 
 export const closeRoom = (roomId: string) => callCommunity({ action: 'room-close', roomId })
 
-// --- Чтение и подписка ---
-
 export async function loadRoom(code: string): Promise<Room | null> {
+  if (useCore()) {
+    const res = await fetch(`/api/core/rooms/${encodeURIComponent(code)}`, { credentials: 'include' })
+    if (!res.ok) return null
+    const data = (await res.json()) as { room: Room; serverNow?: number }
+    if (typeof data.serverNow === 'number') noteServerTime(data.serverNow, Date.now(), Date.now())
+    return data.room
+  }
+  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
   try {
     return (await tablesDB.getRow({ databaseId: COMMUNITY_DB, tableId: 'rooms', rowId: code })) as unknown as Room
   } catch {
@@ -145,6 +142,14 @@ export async function loadRoom(code: string): Promise<Room | null> {
 }
 
 export async function loadMessages(roomId: string): Promise<RoomMessage[]> {
+  if (useCore()) {
+    const res = await fetch(`/api/core/rooms/${encodeURIComponent(roomId)}/messages`, { credentials: 'include' })
+    if (!res.ok) return []
+    const data = (await res.json()) as { messages: RoomMessage[] }
+    return data.messages ?? []
+  }
+  const { Query } = await import('appwrite')
+  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
   const res = await tablesDB.listRows({
     databaseId: COMMUNITY_DB,
     tableId: 'messages',
@@ -153,8 +158,14 @@ export async function loadMessages(roomId: string): Promise<RoomMessage[]> {
   return (res.rows as unknown as RoomMessage[]).reverse()
 }
 
-/** Открытые комнаты для вкладки «Вместе»: живые за последние полчаса. */
 export async function loadPublicRooms(): Promise<Room[]> {
+  if (useCore()) {
+    const res = await fetch('/api/core/rooms', { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { rooms: Room[] }).rooms ?? []
+  }
+  const { Query } = await import('appwrite')
+  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
   const res = await tablesDB.listRows({
     databaseId: COMMUNITY_DB,
     tableId: 'rooms',
@@ -168,8 +179,14 @@ export async function loadPublicRooms(): Promise<Room[]> {
   return res.rows as unknown as Room[]
 }
 
-/** Открытые сеансы по расписанию, ближайшие первыми. */
 export async function loadUpcomingRooms(): Promise<Room[]> {
+  if (useCore()) {
+    const res = await fetch('/api/core/rooms/upcoming', { credentials: 'include' })
+    if (!res.ok) return []
+    return ((await res.json()) as { rooms: Room[] }).rooms ?? []
+  }
+  const { Query } = await import('appwrite')
+  const { COMMUNITY_DB, tablesDB } = await import('../api/appwrite')
   const res = await tablesDB.listRows({
     databaseId: COMMUNITY_DB,
     tableId: 'rooms',
@@ -184,8 +201,8 @@ export async function loadUpcomingRooms(): Promise<Room[]> {
 }
 
 /**
- * Живые обновления комнаты через Appwrite Realtime (WebSocket).
- * onRoom(null) значит, что комнату закрыли.
+ * Живые обновления: на Core — polling раз в 2.5 с (без WebSocket / Appwrite Realtime).
+ * onRoom(null) — комнату закрыли.
  */
 export function subscribeRoom(
   code: string,
@@ -195,19 +212,63 @@ export function subscribeRoom(
     onMessageGone?: (id: string) => void
   },
 ) {
-  const roomChannel = `databases.${COMMUNITY_DB}.tables.rooms.rows.${code}`
-  const messagesChannel = `databases.${COMMUNITY_DB}.tables.messages.rows`
-  return client.subscribe<Room | RoomMessage>([roomChannel, messagesChannel], (e) => {
-    const deleted = e.events.some((ev) => ev.endsWith('.delete'))
-    const isRoom = e.events.some((ev) => ev.includes('.rooms.'))
-    if (isRoom) {
-      if ((e.payload as Room).$id === code) handlers.onRoom(deleted ? null : (e.payload as Room))
-    } else if ((e.payload as RoomMessage).roomId === code) {
-      if (deleted) handlers.onMessageGone?.((e.payload as RoomMessage).$id)
-      else handlers.onMessage(e.payload as RoomMessage)
+  if (useCore()) {
+    let stopped = false
+    let lastSig = ''
+    const seen = new Set<string>()
+    let primed = false
+    const tick = async () => {
+      if (stopped) return
+      try {
+        const [room, messages] = await Promise.all([loadRoom(code), loadMessages(code)])
+        if (stopped) return
+        if (!room) {
+          handlers.onRoom(null)
+          return
+        }
+        const sig = `${room.at}|${room.playing}|${room.position}|${room.episode}|${room.lastActive}`
+        if (sig !== lastSig) {
+          lastSig = sig
+          handlers.onRoom(room)
+        }
+        if (!primed) {
+          for (const m of messages) seen.add(m.$id)
+          primed = true
+          return
+        }
+        for (const m of messages) {
+          if (seen.has(m.$id)) continue
+          seen.add(m.$id)
+          handlers.onMessage(m)
+        }
+      } catch {
+        // сеть — следующий тик
+      }
     }
+    void tick()
+    const timer = window.setInterval(tick, 2500)
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }
+
+  let unsub = () => {}
+  void import('../api/appwrite').then(({ COMMUNITY_DB, client }) => {
+    const roomChannel = `databases.${COMMUNITY_DB}.tables.rooms.rows.${code}`
+    const messagesChannel = `databases.${COMMUNITY_DB}.tables.messages.rows`
+    unsub = client.subscribe<Room | RoomMessage>([roomChannel, messagesChannel], (e) => {
+      const deleted = e.events.some((ev) => ev.endsWith('.delete'))
+      const isRoom = e.events.some((ev) => ev.includes('.rooms.'))
+      if (isRoom) {
+        if ((e.payload as Room).$id === code) handlers.onRoom(deleted ? null : (e.payload as Room))
+      } else if ((e.payload as RoomMessage).roomId === code) {
+        if (deleted) handlers.onMessageGone?.((e.payload as RoomMessage).$id)
+        else handlers.onMessage(e.payload as RoomMessage)
+      }
+    })
   })
+  return () => unsub()
 }
 
-/** ID ролика YouTube из адреса трейлера Shikimori. */
 export const youtubeId = (url?: string) => url?.match(/(?:embed\/|v=|youtu\.be\/)([\w-]{6,20})/)?.[1]
