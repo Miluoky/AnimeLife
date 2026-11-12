@@ -28,18 +28,36 @@ export async function loadComments(animeId: string, episode: number): Promise<Ep
   const res = await fetch(`/api/core/comments?targetId=${encodeURIComponent(targetId)}`, { credentials: 'include' })
   if (!res.ok) return []
   const data = (await res.json()) as {
-    comments: { $id: string; $createdAt: string; userId: string; userName?: string; text: string; hidden?: boolean }[]
+    comments: {
+      $id: string
+      $createdAt?: string
+      userId: string
+      userName?: string
+      name?: string
+      text: string
+      hidden?: boolean
+      spoiler?: boolean
+      at?: number
+      reports?: number
+      replyTo?: string | null
+      replyName?: string | null
+      animeId?: string
+      episode?: number
+    }[]
   }
   return (data.comments ?? []).map((c) => ({
     $id: c.$id,
-    animeId,
-    episode,
+    animeId: c.animeId || animeId,
+    episode: c.episode ?? episode,
     userId: c.userId,
-    name: c.userName || 'Зритель',
+    name: c.name || c.userName || 'Зритель',
     text: c.text,
-    spoiler: false,
-    at: Date.parse(c.$createdAt) || Date.now(),
+    spoiler: !!c.spoiler,
+    at: typeof c.at === 'number' ? c.at : Date.parse(c.$createdAt || '') || Date.now(),
     hidden: c.hidden,
+    reports: c.reports,
+    replyTo: c.replyTo ?? null,
+    replyName: c.replyName ?? null,
   }))
 }
 

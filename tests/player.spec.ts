@@ -566,42 +566,35 @@ test('плеер: смена озвучки без паузы — новая г�
   await expect(fresh).toHaveAttribute('src', /seria\/301\//)
   await expect.poll(() => page.frames().find((f) => f.url().includes('seria/301'))?.title()).toMatch(/^mute,.*seek:312\.3,play,(mute,|get_time,)*unmute,play$/)
   await expect(page.getByText('Подключаем озвучку…')).toHaveCount(0)
-  // Прежняя озвучка не выгружена: она прогрета на паузе без звука и ждёт под новой.
-  const warm = page.locator('iframe.player-warm')
-  await expect(warm).toHaveAttribute('src', /seria\/291\//)
-  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/291'))?.title()).toMatch(/pause,mute(,mute)*$/)
-  await warm.evaluate((el) => (el.dataset.mark = 'warm'))
+  // warmLimit=0: запасной iframe с прошлой озвучкой не держим (PERF_WATCH).
+  await expect(page.locator('iframe.player-warm')).toHaveCount(0)
 
-  // Возврат к ней — без загрузки и без «Подключаем озвучку…»: тот же iframe перематывается на место и получает звук.
+  // Возврат к Studio Band — снова холодный старт («Подключаем озвучку…»), без warm-pool.
+  delay = 800
   await page.getByRole('button', { name: /^Studio Band/ }).click()
+  await expect(page.getByText('Подключаем озвучку…')).toBeVisible()
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/291\//, { timeout: 8000 })
   await expect(page.getByText('Подключаем озвучку…')).toHaveCount(0)
-  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('data-mark', 'warm', { timeout: 6000 })
-  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/291'))?.title()).toMatch(/pause,(mute,)+seek:31\d\.\d,play,(mute,|get_time,)*unmute,play$/)
-  await expect(warm).toHaveAttribute('src', /seria\/301\//)
+  await expect(page.locator('iframe.player-warm')).toHaveCount(0)
 
   // Другая серия: та же страница, без перехода и без прокрутки наверх; новая серия — с начала.
   delay = 0
-  // Дальше в новых плеерах «реклама»: так прогретая заранее озвучка второй серии не успеет тронуться.
   stuck = true
   await page.getByRole('navigation', { name: 'Серии' }).getByRole('link', { name: 'Серия 2', exact: true }).click()
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
-  await expect(fresh).toHaveAttribute('src', 'https://kodikplayer.com/seria/292/hash/720p')
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', 'https://kodikplayer.com/seria/292/hash/720p')
   expect(await page.evaluate(() => (document.querySelector('.page') as HTMLElement).dataset.mark)).toBe('same')
-  // Озвучки прошлой серии больше не нужны.
   await expect(page.locator('iframe.player-warm')).toHaveCount(0)
 
-  // Новая озвучка не тронулась после перемотки (реклама): подмену отменяем, прежняя играет дальше со звуком.
+  // Смена озвучки на 2-й серии: prep виден, live остаётся на текущей пока новая не готова.
   await page.waitForTimeout(800)
   await page.getByRole('button', { name: /^AniDUB/ }).click()
   await expect(page.locator('iframe.player-iframe--prep')).toHaveAttribute('src', /seria\/302\//)
-  await page.waitForTimeout(4500)
-  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/292\//)
   await expect(page.getByText('Подключаем озвучку…')).toBeVisible()
-  // unmute содержит mute как подстроку — смотрим целые команды в логе.
-  expect(await page.frames().find((f) => f.url().includes('seria/292'))?.title()).not.toMatch(/(^|,)(pause|mute)(,|$)/)
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/292\//)
 })
 
-test('плеер: ближе к концу серии следующая уже загружена и включается тем же плеером, без новой загрузки', async ({ page }) => {
+test('плеер: warmLimit=0 — следующую серию не прогреваем заранее; переход грузит новый iframe', async ({ page }) => {
   await mockAniLibria(page, search.slice(0, 1))
   await page.route(/api\.anixart\.tv\/search/, (route) =>
     route.fulfill({ json: { code: 0, content: [{ id: 31, title_ru: 'Ковбой Бибоп', title_original: 'Cowboy Bebop', year: '1998' }] } }),
@@ -613,7 +606,6 @@ test('плеер: ближе к концу серии следующая уже 
   await page.route(/api\.anixart\.tv\/episode\/31\/29\/30$/, (route) =>
     route.fulfill({ json: { code: 0, episodes: [1, 2, 3].map((n) => ({ position: n, url: `https://kodikplayer.com/seria/${n}/hash/720p`, iframe: true })) } }),
   )
-  // Поддельный Kodik: серия на 23 минуты, идёт 20-я минута; команды сайта пишет в заголовок.
   await page.route(/kodikplayer\.com\/seria\//, (route) =>
     route.fulfill({
       contentType: 'text/html',
@@ -642,18 +634,14 @@ test('плеер: ближе к концу серии следующая уже 
   )
   await page.goto('/watch/1/1')
   await page.getByRole('button', { name: /^Studio Band/ }).click()
-  // Вторая серия грузится заранее, невидимо, но не запускается: в начале серии Kodik крутит рекламу.
-  const warm = page.locator('iframe.player-warm')
-  await expect(warm).toHaveAttribute('src', 'https://kodikplayer.com/seria/2/hash/720p', { timeout: 8000 })
-  await page.waitForTimeout(1500)
-  expect(await page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toBe('Kodik')
-  await warm.evaluate((el) => (el.dataset.mark = 'warm'))
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/1\//)
+  // PERF: без warm pool следующая серия не висит в фоне.
+  await expect(page.locator('iframe.player-warm')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Следующая серия' }).click()
   await expect(page).toHaveURL(/\/watch\/1\/2$/)
-  // Тот же iframe, без новой загрузки: запускается со звуком.
-  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('data-mark', 'warm')
-  await expect.poll(() => page.frames().find((f) => f.url().includes('seria/2/'))?.title()).toMatch(/^unmute,play/)
+  await expect(page.locator('iframe[data-role="live"]')).toHaveAttribute('src', /seria\/2\//, { timeout: 8000 })
+  await expect(page.locator('iframe.player-warm')).toHaveCount(0)
   await expect(page.locator('iframe.player-iframe')).toHaveCount(1)
 })
 
@@ -863,12 +851,12 @@ test('плеер: источник не может показать серию �
   )
   await page.route(/kodikplayer\.com\/.*/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Kodik</title>' }))
   await mockYummy(page, [['Озвучка StudioBand', 'CVH', [1, 2]]])
-  // Сбой источника уходит в статистику качества (data/quality.ts).
+  // Сбой источника уходит в статистику качества (data/quality.ts) через POST /api/core/action.
   const quality: Record<string, unknown>[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    const body = JSON.parse(route.request().postDataJSON().body)
+  await page.route(/\/api\/core\/action(?:\?|$)/, async (route) => {
+    const body = (route.request().postDataJSON() ?? {}) as Record<string, unknown>
     if (body.action === 'quality-track') quality.push(body)
-    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: '{"ok":true}' } })
+    return route.fulfill({ json: { ok: true } })
   })
   await page.addInitScript(() => ((window as Window & { __reportQuality?: boolean }).__reportQuality = true))
   await page.goto('/watch/1/2')

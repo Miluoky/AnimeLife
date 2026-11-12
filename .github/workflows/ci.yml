@@ -35,7 +35,8 @@ jobs:
 
   e2e:
     name: Браузерные тесты
-    runs-on: ubuntu-latest
+    # ubuntu-latest сейчас 26.04 — Playwright 1.56 без deps для chromium; 22.04 ок.
+    runs-on: ubuntu-22.04
     needs: build
     steps:
       - uses: actions/checkout@v4

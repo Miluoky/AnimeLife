@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { mockServices } from './mocks'
+import { coreActionOk, mockCoreAction, mockCoreSession, mockServices } from './mocks'
 
 test.beforeEach(async ({ page }) => {
   await mockServices(page)
@@ -9,27 +9,23 @@ test.beforeEach(async ({ page }) => {
 test('мои данные: выгрузка одним файлом и удаление аккаунта со словом УДАЛИТЬ', async ({ page }) => {
   const sent: Record<string, unknown>[] = []
   let signedIn = true
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
-    signedIn
-      ? route.fulfill({ json: { $id: 'u1', name: 'Аня', email: 'a@example.com', labels: [], prefs: {}, status: true } })
-      : route.fulfill({ status: 401, json: { message: 'guests' } }),
-  )
-  let statusCalls = 0
-  await page.route(/cloud\.appwrite\.io\/v1\/account\/status$/, (route) => {
-    statusCalls++
-    signedIn = false
-    return route.fulfill({ json: { $id: 'u1', status: false } })
+  const logouts: string[] = []
+  page.on('request', (r) => {
+    if (r.method() === 'POST' && /\/api\/core\/auth\/logout(?:\?|$)/.test(r.url())) logouts.push(r.url())
   })
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    const body = JSON.parse(route.request().postDataJSON().body)
+  await mockCoreSession(page, () =>
+    signedIn ? { $id: 'u1', name: 'Аня', email: 'a@example.com' } : null,
+  )
+  await mockCoreAction(page, (body) => {
     sent.push(body)
-    const reply =
-      body.action === 'account-export'
-        ? { exportedAt: '2026-10-11T00:00:00Z', account: { id: 'u1', email: 'a@example.com' }, tables: { comments: [{ text: 'моё' }] } }
-        : body.action === 'account-delete'
-          ? { ok: true, removed: 3, accountDeleted: false }
-          : { items: [], unread: 0 }
-    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: JSON.stringify(reply) } })
+    if (body.action === 'account-export') {
+      return { exportedAt: '2026-10-11T00:00:00Z', account: { id: 'u1', email: 'a@example.com' }, tables: { comments: [{ text: 'моё' }] } }
+    }
+    if (body.action === 'account-delete') {
+      signedIn = false
+      return { ok: true, removed: 3, accountDeleted: true }
+    }
+    return coreActionOk(body)
   })
   await page.addInitScript(() => localStorage.setItem('anime.nospoil.v1', 'true'))
   await page.goto('/account')
@@ -52,7 +48,6 @@ test('мои данные: выгрузка одним файлом и удал�
   await confirm.click()
   await expect(page.getByText(/Аккаунт и его данные удалены/)).toBeVisible()
   expect(sent).toContainEqual({ action: 'account-delete', confirm: 'удалить' })
-  // Функции не хватило прав удалить аккаунт: сайт отключил его сам.
-  expect(statusCalls).toBe(1)
+  expect(logouts.length).toBeGreaterThan(0)
   await expect(page.getByRole('region', { name: 'Мои данные' })).toHaveCount(0)
 })

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mockServices } from './mocks'
+import { coreActionOk, mockCoreAction, mockCoreSession, mockServices } from './mocks'
 
 test.beforeEach(async ({ page }) => {
   await mockServices(page)
@@ -7,15 +7,12 @@ test.beforeEach(async ({ page }) => {
 
 test('«Позови друга»: ?ref запоминается и уходит из адреса, после входа засчитывается, в профиле своя ссылка и счётчик', async ({ page }) => {
   const sent: Record<string, unknown>[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
-    route.fulfill({ json: { $id: 'u1', name: 'Аня', email: 'a@example.com', labels: [], prefs: {}, status: true } }),
-  )
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    const body = JSON.parse(route.request().postDataJSON().body)
+  await mockCoreSession(page, { $id: 'u1', name: 'Аня', email: 'a@example.com' })
+  await mockCoreAction(page, (body) => {
     sent.push(body)
-    const reply =
-      body.action === 'invite-claim' ? { ok: true, inviter: 'Мика' } : body.action === 'invite-stats' ? { invited: 2, invitedBy: true } : { ok: true }
-    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: JSON.stringify(reply) } })
+    if (body.action === 'invite-claim') return { ok: true, inviter: 'Мика' }
+    if (body.action === 'invite-stats') return { invited: 2, invitedBy: true }
+    return coreActionOk(body)
   })
 
   await page.goto('/?ref=host1')

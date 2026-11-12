@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { mockServices } from './mocks'
+import { mockCoreSession, mockServices } from './mocks'
 
 // Список манги у Shikimori устроен как список аниме: берём ту же заготовку.
 const mangas = JSON.parse(readFileSync(new URL('./fixtures/animes.json', import.meta.url), 'utf8')).map(
@@ -68,24 +68,16 @@ test('раздел «Манга»: на русском, популярное, п
 
 test('место в манге синхронизируется с аккаунтом: с другого устройства приходит, своё уходит', async ({ page }) => {
   const sent: Record<string, unknown>[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
-    route.fulfill({
-      json: {
-        $id: 'u1',
-        name: 'Аня',
-        email: 'a@example.com',
-        labels: [],
-        status: true,
-        prefs: { manga: { '5': { lang: 'en', chapterId: 'x5', num: '40', at: 2000, title: 'Ван-Пис' } } },
-      },
-    }),
+  await mockCoreSession(
+    page,
+    {
+      $id: 'u1',
+      name: 'Аня',
+      email: 'a@example.com',
+      prefs: { manga: { '5': { lang: 'en', chapterId: 'x5', num: '40', at: 2000, title: 'Ван-Пис' } } },
+    },
+    { onPrefs: (prefs) => sent.push(prefs) },
   )
-  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/.*\/tables\/lists\/rows\/u1$/, (route) => route.fulfill({ json: { $id: 'u1', data: '[]' } }))
-  await page.route(/cloud\.appwrite\.io\/v1\/account\/prefs$/, (route) => {
-    const prefs = (route.request().postDataJSON() as { prefs: Record<string, unknown> }).prefs
-    sent.push(prefs)
-    return route.fulfill({ json: { $id: 'u1', name: 'Аня', email: 'a@example.com', labels: [], status: true, prefs } })
-  })
   await page.addInitScript(() =>
     localStorage.setItem('anime.mangaProgress.v1', JSON.stringify({ '2': { lang: 'ru', chapterId: 'abc', num: '12', at: 1000, title: 'Берсерк' } })),
   )

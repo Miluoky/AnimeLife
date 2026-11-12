@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { mockServices } from '../mocks'
+import { mockCoreProfile, mockCoreTop, mockServices } from '../mocks'
 
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), 'utf8'))
 const search = fixture('anilibria-search')
@@ -27,40 +27,29 @@ async function setupFullEnvironmentMock(page: import('@playwright/test').Page) {
   await page.route(/anilibria\.top\/api\/v1\/app\/search\/releases/, (route) => route.fulfill({ json: search }))
   await page.route(/anilibria\.top\/api\/v1\/anime\/releases\/8443$/, (route) => route.fulfill({ json: release }))
 
-  // Mock community profiles for podium
-  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/profiles\/rows\?.*/, (route) => {
-    return route.fulfill({
-      json: {
-        total: 3,
-        rows: [
-          { $id: 'u_senku', name: 'Ishigami Senku', xp: 9999, weekXp: 990, monthXp: 3900, summary: '{"style":{"frame":"inferno"}}' },
-          { $id: 'u_ryusui', name: 'Nanami Ryusui', xp: 8888, weekXp: 880, monthXp: 3400, summary: '{"style":{"frame":"void"}}' },
-          { $id: 'u_gen', name: 'Asagiri Gen', xp: 7777, weekXp: 770, monthXp: 2900, summary: '{"style":{"frame":"sakura_anim"}}' },
-        ],
-      },
-    })
-  })
+  await mockCoreTop(page, [
+    { $id: 'u_senku', name: 'Ishigami Senku', xp: 9999, weekXp: 990, monthXp: 3900, summary: '{"style":{"frame":"inferno"}}' },
+    { $id: 'u_ryusui', name: 'Nanami Ryusui', xp: 8888, weekXp: 880, monthXp: 3400, summary: '{"style":{"frame":"void"}}' },
+    { $id: 'u_gen', name: 'Asagiri Gen', xp: 7777, weekXp: 770, monthXp: 2900, summary: '{"style":{"frame":"sakura_anim"}}' },
+  ])
 
-  // Mock public profile row for /u/who
-  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/profiles\/rows\/who.*/, (route) => {
-    return route.fulfill({
-      json: {
-        $id: 'who',
-        name: 'Ishigami Senku',
-        about: 'Kingdom of Science',
-        updatedAt: 1700000000000,
-        summary: JSON.stringify({
-          xp: 9999,
-          style: { frame: 'inferno', nameColor: 'orange' },
-          counts: { watching: 3, planned: 12, completed: 42, dropped: 0 },
-          facts: { episodes: 950, total: 57, ratings: {} },
-          watching: [],
-          recent: [],
-          favorites: [],
-          achievements: [],
-        }),
-      },
-    })
+  await mockCoreProfile(page, {
+    who: {
+      $id: 'who',
+      name: 'Ishigami Senku',
+      about: 'Kingdom of Science',
+      updatedAt: 1700000000000,
+      summary: JSON.stringify({
+        xp: 9999,
+        style: { frame: 'inferno', nameColor: 'orange' },
+        counts: { watching: 3, planned: 12, completed: 42, dropped: 0 },
+        facts: { episodes: 950, total: 57, ratings: {} },
+        watching: [],
+        recent: [],
+        favorites: [],
+        achievements: [],
+      }),
+    },
   })
 
   await page.addInitScript(() => {

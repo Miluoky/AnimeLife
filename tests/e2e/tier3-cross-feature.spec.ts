@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { mockServices } from '../mocks'
+import { mockCoreTop, mockServices } from '../mocks'
 
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), 'utf8'))
 const search = fixture('anilibria-search')
@@ -59,19 +59,11 @@ test.describe('Tier 3: Cross-Feature Combinations', () => {
   })
 
   test('profile customization -> navigate to community -> verify style and podium cards', async ({ page }) => {
-    // Mock profiles for community podium
-    await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/profiles\/rows\?.*/, (route) => {
-      return route.fulfill({
-        json: {
-          total: 3,
-          rows: [
-            { $id: 'u_1', name: 'DrStone', xp: 8000, weekXp: 750, monthXp: 2800, summary: '{"style":{"frame":"inferno"}}' },
-            { $id: 'u_2', name: 'Gen', xp: 6000, weekXp: 550, monthXp: 2100, summary: '{"style":{"frame":"void"}}' },
-            { $id: 'u_3', name: 'Suika', xp: 4000, weekXp: 350, monthXp: 1500, summary: '{"style":{"frame":"sakura_anim"}}' },
-          ],
-        },
-      })
-    })
+    await mockCoreTop(page, [
+      { $id: 'u_1', name: 'DrStone', xp: 8000, weekXp: 750, monthXp: 2800, summary: '{"style":{"frame":"inferno"}}' },
+      { $id: 'u_2', name: 'Gen', xp: 6000, weekXp: 550, monthXp: 2100, summary: '{"style":{"frame":"void"}}' },
+      { $id: 'u_3', name: 'Suika', xp: 4000, weekXp: 350, monthXp: 1500, summary: '{"style":{"frame":"sakura_anim"}}' },
+    ])
 
     // 1. Visit account to set theme and accent
     await page.goto('/account')

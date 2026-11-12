@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { mockServices } from './mocks'
+import { coreActionOk, mockCoreAction, mockCoreSession, mockServices } from './mocks'
 
 // Конец серии работает на возврат: вход для гостя после второй серии, напоминание ботом, похожее после финала.
 
@@ -56,15 +56,12 @@ test('последняя вышедшая серия у вошедшего че�
   await page.route(/\/api\/(shiki\/)?animes\/1(\?|$)/, (route) =>
     route.fulfill({ json: { ...anime, status: 'ongoing', episodes: 12, episodes_aired: 7, next_episode_at: new Date(Date.now() + 86400_000).toISOString() } }),
   )
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
-    route.fulfill({ json: { $id: 'tg_123', name: 'Зритель', email: '', labels: [], prefs: {}, status: true } }),
-  )
+  await mockCoreSession(page, { $id: 'tg_123', name: 'Зритель', email: '' })
   const actions: string[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    const body = JSON.parse(JSON.parse(route.request().postData()!).body)
-    actions.push(body.action)
-    const reply = body.action === 'tg-status' ? { configured: true, on: false } : { ok: true }
-    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: JSON.stringify(reply) } })
+  await mockCoreAction(page, (body) => {
+    actions.push(String(body.action))
+    if (body.action === 'tg-status') return { configured: true, on: false }
+    return coreActionOk(body)
   })
   await page.goto('/watch/1/7')
   const reminder = page.getByRole('complementary', { name: 'Напоминание о серии' })

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mockServices } from './mocks'
+import { coreActionOk, coreHttp, mockCoreAction, mockCoreSession, mockServices } from './mocks'
 
 const now = Date.now()
 const hour = 3_600_000
@@ -34,9 +34,7 @@ const stats = {
 }
 
 async function signIn(page: Page, labels: string[]) {
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
-    route.fulfill({ json: { $id: 'u1', name: labels.length ? 'Miluoky' : 'Зритель', email: 'u@example.test', labels, prefs: {} } }),
-  )
+  await mockCoreSession(page, { $id: 'u1', name: labels.length ? 'Miluoky' : 'Зритель', email: 'u@example.test', labels })
 }
 
 test.beforeEach(async ({ page }) => {
@@ -45,10 +43,10 @@ test.beforeEach(async ({ page }) => {
 
 async function watchStats(page: Page) {
   const asked: string[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    const body = JSON.parse(route.request().postDataJSON().body)
-    asked.push(body.action)
-    return route.fulfill({ status: 201, json: { responseStatusCode: 400, responseBody: '{"error":"Недостаточно прав."}' } })
+  await mockCoreAction(page, (body) => {
+    asked.push(String(body.action))
+    if (body.action === 'analytics-stats') return coreHttp(403, { message: 'Недостаточно прав.' })
+    return coreActionOk(body)
   })
   return asked
 }
@@ -73,11 +71,7 @@ test('обычному пользователю статистика не отк
 
 test('администратор видит сводку в профиле и полную статистику', async ({ page }) => {
   await signIn(page, ['admin'])
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    const body = JSON.parse(route.request().postDataJSON().body)
-    const reply = body.action === 'analytics-stats' ? stats : { ok: true }
-    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: JSON.stringify(reply) } })
-  })
+  await mockCoreAction(page, (body) => (body.action === 'analytics-stats' ? stats : coreActionOk(body)))
 
   await page.goto('/account')
   const card = page.getByRole('region', { name: 'Статистика сайта' })

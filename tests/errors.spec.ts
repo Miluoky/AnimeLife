@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mockServices } from './mocks'
+import { coreActionOk, coreHttp, mockCoreAction, mockCoreSession, mockServices } from './mocks'
 
 test.beforeEach(async ({ page }) => {
   await mockServices(page)
@@ -7,10 +7,9 @@ test.beforeEach(async ({ page }) => {
 
 test('ошибки у посетителей: ошибка уходит в функцию один раз, сетевой шум не уходит', async ({ page }) => {
   const reports: Record<string, string>[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    const body = JSON.parse(route.request().postDataJSON().body)
-    if (body.action === 'error-report') reports.push(body)
-    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: '{"ok":true}' } })
+  await mockCoreAction(page, (body) => {
+    if (body.action === 'error-report') reports.push(body as Record<string, string>)
+    return coreActionOk(body)
   })
   await page.addInitScript(() => ((window as Window & { __reportErrors?: boolean }).__reportErrors = true))
   await page.goto('/')
@@ -31,28 +30,21 @@ test('ошибки у посетителей: ошибка уходит в фу�
 
 test('ошибки у посетителей: администратор видит список и убирает исправленную', async ({ page }) => {
   const sent: Record<string, unknown>[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/account$/, (route) =>
-    route.fulfill({ json: { $id: 'admin', name: 'Админ', email: 'a@example.com', labels: ['admin'], prefs: {}, status: true } }),
-  )
-  await page.route(/cloud\.appwrite\.io\/v1\/functions\/community\/executions/, (route) => {
-    const body = JSON.parse(route.request().postDataJSON().body)
+  await mockCoreSession(page, { $id: 'admin', name: 'Админ', email: 'a@example.com', labels: ['admin'] })
+  await mockCoreAction(page, (body) => {
     sent.push(body)
-    const reply =
-      body.action === 'error-list'
-        ? {
-            errors: [
-              { $id: 'e1', message: 'TypeError: x is undefined', source: 'Player.js:1:2', stack: 'at play (Player.js:1:2)', path: '/watch/1/2', browser: 'Chrome 129 / Android', count: 7, first: Date.now() - 86_400_000, last: Date.now() },
-            ],
-          }
-        : body.action === 'notif-list'
-          ? { items: [], unread: 0 }
-          : body.action === 'error-clear'
-            ? { ok: true }
-            : { error: 'нет данных' }
-    return route.fulfill({ status: 201, json: { responseStatusCode: 200, responseBody: JSON.stringify(reply) } })
+    if (body.action === 'error-list') {
+      return {
+        errors: [
+          { $id: 'e1', message: 'TypeError: x is undefined', source: 'Player.js:1:2', stack: 'at play (Player.js:1:2)', path: '/watch/1/2', browser: 'Chrome 129 / Android', count: 7, first: Date.now() - 86_400_000, last: Date.now() },
+        ],
+      }
+    }
+    if (body.action === 'analytics-stats') return coreHttp(500, { message: 'нет данных' })
+    if (body.action === 'error-clear') return { ok: true }
+    return coreActionOk(body)
   })
   await page.goto('/admin/analytics')
-  // Статистика не загрузилась, а ошибки всё равно видны.
   await expect(page.locator('.notice--error')).toHaveText('нет данных')
   const card = page.getByRole('region', { name: /^Ошибки у посетителей/ })
   await expect(card.getByRole('heading')).toHaveText('Ошибки у посетителей (1)')

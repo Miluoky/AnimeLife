@@ -16,26 +16,21 @@ test('сообщество: вкладки ленты, топа, клубов и
   await expect(page.getByRole('link', { name: /Войдите?,?\s*чтобы создать клуб/ })).toBeVisible()
 })
 
-test('топ зрителей за месяц: запрос по monthKey и опыт за месяц', async ({ page }) => {
+test('топ зрителей за месяц: Core /social/top и опыт за месяц с строки', async ({ page }) => {
   const asked: string[] = []
-  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/profiles\/rows\?.*/, (route) => {
-    const url = decodeURIComponent(route.request().url())
-    asked.push(url)
-    const month = url.includes('"monthKey"')
+  await page.route(/\/api\/core\/social\/top(?:\?|$)/, (route) => {
+    asked.push(route.request().url())
     return route.fulfill({
-      json: {
-        total: 1,
-        rows: [{ $id: 'u1', name: 'Мика', xp: 5000, weekXp: 70, monthXp: month ? 420 : 0, summary: '{}' }],
-      },
+      json: { profiles: [{ $id: 'u1', name: 'Мика', xp: 5000, weekXp: 70, monthXp: 420, summary: '{}' }] },
     })
   })
   await page.goto('/community?tab=top')
   await page.getByRole('button', { name: 'За этот месяц' }).click()
   await page.getByRole('button', { name: 'Опыт XP' }).click()
-  // Один лидер — на подиуме, не в таблице `.s-leaders`.
+  // Один лидер — на подиуме, не в таблице `.s-leaders`. Месяц Core не фильтрует на сервере: чип читает monthXp.
   await expect(page.locator('.s-podium__pill')).toHaveText('420 XP')
-  const d = new Date()
-  expect(asked.some((u) => u.includes(`"monthKey","values":[${d.getUTCFullYear() * 100 + d.getUTCMonth() + 1}]`))).toBe(true)
+  expect(asked.length).toBeGreaterThan(0)
+  expect(asked.every((u) => u.includes('/api/core/social/top'))).toBe(true)
   await expect(page.getByText('в последний день называем в нашем Telegram-канале')).toBeVisible()
 })
 
@@ -147,7 +142,12 @@ test('тайтл: опенинги и кнопка «В подборку»', asy
     }),
   )
   await page.goto('/anime/1')
-  await expect(page.getByRole('heading', { name: 'Опенинги и эндинги' })).toBeVisible()
+  const songs = page.getByRole('heading', { name: 'Опенинги и эндинги' })
+  for (let i = 0; i < 16 && (await songs.count()) === 0; i++) {
+    await page.evaluate(() => window.scrollBy(0, Math.max(900, window.innerHeight)))
+    await page.waitForTimeout(60)
+  }
+  await expect(songs).toBeVisible()
   await expect(page.getByText('Tank!')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Я.Музыка' })).toHaveAttribute('href', /music\.yandex\.ru\/search\?text=The%20Seatbelts%20Tank!/)
   await expect(page.getByRole('link', { name: '+ В подборку' })).toHaveAttribute('href', '/collections/my?add=1')

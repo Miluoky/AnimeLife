@@ -35,6 +35,138 @@ export function createAppwriteGuard() {
   }
 }
 
+export type CoreUserStub = {
+  $id: string
+  name: string
+  email?: string
+  labels?: string[]
+  prefs?: Record<string, unknown>
+  status?: boolean
+}
+
+export function asCoreUser(user: CoreUserStub) {
+  return {
+    $id: user.$id,
+    name: user.name,
+    email: user.email ?? `${user.$id}@example.test`,
+    labels: user.labels ?? [],
+    prefs: user.prefs ?? {},
+    status: user.status ?? true,
+  }
+}
+
+/** Ответ action с HTTP-статусом, не телом 200. */
+export function coreHttp(status: number, json: unknown) {
+  return { __coreHttp: true as const, status, json }
+}
+
+function isCoreHttp(value: unknown): value is { __coreHttp: true; status: number; json: unknown } {
+  return !!value && typeof value === 'object' && (value as { __coreHttp?: boolean }).__coreHttp === true
+}
+
+/** Частые ответы POST /api/core/action, чтобы страница вошедшего не падала на пустом теле. */
+export function coreActionOk(body: Record<string, unknown>) {
+  switch (body.action) {
+    case 'notif-list':
+      return { items: [], unread: 0 }
+    case 'sessions-list':
+      return { sessions: [] }
+    case 'invite-stats':
+      return { invited: 0, invitedBy: false }
+    case 'room-time':
+      return { serverNow: Date.now() }
+    case 'error-list':
+      return { errors: [] }
+    case 'quality-stats':
+      return { days: 7, metrics: {} }
+    case 'mod-counts':
+      return { reviews: 0, comments: 0, chat: 0, clubs: 0, takedowns: 0, total: 0 }
+    case 'tg-status':
+      return { configured: false, on: false }
+    default:
+      return { ok: true }
+  }
+}
+
+/**
+ * Сессия Core: GET /auth/me, список и prefs. `user` — объект или функция (null = гость, 401).
+ * Регистрировать после mockServices: более поздний route перехватывает первым.
+ */
+export async function mockCoreSession(
+  page: Page,
+  user: CoreUserStub | null | (() => CoreUserStub | null),
+  opts?: { onPrefs?: (prefs: Record<string, unknown>) => void },
+) {
+  const current = () => (typeof user === 'function' ? user() : user)
+  await page.route(/\/api\/core\/auth\/me(?:\?|$)/, (route) => {
+    const u = current()
+    if (!u) return route.fulfill({ status: 401, json: { message: 'Не вошли', code: 401 } })
+    return route.fulfill({ json: { user: asCoreUser(u) } })
+  })
+  await page.route(/\/api\/core\/lists\/me(?:\?|$)/, (route) => {
+    if (route.request().method() === 'PUT') return route.fulfill({ json: { ok: true } })
+    return route.fulfill({ json: { data: [], updatedAt: null } })
+  })
+  await page.route(/\/api\/core\/auth\/prefs(?:\?|$)/, (route) => {
+    const body = (route.request().postDataJSON() ?? {}) as { prefs?: Record<string, unknown> }
+    const prefs = body.prefs ?? {}
+    opts?.onPrefs?.(prefs)
+    const u = current()
+    return route.fulfill({ json: { user: { ...asCoreUser(u ?? { $id: 'u', name: 'Зритель' }), prefs } } })
+  })
+  await page.route(/\/api\/core\/auth\/logout(?:\?|$)/, (route) => route.fulfill({ json: { ok: true } }))
+}
+
+/** POST /api/core/action. Результат coreHttp — статус и json, иначе тело 200. */
+export async function mockCoreAction(page: Page, handle: (body: Record<string, unknown>) => unknown | Promise<unknown>) {
+  await page.route(/\/api\/core\/action(?:\?|$)/, async (route) => {
+    let body: Record<string, unknown> = {}
+    try {
+      body = (route.request().postDataJSON() ?? {}) as Record<string, unknown>
+    } catch {
+      body = {}
+    }
+    const result = await handle(body)
+    if (isCoreHttp(result)) return route.fulfill({ status: result.status, json: result.json })
+    return route.fulfill({ json: result ?? { ok: true } })
+  })
+}
+
+/** GET /api/core/social/top — топ зрителей одним списком (неделя/месяц выбирает клиент по полям строки). */
+export async function mockCoreTop(page: Page, profiles: Record<string, unknown>[]) {
+  await page.route(/\/api\/core\/social\/top(?:\?|$)/, (route) => route.fulfill({ json: { profiles } }))
+}
+
+/**
+ * POST profile-get. Строка как раньше: $id, name, about, summary (объект или JSON-строка).
+ * Остальные action уходят в предыдущий route.
+ */
+export async function mockCoreProfile(page: Page, byId: Record<string, Record<string, unknown>>) {
+  await page.route(/\/api\/core\/action(?:\?|$)/, async (route) => {
+    let body: { action?: string; userId?: string } = {}
+    try {
+      body = (route.request().postDataJSON() ?? {}) as { action?: string; userId?: string }
+    } catch {
+      body = {}
+    }
+    if (body.action !== 'profile-get') return route.fallback()
+    const row = byId[String(body.userId ?? '')]
+    if (!row) return route.fulfill({ status: 404, json: { message: 'Профиль скрыт', code: 404 } })
+    const summary = typeof row.summary === 'string' ? JSON.parse(row.summary) : row.summary
+    return route.fulfill({
+      json: {
+        profile: {
+          userId: row.$id ?? row.userId,
+          name: row.name,
+          about: row.about,
+          updatedAt: row.updatedAt ?? Date.now(),
+          summary,
+        },
+      },
+    })
+  })
+}
+
 const defaultCoreGet = (path: string) => {
   if (path === '/health' || path === '/') return { ok: true, backend: 'core', time: Date.now() }
   if (path.startsWith('/reviews')) return { reviews: [] }

@@ -41,6 +41,7 @@ export default function CommunityChat() {
   const list = useRef<HTMLOListElement>(null)
   const stickToBottom = useRef(true)
   const isAdmin = !!user?.labels?.includes('admin')
+  const shown = messages?.filter((message) => !message.hidden)
   usePageMeta('Общий чат сообщества Anime Life')
 
   useEffect(() => {
@@ -133,10 +134,10 @@ export default function CommunityChat() {
         >
           {messages === null ? (
             <li className="community-chat__state" role="status">Загружаем беседу…</li>
-          ) : messages.length === 0 ? (
+          ) : !shown?.length ? (
             <li className="community-chat__state">Пока тихо. Поздоровайтесь первым!</li>
           ) : (
-            messages.map((message) => (
+            shown.map((message) => (
               <li key={message.$id} className={`community-chat__message${message.userId === user?.$id ? ' community-chat__message--mine' : ''}`}>
                 <div className="community-chat__message-head">
                   <strong>{message.name}</strong>

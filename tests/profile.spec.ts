@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mockServices } from './mocks'
+import { mockCoreProfile, mockServices } from './mocks'
 
 test.beforeEach(async ({ page }) => {
   await mockServices(page)
@@ -17,25 +17,23 @@ test('первое добавление в список открывает до�
 
 test('открытый профиль показывает списки и достижения', async ({ page }) => {
   const card = (id: string, title: string) => ({ id, title, kind: 'TV', ongoing: false, posterFill: '#333', episodes: 12 })
-  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/profiles\/rows\/u1/, (route) =>
-    route.fulfill({
-      json: {
-        $id: 'u1',
-        name: 'Мика',
-        about: 'Смотрю всё про космос',
-        updatedAt: Date.now(),
-        summary: JSON.stringify({
-          facts: { total: 3, completed: 1, planned: 1, watchingOngoing: 0, episodes: 17, rated: 1 },
-          counts: { watching: 1, completed: 1, planned: 1 },
-          meanRating: 9,
-          favorites: [card('1', 'Ковбой Бибоп')],
-          watching: [{ ...card('2', 'Планеты'), watched: 5 }],
-          recent: [card('1', 'Ковбой Бибоп')],
-          achievements: ['first', 'owl'],
-        }),
+  await mockCoreProfile(page, {
+    u1: {
+      $id: 'u1',
+      name: 'Мика',
+      about: 'Смотрю всё про космос',
+      updatedAt: Date.now(),
+      summary: {
+        facts: { total: 3, completed: 1, planned: 1, watchingOngoing: 0, episodes: 17, rated: 1 },
+        counts: { watching: 1, completed: 1, planned: 1 },
+        meanRating: 9,
+        favorites: [card('1', 'Ковбой Бибоп')],
+        watching: [{ ...card('2', 'Планеты'), watched: 5 }],
+        recent: [card('1', 'Ковбой Бибоп')],
+        achievements: ['first', 'owl'],
       },
-    }),
-  )
+    },
+  })
   await page.goto('/u/u1')
   await expect(page.getByRole('heading', { name: 'Мика' })).toBeVisible()
   await expect(page.getByText('Смотрю всё про космос')).toBeVisible()
@@ -50,11 +48,10 @@ test('скрытый профиль', async ({ page }) => {
 })
 
 test('обсуждение серии: спойлер скрыт до нажатия', async ({ page }) => {
-  await page.route(/cloud\.appwrite\.io\/v1\/tablesdb\/anime\/tables\/comments\/rows\?.*/, (route) =>
+  await page.route(/\/api\/core\/comments/, (route) =>
     route.fulfill({
       json: {
-        total: 2,
-        rows: [
+        comments: [
           { $id: 'c1', animeId: '1', episode: 0, userId: 'u', name: 'Аня', text: 'Спайк выживет', spoiler: true, at: Date.now() - 60_000 },
           { $id: 'c2', animeId: '1', episode: 0, userId: 'u', name: 'Боря', text: 'Классная музыка', spoiler: false, at: Date.now() - 3_600_000 },
         ],
@@ -63,6 +60,10 @@ test('обсуждение серии: спойлер скрыт до нажат
   )
   await page.goto('/anime/1')
   const block = page.getByRole('region', { name: 'Комментарии' })
+  for (let i = 0; i < 16 && (await block.count()) === 0; i++) {
+    await page.evaluate(() => window.scrollBy(0, Math.max(900, window.innerHeight)))
+    await page.waitForTimeout(60)
+  }
   await expect(block.getByText('Классная музыка')).toBeVisible()
   await expect(block.getByText('Спайк выживет')).toHaveCount(0)
   await block.getByRole('button', { name: 'Показать спойлер' }).click()
