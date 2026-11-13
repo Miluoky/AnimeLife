@@ -45,7 +45,7 @@ async function render(path: string) {
   }
   try {
     const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { 'Content-Type': 'text/html' } }) }
-    const res = await worker.fetch(new Request(`https://animelife.top${path}`, { headers: { 'User-Agent': 'curl/8.5.0' } }), { ASSETS: assets }, { waitUntil: () => undefined })
+    const res = await worker.fetch(new Request(`https://animelife.top${path}`, { headers: { 'User-Agent': 'AnimeLifeTest/1.0' } }), { ASSETS: assets }, { waitUntil: () => undefined })
     return { status: res.status, ...out }
   } finally {
     Object.assign(g, { fetch: saved.fetch, caches: saved.caches, HTMLRewriter: saved.rw })

@@ -61,7 +61,7 @@ test.describe('Worker: английская версия', () => {
     }
     try {
       const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { 'Content-Type': 'text/html' } }) }
-      const res = await worker.fetch(new Request(`https://animelife.top${path}`, { headers: { 'User-Agent': 'curl/8.5.0' } }), { ASSETS: assets }, { waitUntil: () => undefined })
+      const res = await worker.fetch(new Request(`https://animelife.top${path}`, { headers: { 'User-Agent': 'AnimeLifeTest/1.0' } }), { ASSETS: assets }, { waitUntil: () => undefined })
       return { status: res.status, location: res.headers.get('Location'), ...out }
     } finally {
       Object.assign(g, { fetch: saved.fetch, caches: saved.caches, HTMLRewriter: saved.rw })
@@ -87,9 +87,16 @@ test.describe('Worker: английская версия', () => {
   })
 
   test('английские адреса есть в карте сайта', async () => {
+    const g = globalThis as Record<string, unknown>
+    const saved = g.caches
+    g.caches = { default: { match: async () => undefined, put: async () => undefined } }
     const ctx = { waitUntil: () => undefined }
-    const pages = await (await worker.fetch(new Request('https://animelife.top/sitemap-pages.xml', { headers: { 'User-Agent': 'curl/8.5.0' } }), {}, ctx)).text()
-    expect(pages).toContain('<loc>https://animelife.top/en</loc>')
+    try {
+      const pages = await (await worker.fetch(new Request('https://animelife.top/sitemap-pages.xml', { headers: { 'User-Agent': 'AnimeLifeTest/1.0' } }), {}, ctx)).text()
+      expect(pages).toContain('<loc>https://animelife.top/en</loc>')
+    } finally {
+      g.caches = saved
+    }
   })
 
   test('тексты: заголовок до 75 знаков, описание по фактам', () => {

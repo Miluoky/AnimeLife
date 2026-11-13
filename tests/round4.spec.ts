@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { mockServices } from './mocks'
+import { reveal } from './reveal'
 
 const animes = JSON.parse(readFileSync(new URL('./fixtures/animes.json', import.meta.url), 'utf8'))
 const bebop = { id: '1', title: 'Ковбой Бибоп', kind: 'TV', episodes: 26, ongoing: false, posterFill: '#333' }
@@ -73,15 +74,15 @@ test('«Моя запись»: заметка, пересмотры и даты 
   await expect(entry.locator('summary')).toContainText('пересмотрено 2 раз')
   await expect(entry.locator('summary')).toContainText('есть заметка')
 
-  // Заметка видна и в «Моём списке».
-  await page.goto('/my-list')
+  // Заметка видна в библиотеке, вкладка «Смотрю».
+  await page.goto('/library?tab=watching')
   await expect(page.locator('.list-item__note')).toHaveText('Посоветовал друг, смотреть с саундтреком')
 })
 
-test('главная: «Топ-10 онгоингов» с цифрами мест', async ({ page }) => {
+test('главная: «Ещё онгоинги» с цифрами мест, без пятёрки баннера', async ({ page }) => {
   await page.goto('/')
-  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Топ-10 онгоингов' }) })
-  await expect(shelf.locator('.top-ten')).toHaveCount(animes.length)
+  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Ещё онгоинги' }) })
+  await expect(shelf.locator('.top-ten')).toHaveCount(animes.length - 5)
   await expect(shelf.locator('.top-ten__n').first()).toHaveText('1')
 })
 
@@ -100,5 +101,6 @@ test('кадры: миниатюры лёгкие, фон баннера лёг�
   const banner = page.locator('.banner__img--shot')
   const phone = test.info().project.name === 'phone'
   await expect(banner).toHaveAttribute('src', phone ? /\/x332\/a\.jpg/ : /\/original\/a\.jpg/)
+  await reveal(page, page.locator('.shots-grid img'))
   await expect(page.locator('.shots-grid img').first()).toHaveAttribute('src', /\/x332\//)
 })

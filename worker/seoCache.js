@@ -10,7 +10,7 @@ export const SEO_TTL_LANDING = 6 * HOUR
 
 // Совпадает с PRIVATE в worker/index.js — не кэшируем то, что noindex.
 const PRIVATE =
-  /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|my-list|watching|moderation|admin\/)/
+  /^\/(?:together\/|recap|collections\/(?:my|new)|c\/[^/]+\/edit|manga\/\d+\/(?:chapter\/|upload)|account|auth\/|library|my-list|watching|moderation|admin\/)/
 
 // Комнаты, профили, клубы, подборки — меняются без предупреждения.
 const VOLATILE = /^\/(?:together\/|u\/|club\/|c\/)/

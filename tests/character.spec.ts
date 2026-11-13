@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { mockServices } from './mocks'
+import { reveal } from './reveal'
 
 const animes = JSON.parse(readFileSync(new URL('./fixtures/animes.json', import.meta.url), 'utf8'))
 const image = { original: '/uploads/spike.jpg', preview: '/uploads/spike.jpg' }
@@ -35,7 +36,9 @@ test.beforeEach(async ({ page }) => {
 
 test('персонаж: своя страница с описанием, спойлером под замком, сэйю и аниме с ролями', async ({ page }) => {
   await page.goto('/anime/1')
-  await page.getByRole('link', { name: /Спайк Шпигель/ }).click()
+  const spike = page.getByRole('link', { name: /Спайк Шпигель/ })
+  await reveal(page, spike)
+  await spike.first().click()
   await expect(page).toHaveURL(/\/character\/1$/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Спайк Шпигель')
   await expect(page.getByRole('heading', { name: 'Прошлое' })).toBeVisible()

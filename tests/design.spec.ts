@@ -59,8 +59,14 @@ test.describe('iPhone', () => {
 test('Ctrl+K ставит курсор в поиск', async ({ page, isMobile }) => {
   test.skip(isMobile, 'на телефоне поиск открывается из меню')
   await page.goto('/')
-  await page.keyboard.press('Control+k')
-  await expect(page.locator('.search:not(.search--mobile) input')).toBeFocused()
+  const input = page.locator('.search:not(.search--mobile) input')
+  await input.evaluate((el) => (el as HTMLInputElement).blur())
+  // Chromium в Playwright забирает настоящий Ctrl+K на омнибокс и не шлёт keydown странице.
+  // Шапка слушает то же событие на window, цель — body.
+  await page.evaluate(() => {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', code: 'KeyK', ctrlKey: true, bubbles: true, cancelable: true }))
+  })
+  await expect(input).toBeFocused()
 })
 
 test('тема и цвет сохраняются между заходами', async ({ page }) => {

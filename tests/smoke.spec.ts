@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { mockServices } from './mocks'
+import { reveal } from './reveal'
 
 test.beforeEach(async ({ page }) => {
   await mockServices(page)
@@ -27,11 +28,13 @@ test('страница тайтла открывается по клику и п
   // Карточка ведёт сразу на адрес с латинским названием, без перенаправления.
   await expect(page).toHaveURL(/\/anime\/21-one-piece$/)
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
-  await expect(page.getByRole('heading', { name: /Отзывы/ })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Серии/ })).toBeVisible()
   // Описание и факты сразу в шапке, как на образце: не надо листать до конца правой колонки.
   await expect(page.getByRole('heading', { name: 'О чём' })).toBeVisible()
   await expect(page.locator('.fact-pill').first()).toBeVisible()
+  // Отзывы ниже первого экрана и монтируются, когда секция рядом.
+  await reveal(page, page.getByRole('heading', { name: /Отзывы/ }))
+  await expect(page.getByRole('heading', { name: /Отзывы/ })).toBeVisible()
 })
 
 test('каталог: поиск и фильтры', async ({ page }) => {
@@ -41,12 +44,12 @@ test('каталог: поиск и фильтры', async ({ page }) => {
 })
 
 test('мой список и профиль без входа', async ({ page }) => {
-  await page.goto('/my-list')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  // Пустой список предлагает популярное: одно нажатие кладёт тайтл в «Буду смотреть» и открывает этот раздел.
+  await page.goto('/library?tab=planned')
+  await expect(page.getByRole('heading', { level: 1, name: 'Библиотека' })).toBeVisible()
+  // Пустой список предлагает популярное: одно нажатие кладёт тайтл в «В планах».
   await expect(page.getByRole('heading', { name: 'Список пока пуст' })).toBeVisible()
   await page.getByRole('button', { name: 'Буду смотреть' }).first().click()
-  await expect(page.getByRole('tab', { name: /Буду смотреть/ })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: /В планах/ })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.list-item')).toHaveCount(1)
   await page.goto('/account')
   await expect(page.getByRole('button', { name: /Войти/ }).first()).toBeVisible()

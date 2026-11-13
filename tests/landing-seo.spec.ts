@@ -42,7 +42,7 @@ async function render(path: string) {
   }
   try {
     const assets = { fetch: async () => new Response('<!doctype html><div id="root"></div>', { headers: { 'Content-Type': 'text/html' } }) }
-    const res = await worker.fetch(new Request(`https://animelife.top${path}`, { headers: { 'User-Agent': 'curl/8.5.0' } }), { ASSETS: assets }, { waitUntil: () => undefined })
+    const res = await worker.fetch(new Request(`https://animelife.top${path}`, { headers: { 'User-Agent': 'AnimeLifeTest/1.0' } }), { ASSETS: assets }, { waitUntil: () => undefined })
     return { status: res.status, ...out }
   } finally {
     Object.assign(g, { fetch: saved.fetch, caches: saved.caches, HTMLRewriter: saved.rw })
@@ -81,7 +81,7 @@ test('карта сайта: темы и подборки лучших', async (
   const saved = g.caches
   g.caches = { default: { match: async () => undefined, put: async () => undefined } }
   try {
-    const res = await worker.fetch(new Request('https://animelife.top/sitemap-pages.xml', { headers: { 'User-Agent': 'curl/8.5.0' } }), { ASSETS: { fetch: async () => new Response('') } }, { waitUntil: () => undefined })
+    const res = await worker.fetch(new Request('https://animelife.top/sitemap-pages.xml', { headers: { 'User-Agent': 'AnimeLifeTest/1.0' } }), { ASSETS: { fetch: async () => new Response('') } }, { waitUntil: () => undefined })
     const xml = await res.text()
     for (const p of ['/theme/isekai', '/best/isekai', '/best/romance', '/best/2024']) expect(xml).toContain(`<loc>https://animelife.top${p}</loc>`)
   } finally {

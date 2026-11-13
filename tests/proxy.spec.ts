@@ -6,9 +6,10 @@ import { yummyProxy } from '../worker/yummyProxy.js'
 import worker from '../worker/index.js'
 import { guard } from '../worker/guard.js'
 
-/** Запрос к Worker, как его шлёт робот без браузера (curl): без Sec-Fetch-Mode, но с User-Agent. */
+/** Не curl и не Chrome: guard отдаёт curl 403, а Chrome без Sec-Fetch-Mode — голый index.html. */
+const VISITOR = 'AnimeLifeTest/1.0'
 const visit = (url: string, init: RequestInit = {}) =>
-  new Request(url, { ...init, headers: { 'User-Agent': 'curl/8.5.0', ...(init.headers as Record<string, string> | undefined) } })
+  new Request(url, { ...init, headers: { 'User-Agent': VISITOR, ...(init.headers as Record<string, string> | undefined) } })
 
 // Прокси Shikimori (/api/shiki, worker/shikiProxy.js): приложение на animelife.top ходит прямо к Shikimori,
 // а через прокси — только если напрямую не вышло (сеть, 429, сбой). Сам Worker проверяется без браузера, с подменёнными fetch и кэшем.
@@ -77,11 +78,14 @@ test('Shikimori напрямую отказал и на повторе (429 ил
   await page.goto('http://animelife.top/anime/1')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
   expect(proxied).toContain('GET /animes/1')
-  // Первый отказ и один повтор напрямую, дальше — прокси.
+  // Первый отказ и один повтор напрямую, потом вкладка запоминает прокси.
   expect(refused).toBe(2)
-  // Остальные запросы страницы после отказа тоже пошли через прокси.
-  expect(proxied.length).toBeGreaterThan(1)
   expect(await page.evaluate(() => Number(sessionStorage.getItem('shiki.viaProxy')) > Date.now())).toBe(true)
+  // Запросы, которые уже ушли параллельно, не переигрываются. Следующая страница идёт через прокси.
+  const before = proxied.length
+  await page.goto('http://animelife.top/catalog')
+  await expect(page.locator('.poster-card').first()).toBeVisible()
+  expect(proxied.length).toBeGreaterThan(before)
 })
 
 test('одиночный отказ Shikimori (429 без CORS) не уводит вкладку в прокси: повтор напрямую через паузу', async ({ page }) => {
@@ -186,7 +190,8 @@ test.describe('Worker: прокси Shikimori', () => {
       const first = await env.call('/api/shiki/api/animes?order=popularity&limit=1&utm=x')
       expect(first.cache).toBe('MISS')
       expect(first.body).toBe('[{"id":1}]')
-      expect(first.res.headers.get('Cache-Control')).toBe('public, max-age=300')
+      // Список без search: свежесть 30 минут. Край хранит копию ещё неделю (stale-while-revalidate).
+      expect(first.res.headers.get('Cache-Control')).toBe('public, max-age=1800, s-maxage=606600, stale-while-revalidate=604800')
       expect(env.calls[0].url).toBe('https://shikimori.io/api/animes?limit=1&order=popularity')
       expect((env.calls[0].init.headers as Record<string, string>)['User-Agent']).toBe('AnimeLife/1.0 (+https://animelife.top)')
       const second = await env.call('/api/shiki/api/animes?limit=1&order=popularity')
@@ -223,7 +228,7 @@ test.describe('Worker: прокси Shikimori', () => {
       expect(stale.cache).toBe('STALE')
       expect(stale.res.status).toBe(200)
       expect(stale.body).toBe('[{"id":1}]')
-      expect(stale.res.headers.get('Cache-Control')).toBe('public, max-age=60')
+      expect(stale.res.headers.get('Cache-Control')).toBe('public, max-age=60, s-maxage=604860, stale-while-revalidate=604800')
       env.respond(() => new Response('<html>502</html>', { status: 502, headers: { 'Content-Type': 'text/html' } }))
       expect((await env.call('/api/shiki/api/genres')).cache).toBe('STALE')
       env.respond(() => Promise.reject(new DOMException('timeout', 'TimeoutError')))
@@ -366,9 +371,16 @@ test.describe('Worker: прокси Shikimori', () => {
   })
 
   test('«О проекте» и «Приложение» есть в карте сайта', async () => {
+    const g = globalThis as Record<string, unknown>
+    const saved = g.caches
+    g.caches = { default: { match: async () => undefined, put: async () => undefined } }
     const ctx = { waitUntil: () => undefined }
-    const xml = await (await worker.fetch(visit('https://animelife.top/sitemap-pages.xml'), {}, ctx)).text()
-    for (const path of ['/about', '/app', '/catalog', '/rightholders']) expect(xml).toContain(`<loc>https://animelife.top${path}</loc>`)
+    try {
+      const xml = await (await worker.fetch(visit('https://animelife.top/sitemap-pages.xml'), {}, ctx)).text()
+      for (const path of ['/about', '/app', '/catalog', '/rightholders']) expect(xml).toContain(`<loc>https://animelife.top${path}</loc>`)
+    } finally {
+      g.caches = saved
+    }
   })
 })
 
@@ -405,7 +417,7 @@ test.describe('Worker: кэш готовых страниц', () => {
     return Response.json(shikimoriFixture(u.pathname.replace(/^\/api/, ''), u.searchParams))
   }
 
-  test('страница собирается один раз, потом сразу из кэша; через 5 минут обновляется в фоне', async () => {
+  test('страница собирается один раз, потом сразу из кэша; через час обновляется в фоне', async () => {
     const env = fakeEnv()
     try {
       env.respond(fixture())
@@ -414,7 +426,8 @@ test.describe('Worker: кэш готовых страниц', () => {
       expect([first.status, first.cache]).toEqual([200, 'MISS'])
       expect(first.upstream).toBeGreaterThan(0)
       expect(await s.open('/anime/1-cowboy-bebop')).toMatchObject({ cache: 'HIT', upstream: 0 })
-      env.clock.now += 6 * 60_000
+      // Свежесть страницы тайтла — час (worker/seoCache.js), копию можно отдать ещё час.
+      env.clock.now += 61 * 60_000
       const stale = await s.open('/anime/1-cowboy-bebop')
       // Зритель получил старую копию, а Worker в фоне собрал свежую.
       expect(stale.cache).toBe('STALE')
@@ -446,7 +459,7 @@ test.describe('Worker: кэш готовых страниц', () => {
     try {
       env.respond(fixture())
       const s = site(env)
-      for (const path of ['/quiz', '/chat', '/admin/analytics', '/top', '/collections']) expect((await s.open(path)).status, path).toBe(200)
+      for (const path of ['/quiz', '/chat', '/admin/analytics', '/top', '/collections', '/library']) expect((await s.open(path)).status, path).toBe(200)
       expect((await s.open('/no-such-page')).status).toBe(404)
     } finally {
       env.restore()
@@ -501,10 +514,10 @@ test.describe('Worker: кэш готовых страниц', () => {
       expect((await s.open('/anime/1-cowboy-bebop')).cache).toBe('MISS')
       expect((await s.open('/together/ABC123')).cache).toBeNull()
       expect((await s.open('/anime/1-cowboy-bebop', { method: 'HEAD' })).cache).toBeNull()
-      // Тайтла нет: 404 тоже хранится.
+      // 404 с noindex в кэш страниц не кладётся: повтор снова собирает страницу.
       env.respond((url: string) => (url.includes('/animes/999') ? new Response('', { status: 404 }) : fixture()(url)))
       expect(await s.open('/anime/999')).toMatchObject({ status: 404, cache: 'MISS' })
-      expect(await s.open('/anime/999')).toMatchObject({ status: 404, cache: 'HIT', upstream: 0 })
+      expect(await s.open('/anime/999')).toMatchObject({ status: 404, cache: 'MISS' })
     } finally {
       env.restore()
     }
@@ -578,8 +591,8 @@ test.describe('Worker: лимит вызовов и отсев роботов', 
     expect(guard(req('/anime/1', ua.chrome, { 'Sec-Fetch-Mode': 'cors' }), new URL('https://animelife.top/anime/1'))).toBeUndefined()
     expect(guard(req('/anime/1', ua.chrome), new URL('https://animelife.top/anime/1'))).toBe('plain')
     expect(status(guard(req('/api/shiki/api/genres', ua.chrome), new URL('https://animelife.top/api/shiki/api/genres')))).toBe(403)
-    // curl и обычные проверки владельца не задеваются.
-    expect(guard(req('/anime/1', 'curl/8.5.0'), new URL('https://animelife.top/anime/1'))).toBeUndefined()
+    // curl в списке сборщиков: 403 без сборки страницы.
+    expect(status(guard(req('/anime/1', 'curl/8.5.0'), new URL('https://animelife.top/anime/1')))).toBe(403)
   })
 
   test('поддельный Chrome получает простой index.html без запросов к Shikimori, сборщик — 403', async () => {
@@ -604,7 +617,7 @@ test.describe('Worker: лимит вызовов и отсев роботов', 
     for (const file of ['wrangler.animelife.jsonc', 'wrangler.jsonc']) {
       const text = readFileSync(file, 'utf8')
       // Список путей выключил бы распознавание переходов (Sec-Fetch-Mode), и поисковики получали бы голый index.html.
-      expect(text.match(/"run_worker_first": ([^\n,]*)/)![1], file).toBe('false')
+      expect(text.match(/"run_worker_first":\s*([^\n,\r]*)/)![1], file).toBe('false')
       // Переходы людей отдаются без Worker только при этом режиме и дате совместимости не раньше 2025-04-01.
       expect(text, file).toContain('"not_found_handling": "single-page-application"')
       expect(text.match(/"compatibility_date": "(\d{4}-\d{2}-\d{2})"/)![1] >= '2025-04-01', file).toBe(true)

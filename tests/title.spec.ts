@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { mockServices } from './mocks'
+import { reveal } from './reveal'
 
 const anime = JSON.parse(readFileSync(new URL('./fixtures/anime.json', import.meta.url), 'utf8'))
 
@@ -32,6 +33,7 @@ test('тайтл-онгоинг: таймер до следующей серии
   // Колокольчик есть только у онгоингов и анонсов.
   await expect(page.getByRole('button', { name: 'Сообщить о новой серии' })).toHaveAttribute('aria-pressed', 'false')
 
+  await reveal(page, page.getByRole('group', { name: 'Какие видео показать' }))
   const kinds = page.getByRole('group', { name: 'Какие видео показать' })
   await expect(kinds.getByRole('button')).toHaveText(['Все · 3', 'Трейлер · 2', 'Опенинг · 1'])
   await kinds.getByRole('button', { name: 'Опенинг · 1' }).click()
@@ -42,9 +44,10 @@ test('тайтл-онгоинг: таймер до следующей серии
 test('вышедший тайтл: без таймера и без фильтра, когда видео одного вида', async ({ page }) => {
   await page.goto('/anime/1')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Ковбой Бибоп')
-  await expect(page.locator('.video-card').first()).toBeVisible()
   await expect(page.getByRole('timer')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Сообщить о новой серии' })).toHaveCount(0)
+  await reveal(page, page.locator('.video-card'))
+  await expect(page.locator('.video-card').first()).toBeVisible()
   await expect(page.getByRole('group', { name: 'Какие видео показать' })).toHaveCount(0)
 })
 
@@ -117,6 +120,7 @@ test('порядок просмотра: франшиза по дате, тек�
     }),
   )
   await page.goto('/anime/1')
+  await reveal(page, page.locator('.order-card'))
   const cards = page.locator('.order-card')
   await expect(cards).toHaveCount(3)
   await expect(cards.locator('.order-card__title')).toHaveText(['Ковбой Бибоп', 'Ковбой Бибоп: Фильм', 'Ковбой Бибоп: Новое'])
@@ -190,6 +194,7 @@ test('тайтл: в порядке просмотра у длинной фра�
     }),
   )
   await page.goto('/anime/1')
+  await reveal(page, page.locator('.order-card__title'))
   const titles = page.locator('.order-card__title')
   await expect(titles).toHaveText(['Провожающая в последний путь Фрирен', '…Фрирен: Магия', '…Фрирен 2'])
   await expect(titles.nth(2)).toHaveAttribute('title', 'Провожающая в последний путь Фрирен 2')

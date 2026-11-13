@@ -82,7 +82,7 @@ test('читалка по страницам: листание, справа н�
   await page.getByRole('link', { name: 'Продолжить: Глава 2, стр. 2' }).click()
   await expect(page.locator('.reader__count')).toHaveText('2 / 3')
   // Режим запоминается.
-  expect(await page.evaluate(() => localStorage.getItem('anime.mangaView.v1'))).toBe('{"paged":true,"rtl":true}')
+  expect(await page.evaluate(() => localStorage.getItem('anime.mangaView.v1'))).toBe('{"paged":true,"rtl":true,"spread":false}')
 })
 
 test('читалка лентой: все страницы подряд, стрелки листают главы', async ({ page }) => {

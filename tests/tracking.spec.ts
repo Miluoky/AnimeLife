@@ -30,7 +30,7 @@ test('«+1 серия»: последняя серия переносит тай
   await seedList(page, [
     { anime: card('1', 'Ковбой Бибоп', 3), status: 'watching', addedAt: 1, updatedAt: 1, watched: 2 },
   ])
-  await page.goto('/my-list')
+  await page.goto('/library?tab=watching')
   await expect(page.getByText('2 / 3 эп.')).toBeVisible()
   await page.getByRole('button', { name: 'Отметить серию 3 просмотренной' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Ковбой Бибоп: «Просмотрено»' })).toBeVisible()
@@ -58,7 +58,7 @@ test('импорт из Shikimori по нику', async ({ page }) => {
       ],
     }),
   )
-  await page.goto('/my-list')
+  await page.goto('/library?tab=watching')
   await page.getByText('Импорт и экспорт списка').click()
   await page.getByLabel('Ник на Shikimori').fill('https://shikimori.io/someone')
   await page.getByRole('button', { name: 'Импорт', exact: true }).click()
@@ -74,9 +74,9 @@ test('импорт из файла MyAnimeList и выгрузка обратн�
     <anime><series_animedb_id>21</series_animedb_id><my_watched_episodes>100</my_watched_episodes><my_score>10</my_score><my_status>Watching</my_status></anime>
     <anime><series_animedb_id>235</series_animedb_id><my_watched_episodes>0</my_watched_episodes><my_score>0</my_score><my_status>Plan to Watch</my_status></anime>
   </myanimelist>`
-  await page.goto('/my-list')
+  await page.goto('/library?tab=watching')
   await page.getByText('Импорт и экспорт списка').click()
-  await page.locator('.list-tools input[type=file]').setInputFiles({ name: 'animelist.xml', mimeType: 'application/xml', buffer: Buffer.from(xml) })
+  await page.locator('.list-tools input[type=file][accept*=".xml"]').setInputFiles({ name: 'animelist.xml', mimeType: 'application/xml', buffer: Buffer.from(xml) })
   await expect(page.getByRole('status').filter({ hasText: 'Импортировано 2: новых 2' })).toBeVisible()
   await expect(page.getByText('100 эп.')).toBeVisible()
   const download = page.waitForEvent('download')
@@ -95,8 +95,8 @@ test('«Буду смотреть»: «выбрать за меня» предл
       JSON.stringify(['Альфа', 'Бета', 'Гамма'].map((t, i) => ({ anime: card(String(i + 1), t), status: 'planned', addedAt: i }))),
     )
   })
-  await page.goto('/my-list')
-  // Длинная подпись кнопки на телефоне переносится, а не уводит страницу вбок.
+  await page.goto('/library?tab=planned')
+  // Кнопка только на вкладке «В планах». Длинная подпись на телефоне переносится, а не уводит страницу вбок.
   await expect(page.getByRole('button', { name: /выбрать за меня/ })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await page.getByRole('button', { name: /выбрать за меня/ }).click()

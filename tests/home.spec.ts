@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await mockServices(page)
 })
 
-test('главная: баннер и «Топ-10 онгоингов» делят один запрос к Shikimori', async ({ page }) => {
+test('главная: баннер берёт топ-5, полка «Ещё онгоинги» пропускает их', async ({ page }) => {
   const ongoing: string[] = []
   page.on('request', (r) => {
     const url = new URL(r.url())
@@ -16,10 +16,13 @@ test('главная: баннер и «Топ-10 онгоингов» деля�
   })
   await page.goto('/')
   await expect(page.locator('.hero__title')).toBeVisible()
-  await expect(page.locator('.top-ten').first()).toBeVisible()
-  // В баннере листаются первые пять, в полке все десять.
+  const shelf = page.locator('section', { has: page.getByRole('heading', { name: 'Ещё онгоинги' }) })
+  await expect(shelf.locator('.top-ten')).toHaveCount(animes.length - 5)
+  // Баннер — первые пять (limit 10). Полка запрашивает ещё раз с skip=5 (limit 15) и не повторяет баннер.
   await expect(page.locator('.hero__thumbs [role="tab"]')).toHaveCount(5)
-  expect(ongoing).toHaveLength(1)
+  expect(ongoing).toHaveLength(2)
+  expect(ongoing.some((q) => /(?:^|&)limit=10(?:&|$)/.test(q))).toBe(true)
+  expect(ongoing.some((q) => /(?:^|&)limit=15(?:&|$)/.test(q))).toBe(true)
 })
 
 test('главная: смену тайтлов в баннере можно остановить и продолжить', async ({ page }) => {
@@ -135,7 +138,8 @@ test('главная: плитки жанров ведут на страницы
 test('главная: карточки «Сервисы сайта» ведут в мини-игру, подбор и подборки', async ({ page }) => {
   await page.goto('/')
   const cards = page.getByRole('region', { name: 'Сервисы сайта' }).getByRole('link')
-  await expect(cards).toHaveCount(3)
+  await expect(cards).toHaveCount(4)
+  await expect(cards.first()).toContainText('Вместе')
   await cards.filter({ hasText: 'Аниме-квизы' }).click()
   await expect(page).toHaveURL(/\/quiz$/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Угадай аниме по кадру')

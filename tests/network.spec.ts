@@ -41,13 +41,15 @@ test('без сети: плашка «Нет сети», потом «Сеть �
 test('без сети: раздел, который ещё не скачан, объясняет, что случилось', async ({ page, context }) => {
   await page.goto('/')
   await expect(page.locator('.hero, .hero--loading').first()).toBeVisible()
+  // Офлайн у Chromium иногда не обрывает import(), и скелет крутится дольше таймаута. Чанк викторины рвём сами.
+  await page.route(/\/assets\/Quiz-.*\.js/, (route) => route.abort('internetdisconnected'))
   await context.setOffline(true)
   // Переход внутри приложения, как по ссылке: код викторины ещё не скачан.
   await page.evaluate(() => {
     window.history.pushState({}, '', '/quiz')
     window.dispatchEvent(new PopStateEvent('popstate'))
   })
-  await expect(page.getByRole('heading', { name: 'Нет интернета' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { name: 'Нет интернета' })).toBeVisible()
 })
 
 test('сборка: список файлов для офлайна без hls.js', () => {
