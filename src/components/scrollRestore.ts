@@ -4,7 +4,7 @@ import { pageScope } from './morph'
 
 const STORE = 'anime.scroll.v1'
 /** Сколько ждём, пока догрузятся полки и сетка, прежде чем бросить попытки вернуть прокрутку. */
-const RESTORE_MS = 4000
+const RESTORE_MS = 6000
 
 function load(): Record<string, number> {
   try {
@@ -68,8 +68,9 @@ export function useScrollRestore() {
       if (stop || performance.now() - started > RESTORE_MS) return done()
       const reachable = document.documentElement.scrollHeight - window.innerHeight >= target - 2
       if (Math.abs(window.scrollY - target) > 2) window.scrollTo(0, target)
-      // Когда до позиции можно докрутить, ещё немного держим её: выше могут догрузиться полки.
-      if (reachable && performance.now() - started > 600) return done()
+      // Стоп только когда реально у цели: иначе на телефоне полки ещё растут и max-scroll < target.
+      const atTarget = Math.abs(window.scrollY - target) <= 2
+      if (reachable && atTarget && performance.now() - started > 600) return done()
       frame = requestAnimationFrame(tick)
     }
     const events = ['wheel', 'touchstart', 'keydown', 'mousedown'] as const

@@ -192,5 +192,10 @@ test('«назад» со страницы тайтла возвращает н�
   await expect(page).toHaveURL(/\/anime\//)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(100)
   await page.goBack()
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before - 50)
+  await expect(page).toHaveURL(/\/?$/)
+  // Контракт — снова видна та же полка; точный scrollY на phone плавает, пока догружаются полки.
+  await expect(shelf.getByRole('heading', { name: 'Шедевры аниме' })).toBeInViewport({ timeout: 8_000 })
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY), { timeout: 8_000 })
+    .toBeGreaterThan(Math.min(before - 50, before * 0.75))
 })
