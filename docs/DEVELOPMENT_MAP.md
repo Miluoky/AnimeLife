@@ -55,23 +55,21 @@
 - Player happy-path зрелый (resume Kodik/own, skips, trailer fallback, engage defer).
 
 ### Критические щели (сводка аудитов)
-| Кластер | Суть | Источник |
+Волна 2026-11-10 + cutover/CI закрыли P0 и дешёвые P1–P3 из таблицы ниже. Актуальный остаток:
+
+| Кластер | Статус | Что ещё открыто |
 |---|---|---|
-| **SEO integrity** | FAQ `useJsonLd` затирает TVSeries; fake AggregateRating | 02 |
-| **Trust/legal** | `/privacy` всё ещё про Appwrite Frankfurt | 09 |
-| **Platform SPOF** | Free 100k/day; WAF ensure не на schedule; shallow health | 08 |
-| **Account trust** | скрытый профиль leak/crash; фейковые метрики /u | 05 |
-| **Library sync** | import не двигает status; dual watched; autoSync молчит | 04 |
-| **Adult paths** | `/hentai/watch` → `/watch`; reader без AgeGate; MD без `adult:true` | 03, 07 |
-| **Social discover** | комнаты не public; InviteCard не авто-открывается | 06 |
-| **Thin landings** | soft-200 voice/chronology/trope; voice grid не про озвучку | 02 |
+| **SEO integrity** | закрыто | Voice landing по-прежнему disclaimer/curated (P2 L), не soft-200 |
+| **Trust/legal** | закрыто | privacy=Core; ban/audit есть |
+| **Platform SPOF** | ок на Free | WAF ensure weekly + ручной re-run 2026-11-14 success; quota 100k — мониторинг; restore drill ждёт `D1_BACKUP_PASSPHRASE` локально |
+| **Account / library / adult / social / landings** | закрыто дешёвым срезом | см. «Уже сделано»; Paid RoomDO/R2 — только при ROI + не Free Website |
 
 ### Уже сделано (якоря)
 - Core-only · perf watch wave · WAF Free ≤5 · `PERF_WATCH.md` · `worker-limit.md` · RoomDO stub + Free poll · own manga OFF честно.
 - **Волна 2026-11-10 (карта P0–P3 дешёвые):** privacy=Core; TitleFaq `@graph` / no fake AggregateRating; profile 404 + honest /u; library merge+autoSync+`effectiveWatched`; watchBase hentai; MD adult+AgeGate; Together public+Invite; Hero resume; Danmaku-on-only; soft-200→404 chronology/trope/voice **+ хабы `/chronology` `/trope`**; Chronology one `@graph`; voice disclaimer; og:image poster; FranchiseBridge→chronology; Landing related≤8; themes в Catalog; single failover (page-owned); resume honesty non-Kodik; Nav season/ongoing; Discover Together; Home ongoing dedupe; onboarding snooze 7d; TasteDuel share-URL; room chat report; 16+ UGC checkbox; hentai noindex + tags w/o shikiId hidden; manga copy honesty; deep `/health` D1+KV; hide `implemented[]`; KV rate-limit login/analytics; source-health→Core; backup `D1_BACKUP_PASSPHRASE`; WAF ensure weekly schedule; legal ban honesty; Admin mod-queue badge; SW `v5`; JSON import + Shiki on Library; `/my-list`→`/library`; FailoverPlayer deleted; spoiler wraps About.
 - **Добивка автономная:** user-ban/unban + audit who/when; club mod tab; sessions list/revoke; profile slug; manga разворот; streak=onEnded; cold voice timer; BufferTrivia 5s; random open room; Recap/Quiz→Duel; news attribution; OAuth/email «не в этом году»; watchLog local-only; Worker quota note; restore drill в docs.
 - **Полный переезд CF Free (без Paid):** выпилены `LEGACY_APPWRITE`/`functions/{community,social-login}`/appwrite workflows+deploy scripts; mangaOwn без Frankfurt URLs; telegram-news/menu только `TELEGRAM_BOT_TOKEN`+Core; README/docs/CI Core-only. RoomDO/R2 намеренно выкл (аккаунт Free Website).
-- **Ops/tests 2026-11-12:** Playwright suites → Core (together без Appwrite/WS); CI e2e `ubuntu-22.04`; секрет `APPWRITE_API_KEY` удалён + decrypt workflow; player tests под `warmLimit=0`. Restore drill: артефакт D1 скачивается, полный import — локально с `D1_BACKUP_PASSPHRASE` (в агенте ключа нет).
+- **Ops/tests 2026-11-12…14:** Playwright suites → Core (together без Appwrite/WS); CI e2e `ubuntu-22.04`; секрет `APPWRITE_API_KEY` удалён + decrypt workflow; player tests под `warmLimit=0`; CI «Проверки» green (`a63e15f`); WAF ensure re-run success (2026-11-14); prod `/api/core/health` → `d1`+`kv` ok. Restore drill: артефакт D1 скачивается, полный import — локально с `D1_BACKUP_PASSPHRASE` (в агенте ключа нет).
 
 ---
 
@@ -144,7 +142,7 @@
 | **social** | feature-rich / discovery-starved | Комната зрелая; public list + invite funnel сломаны продуктово |
 | **manga** | ok SFW reader / fragile adult | Reader сильный; adult MD + gate bypass + path isolation |
 | **platform** | ok Free architecture / fragile ops | Static+WAF+Core верно; quota SPOF, health, backup secrets |
-| **trust** | thin→ok tooling / broken copy | Mod queues есть; privacy Appwrite; нет ban UI/audit/SLA tooling |
+| **trust** | ok | privacy=Core; ban/audit who/when; mod queues; SLA tooling по желанию |
 
 ---
 

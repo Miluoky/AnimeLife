@@ -71,7 +71,7 @@ export function useEngageReady() {
       last = t
     })
 
-    // Idle-fallback подольше: пока зритель только смотрит — Appwrite/franchise чанки не тянем.
+    // Idle-fallback подольше: пока зритель только смотрит — franchise/community чанки не тянем.
     const idleId = globalThis.requestIdleCallback?.(go, { timeout: 12_000 })
     const timer = idleId === undefined ? window.setTimeout(go, 8_000) : undefined
 

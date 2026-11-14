@@ -54,7 +54,7 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Пуши и SDK Appwrite не нужны для первого экрана: подключаем их после загрузки, отдельной частью.
+// Пуши не нужны для первого экрана: подключаем после загрузки, отдельной частью.
 const initPush = () => {
   void import('./data/telegramNotify').then((m) => m.initTelegramNotify())
   return import('./data/push').then((m) => m.initPush())

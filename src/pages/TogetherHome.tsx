@@ -40,7 +40,7 @@ export default function TogetherHome() {
     }
     // Даже если часы сервера не ответили — список комнат всё равно грузим.
     void syncClock(1).then(refresh, refresh)
-    // Список комнат обновляем, только пока вкладка открыта: фоновая вкладка не тратит запросы к Appwrite.
+    // Список комнат обновляем, только пока вкладка открыта: фоновая вкладка не дергает Core.
     const timer = setInterval(() => !document.hidden && refresh(), 20_000)
     return () => {
       alive = false

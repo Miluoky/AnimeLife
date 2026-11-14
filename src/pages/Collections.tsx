@@ -73,7 +73,7 @@ const COLLECTIONS: Collection[] = [
   },
 ]
 
-// Подборки зрителей тянут SDK Appwrite: отдельной частью, готовые полки показываются сразу.
+// Подборки зрителей тянут Core `/api/core/collections` отдельной частью; готовые полки — сразу.
 const UserCollectionsShelf = lazy(() => import('./UserCollections').then((m) => ({ default: m.UserCollectionsShelf })))
 
 export default function Collections() {

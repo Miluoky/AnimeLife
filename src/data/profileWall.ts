@@ -20,7 +20,7 @@ export interface WallComment {
 /** Локальный кеш комментариев стены для мгновенного рендера и офлайн-режима. Без фейковых mock-данных. */
 export const wallCacheStore = createLocalStore<Record<string, WallComment[]>>('anime.profile.wall.v2', {})
 
-/** Загрузить записи стены с сервера Appwrite с фоллбэком на локальный кеш при сбоях сети */
+/** Загрузить записи стены с Core (`wall-list`) с фоллбэком на локальный кеш при сбоях сети */
 export async function fetchWallComments(profileId: string): Promise<WallComment[]> {
   try {
     const res = await callCommunity<{ comments: WallComment[] }>({ action: 'wall-list', profileId })
