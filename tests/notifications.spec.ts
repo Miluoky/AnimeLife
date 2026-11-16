@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { coreActionOk, mockCoreAction, mockCoreSession, mockServices } from './mocks'
+import { reveal } from './reveal'
 
 /** Вошли как Аня; POST /api/core/action отвечает по действию, все вызовы складываются в sent. */
 async function signedIn(page: Page, reply: (body: Record<string, unknown>) => unknown) {
@@ -16,14 +17,11 @@ test.beforeEach(async ({ page }) => {
   await mockServices(page)
 })
 
-/** Комментарии и опенинги монтируются, когда секция рядом с экраном. Первая прокрутка
- * раскрывает блок выше и удлиняет страницу, поэтому листаем, пока блок не появится. */
+/** Комментарии за DeferNear: листаем до монтажа, затем доводим блок в кадр. */
 async function revealComments(page: Page) {
   const block = page.getByRole('region', { name: 'Комментарии' })
-  for (let i = 0; i < 16 && (await block.count()) === 0; i++) {
-    await page.evaluate(() => window.scrollBy(0, Math.max(900, window.innerHeight)))
-    await page.waitForTimeout(60)
-  }
+  await reveal(page, block)
+  await block.scrollIntoViewIfNeeded()
 }
 
 test('обсуждение: ответ встаёт под комментарием, «Ответить» отправляет replyTo', async ({ page }) => {
@@ -71,15 +69,17 @@ test('комментарии: с матом виден автору «на пр�
       : coreActionOk(b),
   )
   await page.goto('/anime/1#comments')
-  await revealComments(page)
   const block = page.getByRole('region', { name: 'Комментарии' })
-  await expect(block.getByText('Пока никто не написал')).toBeVisible()
-  await expect(block).toBeInViewport()
+  // Eager-mount по hash + якорь; reveal — запасной путь, если DeferNear ещё не открылся.
+  await revealComments(page)
+  await expect(block.getByText('Пока никто не написал')).toBeVisible({ timeout: 8_000 })
+  // Весь section на phone выше экрана — проверяем пересечение, не «целиком в кадре».
+  await expect(block).toBeInViewport({ ratio: 0.05, timeout: 8_000 })
   await block.getByRole('textbox', { name: 'Комментарий к тайтлу' }).fill('ну и финал, блин')
   await block.getByRole('checkbox', { name: 'Мне есть 16 лет' }).check()
   await block.getByRole('button', { name: 'Отправить' }).click()
   await expect(block.locator('#c-c5')).toContainText('на проверке')
-  await expect(page.getByText('пока его не проверит модератор')).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('пока его не проверит модератор', { timeout: 4_000 })
 })
 
 test('колокольчик: число новых, список уведомлений и «прочитано» при открытии', async ({ page }) => {

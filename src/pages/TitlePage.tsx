@@ -222,10 +222,22 @@ function Scores({ stats }: { stats: ScoreStats }) {
 const RANGE = 100
 const CHUNK = 24
 
-/** Ниже первого экрана: монтируем виджет только когда секция почти в зоне видимости. */
-function DeferNear({ children, minHeight = 280 }: { children: ReactNode; minHeight?: number }) {
+/** Ниже первого экрана: монтируем виджет только когда секция почти в зоне видимости.
+ * `eager` — сразу (deep-link `#comments` / `#c-…`), иначе якорь не к чему скроллить. */
+function DeferNear({
+  children,
+  minHeight = 280,
+  eager = false,
+}: {
+  children: ReactNode
+  minHeight?: number
+  eager?: boolean
+}) {
   const box = useRef<HTMLDivElement>(null)
-  const [near, setNear] = useState(false)
+  const [near, setNear] = useState(eager)
+  useEffect(() => {
+    if (eager) setNear(true)
+  }, [eager])
   useEffect(() => {
     const el = box.current
     if (!el || near) return
@@ -334,6 +346,8 @@ export default function TitlePage() {
   )
   const navigate = useNavigate()
   const location = useLocation()
+  // Deep-link из TG/уведомлений: блок с комментариями нельзя оставлять за DeferNear.
+  const eagerComments = location.hash === '#comments' || location.hash.startsWith('#c-')
   usePageMeta(info && titlePageTitle(info), info && titlePageDescription(info), loaded?.posterUrl)
   useNoIndex(location.pathname.startsWith('/hentai'))
 
@@ -912,7 +926,7 @@ export default function TitlePage() {
           </Suspense>
         )}
 
-        <DeferNear minHeight={480}>
+        <DeferNear minHeight={480} eager={eagerComments}>
           {!result.value?.demo && <WatchOrder animeId={anime.id} />}
 
           {!result.value?.demo && (

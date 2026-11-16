@@ -160,14 +160,17 @@ export default function EpisodeComments({
   // Ссылка из уведомления (#c-<id>): прокручиваем к комментарию и подсвечиваем его.
   // Кнопка «Обсудить» из Telegram-канала (#comments): прокручиваем к обсуждению, когда оно загрузилось.
   useEffect(() => {
-    if (items && location.hash === '#comments') document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // auto: deep-link должен попасть в якорь сразу (smooth на phone CI часто не успевает).
+    if (items && location.hash === '#comments') {
+      document.getElementById('comments')?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }
     const id = location.hash.startsWith('#c-') ? location.hash.slice(3) : ''
     if (!items || !id) return
     const el = document.getElementById(`c-${id}`)
     if (!el) return
     el.classList.add('comment--target')
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [items])
+    el.scrollIntoView({ behavior: 'auto', block: 'center' })
+  }, [items, location.hash])
 
   const startReply = (c: EpisodeComment) => {
     setReplyTo(c)
